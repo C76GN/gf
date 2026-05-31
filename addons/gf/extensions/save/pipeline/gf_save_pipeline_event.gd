@@ -127,16 +127,16 @@ func to_dict() -> Dictionary:
 ## [br]
 ## @schema data: Dictionary，可包含 stage、severity、scope_key、source_key、node_path、message、payload 与 timestamp_msec。
 static func from_dict(data: Dictionary) -> GFSavePipelineEvent:
-	var event := GFSavePipelineEvent.new()
-	event.stage = StringName(data.get("stage", &""))
-	event.severity = StringName(data.get("severity", &"info"))
-	event.scope_key = StringName(data.get("scope_key", &""))
-	event.source_key = StringName(data.get("source_key", &""))
-	event.node_path = String(data.get("node_path", ""))
-	event.message = String(data.get("message", ""))
-	var payload_data := data.get("payload", {}) as Dictionary
-	event.payload = payload_data.duplicate(true) if payload_data != null else {}
-	event.timestamp_msec = int(data.get("timestamp_msec", 0))
+	var event: GFSavePipelineEvent = GFSavePipelineEvent.new()
+	event.stage = GFVariantData.get_option_string_name(data, "stage")
+	event.severity = GFVariantData.get_option_string_name(data, "severity", &"info")
+	event.scope_key = GFVariantData.get_option_string_name(data, "scope_key")
+	event.source_key = GFVariantData.get_option_string_name(data, "source_key")
+	event.node_path = GFVariantData.get_option_string(data, "node_path")
+	event.message = GFVariantData.get_option_string(data, "message")
+	var payload_data: Dictionary = GFVariantData.get_option_dictionary(data, "payload")
+	event.payload = payload_data.duplicate(true)
+	event.timestamp_msec = GFVariantData.get_option_int(data, "timestamp_msec")
 	return event
 
 
@@ -146,18 +146,20 @@ func _apply_scope(scope: Object) -> void:
 	if scope == null:
 		return
 	if scope.has_method("get_scope_key"):
-		scope_key = StringName(scope.call("get_scope_key"))
+		scope_key = GFVariantData.to_string_name(scope.call("get_scope_key"))
 	if scope is Node:
-		node_path = _get_node_path(scope as Node)
+		var scope_node: Node = scope
+		node_path = _get_node_path(scope_node)
 
 
 func _apply_source(source: Object) -> void:
 	if source == null:
 		return
 	if source.has_method("get_source_key"):
-		source_key = StringName(source.call("get_source_key"))
+		source_key = GFVariantData.to_string_name(source.call("get_source_key"))
 	if source is Node:
-		node_path = _get_node_path(source as Node)
+		var source_node: Node = source
+		node_path = _get_node_path(source_node)
 
 
 func _get_node_path(node: Node) -> String:

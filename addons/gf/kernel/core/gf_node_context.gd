@@ -44,6 +44,11 @@ enum ScopeMode {
 }
 
 
+# --- 常量 ---
+
+const _GF_ASYNC_CALL_SCRIPT = preload("res://addons/gf/kernel/core/gf_async_call.gd")
+
+
 # --- 导出变量 ---
 
 ## 当前节点上下文的作用域模式。
@@ -107,19 +112,19 @@ func _enter_tree() -> void:
 	_setup_architecture()
 	if _owns_architecture:
 		_is_context_installing = true
-		var context_architecture := _architecture
-		var parent_ready := await _wait_for_parent_architecture_ready(context_architecture)
+		var context_architecture: GFArchitecture = _architecture
+		var parent_ready: bool = await _wait_for_parent_architecture_ready(context_architecture)
 		if not parent_ready:
 			_is_context_installing = false
 			return
 		if not _is_owned_architecture_current(context_architecture):
 			_is_context_installing = false
 			return
-		await install(context_architecture)
+		install(context_architecture)
 		if not _is_owned_architecture_current(context_architecture):
 			_is_context_installing = false
 			return
-		await install_bindings(context_architecture.create_binder())
+		install_bindings(context_architecture.create_binder())
 		if not _is_owned_architecture_current(context_architecture):
 			_is_context_installing = false
 			return
@@ -129,7 +134,10 @@ func _enter_tree() -> void:
 	elif _architecture == null:
 		_fail_context("未找到可继承的架构。")
 	else:
-		_watch_inherited_architecture_ready(_architecture, _context_lifecycle_serial)
+		_GF_ASYNC_CALL_SCRIPT.run_detached(
+			Callable(self, &"_watch_inherited_architecture_ready"),
+			[_architecture, _context_lifecycle_serial]
+		)
 
 
 func _process(delta: float) -> void:
@@ -207,7 +215,7 @@ func initialize_context() -> GFArchitecture:
 	if _is_context_ready:
 		return _architecture
 
-	var context_architecture := _architecture
+	var context_architecture: GFArchitecture = _architecture
 	while _is_context_installing:
 		if not is_inside_tree():
 			return null
@@ -217,7 +225,7 @@ func initialize_context() -> GFArchitecture:
 
 	if not _is_owned_architecture_current(context_architecture):
 		return null
-	var parent_ready := await _wait_for_parent_architecture_ready(context_architecture)
+	var parent_ready: bool = await _wait_for_parent_architecture_ready(context_architecture)
 	if not parent_ready:
 		return null
 	if not _is_owned_architecture_current(context_architecture):
@@ -235,15 +243,15 @@ func initialize_context() -> GFArchitecture:
 ## [br]
 ## @return 当前上下文架构；上下文失效时返回 null。
 func wait_until_ready() -> GFArchitecture:
-	var start_msec := Time.get_ticks_msec()
+	var start_msec: int = Time.get_ticks_msec()
 	while _architecture != null and not _architecture.is_inited():
 		if not is_inside_tree():
 			return null
-		var waiting_architecture := _architecture
+		var waiting_architecture: GFArchitecture = _architecture
 		if waiting_architecture.has_initialization_failed():
 			_fail_context(_get_architecture_failure_reason(waiting_architecture, "上下文架构初始化失败。"))
 			return null
-		var timeout_reason := _get_wait_timeout_reason(start_msec, "等待上下文初始化超时。")
+		var timeout_reason: String = _get_wait_timeout_reason(start_msec, "等待上下文初始化超时。")
 		if not timeout_reason.is_empty():
 			_fail_context(timeout_reason)
 			return null
@@ -369,7 +377,7 @@ func inject_node_tree(node: Node) -> void:
 # --- 私有/辅助方法 ---
 
 func _setup_architecture() -> void:
-	var parent_architecture := _find_parent_architecture()
+	var parent_architecture: GFArchitecture = _find_parent_architecture()
 
 	match scope_mode:
 		ScopeMode.INHERITED:
@@ -387,7 +395,7 @@ func _setup_architecture() -> void:
 
 
 func _initialize_owned_architecture(architecture_instance: GFArchitecture = null) -> void:
-	var initializing_architecture := architecture_instance
+	var initializing_architecture: GFArchitecture = architecture_instance
 	if initializing_architecture == null:
 		initializing_architecture = _architecture
 	if initializing_architecture == null:
@@ -402,7 +410,7 @@ func _initialize_owned_architecture(architecture_instance: GFArchitecture = null
 
 func _watch_inherited_architecture_ready(inherited_architecture: GFArchitecture, lifecycle_serial: int) -> void:
 	await get_tree().process_frame
-	var start_msec := Time.get_ticks_msec()
+	var start_msec: int = Time.get_ticks_msec()
 	while _is_inherited_architecture_current(inherited_architecture, lifecycle_serial):
 		if inherited_architecture.is_inited():
 			_mark_context_ready(inherited_architecture)
@@ -410,7 +418,7 @@ func _watch_inherited_architecture_ready(inherited_architecture: GFArchitecture,
 		if inherited_architecture.has_initialization_failed():
 			_fail_context(_get_architecture_failure_reason(inherited_architecture, "上下文架构初始化失败。"))
 			return
-		var timeout_reason := _get_wait_timeout_reason(start_msec, "等待上下文初始化超时。")
+		var timeout_reason: String = _get_wait_timeout_reason(start_msec, "等待上下文初始化超时。")
 		if not timeout_reason.is_empty():
 			_fail_context(timeout_reason)
 			return
@@ -418,21 +426,21 @@ func _watch_inherited_architecture_ready(inherited_architecture: GFArchitecture,
 
 
 func _wait_for_parent_architecture_ready(architecture_instance: GFArchitecture = null) -> bool:
-	var scoped_architecture := architecture_instance
+	var scoped_architecture: GFArchitecture = architecture_instance
 	if scoped_architecture == null:
 		scoped_architecture = _architecture
 	if scoped_architecture == null:
 		return true
 
-	var parent_architecture := scoped_architecture.get_parent_architecture()
-	var start_msec := Time.get_ticks_msec()
+	var parent_architecture: GFArchitecture = scoped_architecture.get_parent_architecture()
+	var start_msec: int = Time.get_ticks_msec()
 	while parent_architecture != null and not parent_architecture.is_inited():
 		if not _is_owned_architecture_current(scoped_architecture):
 			return false
 		if parent_architecture.has_initialization_failed():
 			_fail_context(_get_architecture_failure_reason(parent_architecture, "父级架构初始化失败。"))
 			return false
-		var timeout_reason := _get_wait_timeout_reason(start_msec, "等待父级架构初始化超时。")
+		var timeout_reason: String = _get_wait_timeout_reason(start_msec, "等待父级架构初始化超时。")
 		if not timeout_reason.is_empty():
 			_fail_context(timeout_reason)
 			return false
@@ -444,11 +452,11 @@ func _wait_for_parent_architecture_ready(architecture_instance: GFArchitecture =
 
 
 func _find_parent_architecture() -> GFArchitecture:
-	var current_node := get_parent()
+	var current_node: Node = get_parent()
 	while current_node != null:
 		if current_node is GFNodeContext:
-			var parent_context := current_node as GFNodeContext
-			var context_architecture := parent_context.get_architecture()
+			var parent_context: GFNodeContext = current_node
+			var context_architecture: GFArchitecture = parent_context.get_architecture()
 			if context_architecture != null:
 				return context_architecture
 		current_node = current_node.get_parent()
@@ -467,7 +475,7 @@ func _should_tick_owned_architecture() -> bool:
 func _get_wait_timeout_reason(start_msec: int, reason: String) -> String:
 	if context_wait_timeout_seconds <= 0.0:
 		return ""
-	var elapsed_msec := Time.get_ticks_msec() - start_msec
+	var elapsed_msec: int = Time.get_ticks_msec() - start_msec
 	if elapsed_msec >= int(context_wait_timeout_seconds * 1000.0):
 		return reason
 	return ""

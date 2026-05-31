@@ -6,6 +6,8 @@ extends RefCounted
 
 # --- 常量 ---
 
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
+
 ## 项目启动 Installer 列表设置。
 ## [br]
 ## @api framework_internal
@@ -18,7 +20,7 @@ const INSTALLERS_SETTING: String = "gf/project/installers"
 ## @api framework_internal
 ## [br]
 ## @layer kernel/editor
-const INSTALLERS_DEFAULT := []
+const INSTALLERS_DEFAULT: Array[String] = []
 
 ## Installer 错误是否中断初始化设置。
 ## [br]
@@ -120,7 +122,7 @@ const GFExtensionSettingsBase = preload("res://addons/gf/kernel/extension/gf_ext
 ## [br]
 ## @layer kernel/editor
 static func ensure_all() -> void:
-	var should_save := false
+	var should_save: bool = false
 	if _ensure_default(INSTALLERS_SETTING, INSTALLERS_DEFAULT):
 		should_save = true
 	if _ensure_default(FAIL_ON_INSTALLER_ERROR_SETTING, FAIL_ON_INSTALLER_ERROR_DEFAULT):
@@ -145,7 +147,7 @@ static func ensure_all() -> void:
 	_register_property_info()
 	GFExtensionSettingsBase.register_property_info()
 	if should_save:
-		ProjectSettings.save()
+		var _save_result_150: Variant = ProjectSettings.save()
 
 
 ## 获取 GF 访问器输出路径。
@@ -156,7 +158,7 @@ static func ensure_all() -> void:
 ## [br]
 ## @return GF 访问器输出路径。
 static func get_access_output_path() -> String:
-	return String(ProjectSettings.get_setting(ACCESS_OUTPUT_SETTING, ACCESS_OUTPUT_DEFAULT))
+	return _GF_VARIANT_ACCESS_SCRIPT.to_text(ProjectSettings.get_setting(ACCESS_OUTPUT_SETTING, ACCESS_OUTPUT_DEFAULT))
 
 
 ## 获取项目访问器输出路径。
@@ -167,7 +169,7 @@ static func get_access_output_path() -> String:
 ## [br]
 ## @return 项目访问器输出路径。
 static func get_project_access_output_path() -> String:
-	return String(ProjectSettings.get_setting(PROJECT_ACCESS_OUTPUT_SETTING, PROJECT_ACCESS_OUTPUT_DEFAULT))
+	return _GF_VARIANT_ACCESS_SCRIPT.to_text(ProjectSettings.get_setting(PROJECT_ACCESS_OUTPUT_SETTING, PROJECT_ACCESS_OUTPUT_DEFAULT))
 
 
 # --- 私有/辅助方法 ---

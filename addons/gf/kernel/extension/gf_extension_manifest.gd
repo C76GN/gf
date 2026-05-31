@@ -30,6 +30,8 @@ const KIND_STANDARD: String = "standard"
 ## @api public
 const KIND_EXTENSION: String = "extension"
 
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
+
 
 # --- 公共变量 ---
 
@@ -158,32 +160,41 @@ static func from_dictionary(
 	extension_root_path: String = "",
 	manifest_source_path: String = ""
 ) -> GFExtensionManifest:
-	var manifest := GFExtensionManifest.new()
-	manifest.id = String(data.get("id", ""))
-	manifest.display_name = String(data.get("display_name", data.get("name", "")))
-	manifest.version = String(data.get("version", ""))
-	manifest.extension_version = String(data.get("extension_version", manifest.version))
-	manifest.kind = String(data.get("kind", KIND_EXTENSION)).strip_edges()
+	var manifest: GFExtensionManifest = GFExtensionManifest.new()
+	manifest.id = _GF_VARIANT_ACCESS_SCRIPT.get_option_string(data, "id")
+	manifest.display_name = _GF_VARIANT_ACCESS_SCRIPT.get_option_string(
+		data,
+		"display_name",
+		_GF_VARIANT_ACCESS_SCRIPT.get_option_string(data, "name")
+	)
+	manifest.version = _GF_VARIANT_ACCESS_SCRIPT.get_option_string(data, "version")
+	manifest.extension_version = _GF_VARIANT_ACCESS_SCRIPT.get_option_string(data, "extension_version", manifest.version)
+	manifest.kind = _GF_VARIANT_ACCESS_SCRIPT.get_option_string(data, "kind", KIND_EXTENSION).strip_edges()
 	if manifest.kind.is_empty():
 		manifest.kind = KIND_EXTENSION
 	manifest.root_path = extension_root_path
-	manifest.description = String(data.get("description", data.get("summary", "")))
-	manifest.dependencies = _to_string_array(data.get("dependencies", []))
-	manifest.installer_paths = _to_string_array(data.get("installer_paths", []))
-	manifest.editor_action_paths = _to_string_array(data.get("editor_action_paths", []))
-	manifest.editor_dock_paths = _to_string_array(data.get("editor_dock_paths", []))
-	manifest.editor_dock_order = int(data.get("editor_dock_order", manifest.editor_dock_order))
-	manifest.editor_dock_short_label = String(data.get("editor_dock_short_label", "")).strip_edges()
-	manifest.editor_inspector_paths = _to_string_array(data.get("editor_inspector_paths", []))
-	manifest.import_plugin_paths = _to_string_array(data.get("import_plugin_paths", []))
-	manifest.export_plugin_paths = _to_string_array(data.get("export_plugin_paths", []))
-	manifest.gltf_document_extension_paths = _to_string_array(data.get("gltf_document_extension_paths", []))
-	manifest.access_generator_extension_paths = _to_string_array(data.get("access_generator_extension_paths", []))
-	manifest.tags = _to_string_array(data.get("tags", []))
-	manifest.enabled_by_default = bool(data.get(
+	manifest.description = _GF_VARIANT_ACCESS_SCRIPT.get_option_string(
+		data,
+		"description",
+		_GF_VARIANT_ACCESS_SCRIPT.get_option_string(data, "summary")
+	)
+	manifest.dependencies = _GF_VARIANT_ACCESS_SCRIPT.get_option_string_array(data, "dependencies")
+	manifest.installer_paths = _GF_VARIANT_ACCESS_SCRIPT.get_option_string_array(data, "installer_paths")
+	manifest.editor_action_paths = _GF_VARIANT_ACCESS_SCRIPT.get_option_string_array(data, "editor_action_paths")
+	manifest.editor_dock_paths = _GF_VARIANT_ACCESS_SCRIPT.get_option_string_array(data, "editor_dock_paths")
+	manifest.editor_dock_order = _GF_VARIANT_ACCESS_SCRIPT.get_option_int(data, "editor_dock_order", manifest.editor_dock_order)
+	manifest.editor_dock_short_label = _GF_VARIANT_ACCESS_SCRIPT.get_option_string(data, "editor_dock_short_label").strip_edges()
+	manifest.editor_inspector_paths = _GF_VARIANT_ACCESS_SCRIPT.get_option_string_array(data, "editor_inspector_paths")
+	manifest.import_plugin_paths = _GF_VARIANT_ACCESS_SCRIPT.get_option_string_array(data, "import_plugin_paths")
+	manifest.export_plugin_paths = _GF_VARIANT_ACCESS_SCRIPT.get_option_string_array(data, "export_plugin_paths")
+	manifest.gltf_document_extension_paths = _GF_VARIANT_ACCESS_SCRIPT.get_option_string_array(data, "gltf_document_extension_paths")
+	manifest.access_generator_extension_paths = _GF_VARIANT_ACCESS_SCRIPT.get_option_string_array(data, "access_generator_extension_paths")
+	manifest.tags = _GF_VARIANT_ACCESS_SCRIPT.get_option_string_array(data, "tags")
+	manifest.enabled_by_default = _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(
+		data,
 		"enabled_by_default",
 		manifest.kind == KIND_STANDARD or manifest.kind == KIND_EXTENSION
-	))
+	)
 	manifest.source_path = manifest_source_path
 	return manifest
 
@@ -199,17 +210,18 @@ static func from_json_file(path: String) -> GFExtensionManifest:
 	if path.is_empty():
 		return null
 
-	var file := FileAccess.open(path, FileAccess.READ)
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		return null
 
-	var text := file.get_as_text()
+	var text: String = file.get_as_text()
 	file.close()
 	var parsed: Variant = JSON.parse_string(text)
 	if not (parsed is Dictionary):
 		return null
 
-	return from_dictionary(parsed as Dictionary, path.get_base_dir(), path)
+	var parsed_dictionary: Dictionary = parsed
+	return from_dictionary(parsed_dictionary, path.get_base_dir(), path)
 
 
 ## 转换为字典。
@@ -290,7 +302,7 @@ func _append_resource_path_errors(
 	paths: Array[String]
 ) -> void:
 	for path: String in paths:
-		var normalized_path := path.strip_edges().simplify_path()
+		var normalized_path: String = path.strip_edges().simplify_path()
 		if normalized_path.is_empty():
 			errors.append("%s contains empty path" % property_name)
 			continue
@@ -302,20 +314,7 @@ func _append_resource_path_errors(
 
 
 func _path_is_under_root(path: String) -> bool:
-	var normalized_root := root_path.strip_edges().simplify_path().trim_suffix("/")
+	var normalized_root: String = root_path.strip_edges().simplify_path().trim_suffix("/")
 	if normalized_root.is_empty():
 		return true
 	return path == normalized_root or path.begins_with(normalized_root + "/")
-
-
-static func _to_string_array(value: Variant) -> Array[String]:
-	var result: Array[String] = []
-	if value is PackedStringArray:
-		for item: String in value:
-			result.append(item)
-		return result
-	if value is Array:
-		for item: Variant in value:
-			if typeof(item) == TYPE_STRING or item is StringName:
-				result.append(String(item))
-	return result

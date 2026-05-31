@@ -61,7 +61,7 @@ func tick(delta: float) -> void:
 ## [br]
 ## @return 成功消费返回 true。
 func consume(amount: float = 1.0) -> bool:
-	var safe_amount := maxf(amount, 0.0)
+	var safe_amount: float = maxf(amount, 0.0)
 	if _tokens < safe_amount:
 		return false
 	_tokens -= safe_amount

@@ -66,15 +66,15 @@ func _export_begin(
 	_path: String,
 	_flags: int
 ) -> void:
-	if not bool(ProjectSettings.get_setting(ENABLED_SETTING, false)):
+	if not GFVariantData.to_bool(ProjectSettings.get_setting(ENABLED_SETTING, false)):
 		return
 
 	_capture_previous_settings()
-	var extra_metadata := ProjectSettings.get_setting(EXTRA_METADATA_SETTING, {}) as Dictionary
-	GFBuildInfo.write_git_metadata_to_project_settings(
+	var extra_metadata: Dictionary = GFVariantData.to_dictionary(ProjectSettings.get_setting(EXTRA_METADATA_SETTING, {}))
+	var _write_git_metadata_to_project_settings_result_74: Variant = GFBuildInfo.write_git_metadata_to_project_settings(
 		"res://",
-		extra_metadata.duplicate(true) if extra_metadata != null else {},
-		bool(ProjectSettings.get_setting(SAVE_PROJECT_SETTINGS_SETTING, false))
+		extra_metadata.duplicate(true),
+		GFVariantData.to_bool(ProjectSettings.get_setting(SAVE_PROJECT_SETTINGS_SETTING, false))
 	)
 	_export_wrote_metadata = true
 
@@ -83,10 +83,10 @@ func _export_end() -> void:
 	if not _export_wrote_metadata:
 		return
 
-	if bool(ProjectSettings.get_setting(RESTORE_PREVIOUS_SETTING, true)):
+	if GFVariantData.to_bool(ProjectSettings.get_setting(RESTORE_PREVIOUS_SETTING, true)):
 		_restore_previous_settings()
-		if bool(ProjectSettings.get_setting(SAVE_PROJECT_SETTINGS_SETTING, false)):
-			ProjectSettings.save()
+		if GFVariantData.to_bool(ProjectSettings.get_setting(SAVE_PROJECT_SETTINGS_SETTING, false)):
+			var _save_result_89: Variant = ProjectSettings.save()
 
 	_previous_settings.clear()
 	_had_previous_setting.clear()
@@ -106,7 +106,7 @@ func _capture_previous_settings() -> void:
 
 func _restore_previous_settings() -> void:
 	for setting_path: String in _BUILD_SETTING_PATHS:
-		if bool(_had_previous_setting.get(setting_path, false)):
-			ProjectSettings.set_setting(setting_path, _previous_settings.get(setting_path))
+		if GFVariantData.get_option_bool(_had_previous_setting, setting_path, false):
+			ProjectSettings.set_setting(setting_path, GFVariantData.get_option_value(_previous_settings, setting_path))
 		else:
 			ProjectSettings.clear(setting_path)

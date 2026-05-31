@@ -82,10 +82,6 @@ signal state_event_handled(event_id: StringName, handler_state: GFNodeState, pay
 
 # --- 常量 ---
 
-const _GF_NODE_STATE_BASE = preload("res://addons/gf/standard/state_machine/node/gf_node_state.gd")
-const _GF_NODE_STATE_MACHINE_VALIDATOR_PATH: String = "res://addons/gf/standard/state_machine/node/gf_node_state_machine_validator.gd"
-
-
 # --- 导出变量 ---
 
 ## 状态组注册名。为空时使用节点名称。
@@ -153,16 +149,18 @@ var _is_ready: bool = false
 var _reload_queued: bool = false
 var _transition_serial: int = 0
 var _is_exiting_current_state: bool = false
-var _queued_exit_transition: Dictionary = {}
+var _has_queued_exit_transition: bool = false
+var _queued_exit_state_name: StringName = &""
+var _queued_exit_args: Dictionary = {}
 
 
 # --- Godot 生命周期方法 ---
 
 func _enter_tree() -> void:
 	if not child_entered_tree.is_connected(_on_child_entered_tree):
-		child_entered_tree.connect(_on_child_entered_tree)
+		var _child_entered_connect_error: int = child_entered_tree.connect(_on_child_entered_tree)
 	if not child_exiting_tree.is_connected(_on_child_exiting_tree):
-		child_exiting_tree.connect(_on_child_exiting_tree)
+		var _child_exiting_connect_error: int = child_exiting_tree.connect(_on_child_exiting_tree)
 	_queue_configuration_warning_update()
 
 
@@ -171,7 +169,8 @@ func _ready() -> void:
 		_queue_configuration_warning_update()
 		return
 
-	if get_parent() != null and get_parent().has_method("transition_group_to"):
+	var parent_node: Node = get_parent()
+	if parent_node is GFNodeStateMachine:
 		return
 	_is_ready = true
 	initialize()
@@ -192,12 +191,8 @@ func _exit_tree() -> void:
 # --- Godot 回调方法 ---
 
 func _get_configuration_warnings() -> PackedStringArray:
-	var validator: Variant = load(_GF_NODE_STATE_MACHINE_VALIDATOR_PATH)
-	if validator == null:
-		return PackedStringArray()
-
-	var report := validator.validate_group(self) as GFValidationReport
-	var warnings: PackedStringArray = validator.make_configuration_warnings(report)
+	var report: GFValidationReport = GFNodeStateMachineValidator.validate_group(self)
+	var warnings: PackedStringArray = GFNodeStateMachineValidator.make_configuration_warnings(report)
 	return warnings
 
 
@@ -224,42 +219,39 @@ func get_group_name() -> StringName:
 ## [br]
 ## @schema args: 状态切换参数 Dictionary；键和值由调用方约定。
 func transition_to(next_state_name: StringName, args: Dictionary = {}) -> void:
-	if not _states.has(next_state_name):
+	var next_state: GFNodeState = _get_registered_state(next_state_name)
+	if next_state == null:
 		_warn_missing_state(next_state_name)
 		return
 
 	if _is_exiting_current_state:
 		_transition_serial += 1
-		_queued_exit_transition = {
-			"state_name": next_state_name,
-			"args": args,
-		}
+		_queue_exit_transition(next_state_name, args)
 		return
 
 	_transition_serial += 1
-	var current_serial := _transition_serial
-	var next_state := _states[next_state_name] as GFNodeState
-	var previous_state := _current_state
+	var current_serial: int = _transition_serial
+	var previous_state: GFNodeState = _current_state
 	var previous_name: StringName = &""
 	if previous_state != null:
-		previous_name = previous_state.call("get_state_name")
+		previous_name = previous_state.get_state_name()
 	if not _can_transition(previous_state, next_state, next_state_name, previous_name, args):
 		return
 	if previous_state != null:
 		_is_exiting_current_state = true
-		previous_state.call("exit", next_state_name, args)
+		previous_state.exit(next_state_name, args)
 		_is_exiting_current_state = false
-		var had_queued_transition := not _queued_exit_transition.is_empty()
+		var had_queued_transition: bool = _has_queued_exit_transition
 		if had_queued_transition:
-			var queued_transition := _take_queued_exit_transition(next_state_name, args)
-			next_state_name = queued_transition["state_name"]
-			args = queued_transition["args"]
+			var queued_transition: _QueuedExitTransition = _take_queued_exit_transition(next_state_name, args)
+			next_state_name = queued_transition._state_name
+			args = queued_transition._args
 			current_serial = _transition_serial
-			if not _states.has(next_state_name):
+			next_state = _get_registered_state(next_state_name)
+			if next_state == null:
 				_current_state = null
 				_warn_missing_state(next_state_name)
 				return
-			next_state = _states[next_state_name] as GFNodeState
 			if not _can_enter_state(next_state, previous_name, args):
 				_current_state = null
 				_emit_transition_blocked(previous_state, next_state_name, args, "enter_guard")
@@ -269,24 +261,24 @@ func transition_to(next_state_name: StringName, args: Dictionary = {}) -> void:
 		_is_exiting_current_state = true
 		_clear_stack(next_state_name, args)
 		_is_exiting_current_state = false
-		var had_stack_queued_transition := not _queued_exit_transition.is_empty()
+		var had_stack_queued_transition: bool = _has_queued_exit_transition
 		if had_stack_queued_transition:
-			var stack_queued_transition := _take_queued_exit_transition(next_state_name, args)
-			next_state_name = stack_queued_transition["state_name"]
-			args = stack_queued_transition["args"]
+			var stack_queued_transition: _QueuedExitTransition = _take_queued_exit_transition(next_state_name, args)
+			next_state_name = stack_queued_transition._state_name
+			args = stack_queued_transition._args
 			current_serial = _transition_serial
-			if not _states.has(next_state_name):
+			next_state = _get_registered_state(next_state_name)
+			if next_state == null:
 				_current_state = null
 				_warn_missing_state(next_state_name)
 				return
-			next_state = _states[next_state_name] as GFNodeState
 			if not _can_enter_state(next_state, previous_name, args):
 				_current_state = null
 				_emit_transition_blocked(previous_state, next_state_name, args, "enter_guard")
 				return
 
 	_current_state = next_state
-	_current_state.call("enter", previous_name, args)
+	_current_state.enter(previous_name, args)
 	_push_history(next_state_name)
 	if current_serial == _transition_serial and _current_state == next_state:
 		current_state_changed.emit(previous_state, _current_state)
@@ -302,7 +294,8 @@ func transition_to(next_state_name: StringName, args: Dictionary = {}) -> void:
 ## [br]
 ## @schema args: 状态切换参数 Dictionary；键和值由调用方约定。
 func push_state(next_state_name: StringName, args: Dictionary = {}) -> void:
-	if not _states.has(next_state_name):
+	var next_state: GFNodeState = _get_registered_state(next_state_name)
+	if next_state == null:
 		_warn_missing_state(next_state_name)
 		return
 
@@ -318,23 +311,18 @@ func push_state(next_state_name: StringName, args: Dictionary = {}) -> void:
 		push_warning("[GFNodeStateGroup] push_state 失败：状态栈已达到上限。")
 		return
 
-	var next_state := _states[next_state_name] as GFNodeState
 	if next_state == _current_state:
 		push_warning("[GFNodeStateGroup] push_state 失败：不能将当前状态再次压栈。")
 		return
 
-	var previous_state := _current_state
-	if not previous_state.has_method("pause"):
-		push_warning("[GFNodeStateGroup] push_state 失败：当前状态不支持 pause。")
-		return
-
-	var previous_name := previous_state.call("get_state_name") as StringName
+	var previous_state: GFNodeState = _current_state
+	var previous_name: StringName = previous_state.get_state_name()
 	if not _can_transition(previous_state, next_state, next_state_name, previous_name, args):
 		return
-	previous_state.call("pause", next_state_name, args)
+	previous_state.pause(next_state_name, args)
 	_state_stack.append(previous_state)
 	_current_state = next_state
-	_current_state.call("enter", previous_name, args)
+	_current_state.enter(previous_name, args)
 	_push_history(next_state_name)
 	current_state_changed.emit(previous_state, _current_state)
 
@@ -353,11 +341,11 @@ func pop_state(args: Dictionary = {}) -> bool:
 		return false
 
 	if _current_state == null:
-		var restore_state := _state_stack.pop_back()
-		_current_state = restore_state
-		if restore_state != null:
-			restore_state.call("resume", &"", args)
-			_push_history(restore_state.call("get_state_name") as StringName)
+		var fallback_restore_state: GFNodeState = _pop_stack_state()
+		_current_state = fallback_restore_state
+		if fallback_restore_state != null:
+			fallback_restore_state.resume(&"", args)
+			_push_history(fallback_restore_state.get_state_name())
 		current_state_changed.emit(null, _current_state)
 		return true
 
@@ -365,41 +353,39 @@ func pop_state(args: Dictionary = {}) -> bool:
 		push_warning("[GFNodeStateGroup] pop_state 失败：当前状态正在退出。")
 		return false
 
-	var previous_state := _current_state
-	var restore_state := _state_stack.pop_back()
-	if not restore_state.has_method("resume"):
-		push_warning("[GFNodeStateGroup] pop_state 失败：目标状态不支持 resume。")
-		_state_stack.append(restore_state)
+	var previous_state: GFNodeState = _current_state
+	var restore_state: GFNodeState = _pop_stack_state()
+	if restore_state == null:
 		return false
 
-	var previous_name := previous_state.call("get_state_name") as StringName
-	var restore_name := restore_state.call("get_state_name") as StringName
+	var previous_name: StringName = previous_state.get_state_name()
+	var restore_name: StringName = restore_state.get_state_name()
 	if not _can_transition(previous_state, restore_state, restore_name, previous_name, args):
 		_state_stack.append(restore_state)
 		return false
 
 	_transition_serial += 1
 	_is_exiting_current_state = true
-	previous_state.call("exit", restore_name, args)
+	previous_state.exit(restore_name, args)
 
-	if not _queued_exit_transition.is_empty():
-		var queued_transition := _take_queued_exit_transition(restore_name, args)
-		var queued_state_name := queued_transition["state_name"] as StringName
-		var queued_args := queued_transition["args"] as Dictionary
-		restore_state.call("exit", queued_state_name, queued_args)
+	if _has_queued_exit_transition:
+		var queued_transition: _QueuedExitTransition = _take_queued_exit_transition(restore_name, args)
+		var queued_state_name: StringName = queued_transition._state_name
+		var queued_args: Dictionary = queued_transition._args
+		restore_state.exit(queued_state_name, queued_args)
 
 		queued_transition = _take_queued_exit_transition(queued_state_name, queued_args)
-		queued_state_name = queued_transition["state_name"] as StringName
-		queued_args = queued_transition["args"] as Dictionary
+		queued_state_name = queued_transition._state_name
+		queued_args = queued_transition._args
 
 		_clear_stack(queued_state_name, queued_args)
 		queued_transition = _take_queued_exit_transition(queued_state_name, queued_args)
-		queued_state_name = queued_transition["state_name"] as StringName
-		queued_args = queued_transition["args"] as Dictionary
+		queued_state_name = queued_transition._state_name
+		queued_args = queued_transition._args
 
 		_is_exiting_current_state = false
 		_current_state = null
-		if not _states.has(queued_state_name):
+		if _get_registered_state(queued_state_name) == null:
 			_warn_missing_state(queued_state_name)
 			current_state_changed.emit(previous_state, _current_state)
 			return true
@@ -408,7 +394,7 @@ func pop_state(args: Dictionary = {}) -> bool:
 
 	_is_exiting_current_state = false
 	_current_state = restore_state
-	_current_state.call("resume", previous_name, args)
+	_current_state.resume(previous_name, args)
 	_push_history(restore_name)
 	current_state_changed.emit(previous_state, _current_state)
 	return true
@@ -420,20 +406,19 @@ func pop_state(args: Dictionary = {}) -> bool:
 ## [br]
 ## @param state: 状态节点。
 func add_state(state: GFNodeState) -> void:
-	if not _is_node_state(state):
+	if state == null:
 		return
 
-	var key := state.call("get_state_name") as StringName
+	var key: StringName = state.get_state_name()
 	if _states.has(key):
 		push_warning("[GFNodeStateGroup] 状态已存在，已忽略重复添加：%s" % key)
 		return
 
-	state.call("setup", _get_machine(), self)
-	var transition_signal: Signal = state.get("requested_transition")
-	if not transition_signal.is_connected(_on_state_requested_transition):
-		transition_signal.connect(_on_state_requested_transition)
+	state.setup(_get_machine(), self)
+	if not state.requested_transition.is_connected(_on_state_requested_transition):
+		var _transition_connect_error: int = state.requested_transition.connect(_on_state_requested_transition)
 	_states[key] = state
-	state.call("initialize")
+	state.initialize()
 	state_added.emit(state)
 
 
@@ -445,22 +430,20 @@ func add_state(state: GFNodeState) -> void:
 ## [br]
 ## @return: 成功移除已注册状态时返回 true。
 func remove_state(state: GFNodeState) -> bool:
-	if not _is_node_state(state):
+	if state == null:
 		return false
 
-	var key := state.call("get_state_name") as StringName
+	var key: StringName = state.get_state_name()
 	if not _states.has(key):
 		return false
 	if _current_state == state:
 		_remove_current_state(state, key)
 	else:
 		_remove_from_stack(state)
-	var transition_signal: Signal = state.get("requested_transition")
-	if transition_signal.is_connected(_on_state_requested_transition):
-		transition_signal.disconnect(_on_state_requested_transition)
-	if state.has_method("unregister_owner_events"):
-		state.call("unregister_owner_events")
-	_states.erase(key)
+	if state.requested_transition.is_connected(_on_state_requested_transition):
+		state.requested_transition.disconnect(_on_state_requested_transition)
+	state.unregister_owner_events()
+	var _erased_state: bool = _states.erase(key)
 	state_removed.emit(state)
 	return true
 
@@ -473,7 +456,7 @@ func remove_state(state: GFNodeState) -> bool:
 ## [br]
 ## @return: 注册名对应的状态节点；不存在时返回 null。
 func get_state(query_state_name: StringName) -> GFNodeState:
-	return _states.get(query_state_name) as GFNodeState
+	return _get_registered_state(query_state_name)
 
 
 ## 获取当前状态。
@@ -493,7 +476,7 @@ func get_current_state() -> GFNodeState:
 func get_current_state_name() -> StringName:
 	if _current_state == null:
 		return &""
-	return _current_state.call("get_state_name") as StringName
+	return _current_state.get_state_name()
 
 
 ## 获取状态切换历史。
@@ -542,9 +525,9 @@ func get_blackboard() -> Dictionary:
 ## [br]
 ## @return: 有状态处理该事件时返回 true。
 func dispatch_state_event(event_id: StringName, payload: Variant = null) -> bool:
-	var candidates := _get_event_dispatch_candidates()
+	var candidates: Array[GFNodeState] = _get_event_dispatch_candidates()
 	for state: GFNodeState in candidates:
-		if state.has_method("handle_state_event") and bool(state.call("handle_state_event", event_id, payload)):
+		if state.handle_state_event(event_id, payload):
 			state_event_handled.emit(event_id, state, payload)
 			return true
 	return false
@@ -562,7 +545,7 @@ func is_in_state(query_state_name: StringName) -> bool:
 		return true
 
 	for state: GFNodeState in _state_stack:
-		if state.call("get_state_name") == query_state_name:
+		if state.get_state_name() == query_state_name:
 			return true
 
 	return false
@@ -606,7 +589,7 @@ func stop() -> void:
 	_state_stack.clear()
 	_history.clear()
 	_is_exiting_current_state = false
-	_queued_exit_transition.clear()
+	_clear_queued_exit_transition()
 
 
 ## 获取所有状态。
@@ -647,15 +630,13 @@ func get_state_snapshot() -> Dictionary:
 ## [br]
 ## @param free_states: 为 true 时同时释放已移除的状态节点。
 func clear_states(free_states: bool = false) -> void:
-	var states := get_states()
+	var states: Array[GFNodeState] = get_states()
 	stop()
 	_states.clear()
 	for state: GFNodeState in states:
-		var transition_signal: Signal = state.get("requested_transition")
-		if transition_signal.is_connected(_on_state_requested_transition):
-			transition_signal.disconnect(_on_state_requested_transition)
-		if state.has_method("unregister_owner_events"):
-			state.call("unregister_owner_events")
+		if state.requested_transition.is_connected(_on_state_requested_transition):
+			state.requested_transition.disconnect(_on_state_requested_transition)
+		state.unregister_owner_events()
 		state_removed.emit(state)
 		if free_states:
 			_queue_free_detached(state)
@@ -671,8 +652,9 @@ func reload_states_from_children() -> void:
 
 	clear_states()
 	for child: Node in get_children():
-		if _is_node_state(child):
-			add_state(child as GFNodeState)
+		var child_state: GFNodeState = _node_as_state(child)
+		if child_state != null:
+			add_state(child_state)
 
 
 # --- 框架内部方法 ---
@@ -710,7 +692,7 @@ func _get_machine() -> Object:
 func _queue_free_detached(node: Node) -> void:
 	if not is_instance_valid(node):
 		return
-	var parent := node.get_parent()
+	var parent: Node = node.get_parent()
 	if parent != null:
 		parent.remove_child(node)
 	if not node.is_queued_for_deletion():
@@ -721,8 +703,8 @@ func _get_event_dispatch_candidates() -> Array[GFNodeState]:
 	var result: Array[GFNodeState] = []
 	if _current_state != null:
 		result.append(_current_state)
-	for index in range(_state_stack.size() - 1, -1, -1):
-		var state := _state_stack[index] as GFNodeState
+	for index: int in range(_state_stack.size() - 1, -1, -1):
+		var state: GFNodeState = _get_stack_state_at(index)
 		if state != null and is_instance_valid(state):
 			result.append(state)
 	return result
@@ -731,8 +713,8 @@ func _get_event_dispatch_candidates() -> Array[GFNodeState]:
 func _get_stack_state_names() -> Array[StringName]:
 	var result: Array[StringName] = []
 	for state: GFNodeState in _state_stack:
-		if state != null and state.has_method("get_state_name"):
-			result.append(state.call("get_state_name") as StringName)
+		if state != null:
+			result.append(state.get_state_name())
 	return result
 
 
@@ -745,25 +727,62 @@ func _get_registered_state_names() -> Array[StringName]:
 
 func _setup_existing_states() -> void:
 	for state: GFNodeState in _states.values():
-		state.call("setup", _get_machine(), self)
+		state.setup(_get_machine(), self)
 
 
 func _exit_active_states_for_clear() -> void:
-	var current_state := _current_state
-	var stacked_states := _state_stack.duplicate()
+	var current_state: GFNodeState = _current_state
+	var stacked_states: Array[GFNodeState] = _copy_state_stack()
 	_is_exiting_current_state = true
-	if current_state != null and current_state.has_method("exit"):
-		current_state.call("exit", &"", {})
-	for state_variant: Variant in stacked_states:
-		var state := state_variant as GFNodeState
-		if state != null and state != current_state and state.has_method("exit"):
-			state.call("exit", &"", {})
+	if current_state != null:
+		current_state.exit(&"", {})
+	for state: GFNodeState in stacked_states:
+		if state != null and state != current_state:
+			state.exit(&"", {})
 	_is_exiting_current_state = false
-	_queued_exit_transition.clear()
+	_clear_queued_exit_transition()
 
 
 func _is_node_state(node: Node) -> bool:
-	return node is _GF_NODE_STATE_BASE
+	return _node_as_state(node) != null
+
+
+func _node_as_state(node: Node) -> GFNodeState:
+	if node is GFNodeState:
+		return node
+	return null
+
+
+func _get_registered_state(state_name: StringName) -> GFNodeState:
+	var state_value: Variant = GFVariantData.get_option_value(_states, state_name)
+	if state_value is GFNodeState:
+		return state_value
+	return null
+
+
+func _get_stack_state_at(index: int) -> GFNodeState:
+	if index < 0 or index >= _state_stack.size():
+		return null
+	var state_value: Variant = _state_stack[index]
+	if state_value is GFNodeState:
+		return state_value
+	return null
+
+
+func _pop_stack_state() -> GFNodeState:
+	if _state_stack.is_empty():
+		return null
+	var state_value: Variant = _state_stack.pop_back()
+	if state_value is GFNodeState:
+		return state_value
+	return null
+
+
+func _copy_state_stack() -> Array[GFNodeState]:
+	var result: Array[GFNodeState] = []
+	for state: GFNodeState in _state_stack:
+		result.append(state)
+	return result
 
 
 func _warn_missing_state(state_name: StringName) -> void:
@@ -787,15 +806,15 @@ func _can_transition(
 
 
 func _can_exit_state(state: GFNodeState, next_state_name: StringName, args: Dictionary) -> bool:
-	if state == null or not state.has_method("can_exit"):
+	if state == null:
 		return true
-	return bool(state.call("can_exit", next_state_name, args))
+	return state.can_exit(next_state_name, args)
 
 
 func _can_enter_state(state: GFNodeState, previous_state_name: StringName, args: Dictionary) -> bool:
-	if state == null or not state.has_method("can_enter"):
+	if state == null:
 		return true
-	return bool(state.call("can_enter", previous_state_name, args))
+	return state.can_enter(previous_state_name, args)
 
 
 func _emit_transition_blocked(from_state: GFNodeState, to_state_name: StringName, args: Dictionary, reason: String) -> void:
@@ -808,50 +827,56 @@ func _push_history(state_name: StringName) -> void:
 
 
 func _trim_history() -> void:
-	var max_size := maxi(history_max_size, 1)
+	var max_size: int = maxi(history_max_size, 1)
 	while _history.size() > max_size:
 		_history.pop_front()
 
 
 func _clear_stack(next_state_name: StringName, args: Dictionary) -> void:
 	while not _state_stack.is_empty():
-		var state := _state_stack.pop_back()
-		if state != null and is_instance_valid(state) and state.has_method("exit"):
-			state.call("exit", next_state_name, args)
+		var state: GFNodeState = _pop_stack_state()
+		if state != null and is_instance_valid(state):
+			state.exit(next_state_name, args)
 
 
-func _take_queued_exit_transition(default_state_name: StringName, default_args: Dictionary) -> Dictionary:
-	if _queued_exit_transition.is_empty():
-		return {
-			"state_name": default_state_name,
-			"args": default_args,
-		}
+func _queue_exit_transition(state_name: StringName, args: Dictionary) -> void:
+	_has_queued_exit_transition = true
+	_queued_exit_state_name = state_name
+	_queued_exit_args = args
 
-	var result := {
-		"state_name": _queued_exit_transition["state_name"] as StringName,
-		"args": _queued_exit_transition["args"] as Dictionary,
-	}
-	_queued_exit_transition.clear()
+
+func _clear_queued_exit_transition() -> void:
+	_has_queued_exit_transition = false
+	_queued_exit_state_name = &""
+	_queued_exit_args = {}
+
+
+func _take_queued_exit_transition(default_state_name: StringName, default_args: Dictionary) -> _QueuedExitTransition:
+	if not _has_queued_exit_transition:
+		return _QueuedExitTransition.new(default_state_name, default_args)
+
+	var result: _QueuedExitTransition = _QueuedExitTransition.new(_queued_exit_state_name, _queued_exit_args)
+	_clear_queued_exit_transition()
 	return result
 
 
 func _remove_current_state(state: GFNodeState, state_name: StringName) -> void:
-	var previous_state := _current_state
-	var restore_state := _peek_stack_restore_state(state)
-	var restore_name := &""
+	var previous_state: GFNodeState = _current_state
+	var restore_state: GFNodeState = _peek_stack_restore_state(state)
+	var restore_name: StringName = &""
 	if restore_state != null:
-		restore_name = restore_state.call("get_state_name") as StringName
+		restore_name = restore_state.get_state_name()
 
 	_transition_serial += 1
 	_is_exiting_current_state = true
-	state.call("exit", restore_name, {})
+	state.exit(restore_name, {})
 
-	if not _queued_exit_transition.is_empty():
-		var queued_transition := _take_queued_exit_transition(restore_name, {})
-		var queued_state_name := queued_transition["state_name"] as StringName
-		var queued_args := queued_transition["args"] as Dictionary
+	if _has_queued_exit_transition:
+		var queued_transition: _QueuedExitTransition = _take_queued_exit_transition(restore_name, {})
+		var queued_state_name: StringName = queued_transition._state_name
+		var queued_args: Dictionary = queued_transition._args
 		_current_state = null
-		if queued_state_name == state_name or not _states.has(queued_state_name):
+		if queued_state_name == state_name or _get_registered_state(queued_state_name) == null:
 			_is_exiting_current_state = false
 			_warn_missing_state(queued_state_name)
 			current_state_changed.emit(previous_state, _current_state)
@@ -859,11 +884,11 @@ func _remove_current_state(state: GFNodeState, state_name: StringName) -> void:
 		_clear_stack(queued_state_name, queued_args)
 
 		queued_transition = _take_queued_exit_transition(queued_state_name, queued_args)
-		queued_state_name = queued_transition["state_name"] as StringName
-		queued_args = queued_transition["args"] as Dictionary
+		queued_state_name = queued_transition._state_name
+		queued_args = queued_transition._args
 
 		_is_exiting_current_state = false
-		if queued_state_name == state_name or not _states.has(queued_state_name):
+		if queued_state_name == state_name or _get_registered_state(queued_state_name) == null:
 			_warn_missing_state(queued_state_name)
 			current_state_changed.emit(previous_state, _current_state)
 			return
@@ -873,15 +898,15 @@ func _remove_current_state(state: GFNodeState, state_name: StringName) -> void:
 	_is_exiting_current_state = false
 	_current_state = _pop_stack_restore_state(state)
 	if _current_state != null:
-		var restored_name := _current_state.call("get_state_name") as StringName
-		_current_state.call("resume", state_name, {})
+		var restored_name: StringName = _current_state.get_state_name()
+		_current_state.resume(state_name, {})
 		_push_history(restored_name)
 	current_state_changed.emit(previous_state, _current_state)
 
 
 func _peek_stack_restore_state(excluded_state: GFNodeState) -> GFNodeState:
-	for index in range(_state_stack.size() - 1, -1, -1):
-		var state := _state_stack[index] as GFNodeState
+	for index: int in range(_state_stack.size() - 1, -1, -1):
+		var state: GFNodeState = _get_stack_state_at(index)
 		if _is_valid_stack_restore_state(state, excluded_state):
 			return state
 	return null
@@ -889,7 +914,7 @@ func _peek_stack_restore_state(excluded_state: GFNodeState) -> GFNodeState:
 
 func _pop_stack_restore_state(excluded_state: GFNodeState) -> GFNodeState:
 	while not _state_stack.is_empty():
-		var state := _state_stack.pop_back()
+		var state: GFNodeState = _pop_stack_state()
 		if _is_valid_stack_restore_state(state, excluded_state):
 			return state
 	return null
@@ -898,12 +923,12 @@ func _pop_stack_restore_state(excluded_state: GFNodeState) -> GFNodeState:
 func _is_valid_stack_restore_state(state: GFNodeState, excluded_state: GFNodeState) -> bool:
 	if state == null or state == excluded_state or not is_instance_valid(state):
 		return false
-	var state_name := state.call("get_state_name") as StringName
-	return _states.has(state_name) and _states[state_name] == state
+	var state_name: StringName = state.get_state_name()
+	return _get_registered_state(state_name) == state
 
 
 func _remove_from_stack(state: GFNodeState) -> void:
-	var index := _state_stack.find(state)
+	var index: int = _state_stack.find(state)
 	while index != -1:
 		_state_stack.remove_at(index)
 		index = _state_stack.find(state)
@@ -963,3 +988,14 @@ func _on_child_exiting_tree(child: Node) -> void:
 
 	if _is_node_state(child):
 		_queue_reload_from_children()
+
+
+# --- 内部类 ---
+
+class _QueuedExitTransition:
+	var _state_name: StringName = &""
+	var _args: Dictionary = {}
+
+	func _init(p_state_name: StringName = &"", p_args: Dictionary = {}) -> void:
+		_state_name = p_state_name
+		_args = p_args

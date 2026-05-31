@@ -14,7 +14,7 @@ extends RefCounted
 
 # --- 常量 ---
 
-const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
+const _INSTANCE_GUARD = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
 
 
 # --- 公共变量 ---
@@ -79,7 +79,7 @@ func contains(position: Variant, session: GFDragSession) -> bool:
 	if not enabled:
 		return false
 	if contains_callable.is_valid():
-		return bool(contains_callable.call(position, session))
+		return GFVariantData.to_bool(contains_callable.call(position, session))
 	return false
 
 
@@ -96,7 +96,7 @@ func can_accept(session: GFDragSession) -> bool:
 	if not _accepts_type(session.drag_type):
 		return false
 	if can_accept_callable.is_valid():
-		return bool(can_accept_callable.call(session, self))
+		return GFVariantData.to_bool(can_accept_callable.call(session, self))
 	return true
 
 
@@ -163,18 +163,19 @@ static func from_rect(
 	new_accepted_types: PackedStringArray = PackedStringArray(),
 	options: Dictionary = {}
 ) -> GFDropZone:
-	var zone := GFDropZone.new()
+	var zone: GFDropZone = GFDropZone.new()
 	zone.zone_id = new_zone_id
 	zone.accepted_types = new_accepted_types
-	zone.priority = int(options.get("priority", 0))
-	zone.enabled = bool(options.get("enabled", true))
-	zone.metadata = (options.get("metadata", {}) as Dictionary).duplicate(true)
-	zone.can_accept_callable = options.get("can_accept", Callable()) as Callable
-	zone.drop_callable = options.get("drop", Callable()) as Callable
+	zone.priority = GFVariantData.get_option_int(options, "priority", 0)
+	zone.enabled = GFVariantData.get_option_bool(options, "enabled", true)
+	zone.metadata = GFVariantData.get_option_dictionary(options, "metadata")
+	zone.can_accept_callable = _get_option_callable(options, "can_accept")
+	zone.drop_callable = _get_option_callable(options, "drop")
 	zone.contains_callable = func(position: Variant, _session: GFDragSession) -> bool:
 		if typeof(position) != TYPE_VECTOR2:
 			return false
-		return rect.has_point(position)
+		var local_position: Vector2 = position
+		return rect.has_point(local_position)
 	return zone
 
 
@@ -199,22 +200,23 @@ static func from_control(
 	new_accepted_types: PackedStringArray = PackedStringArray(),
 	options: Dictionary = {}
 ) -> GFDropZone:
-	var zone := GFDropZone.new()
+	var zone: GFDropZone = GFDropZone.new()
 	zone.zone_id = new_zone_id
 	zone.accepted_types = new_accepted_types
-	zone.priority = int(options.get("priority", 0))
-	zone.enabled = bool(options.get("enabled", true))
-	zone.metadata = (options.get("metadata", {}) as Dictionary).duplicate(true)
-	zone.can_accept_callable = options.get("can_accept", Callable()) as Callable
-	zone.drop_callable = options.get("drop", Callable()) as Callable
-	var control_ref := weakref(control) if is_instance_valid(control) else null
+	zone.priority = GFVariantData.get_option_int(options, "priority", 0)
+	zone.enabled = GFVariantData.get_option_bool(options, "enabled", true)
+	zone.metadata = GFVariantData.get_option_dictionary(options, "metadata")
+	zone.can_accept_callable = _get_option_callable(options, "can_accept")
+	zone.drop_callable = _get_option_callable(options, "drop")
+	var control_ref: WeakRef = weakref(control) if is_instance_valid(control) else null
 	zone.contains_callable = func(position: Variant, _session: GFDragSession) -> bool:
 		if typeof(position) != TYPE_VECTOR2 or control_ref == null:
 			return false
+		var local_position: Vector2 = position
 		var current: Control = _INSTANCE_GUARD._get_live_control_from_ref(control_ref)
 		if current == null:
 			return false
-		return current.get_global_rect().has_point(position)
+		return current.get_global_rect().has_point(local_position)
 	return zone
 
 
@@ -224,3 +226,11 @@ func _accepts_type(drag_type: StringName) -> bool:
 	if accepted_types.is_empty():
 		return true
 	return accepted_types.has(String(drag_type))
+
+
+static func _get_option_callable(options: Dictionary, key: Variant) -> Callable:
+	var value: Variant = GFVariantData.get_option_value(options, key, Callable())
+	if value is Callable:
+		var callable: Callable = value
+		return callable
+	return Callable()

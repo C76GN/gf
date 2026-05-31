@@ -69,7 +69,7 @@ func get_level_id() -> StringName:
 ## [br]
 ## @return: 新条目。
 func duplicate_entry() -> GFLevelEntry:
-	var entry := GFLevelEntry.new()
+	var entry: GFLevelEntry = GFLevelEntry.new()
 	entry.level_id = level_id
 	entry.pack_id = pack_id
 	entry.scene_path = scene_path

@@ -11,12 +11,6 @@
 class_name GFValidationReport
 extends RefCounted
 
-
-# --- 常量 ---
-
-const _GF_VALIDATION_ISSUE_SCRIPT: Script = preload("res://addons/gf/standard/foundation/validation/gf_validation_issue.gd")
-
-
 # --- 公共变量 ---
 
 ## 报告主题，例如资源名、模块名或调用方自定义域。
@@ -89,7 +83,7 @@ func clear() -> void:
 ## [br]
 ## @return 添加后的问题；输入无效时返回 null。
 func add_issue(issue: Variant) -> RefCounted:
-	var normalized_issue := _normalize_issue(issue)
+	var normalized_issue: GFValidationIssue = _normalize_issue(issue)
 	if normalized_issue == null:
 		return null
 	issues.append(normalized_issue)
@@ -122,7 +116,7 @@ func add_info(
 	path: String = "",
 	issue_metadata: Dictionary = {}
 ) -> RefCounted:
-	return _add_issue(_GF_VALIDATION_ISSUE_SCRIPT.Severity.INFO, kind, message, key, path, issue_metadata)
+	return _add_issue(GFValidationIssue.Severity.INFO, kind, message, key, path, issue_metadata)
 
 
 ## 添加警告问题。
@@ -151,7 +145,7 @@ func add_warning(
 	path: String = "",
 	issue_metadata: Dictionary = {}
 ) -> RefCounted:
-	return _add_issue(_GF_VALIDATION_ISSUE_SCRIPT.Severity.WARNING, kind, message, key, path, issue_metadata)
+	return _add_issue(GFValidationIssue.Severity.WARNING, kind, message, key, path, issue_metadata)
 
 
 ## 添加错误问题。
@@ -180,7 +174,7 @@ func add_error(
 	path: String = "",
 	issue_metadata: Dictionary = {}
 ) -> RefCounted:
-	return _add_issue(_GF_VALIDATION_ISSUE_SCRIPT.Severity.ERROR, kind, message, key, path, issue_metadata)
+	return _add_issue(GFValidationIssue.Severity.ERROR, kind, message, key, path, issue_metadata)
 
 
 ## 添加带源码定位的问题。
@@ -219,9 +213,8 @@ func add_source_issue(
 	path: String = "",
 	issue_metadata: Dictionary = {}
 ) -> RefCounted:
-	var issue := _add_issue(severity, kind, message, key, path, issue_metadata)
-	if issue != null:
-		issue.call("set_source_span", source_span)
+	var issue: GFValidationIssue = _add_issue(severity, kind, message, key, path, issue_metadata)
+	var _source_issue: RefCounted = issue.set_source_span(source_span)
 	return issue
 
 
@@ -256,7 +249,7 @@ func add_source_info(
 	path: String = "",
 	issue_metadata: Dictionary = {}
 ) -> RefCounted:
-	return add_source_issue(_GF_VALIDATION_ISSUE_SCRIPT.Severity.INFO, kind, message, source_span, key, path, issue_metadata)
+	return add_source_issue(GFValidationIssue.Severity.INFO, kind, message, source_span, key, path, issue_metadata)
 
 
 ## 添加带源码定位的警告问题。
@@ -290,7 +283,7 @@ func add_source_warning(
 	path: String = "",
 	issue_metadata: Dictionary = {}
 ) -> RefCounted:
-	return add_source_issue(_GF_VALIDATION_ISSUE_SCRIPT.Severity.WARNING, kind, message, source_span, key, path, issue_metadata)
+	return add_source_issue(GFValidationIssue.Severity.WARNING, kind, message, source_span, key, path, issue_metadata)
 
 
 ## 添加带源码定位的错误问题。
@@ -324,7 +317,7 @@ func add_source_error(
 	path: String = "",
 	issue_metadata: Dictionary = {}
 ) -> RefCounted:
-	return add_source_issue(_GF_VALIDATION_ISSUE_SCRIPT.Severity.ERROR, kind, message, source_span, key, path, issue_metadata)
+	return add_source_issue(GFValidationIssue.Severity.ERROR, kind, message, source_span, key, path, issue_metadata)
 
 
 ## 合并另一个报告或报告字典。
@@ -339,29 +332,23 @@ func add_source_error(
 ## [br]
 ## @return 当前报告。
 func merge(source: Variant, include_metadata: bool = true) -> RefCounted:
-	if source is RefCounted and (source as RefCounted).get_script() == get_script():
-		var source_object := source as RefCounted
-		var source_issues := source_object.get("issues") as Array
-		if source_issues != null:
-			for issue_variant: Variant in source_issues:
-				add_issue(issue_variant)
+	if source is GFValidationReport:
+		var source_report: GFValidationReport = source
+		for issue_variant: Variant in source_report.issues:
+			_add_issue_if_valid(issue_variant)
 		if include_metadata:
-			var source_metadata := source_object.get("metadata") as Dictionary
-			if source_metadata != null:
-				for key: Variant in source_metadata.keys():
-					metadata[key] = GFVariantData.duplicate_variant(source_metadata[key])
-			var source_extra_fields := source_object.get("extra_fields") as Dictionary
-			if source_extra_fields != null:
-				for key: Variant in source_extra_fields.keys():
-					extra_fields[key] = GFVariantData.duplicate_variant(source_extra_fields[key])
+			for key: Variant in source_report.metadata.keys():
+				metadata[key] = GFVariantData.duplicate_variant(source_report.metadata[key])
+			for key: Variant in source_report.extra_fields.keys():
+				extra_fields[key] = GFVariantData.duplicate_variant(source_report.extra_fields[key])
 	elif source is Dictionary:
-		var source_dict := source as Dictionary
-		var source_issues := source_dict.get("issues", []) as Array
-		if source_issues != null:
-			for issue_variant: Variant in source_issues:
-				add_issue(issue_variant)
-		if include_metadata and source_dict.get("metadata") is Dictionary:
-			var source_metadata := source_dict.get("metadata") as Dictionary
+		var source_dict: Dictionary = source
+		var source_issues: Array = GFVariantData.as_array(GFVariantData.get_option_value(source_dict, "issues", []))
+		for issue_variant: Variant in source_issues:
+			_add_issue_if_valid(issue_variant)
+		var source_metadata_value: Variant = GFVariantData.get_option_value(source_dict, "metadata")
+		if include_metadata and source_metadata_value is Dictionary:
+			var source_metadata: Dictionary = GFVariantData.as_dictionary(source_metadata_value)
 			for key: Variant in source_metadata.keys():
 				metadata[key] = GFVariantData.duplicate_variant(source_metadata[key])
 	return self
@@ -376,18 +363,17 @@ func merge(source: Variant, include_metadata: bool = true) -> RefCounted:
 ## @schema data: Dictionary report payload.
 func apply_dict(data: Dictionary) -> void:
 	issues.clear()
-	subject = String(data.get("subject", subject))
-	var metadata_value: Variant = data.get("metadata", metadata)
-	metadata = (metadata_value as Dictionary).duplicate(true) if metadata_value is Dictionary else {}
+	subject = GFVariantData.get_option_string(data, "subject", subject)
+	var metadata_value: Variant = GFVariantData.get_option_value(data, "metadata", metadata)
+	metadata = GFVariantData.as_dictionary(metadata_value).duplicate(true)
 	extra_fields.clear()
 
-	var source_issues := data.get("issues", []) as Array
-	if source_issues != null:
-		for issue_variant: Variant in source_issues:
-			add_issue(issue_variant)
+	var source_issues: Array = GFVariantData.as_array(GFVariantData.get_option_value(data, "issues", []))
+	for issue_variant: Variant in source_issues:
+		_add_issue_if_valid(issue_variant)
 
 	for field_key: Variant in data.keys():
-		if _is_reserved_report_field(String(field_key)):
+		if _is_reserved_report_field(GFVariantData.to_text(field_key)):
 			continue
 		extra_fields[field_key] = GFVariantData.duplicate_variant(data[field_key])
 
@@ -408,21 +394,19 @@ func apply_dict(data: Dictionary) -> void:
 ## [br]
 ## @schema return: Dictionary serialized report payload.
 func to_dict(additional_fields: Dictionary = {}, options: Dictionary = {}) -> Dictionary:
-	var result := extra_fields.duplicate(true)
+	var result: Dictionary = extra_fields.duplicate(true)
 	for field_key: Variant in additional_fields.keys():
 		result[field_key] = GFVariantData.duplicate_variant(additional_fields[field_key])
 
-	var include_subject := _get_option_bool(options, "include_subject", not subject.is_empty())
-	var include_metadata := _get_option_bool(options, "include_metadata", not metadata.is_empty())
-	var include_info_count := _get_option_bool(options, "include_info_count", true)
-	var include_issue_count := _get_option_bool(options, "include_issue_count", true)
-	var include_empty_issue_fields := _get_option_bool(options, "include_empty_issue_fields", false)
-	var summary_subject := String(options.get("summary_subject", subject))
-	var next_actions: Dictionary = options.get("next_actions", {}) as Dictionary
-	if next_actions == null:
-		next_actions = {}
-	var fallback_action := String(options.get("fallback_action", "Review the first reported issue."))
-	var no_action := String(options.get("no_action", "No action required."))
+	var include_subject: bool = GFVariantData.get_option_bool(options, "include_subject", not subject.is_empty())
+	var include_metadata: bool = GFVariantData.get_option_bool(options, "include_metadata", not metadata.is_empty())
+	var include_info_count: bool = GFVariantData.get_option_bool(options, "include_info_count", true)
+	var include_issue_count: bool = GFVariantData.get_option_bool(options, "include_issue_count", true)
+	var include_empty_issue_fields: bool = GFVariantData.get_option_bool(options, "include_empty_issue_fields", false)
+	var summary_subject: String = GFVariantData.get_option_string(options, "summary_subject", subject)
+	var next_actions: Dictionary = GFVariantData.get_option_dictionary(options, "next_actions")
+	var fallback_action: String = GFVariantData.get_option_string(options, "fallback_action", "Review the first reported issue.")
+	var no_action: String = GFVariantData.get_option_string(options, "no_action", "No action required.")
 
 	if include_subject:
 		result["subject"] = subject
@@ -443,9 +427,10 @@ func to_dict(additional_fields: Dictionary = {}, options: Dictionary = {}) -> Di
 
 	var issue_dicts: Array[Dictionary] = []
 	for issue: RefCounted in issues:
-		var issue_dict: Variant = issue.call("to_dict", include_empty_issue_fields)
-		if issue_dict is Dictionary:
-			issue_dicts.append(issue_dict as Dictionary)
+		var validation_issue: GFValidationIssue = _as_validation_issue(issue)
+		if validation_issue == null:
+			continue
+		issue_dicts.append(validation_issue.to_dict(include_empty_issue_fields))
 	result["issues"] = issue_dicts
 	return result
 
@@ -456,8 +441,8 @@ func to_dict(additional_fields: Dictionary = {}, options: Dictionary = {}) -> Di
 ## [br]
 ## @return 新报告。
 func duplicate_report() -> RefCounted:
-	var report := get_script().new() as RefCounted
-	report.call("apply_dict", to_dict({}, { "include_empty_issue_fields": true }))
+	var report: GFValidationReport = GFValidationReport.new()
+	report.apply_dict(to_dict({}, { "include_empty_issue_fields": true }))
 	return report
 
 
@@ -467,9 +452,10 @@ func duplicate_report() -> RefCounted:
 ## [br]
 ## @return 错误数量。
 func get_error_count() -> int:
-	var count := 0
+	var count: int = 0
 	for issue: RefCounted in issues:
-		if issue != null and bool(issue.call("is_error")):
+		var validation_issue: GFValidationIssue = _as_validation_issue(issue)
+		if validation_issue != null and validation_issue.is_error():
 			count += 1
 	return count
 
@@ -480,9 +466,10 @@ func get_error_count() -> int:
 ## [br]
 ## @return 警告数量。
 func get_warning_count() -> int:
-	var count := 0
+	var count: int = 0
 	for issue: RefCounted in issues:
-		if issue != null and bool(issue.call("is_warning")):
+		var validation_issue: GFValidationIssue = _as_validation_issue(issue)
+		if validation_issue != null and validation_issue.is_warning():
 			count += 1
 	return count
 
@@ -493,9 +480,10 @@ func get_warning_count() -> int:
 ## [br]
 ## @return 信息数量。
 func get_info_count() -> int:
-	var count := 0
+	var count: int = 0
 	for issue: RefCounted in issues:
-		if issue != null and bool(issue.call("is_info")):
+		var validation_issue: GFValidationIssue = _as_validation_issue(issue)
+		if validation_issue != null and validation_issue.is_info():
 			count += 1
 	return count
 
@@ -528,10 +516,11 @@ func is_healthy() -> bool:
 func get_issue_counts_by_kind() -> Dictionary:
 	var result: Dictionary = {}
 	for issue: RefCounted in issues:
-		if issue == null:
+		var validation_issue: GFValidationIssue = _as_validation_issue(issue)
+		if validation_issue == null:
 			continue
-		var kind_key := String(issue.call("get_kind_key"))
-		result[kind_key] = int(result.get(kind_key, 0)) + 1
+		var kind_key: String = validation_issue.get_kind_key()
+		result[kind_key] = GFVariantData.get_option_int(result, kind_key, 0) + 1
 	return result
 
 
@@ -543,12 +532,12 @@ func get_issue_counts_by_kind() -> Dictionary:
 ## [br]
 ## @return 摘要文本。
 func make_summary(subject_override: String = "") -> String:
-	var label := subject_override if not subject_override.is_empty() else subject
+	var label: String = subject_override if not subject_override.is_empty() else subject
 	if label.is_empty():
 		label = "Validation report"
 
-	var error_count := get_error_count()
-	var warning_count := get_warning_count()
+	var error_count: int = get_error_count()
+	var warning_count: int = get_warning_count()
 	if error_count > 0:
 		return "%s has %d error(s) and %d warning(s)." % [label, error_count, warning_count]
 	if warning_count > 0:
@@ -574,16 +563,16 @@ func get_next_action(
 	fallback_action: String = "Review the first reported issue.",
 	no_action: String = "No action required."
 ) -> String:
-	var issue := _get_first_issue_by_priority()
+	var issue: GFValidationIssue = _get_first_issue_by_priority()
 	if issue == null:
 		return no_action
 
-	var kind_key := String(issue.call("get_kind_key"))
+	var kind_key: String = issue.get_kind_key()
 	if action_map.has(kind_key):
-		return String(action_map[kind_key])
-	var kind_name := StringName(kind_key)
+		return GFVariantData.to_text(action_map[kind_key])
+	var kind_name: StringName = StringName(kind_key)
 	if action_map.has(kind_name):
-		return String(action_map[kind_name])
+		return GFVariantData.to_text(action_map[kind_name])
 	return fallback_action
 
 
@@ -596,10 +585,11 @@ func get_next_action(
 ## @return 当前报告。
 func promote_warnings_to_errors(kinds: PackedStringArray = PackedStringArray()) -> RefCounted:
 	for issue: RefCounted in issues:
-		if issue == null or not bool(issue.call("is_warning")):
+		var validation_issue: GFValidationIssue = _as_validation_issue(issue)
+		if validation_issue == null or not validation_issue.is_warning():
 			continue
-		if kinds.is_empty() or kinds.has(String(issue.call("get_kind_key"))):
-			issue.set("severity", _GF_VALIDATION_ISSUE_SCRIPT.Severity.ERROR)
+		if kinds.is_empty() or kinds.has(validation_issue.get_kind_key()):
+			validation_issue.severity = GFValidationIssue.Severity.ERROR
 	return self
 
 
@@ -613,8 +603,8 @@ func promote_warnings_to_errors(kinds: PackedStringArray = PackedStringArray()) 
 ## [br]
 ## @return 新报告。
 static func from_dict(data: Dictionary) -> RefCounted:
-	var report := (load("res://addons/gf/standard/foundation/validation/gf_validation_report.gd") as Script).new() as RefCounted
-	report.call("apply_dict", data)
+	var report: GFValidationReport = GFValidationReport.new()
+	report.apply_dict(data)
 	return report
 
 
@@ -627,37 +617,49 @@ func _add_issue(
 	p_key: Variant,
 	p_path: String,
 	p_metadata: Dictionary
-) -> RefCounted:
-	var issue := _GF_VALIDATION_ISSUE_SCRIPT.new(p_severity, p_kind, p_message, p_key, p_path, p_metadata) as RefCounted
+) -> GFValidationIssue:
+	var issue: GFValidationIssue = GFValidationIssue.new(p_severity, p_kind, p_message, p_key, p_path, p_metadata)
 	issues.append(issue)
 	return issue
 
 
-func _normalize_issue(issue: Variant) -> RefCounted:
-	if issue is _GF_VALIDATION_ISSUE_SCRIPT:
-		return (issue as RefCounted).call("duplicate_issue") as RefCounted
+func _normalize_issue(issue: Variant) -> GFValidationIssue:
+	if issue is GFValidationIssue:
+		var validation_issue: GFValidationIssue = issue
+		return _as_validation_issue(validation_issue.duplicate_issue())
 	if issue is Dictionary:
-		var normalized_issue := _GF_VALIDATION_ISSUE_SCRIPT.new() as RefCounted
-		normalized_issue.call("apply_dict", issue as Dictionary)
+		var issue_data: Dictionary = issue
+		var normalized_issue: GFValidationIssue = GFValidationIssue.new()
+		normalized_issue.apply_dict(issue_data)
 		return normalized_issue
 	return null
 
 
-func _get_first_issue_by_priority() -> RefCounted:
+func _add_issue_if_valid(issue: Variant) -> void:
+	var _added_issue: RefCounted = add_issue(issue)
+
+
+func _get_first_issue_by_priority() -> GFValidationIssue:
 	for issue: RefCounted in issues:
-		if issue != null and bool(issue.call("is_error")):
-			return issue
+		var validation_issue: GFValidationIssue = _as_validation_issue(issue)
+		if validation_issue != null and validation_issue.is_error():
+			return validation_issue
 	for issue: RefCounted in issues:
-		if issue != null and bool(issue.call("is_warning")):
-			return issue
+		var validation_issue: GFValidationIssue = _as_validation_issue(issue)
+		if validation_issue != null and validation_issue.is_warning():
+			return validation_issue
 	for issue: RefCounted in issues:
-		if issue != null:
-			return issue
+		var validation_issue: GFValidationIssue = _as_validation_issue(issue)
+		if validation_issue != null:
+			return validation_issue
 	return null
 
 
-static func _get_option_bool(options: Dictionary, field_name: String, default_value: bool) -> bool:
-	return GFVariantData.get_option_bool(options, field_name, default_value)
+static func _as_validation_issue(value: Variant) -> GFValidationIssue:
+	if value is GFValidationIssue:
+		var validation_issue: GFValidationIssue = value
+		return validation_issue
+	return null
 
 
 static func _is_reserved_report_field(field_name: String) -> bool:

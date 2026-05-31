@@ -194,11 +194,14 @@ func register_command(
 		"callback": callback,
 		"description": description,
 		"tier": tier,
-		"parameters": _normalize_parameter_schema(options.get("parameters", [])),
-		"metadata": (options.get("metadata", {}) as Dictionary).duplicate(true) if options.get("metadata", {}) is Dictionary else {},
+		"parameters": _normalize_parameter_schema(GFVariantData.get_option_value(options, "parameters", [])),
+		"metadata": GFVariantData.get_option_dictionary(options, "metadata"),
 	}
 	if options.has("enabled"):
-		set_command_enabled(command_name, bool(options.get("enabled", true)))
+		var _enabled_updated: bool = set_command_enabled(
+			command_name,
+			GFVariantData.get_option_bool(options, "enabled", true)
+		)
 
 
 ## 注销诊断命令。
@@ -207,8 +210,8 @@ func register_command(
 ## [br]
 ## @param command_name: 命令名。
 func unregister_command(command_name: StringName) -> void:
-	_commands.erase(command_name)
-	_disabled_commands.erase(command_name)
+	var _command_erased: bool = _commands.erase(command_name)
+	var _disabled_erased: bool = _disabled_commands.erase(command_name)
 
 
 ## 检查诊断命令是否存在。
@@ -236,8 +239,9 @@ func has_command(command_name: StringName) -> bool:
 func set_command_parameter_schema(command_name: StringName, parameters: Variant) -> bool:
 	if not _commands.has(command_name):
 		return false
-	var entry := _commands[command_name] as Dictionary
+	var entry: Dictionary = _get_dictionary_entry(_commands, command_name)
 	entry["parameters"] = _normalize_parameter_schema(parameters)
+	_commands[command_name] = entry
 	return true
 
 
@@ -254,7 +258,7 @@ func set_command_enabled(command_name: StringName, enabled: bool) -> bool:
 	if not _commands.has(command_name):
 		return false
 	if enabled:
-		_disabled_commands.erase(command_name)
+		var _disabled_erased: bool = _disabled_commands.erase(command_name)
 	else:
 		_disabled_commands[command_name] = true
 	return true
@@ -273,12 +277,12 @@ func set_all_commands_enabled(
 	enabled: bool,
 	command_names: PackedStringArray = PackedStringArray()
 ) -> int:
-	var selected_names := command_names.duplicate()
+	var selected_names: PackedStringArray = command_names.duplicate()
 	if selected_names.is_empty():
 		for command_name: StringName in _commands.keys():
-			selected_names.append(String(command_name))
+			var _name_appended: bool = selected_names.append(String(command_name))
 
-	var count := 0
+	var count: int = 0
 	for name_text: String in selected_names:
 		if set_command_enabled(StringName(name_text), enabled):
 			count += 1
@@ -306,8 +310,8 @@ func is_command_enabled(command_name: StringName) -> bool:
 func get_command_descriptions() -> Dictionary:
 	var result: Dictionary = {}
 	for command_name: StringName in _commands.keys():
-		var entry := _commands[command_name] as Dictionary
-		result[command_name] = String(entry.get("description", ""))
+		var entry: Dictionary = _get_dictionary_entry(_commands, command_name)
+		result[command_name] = GFVariantData.get_option_string(entry, "description")
 	return result
 
 
@@ -321,15 +325,15 @@ func get_command_descriptions() -> Dictionary:
 func get_command_catalog() -> Dictionary:
 	var result: Dictionary = {}
 	for command_name: StringName in _commands.keys():
-		var entry := _commands[command_name] as Dictionary
-		var tier := int(entry.get("tier", CommandTier.OBSERVE))
+		var entry: Dictionary = _get_dictionary_entry(_commands, command_name)
+		var tier: int = GFVariantData.get_option_int(entry, "tier", CommandTier.OBSERVE)
 		result[command_name] = {
-			"description": String(entry.get("description", "")),
+			"description": GFVariantData.get_option_string(entry, "description"),
 			"tier": tier,
 			"tier_name": _get_tier_name(tier),
 			"enabled": is_command_enabled(command_name),
-			"parameters": (entry.get("parameters", []) as Array).duplicate(true) if entry.get("parameters", []) is Array else [],
-			"metadata": (entry.get("metadata", {}) as Dictionary).duplicate(true) if entry.get("metadata", {}) is Dictionary else {},
+			"parameters": GFVariantData.get_option_array(entry, "parameters"),
+			"metadata": GFVariantData.get_option_dictionary(entry, "metadata"),
 		}
 	return result
 
@@ -351,13 +355,13 @@ func register_monitor(monitor_id: StringName, provider: Callable, options: Dicti
 	if monitor_id == &"" or not provider.is_valid():
 		return false
 
-	var entry := {
+	var entry: Dictionary = {
 		"provider": provider,
-		"label": String(options.get("label", String(monitor_id))),
-		"group": String(options.get("group", "Runtime")),
-		"visible": bool(options.get("visible", true)),
-		"metadata": (options.get("metadata", {}) as Dictionary).duplicate(true) if options.get("metadata", {}) is Dictionary else {},
-		"min_interval_seconds": maxf(float(options.get("min_interval_seconds", 0.0)), 0.0),
+		"label": GFVariantData.get_option_string(options, "label", String(monitor_id)),
+		"group": GFVariantData.get_option_string(options, "group", "Runtime"),
+		"visible": GFVariantData.get_option_bool(options, "visible", true),
+		"metadata": GFVariantData.get_option_dictionary(options, "metadata"),
+		"min_interval_seconds": maxf(GFVariantData.get_option_float(options, "min_interval_seconds", 0.0), 0.0),
 		"order": _monitor_order_counter,
 		"last_sample_time": -INF,
 		"last_sample": {},
@@ -373,12 +377,15 @@ func register_monitor(monitor_id: StringName, provider: Callable, options: Dicti
 ## [br]
 ## @param monitor_id: 监控项唯一标识。
 func unregister_monitor(monitor_id: StringName) -> void:
-	_monitors.erase(monitor_id)
+	var _monitor_erased: bool = _monitors.erase(monitor_id)
 	for preset_id: StringName in _monitor_presets.keys():
-		var preset := _monitor_presets[preset_id] as Dictionary
-		var ids := preset.get("monitor_ids", PackedStringArray()) as PackedStringArray
-		if ids.has(String(monitor_id)):
-			ids.remove_at(ids.find(String(monitor_id)))
+		var preset: Dictionary = _get_dictionary_entry(_monitor_presets, preset_id)
+		var ids: PackedStringArray = GFVariantData.get_option_packed_string_array(preset, "monitor_ids")
+		var monitor_index: int = ids.find(String(monitor_id))
+		if monitor_index >= 0:
+			ids.remove_at(monitor_index)
+			preset["monitor_ids"] = ids
+			_monitor_presets[preset_id] = preset
 
 
 ## 检查诊断监控项是否存在。
@@ -402,13 +409,13 @@ func has_monitor(monitor_id: StringName) -> bool:
 func get_monitor_catalog() -> Dictionary:
 	var result: Dictionary = {}
 	for monitor_id: StringName in _monitors.keys():
-		var entry := _monitors[monitor_id] as Dictionary
+		var entry: Dictionary = _get_dictionary_entry(_monitors, monitor_id)
 		result[monitor_id] = {
-			"label": String(entry.get("label", String(monitor_id))),
-			"group": String(entry.get("group", "Runtime")),
-			"visible": bool(entry.get("visible", true)),
-			"metadata": (entry.get("metadata", {}) as Dictionary).duplicate(true),
-			"min_interval_seconds": float(entry.get("min_interval_seconds", 0.0)),
+			"label": GFVariantData.get_option_string(entry, "label", String(monitor_id)),
+			"group": GFVariantData.get_option_string(entry, "group", "Runtime"),
+			"visible": GFVariantData.get_option_bool(entry, "visible", true),
+			"metadata": GFVariantData.get_option_dictionary(entry, "metadata"),
+			"min_interval_seconds": GFVariantData.get_option_float(entry, "min_interval_seconds", 0.0),
 		}
 	return result
 
@@ -436,8 +443,8 @@ func register_monitor_preset(
 
 	_monitor_presets[preset_id] = {
 		"monitor_ids": monitor_ids.duplicate(),
-		"label": String(options.get("label", String(preset_id))),
-		"metadata": (options.get("metadata", {}) as Dictionary).duplicate(true) if options.get("metadata", {}) is Dictionary else {},
+		"label": GFVariantData.get_option_string(options, "label", String(preset_id)),
+		"metadata": GFVariantData.get_option_dictionary(options, "metadata"),
 	}
 	return true
 
@@ -457,11 +464,12 @@ func add_monitor_to_preset(preset_id: StringName, monitor_id: StringName) -> boo
 	if not _monitor_presets.has(preset_id):
 		return register_monitor_preset(preset_id, PackedStringArray([String(monitor_id)]))
 
-	var preset := _monitor_presets[preset_id] as Dictionary
-	var ids := preset.get("monitor_ids", PackedStringArray()) as PackedStringArray
+	var preset: Dictionary = _get_dictionary_entry(_monitor_presets, preset_id)
+	var ids: PackedStringArray = GFVariantData.get_option_packed_string_array(preset, "monitor_ids")
 	if not ids.has(String(monitor_id)):
-		ids.append(String(monitor_id))
+		var _monitor_appended: bool = ids.append(String(monitor_id))
 		preset["monitor_ids"] = ids
+		_monitor_presets[preset_id] = preset
 	return true
 
 
@@ -471,7 +479,7 @@ func add_monitor_to_preset(preset_id: StringName, monitor_id: StringName) -> boo
 ## [br]
 ## @param preset_id: 预设唯一标识。
 func unregister_monitor_preset(preset_id: StringName) -> void:
-	_monitor_presets.erase(preset_id)
+	var _preset_erased: bool = _monitor_presets.erase(preset_id)
 
 
 ## 检查诊断监控预设是否存在。
@@ -491,9 +499,9 @@ func has_monitor_preset(preset_id: StringName) -> bool:
 ## [br]
 ## @return 预设标识列表。
 func get_monitor_preset_ids() -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	for preset_id: StringName in _monitor_presets.keys():
-		result.append(String(preset_id))
+		var _preset_appended: bool = result.append(String(preset_id))
 	result.sort()
 	return result
 
@@ -520,7 +528,7 @@ func register_snapshot_section_provider(section_id: StringName, provider: Callab
 ## [br]
 ## @param section_id: 快照顶层字段名。
 func unregister_snapshot_section_provider(section_id: StringName) -> void:
-	_snapshot_section_providers.erase(section_id)
+	var _provider_erased: bool = _snapshot_section_providers.erase(section_id)
 
 
 ## 检查快照分区 provider 是否存在。
@@ -556,7 +564,7 @@ func register_tool_snapshot_provider(tool_id: StringName, provider: Callable) ->
 ## [br]
 ## @param tool_id: tools 内部字段名。
 func unregister_tool_snapshot_provider(tool_id: StringName) -> void:
-	_tool_snapshot_providers.erase(tool_id)
+	var _provider_erased: bool = _tool_snapshot_providers.erase(tool_id)
 
 
 ## 检查工具快照 provider 是否存在。
@@ -585,20 +593,20 @@ func collect_monitor_snapshot(
 	monitor_ids: PackedStringArray = PackedStringArray(),
 	include_hidden: bool = false
 ) -> Dictionary:
-	var selected_ids := monitor_ids.duplicate()
+	var selected_ids: PackedStringArray = monitor_ids.duplicate()
 	if selected_ids.is_empty():
 		for monitor_id: StringName in _monitors.keys():
-			selected_ids.append(String(monitor_id))
+			var _monitor_appended: bool = selected_ids.append(String(monitor_id))
 
 	selected_ids.sort()
 	var monitors: Dictionary = {}
 	for id_text: String in selected_ids:
-		var monitor_id := StringName(id_text)
+		var monitor_id: StringName = StringName(id_text)
 		if not _monitors.has(monitor_id):
 			continue
 
-		var entry := _monitors[monitor_id] as Dictionary
-		if not include_hidden and not bool(entry.get("visible", true)):
+		var entry: Dictionary = _get_dictionary_entry(_monitors, monitor_id)
+		if not include_hidden and not GFVariantData.get_option_bool(entry, "visible", true):
 			continue
 		monitors[monitor_id] = _sample_monitor(monitor_id, entry)
 
@@ -624,12 +632,12 @@ func collect_monitor_preset(preset_id: StringName, include_hidden: bool = false)
 	if not _monitor_presets.has(preset_id):
 		return collect_monitor_snapshot(PackedStringArray(), include_hidden)
 
-	var preset := _monitor_presets[preset_id] as Dictionary
-	var ids := preset.get("monitor_ids", PackedStringArray()) as PackedStringArray
-	var snapshot := collect_monitor_snapshot(ids, include_hidden)
+	var preset: Dictionary = _get_dictionary_entry(_monitor_presets, preset_id)
+	var ids: PackedStringArray = GFVariantData.get_option_packed_string_array(preset, "monitor_ids")
+	var snapshot: Dictionary = collect_monitor_snapshot(ids, include_hidden)
 	snapshot["preset_id"] = preset_id
-	snapshot["preset_label"] = String(preset.get("label", String(preset_id)))
-	snapshot["preset_metadata"] = (preset.get("metadata", {}) as Dictionary).duplicate(true)
+	snapshot["preset_label"] = GFVariantData.get_option_string(preset, "label", String(preset_id))
+	snapshot["preset_metadata"] = GFVariantData.get_option_dictionary(preset, "metadata")
 	return snapshot
 
 
@@ -681,36 +689,36 @@ func set_auth_token(token: String, required: bool = true) -> void:
 ## @schema return: Dictionary，包含 ok、value、error、metadata。
 func execute_command(command_name: StringName, args: Dictionary = {}) -> Dictionary:
 	if not _commands.has(command_name):
-		var missing_result := _make_command_result(false, null, "Missing diagnostic command: %s" % String(command_name))
+		var missing_result: Dictionary = _make_command_result(false, null, "Missing diagnostic command: %s" % String(command_name))
 		diagnostic_command_executed.emit(command_name, missing_result)
 		return missing_result
 
-	var entry := _commands[command_name] as Dictionary
+	var entry: Dictionary = _get_dictionary_entry(_commands, command_name)
 	if _disabled_commands.has(command_name):
-		var disabled_result := _make_command_result(false, null, "Diagnostic command is disabled: %s" % String(command_name))
+		var disabled_result: Dictionary = _make_command_result(false, null, "Diagnostic command is disabled: %s" % String(command_name))
 		diagnostic_command_executed.emit(command_name, disabled_result)
 		return disabled_result
 
-	var tier := int(entry.get("tier", CommandTier.OBSERVE))
+	var tier: int = GFVariantData.get_option_int(entry, "tier", CommandTier.OBSERVE)
 	if not _is_tier_allowed(tier):
-		var tier_result := _make_command_result(false, null, "Diagnostic command tier is not allowed: %s" % _get_tier_name(tier), {
+		var tier_result: Dictionary = _make_command_result(false, null, "Diagnostic command tier is not allowed: %s" % _get_tier_name(tier), {
 			"tier": tier,
 			"tier_name": _get_tier_name(tier),
 		})
 		diagnostic_command_executed.emit(command_name, tier_result)
 		return tier_result
 	if not _is_auth_allowed(args):
-		var auth_result := _make_command_result(false, null, "Diagnostic command authentication failed.", {
+		var auth_result: Dictionary = _make_command_result(false, null, "Diagnostic command authentication failed.", {
 			"tier": tier,
 			"tier_name": _get_tier_name(tier),
 		})
 		diagnostic_command_executed.emit(command_name, auth_result)
 		return auth_result
 
-	var prepared_args := _prepare_command_args(args, entry)
-	var validation_report := _validate_command_args(entry, prepared_args, args)
+	var prepared_args: Dictionary = _prepare_command_args(args, entry)
+	var validation_report: GFValidationReport = _validate_command_args(entry, prepared_args, args)
 	if not validation_report.is_ok():
-		var validation_result := _make_command_result(false, null, validation_report.make_summary(String(command_name)), {
+		var validation_result: Dictionary = _make_command_result(false, null, validation_report.make_summary(String(command_name)), {
 			"tier": tier,
 			"tier_name": _get_tier_name(tier),
 			"validation": validation_report.to_dict(),
@@ -718,14 +726,14 @@ func execute_command(command_name: StringName, args: Dictionary = {}) -> Diction
 		diagnostic_command_executed.emit(command_name, validation_result)
 		return validation_result
 
-	var callback: Callable = entry.get("callback")
+	var callback: Callable = _get_callable_value(GFVariantData.get_option_value(entry, "callback", Callable()))
 	if not callback.is_valid():
-		var invalid_result := _make_command_result(false, null, "Diagnostic command callback is invalid: %s" % String(command_name))
+		var invalid_result: Dictionary = _make_command_result(false, null, "Diagnostic command callback is invalid: %s" % String(command_name))
 		diagnostic_command_executed.emit(command_name, invalid_result)
 		return invalid_result
 
 	var value: Variant = callback.call(prepared_args)
-	var result := _make_command_result(true, value, "", {
+	var result: Dictionary = _make_command_result(true, value, "", {
 		"tier": tier,
 		"tier_name": _get_tier_name(tier),
 	})
@@ -768,7 +776,7 @@ func execute_command_json_safe(command_name: StringName, args: Dictionary = {}) 
 ## [br]
 ## @schema return: Dictionary，JSON 兼容命令结果。
 func command_result_to_json_compatible(result: Dictionary, options: Dictionary = {}) -> Dictionary:
-	return GFVariantJsonCodec.variant_to_json_compatible(result, options) as Dictionary
+	return GFVariantData.to_dictionary(GFVariantJsonCodec.variant_to_json_compatible(result, options))
 
 
 ## 采集运行时诊断快照。
@@ -783,7 +791,7 @@ func command_result_to_json_compatible(result: Dictionary, options: Dictionary =
 ## [br]
 ## @schema return: Dictionary，包含 timestamp_unix、engine、build、architecture、event_system、performance、logs、network、tools，可选 scene_tree、signal_graph、monitors 和注册分区。
 func collect_snapshot(options: Dictionary = {}) -> Dictionary:
-	var snapshot := {
+	var snapshot: Dictionary = {
 		"timestamp_unix": Time.get_unix_time_from_system(),
 		"engine": Engine.get_version_info(),
 		"build": GFBuildInfo.collect().to_dict(),
@@ -795,7 +803,7 @@ func collect_snapshot(options: Dictionary = {}) -> Dictionary:
 		"tools": {},
 	}
 
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
 		snapshot["architecture"] = architecture.get_debug_lifecycle_state()
 		snapshot["event_system"] = architecture.get_event_debug_stats()
@@ -803,38 +811,38 @@ func collect_snapshot(options: Dictionary = {}) -> Dictionary:
 	if include_performance_monitors:
 		snapshot["performance"] = collect_performance_snapshot()
 
-	var build_info_utility := get_utility(GFBuildInfoUtility) as GFBuildInfoUtility
+	var build_info_utility: GFBuildInfoUtility = _get_build_info_utility()
 	if build_info_utility != null:
 		snapshot["build"] = build_info_utility.get_build_info_dict()
 
 	snapshot["logs"] = collect_log_snapshot(
-		int(options.get("recent_log_count", default_recent_log_count)),
-		bool(options.get("include_recent_logs", true))
+		GFVariantData.get_option_int(options, "recent_log_count", default_recent_log_count),
+		GFVariantData.get_option_bool(options, "include_recent_logs", true)
 	)
 
-	if bool(options.get("include_scene_tree", false)):
-		var scene_options := options.get("scene_tree_options", {}) as Dictionary
-		snapshot["scene_tree"] = collect_scene_tree_snapshot(null, scene_options if scene_options != null else {})
+	if GFVariantData.get_option_bool(options, "include_scene_tree", false):
+		var scene_options: Dictionary = GFVariantData.get_option_dictionary(options, "scene_tree_options")
+		snapshot["scene_tree"] = collect_scene_tree_snapshot(null, scene_options)
 
-	if bool(options.get("include_signal_graph", false)):
-		var signal_options := options.get("signal_graph_options", {}) as Dictionary
-		snapshot["signal_graph"] = collect_signal_graph_snapshot(null, signal_options if signal_options != null else {})
+	if GFVariantData.get_option_bool(options, "include_signal_graph", false):
+		var signal_options: Dictionary = GFVariantData.get_option_dictionary(options, "signal_graph_options")
+		snapshot["signal_graph"] = collect_signal_graph_snapshot(null, signal_options)
 
 	snapshot["tools"] = _collect_tool_debug_snapshots()
 	_collect_registered_snapshot_sections(snapshot)
 
-	if bool(options.get("include_monitors", true)):
-		var preset_id := StringName(options.get("monitor_preset", &""))
+	if GFVariantData.get_option_bool(options, "include_monitors", true):
+		var preset_id: StringName = GFVariantData.get_option_string_name(options, "monitor_preset", &"")
 		if preset_id != &"":
 			snapshot["monitors"] = collect_monitor_preset(
 				preset_id,
-				bool(options.get("include_hidden_monitors", false))
+				GFVariantData.get_option_bool(options, "include_hidden_monitors", false)
 			)
 		else:
-			var monitor_ids := options.get("monitor_ids", PackedStringArray()) as PackedStringArray
+			var monitor_ids: PackedStringArray = GFVariantData.get_option_packed_string_array(options, "monitor_ids")
 			snapshot["monitors"] = collect_monitor_snapshot(
-				monitor_ids if monitor_ids != null else PackedStringArray(),
-				bool(options.get("include_hidden_monitors", false))
+				monitor_ids,
+				GFVariantData.get_option_bool(options, "include_hidden_monitors", false)
 			)
 
 	snapshot_collected.emit(snapshot)
@@ -872,7 +880,7 @@ func collect_performance_snapshot() -> Dictionary:
 ## [br]
 ## @schema return: Dictionary，包含 available、memory_count、dropped_count、recent。
 func collect_log_snapshot(recent_log_count: int = 20, include_recent_logs: bool = true) -> Dictionary:
-	var log_utility := get_utility(GFLogUtility) as GFLogUtility
+	var log_utility: GFLogUtility = _get_log_utility()
 	if log_utility == null:
 		return {
 			"available": false,
@@ -903,16 +911,16 @@ func collect_log_snapshot(recent_log_count: int = 20, include_recent_logs: bool 
 ## [br]
 ## @schema return: Dictionary，包含 available、node_count、truncated、root_path、root。
 func collect_scene_tree_snapshot(root: Node = null, options: Dictionary = {}) -> Dictionary:
-	var target_root := root if root != null else _resolve_scene_tree_root(options)
-	var max_depth := maxi(int(options.get("max_depth", default_scene_tree_max_depth)), 0)
-	var max_nodes := maxi(int(options.get("max_nodes", default_scene_tree_max_nodes)), 1)
-	var normalized_options := {
+	var target_root: Node = root if root != null else _resolve_scene_tree_root(options)
+	var max_depth: int = maxi(GFVariantData.get_option_int(options, "max_depth", default_scene_tree_max_depth), 0)
+	var max_nodes: int = maxi(GFVariantData.get_option_int(options, "max_nodes", default_scene_tree_max_nodes), 1)
+	var normalized_options: Dictionary = {
 		"max_depth": max_depth,
 		"max_nodes": max_nodes,
-		"include_groups": bool(options.get("include_groups", false)),
-		"include_owner_path": bool(options.get("include_owner_path", true)),
-		"include_script_path": bool(options.get("include_script_path", true)),
-		"include_internal": bool(options.get("include_internal", false)),
+		"include_groups": GFVariantData.get_option_bool(options, "include_groups", false),
+		"include_owner_path": GFVariantData.get_option_bool(options, "include_owner_path", true),
+		"include_script_path": GFVariantData.get_option_bool(options, "include_script_path", true),
+		"include_internal": GFVariantData.get_option_bool(options, "include_internal", false),
 	}
 
 	if target_root == null:
@@ -924,15 +932,15 @@ func collect_scene_tree_snapshot(root: Node = null, options: Dictionary = {}) ->
 			"root": {},
 		}
 
-	var counters := {
+	var counters: Dictionary = {
 		"count": 0,
 		"truncated": false,
 	}
-	var root_snapshot := _collect_scene_tree_node(target_root, 0, normalized_options, counters)
+	var root_snapshot: Dictionary = _collect_scene_tree_node(target_root, 0, normalized_options, counters)
 	return {
 		"available": true,
-		"node_count": int(counters.get("count", 0)),
-		"truncated": bool(counters.get("truncated", false)),
+		"node_count": GFVariantData.get_option_int(counters, "count", 0),
+		"truncated": GFVariantData.get_option_bool(counters, "truncated", false),
 		"root_path": _get_node_path_or_empty(target_root),
 		"root": root_snapshot,
 	}
@@ -952,7 +960,7 @@ func collect_scene_tree_snapshot(root: Node = null, options: Dictionary = {}) ->
 ## [br]
 ## @schema return: Dictionary，包含 ok、root_path、node_count、signal_count、connection_count、nodes、signals、connections，可选 index。
 func collect_signal_graph_snapshot(root: Node = null, options: Dictionary = {}) -> Dictionary:
-	var target_root := root if root != null else _resolve_scene_tree_root(options)
+	var target_root: Node = root if root != null else _resolve_scene_tree_root(options)
 	if target_root == null:
 		return {
 			"ok": false,
@@ -966,16 +974,89 @@ func collect_signal_graph_snapshot(root: Node = null, options: Dictionary = {}) 
 			"message": "Signal graph root is unavailable.",
 		}
 
-	var graph := GFSceneSignalAudit.build_signal_graph(target_root, options)
-	if bool(options.get("include_index", false)):
+	var graph: Dictionary = GFSceneSignalAudit.build_signal_graph(target_root, options)
+	if GFVariantData.get_option_bool(options, "include_index", false):
 		graph["index"] = GFSceneSignalAudit.index_signal_graph(graph)
 	return graph
 
 
 # --- 私有/辅助方法 ---
 
+func _get_build_info_utility() -> GFBuildInfoUtility:
+	var utility: Variant = get_utility(GFBuildInfoUtility)
+	if utility is GFBuildInfoUtility:
+		var build_info_utility: GFBuildInfoUtility = utility
+		return build_info_utility
+	return null
+
+
+func _get_log_utility() -> GFLogUtility:
+	var utility: Variant = get_utility(GFLogUtility)
+	if utility is GFLogUtility:
+		var log_utility: GFLogUtility = utility
+		return log_utility
+	return null
+
+
+func _get_console_utility() -> GFConsoleUtility:
+	var utility: Variant = get_utility(GFConsoleUtility)
+	if utility is GFConsoleUtility:
+		var console_utility: GFConsoleUtility = utility
+		return console_utility
+	return null
+
+
+func _get_main_scene_tree() -> SceneTree:
+	var main_loop: MainLoop = Engine.get_main_loop()
+	if main_loop is SceneTree:
+		var tree: SceneTree = main_loop
+		return tree
+	return null
+
+
+func _get_dictionary_entry(source: Dictionary, key: Variant) -> Dictionary:
+	if not source.has(key):
+		return {}
+	var value: Variant = source[key]
+	if not (value is Dictionary):
+		return {}
+	var entry: Dictionary = value
+	return entry
+
+
+func _get_callable_value(value: Variant) -> Callable:
+	if value is Callable:
+		var callable: Callable = value
+		return callable
+	return Callable()
+
+
+func _get_script_value(value: Variant) -> Script:
+	if value is Script:
+		var script: Script = value
+		return script
+	return null
+
+
+func _is_float_convertible(value: Variant) -> bool:
+	return value is int or value is float or value is bool
+
+
+func _number_to_float(value: Variant) -> float:
+	if value is float:
+		var float_value: float = value
+		return float_value
+	if value is int:
+		var int_value: int = value
+		return float(int_value)
+	if value is bool:
+		var bool_value: bool = value
+		return float(bool_value)
+	return 0.0
+
+
 func _bind_console_command() -> void:
-	_console_utility = get_utility(GFConsoleUtility) as GFConsoleUtility
+	_console_utility = _get_console_utility()
 	if _console_utility == null:
 		return
 	if _console_utility.get_command_names().has("diagnostics"):
@@ -986,7 +1067,7 @@ func _bind_console_command() -> void:
 
 
 func _make_command_result(ok: bool, value: Variant, error: String, metadata: Dictionary = {}) -> Dictionary:
-	var result := {
+	var result: Dictionary = {
 		"ok": ok,
 		"value": value,
 		"error": error,
@@ -1005,20 +1086,20 @@ func _command_collect_performance(_args: Dictionary) -> Dictionary:
 
 func _command_collect_logs(args: Dictionary) -> Dictionary:
 	return collect_log_snapshot(
-		int(args.get("recent_log_count", default_recent_log_count)),
-		bool(args.get("include_recent_logs", true))
+		GFVariantData.get_option_int(args, "recent_log_count", default_recent_log_count),
+		GFVariantData.get_option_bool(args, "include_recent_logs", true)
 	)
 
 
 func _command_collect_monitors(args: Dictionary) -> Dictionary:
-	var preset_id := StringName(args.get("preset_id", &""))
+	var preset_id: StringName = GFVariantData.get_option_string_name(args, "preset_id", &"")
 	if preset_id != &"":
-		return collect_monitor_preset(preset_id, bool(args.get("include_hidden", false)))
+		return collect_monitor_preset(preset_id, GFVariantData.get_option_bool(args, "include_hidden", false))
 
-	var monitor_ids := args.get("monitor_ids", PackedStringArray()) as PackedStringArray
+	var monitor_ids: PackedStringArray = GFVariantData.get_option_packed_string_array(args, "monitor_ids")
 	return collect_monitor_snapshot(
-		monitor_ids if monitor_ids != null else PackedStringArray(),
-		bool(args.get("include_hidden", false))
+		monitor_ids,
+		GFVariantData.get_option_bool(args, "include_hidden", false)
 	)
 
 
@@ -1035,10 +1116,10 @@ func _command_collect_signals(args: Dictionary) -> Dictionary:
 
 
 func _collect_scene_tree_node(node: Node, depth: int, options: Dictionary, counters: Dictionary) -> Dictionary:
-	counters["count"] = int(counters.get("count", 0)) + 1
-	var include_internal := bool(options.get("include_internal", false))
-	var child_count := node.get_child_count(include_internal)
-	var info := {
+	counters["count"] = GFVariantData.get_option_int(counters, "count", 0) + 1
+	var include_internal: bool = GFVariantData.get_option_bool(options, "include_internal", false)
+	var child_count: int = node.get_child_count(include_internal)
+	var info: Dictionary = {
 		"name": node.name,
 		"type": node.get_class(),
 		"path": _get_node_path_or_empty(node),
@@ -1047,14 +1128,14 @@ func _collect_scene_tree_node(node: Node, depth: int, options: Dictionary, count
 		"children": [],
 	}
 
-	if bool(options.get("include_owner_path", true)):
+	if GFVariantData.get_option_bool(options, "include_owner_path", true):
 		info["owner_path"] = _get_node_path_or_empty(node.owner)
-	if bool(options.get("include_script_path", true)):
+	if GFVariantData.get_option_bool(options, "include_script_path", true):
 		info["script_path"] = _get_node_script_path(node)
-	if bool(options.get("include_groups", false)):
+	if GFVariantData.get_option_bool(options, "include_groups", false):
 		info["groups"] = _get_node_group_names(node)
 
-	if depth >= int(options.get("max_depth", default_scene_tree_max_depth)):
+	if depth >= GFVariantData.get_option_int(options, "max_depth", default_scene_tree_max_depth):
 		if child_count > 0:
 			info["depth_limit_reached"] = true
 			counters["truncated"] = true
@@ -1062,25 +1143,25 @@ func _collect_scene_tree_node(node: Node, depth: int, options: Dictionary, count
 
 	var children: Array[Dictionary] = []
 	for child_index: int in range(child_count):
-		if int(counters.get("count", 0)) >= int(options.get("max_nodes", default_scene_tree_max_nodes)):
+		if GFVariantData.get_option_int(counters, "count", 0) >= GFVariantData.get_option_int(options, "max_nodes", default_scene_tree_max_nodes):
 			info["children_truncated"] = true
 			counters["truncated"] = true
 			break
 
-		var child := node.get_child(child_index, include_internal)
+		var child: Node = node.get_child(child_index, include_internal)
 		children.append(_collect_scene_tree_node(child, depth + 1, options, counters))
 	info["children"] = children
 	return info
 
 
 func _resolve_scene_tree_root(options: Dictionary) -> Node:
-	var root_path := NodePath(String(options.get("root_path", "")))
-	var tree := Engine.get_main_loop() as SceneTree
+	var root_path: NodePath = NodePath(GFVariantData.get_option_string(options, "root_path"))
+	var tree: SceneTree = _get_main_scene_tree()
 	if tree == null:
 		return null
 
 	if not root_path.is_empty():
-		var explicit_root := tree.root.get_node_or_null(root_path)
+		var explicit_root: Node = tree.root.get_node_or_null(root_path)
 		if explicit_root != null:
 			return explicit_root
 		if tree.current_scene != null:
@@ -1100,130 +1181,108 @@ func _get_node_path_or_empty(node: Node) -> String:
 
 
 func _get_node_script_path(node: Node) -> String:
-	var script := node.get_script() as Script
+	var script: Script = _get_script_value(node.get_script())
 	if script == null:
 		return ""
 	return script.resource_path
 
 
 func _get_node_group_names(node: Node) -> PackedStringArray:
-	var groups := PackedStringArray()
+	var groups: PackedStringArray = PackedStringArray()
 	for group: StringName in node.get_groups():
-		groups.append(String(group))
+		var _group_appended: bool = groups.append(String(group))
 	groups.sort()
 	return groups
 
 
 func _register_builtin_monitors() -> void:
-	register_monitor(&"performance.fps", Callable(self, "_monitor_performance_fps"), {
-		"label": "FPS",
-		"group": "Performance",
-	})
-	register_monitor(&"performance.process_time", Callable(self, "_monitor_performance_process_time"), {
-		"label": "Process Time",
-		"group": "Performance",
-	})
-	register_monitor(&"performance.physics_process_time", Callable(self, "_monitor_performance_physics_time"), {
-		"label": "Physics Time",
-		"group": "Performance",
-	})
-	register_monitor(&"performance.static_memory", Callable(self, "_monitor_performance_static_memory"), {
-		"label": "Static Memory",
-		"group": "Performance",
-		"min_interval_seconds": 0.25,
-	})
-	register_monitor(&"performance.node_count", Callable(self, "_monitor_performance_node_count"), {
-		"label": "Nodes",
-		"group": "Performance",
-		"min_interval_seconds": 0.25,
-	})
-	register_monitor(&"architecture.models", Callable(self, "_monitor_architecture_model_count"), {
-		"label": "Models",
-		"group": "Architecture",
-		"min_interval_seconds": 0.25,
-	})
-	register_monitor(&"architecture.systems", Callable(self, "_monitor_architecture_system_count"), {
-		"label": "Systems",
-		"group": "Architecture",
-		"min_interval_seconds": 0.25,
-	})
-	register_monitor(&"architecture.utilities", Callable(self, "_monitor_architecture_utility_count"), {
-		"label": "Utilities",
-		"group": "Architecture",
-		"min_interval_seconds": 0.25,
-	})
-	register_monitor(&"event_system.stats", Callable(self, "_monitor_event_system_stats"), {
-		"label": "Event Stats",
-		"group": "Architecture",
-		"min_interval_seconds": 0.25,
-	})
-	register_monitor(&"tools.asset", Callable(self, "_monitor_tool_asset_snapshot"), {
-		"label": "Asset Utility",
-		"group": "Tools",
-		"min_interval_seconds": 0.25,
-	})
-	register_monitor(&"tools.timer", Callable(self, "_monitor_tool_timer_snapshot"), {
-		"label": "Timer Utility",
-		"group": "Tools",
-		"min_interval_seconds": 0.25,
-	})
-	register_monitor(&"tools.download", Callable(self, "_monitor_tool_download_snapshot"), {
-		"label": "Download Utility",
-		"group": "Tools",
-		"min_interval_seconds": 0.25,
-	})
+	_register_builtin_monitor(&"performance.fps", &"_monitor_performance_fps", "FPS", "Performance")
+	_register_builtin_monitor(&"performance.process_time", &"_monitor_performance_process_time", "Process Time", "Performance")
+	_register_builtin_monitor(&"performance.physics_process_time", &"_monitor_performance_physics_time", "Physics Time", "Performance")
+	_register_builtin_monitor(&"performance.static_memory", &"_monitor_performance_static_memory", "Static Memory", "Performance", 0.25)
+	_register_builtin_monitor(&"performance.node_count", &"_monitor_performance_node_count", "Nodes", "Performance", 0.25)
+	_register_builtin_monitor(&"architecture.models", &"_monitor_architecture_model_count", "Models", "Architecture", 0.25)
+	_register_builtin_monitor(&"architecture.systems", &"_monitor_architecture_system_count", "Systems", "Architecture", 0.25)
+	_register_builtin_monitor(&"architecture.utilities", &"_monitor_architecture_utility_count", "Utilities", "Architecture", 0.25)
+	_register_builtin_monitor(&"event_system.stats", &"_monitor_event_system_stats", "Event Stats", "Architecture", 0.25)
+	_register_builtin_monitor(&"tools.asset", &"_monitor_tool_asset_snapshot", "Asset Utility", "Tools", 0.25)
+	_register_builtin_monitor(&"tools.timer", &"_monitor_tool_timer_snapshot", "Timer Utility", "Tools", 0.25)
+	_register_builtin_monitor(&"tools.download", &"_monitor_tool_download_snapshot", "Download Utility", "Tools", 0.25)
 
-	register_monitor_preset(&"minimal", PackedStringArray([
+	_register_builtin_monitor_preset(&"minimal", PackedStringArray([
 		"performance.fps",
 		"performance.process_time",
 		"performance.physics_process_time",
-	]), { "label": "Minimal" })
-	register_monitor_preset(&"performance", PackedStringArray([
+	]), "Minimal")
+	_register_builtin_monitor_preset(&"performance", PackedStringArray([
 		"performance.fps",
 		"performance.process_time",
 		"performance.physics_process_time",
 		"performance.static_memory",
 		"performance.node_count",
-	]), { "label": "Performance" })
-	register_monitor_preset(&"architecture", PackedStringArray([
+	]), "Performance")
+	_register_builtin_monitor_preset(&"architecture", PackedStringArray([
 		"architecture.models",
 		"architecture.systems",
 		"architecture.utilities",
 		"event_system.stats",
-	]), { "label": "Architecture" })
-	register_monitor_preset(&"tools", PackedStringArray([
+	]), "Architecture")
+	_register_builtin_monitor_preset(&"tools", PackedStringArray([
 		"tools.asset",
 		"tools.timer",
 		"tools.download",
-	]), { "label": "Tools" })
-	register_monitor_preset(&"overlay", PackedStringArray([
+	]), "Tools")
+	_register_builtin_monitor_preset(&"overlay", PackedStringArray([
 		"performance.fps",
 		"architecture.models",
 		"architecture.systems",
 		"architecture.utilities",
-	]), { "label": "Overlay" })
+	]), "Overlay")
+
+
+func _register_builtin_monitor(
+	monitor_id: StringName,
+	method_name: StringName,
+	label: String,
+	group: String,
+	min_interval_seconds: float = 0.0
+) -> void:
+	var options: Dictionary = {
+		"label": label,
+		"group": group,
+	}
+	if min_interval_seconds > 0.0:
+		options["min_interval_seconds"] = min_interval_seconds
+
+	if not register_monitor(monitor_id, Callable(self, method_name), options):
+		push_warning("Failed to register built-in diagnostic monitor: %s" % String(monitor_id))
+
+
+func _register_builtin_monitor_preset(preset_id: StringName, monitor_ids: PackedStringArray, label: String) -> void:
+	if not register_monitor_preset(preset_id, monitor_ids, { "label": label }):
+		push_warning("Failed to register built-in diagnostic monitor preset: %s" % String(preset_id))
 
 
 func _sample_monitor(monitor_id: StringName, entry: Dictionary) -> Dictionary:
-	var now_seconds := Time.get_ticks_msec() / 1000.0
-	var min_interval_seconds := float(entry.get("min_interval_seconds", 0.0))
-	var last_sample := entry.get("last_sample", {}) as Dictionary
+	var now_seconds: float = Time.get_ticks_msec() / 1000.0
+	var min_interval_seconds: float = GFVariantData.get_option_float(entry, "min_interval_seconds", 0.0)
+	var last_sample: Dictionary = GFVariantData.get_option_dictionary(entry, "last_sample")
 	if (
 		min_interval_seconds > 0.0
 		and not last_sample.is_empty()
-		and now_seconds - float(entry.get("last_sample_time", -INF)) < min_interval_seconds
+		and now_seconds - GFVariantData.get_option_float(entry, "last_sample_time", -INF) < min_interval_seconds
 	):
 		return last_sample.duplicate(true)
 
-	var provider: Callable = entry.get("provider", Callable())
-	var sample := {
+	var provider: Callable = _get_callable_value(GFVariantData.get_option_value(entry, "provider", Callable()))
+	var sample: Dictionary = {
 		"id": monitor_id,
-		"label": String(entry.get("label", String(monitor_id))),
-		"group": String(entry.get("group", "Runtime")),
+		"label": GFVariantData.get_option_string(entry, "label", String(monitor_id)),
+		"group": GFVariantData.get_option_string(entry, "group", "Runtime"),
 		"value": null,
 		"valid": false,
 		"error": "",
-		"metadata": (entry.get("metadata", {}) as Dictionary).duplicate(true),
+		"metadata": GFVariantData.get_option_dictionary(entry, "metadata"),
 		"sampled_at_unix": Time.get_unix_time_from_system(),
 	}
 	if not provider.is_valid():
@@ -1271,7 +1330,7 @@ func _monitor_architecture_utility_count() -> int:
 
 
 func _monitor_event_system_stats() -> Dictionary:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return {}
 	return architecture.get_event_debug_stats()
@@ -1302,23 +1361,23 @@ func _collect_tool_debug_snapshots() -> Dictionary:
 
 
 func _add_tool_debug_snapshot(result: Dictionary, key: StringName, instance: Object) -> void:
-	var snapshot := _get_instance_debug_snapshot(instance)
+	var snapshot: Dictionary = _get_instance_debug_snapshot(instance)
 	if not snapshot.is_empty():
 		result[key] = snapshot
 
 
 func _add_registered_tool_debug_snapshots(result: Dictionary) -> void:
 	for tool_id: StringName in _tool_snapshot_providers.keys():
-		var provider := _tool_snapshot_providers[tool_id] as Callable
-		var snapshot := _call_dictionary_provider(provider)
+		var provider: Callable = _get_callable_value(_tool_snapshot_providers[tool_id])
+		var snapshot: Dictionary = _call_dictionary_provider(provider)
 		if not snapshot.is_empty():
 			result[tool_id] = snapshot
 
 
 func _collect_registered_snapshot_sections(snapshot: Dictionary) -> void:
 	for section_id: StringName in _snapshot_section_providers.keys():
-		var provider := _snapshot_section_providers[section_id] as Callable
-		var section := _call_dictionary_provider(provider)
+		var provider: Callable = _get_callable_value(_snapshot_section_providers[section_id])
+		var section: Dictionary = _call_dictionary_provider(provider)
 		if not section.is_empty():
 			snapshot[section_id] = section
 
@@ -1327,86 +1386,86 @@ func _get_instance_debug_snapshot(instance: Object) -> Dictionary:
 	if instance == null or not instance.has_method("get_debug_snapshot"):
 		return {}
 	var value: Variant = instance.call("get_debug_snapshot")
-	return (value as Dictionary).duplicate(true) if value is Dictionary else {}
+	return GFVariantData.to_dictionary(value)
 
 
 func _call_dictionary_provider(provider: Callable) -> Dictionary:
 	if not provider.is_valid():
 		return {}
 	var value: Variant = provider.call()
-	return (value as Dictionary).duplicate(true) if value is Dictionary else {}
+	return GFVariantData.to_dictionary(value)
 
 
 func _get_architecture_debug_section_count(section_name: String) -> int:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return 0
 
-	var state := architecture.get_debug_lifecycle_state()
-	var section := state.get(section_name, {}) as Dictionary
-	return section.size() if section != null else 0
+	var state: Dictionary = architecture.get_debug_lifecycle_state()
+	var section: Dictionary = GFVariantData.get_option_dictionary(state, section_name)
+	return section.size()
 
 
 func _export_monitor_snapshot_as_text(snapshot: Dictionary) -> String:
-	var lines := PackedStringArray()
-	var monitors := snapshot.get("monitors", {}) as Dictionary
-	if monitors == null:
+	var lines: PackedStringArray = PackedStringArray()
+	var monitors: Dictionary = GFVariantData.get_option_dictionary(snapshot, "monitors")
+	if monitors.is_empty():
 		return ""
 
-	var ids := PackedStringArray()
+	var ids: PackedStringArray = PackedStringArray()
 	for monitor_id: Variant in monitors.keys():
-		ids.append(String(monitor_id))
+		var _id_appended: bool = ids.append(str(monitor_id))
 	ids.sort()
 	for id_text: String in ids:
-		var sample := monitors[StringName(id_text)] as Dictionary
-		if sample == null:
+		var sample: Dictionary = GFVariantData.get_option_dictionary(monitors, id_text)
+		if sample.is_empty():
 			continue
-		lines.append("%s [%s]: %s" % [
-			String(sample.get("label", id_text)),
-			String(sample.get("group", "Runtime")),
-			str(sample.get("value", null)),
+		var _line_appended: bool = lines.append("%s [%s]: %s" % [
+			GFVariantData.get_option_string(sample, "label", id_text),
+			GFVariantData.get_option_string(sample, "group", "Runtime"),
+			str(GFVariantData.get_option_value(sample, "value", null)),
 		])
 	return "\n".join(lines)
 
 
 func _export_monitor_snapshot_as_csv(snapshot: Dictionary) -> String:
-	var lines := PackedStringArray(["id,label,group,value,valid,error"])
-	var monitors := snapshot.get("monitors", {}) as Dictionary
-	if monitors == null:
+	var lines: PackedStringArray = PackedStringArray(["id,label,group,value,valid,error"])
+	var monitors: Dictionary = GFVariantData.get_option_dictionary(snapshot, "monitors")
+	if monitors.is_empty():
 		return "\n".join(lines)
 
-	var ids := PackedStringArray()
+	var ids: PackedStringArray = PackedStringArray()
 	for monitor_id: Variant in monitors.keys():
-		ids.append(String(monitor_id))
+		var _id_appended: bool = ids.append(str(monitor_id))
 	ids.sort()
 	for id_text: String in ids:
-		var sample := monitors[StringName(id_text)] as Dictionary
-		if sample == null:
+		var sample: Dictionary = GFVariantData.get_option_dictionary(monitors, id_text)
+		if sample.is_empty():
 			continue
-		lines.append(",".join(PackedStringArray([
+		var _line_appended: bool = lines.append(",".join(PackedStringArray([
 			_escape_csv(id_text),
-			_escape_csv(String(sample.get("label", id_text))),
-			_escape_csv(String(sample.get("group", "Runtime"))),
-			_escape_csv(str(sample.get("value", null))),
-			_escape_csv(str(sample.get("valid", false))),
-			_escape_csv(String(sample.get("error", ""))),
+			_escape_csv(GFVariantData.get_option_string(sample, "label", id_text)),
+			_escape_csv(GFVariantData.get_option_string(sample, "group", "Runtime")),
+			_escape_csv(str(GFVariantData.get_option_value(sample, "value", null))),
+			_escape_csv(str(GFVariantData.get_option_bool(sample, "valid", false))),
+			_escape_csv(GFVariantData.get_option_string(sample, "error")),
 		])))
 	return "\n".join(lines)
 
 
 func _escape_csv(value: String) -> String:
-	var escaped := value.replace("\"", "\"\"")
+	var escaped: String = value.replace("\"", "\"\"")
 	if escaped.contains(",") or escaped.contains("\n") or escaped.contains("\""):
 		return "\"%s\"" % escaped
 	return escaped
 
 
 func _on_console_diagnostics_command(_args: PackedStringArray) -> void:
-	var snapshot := collect_snapshot({
+	var snapshot: Dictionary = collect_snapshot({
 		"include_recent_logs": false,
 	})
-	var summary := _make_console_summary(snapshot)
-	var log_utility := get_utility(GFLogUtility) as GFLogUtility
+	var summary: String = _make_console_summary(snapshot)
+	var log_utility: GFLogUtility = _get_log_utility()
 	if log_utility != null:
 		log_utility.info("Diagnostics", summary)
 	else:
@@ -1414,12 +1473,12 @@ func _on_console_diagnostics_command(_args: PackedStringArray) -> void:
 
 
 func _make_console_summary(snapshot: Dictionary) -> String:
-	var architecture := snapshot.get("architecture", {}) as Dictionary
-	var models := architecture.get("models", {}) as Dictionary
-	var systems := architecture.get("systems", {}) as Dictionary
-	var utilities := architecture.get("utilities", {}) as Dictionary
-	var performance := snapshot.get("performance", {}) as Dictionary
-	var fps := float(performance.get("fps", 0.0))
+	var architecture: Dictionary = GFVariantData.get_option_dictionary(snapshot, "architecture")
+	var models: Dictionary = GFVariantData.get_option_dictionary(architecture, "models")
+	var systems: Dictionary = GFVariantData.get_option_dictionary(architecture, "systems")
+	var utilities: Dictionary = GFVariantData.get_option_dictionary(architecture, "utilities")
+	var performance: Dictionary = GFVariantData.get_option_dictionary(snapshot, "performance")
+	var fps: float = GFVariantData.get_option_float(performance, "fps", 0.0)
 	return "GF diagnostics: models=%d systems=%d utilities=%d fps=%.1f" % [
 		models.size(),
 		systems.size(),
@@ -1442,69 +1501,75 @@ func _is_auth_allowed(args: Dictionary) -> bool:
 	if auth_token.is_empty():
 		return false
 
-	var provided := String(args.get("auth_token", args.get("_auth_token", "")))
+	var provided: String = GFVariantData.get_option_string(
+		args,
+		"auth_token",
+		GFVariantData.get_option_string(args, "_auth_token")
+	)
 	return provided == auth_token
 
 
 func _normalize_parameter_schema(parameters: Variant) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	if parameters is Dictionary:
-		for key: Variant in (parameters as Dictionary).keys():
-			var definition := (parameters as Dictionary)[key] as Dictionary
-			if definition == null:
-				definition = {}
-			definition = definition.duplicate(true)
-			definition["name"] = String(key)
+		var parameter_map: Dictionary = parameters
+		for key: Variant in parameter_map.keys():
+			var definition: Dictionary = {}
+			var raw_definition: Variant = parameter_map[key]
+			if raw_definition is Dictionary:
+				var raw_definition_dictionary: Dictionary = raw_definition
+				definition = raw_definition_dictionary.duplicate(true)
+			definition["name"] = str(key)
 			result.append(_normalize_parameter_definition(definition))
 	elif parameters is Array:
-		for item: Variant in parameters as Array:
+		var parameter_array: Array = parameters
+		for item: Variant in parameter_array:
 			if item is Dictionary:
-				result.append(_normalize_parameter_definition((item as Dictionary).duplicate(true)))
+				var item_definition: Dictionary = item
+				result.append(_normalize_parameter_definition(item_definition.duplicate(true)))
 	return result
 
 
 func _normalize_parameter_definition(definition: Dictionary) -> Dictionary:
-	var parameter_name := String(definition.get("name", ""))
+	var parameter_name: String = GFVariantData.get_option_string(definition, "name")
 	if parameter_name.is_empty():
 		return {}
 	return {
 		"name": parameter_name,
-		"type": String(definition.get("type", "any")).to_lower(),
-		"required": bool(definition.get("required", false)),
-		"allow_null": bool(definition.get("allow_null", false)),
-		"default": GFVariantData.duplicate_variant(definition.get("default", null)),
+		"type": GFVariantData.get_option_string(definition, "type", "any").to_lower(),
+		"required": GFVariantData.get_option_bool(definition, "required", false),
+		"allow_null": GFVariantData.get_option_bool(definition, "allow_null", false),
+		"default": GFVariantData.duplicate_variant(GFVariantData.get_option_value(definition, "default", null)),
 		"has_default": definition.has("default"),
-		"allowed_values": GFVariantData.duplicate_variant(definition.get("allowed_values", [])),
-		"min": definition.get("min", null),
-		"max": definition.get("max", null),
-		"metadata": (definition.get("metadata", {}) as Dictionary).duplicate(true) if definition.get("metadata", {}) is Dictionary else {},
+		"allowed_values": GFVariantData.duplicate_variant(GFVariantData.get_option_value(definition, "allowed_values", [])),
+		"min": GFVariantData.get_option_value(definition, "min", null),
+		"max": GFVariantData.get_option_value(definition, "max", null),
+		"metadata": GFVariantData.get_option_dictionary(definition, "metadata"),
 	}
 
 
 func _prepare_command_args(args: Dictionary, entry: Dictionary) -> Dictionary:
-	var prepared := args.duplicate(true)
-	var parameters := entry.get("parameters", []) as Array
-	if parameters == null:
-		return prepared
+	var prepared: Dictionary = args.duplicate(true)
+	var parameters: Array = GFVariantData.get_option_array(entry, "parameters")
 	for parameter_variant: Variant in parameters:
-		var parameter := parameter_variant as Dictionary
-		if parameter == null:
+		if not (parameter_variant is Dictionary):
 			continue
-		var parameter_name := String(parameter.get("name", ""))
-		if not prepared.has(parameter_name) and bool(parameter.get("has_default", false)):
-			prepared[parameter_name] = GFVariantData.duplicate_variant(parameter.get("default", null))
+		var parameter: Dictionary = parameter_variant
+		var parameter_name: String = GFVariantData.get_option_string(parameter, "name")
+		if not prepared.has(parameter_name) and GFVariantData.get_option_bool(parameter, "has_default", false):
+			prepared[parameter_name] = GFVariantData.duplicate_variant(GFVariantData.get_option_value(parameter, "default", null))
 	return prepared
 
 
 func _validate_command_args(entry: Dictionary, prepared_args: Dictionary, original_args: Dictionary) -> GFValidationReport:
-	var report := GFValidationReport.new("Diagnostic command arguments")
-	var parameters := entry.get("parameters", []) as Array
-	if parameters == null:
-		return report
+	var report: GFValidationReport = GFValidationReport.new("Diagnostic command arguments")
+	var parameters: Array = GFVariantData.get_option_array(entry, "parameters")
 
 	for parameter_variant: Variant in parameters:
-		var parameter := parameter_variant as Dictionary
-		if parameter == null or parameter.is_empty():
+		if not (parameter_variant is Dictionary):
+			continue
+		var parameter: Dictionary = parameter_variant
+		if parameter.is_empty():
 			continue
 		_validate_command_parameter(report, parameter, prepared_args, original_args)
 	return report
@@ -1516,24 +1581,28 @@ func _validate_command_parameter(
 	prepared_args: Dictionary,
 	original_args: Dictionary
 ) -> void:
-	var parameter_name := String(parameter.get("name", ""))
+	var parameter_name: String = GFVariantData.get_option_string(parameter, "name")
 	if parameter_name.is_empty():
 		return
-	if bool(parameter.get("required", false)) and not original_args.has(parameter_name) and not bool(parameter.get("has_default", false)):
-		report.add_error(&"missing_parameter", "Missing required diagnostic command parameter.", parameter_name)
+	if (
+		GFVariantData.get_option_bool(parameter, "required", false)
+		and not original_args.has(parameter_name)
+		and not GFVariantData.get_option_bool(parameter, "has_default", false)
+	):
+		var _missing_issue: RefCounted = report.add_error(&"missing_parameter", "Missing required diagnostic command parameter.", parameter_name)
 		return
 	if not prepared_args.has(parameter_name):
 		return
 
 	var value: Variant = prepared_args[parameter_name]
 	if value == null:
-		if not bool(parameter.get("allow_null", false)):
-			report.add_error(&"null_parameter", "Diagnostic command parameter does not allow null.", parameter_name)
+		if not GFVariantData.get_option_bool(parameter, "allow_null", false):
+			var _null_issue: RefCounted = report.add_error(&"null_parameter", "Diagnostic command parameter does not allow null.", parameter_name)
 		return
 
-	var type_name := String(parameter.get("type", "any")).to_lower()
+	var type_name: String = GFVariantData.get_option_string(parameter, "type", "any").to_lower()
 	if not _does_value_match_parameter_type(value, type_name):
-		report.add_error(&"parameter_type_mismatch", "Diagnostic command parameter has the wrong type.", parameter_name, "", {
+		var _type_issue: RefCounted = report.add_error(&"parameter_type_mismatch", "Diagnostic command parameter has the wrong type.", parameter_name, "", {
 			"expected_type": type_name,
 			"actual_type": type_string(typeof(value)),
 		})
@@ -1549,13 +1618,13 @@ func _validate_allowed_values(
 	name: String,
 	value: Variant
 ) -> void:
-	var allowed_values := parameter.get("allowed_values", [])
-	if not (allowed_values is Array) or (allowed_values as Array).is_empty():
+	var allowed_values: Array = GFVariantData.get_option_array(parameter, "allowed_values")
+	if allowed_values.is_empty():
 		return
-	for allowed: Variant in allowed_values as Array:
+	for allowed: Variant in allowed_values:
 		if value == allowed:
 			return
-	report.add_error(&"parameter_value_not_allowed", "Diagnostic command parameter value is not allowed.", name)
+	var _value_issue: RefCounted = report.add_error(&"parameter_value_not_allowed", "Diagnostic command parameter value is not allowed.", name)
 
 
 func _validate_numeric_range(
@@ -1566,10 +1635,13 @@ func _validate_numeric_range(
 ) -> void:
 	if not (value is int or value is float):
 		return
-	if parameter.get("min", null) != null and float(value) < float(parameter.get("min")):
-		report.add_error(&"parameter_below_minimum", "Diagnostic command parameter is below minimum.", name)
-	if parameter.get("max", null) != null and float(value) > float(parameter.get("max")):
-		report.add_error(&"parameter_above_maximum", "Diagnostic command parameter is above maximum.", name)
+	var value_float: float = _number_to_float(value)
+	var min_value: Variant = GFVariantData.get_option_value(parameter, "min", null)
+	if _is_float_convertible(min_value) and value_float < _number_to_float(min_value):
+		var _min_issue: RefCounted = report.add_error(&"parameter_below_minimum", "Diagnostic command parameter is below minimum.", name)
+	var max_value: Variant = GFVariantData.get_option_value(parameter, "max", null)
+	if _is_float_convertible(max_value) and value_float > _number_to_float(max_value):
+		var _max_issue: RefCounted = report.add_error(&"parameter_above_maximum", "Diagnostic command parameter is above maximum.", name)
 
 
 func _does_value_match_parameter_type(value: Variant, type_name: String) -> bool:

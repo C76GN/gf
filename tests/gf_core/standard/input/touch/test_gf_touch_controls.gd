@@ -3,7 +3,7 @@ extends GutTest
 
 
 func test_touch_button_mouse_and_action_bridges_are_opt_in_by_default() -> void:
-	var button := GFTouchButton.new()
+	var button: GFTouchButton = GFTouchButton.new()
 	add_child_autofree(button)
 
 	assert_false(button.accept_mouse_input, "触屏按钮默认不应接管鼠标左键。")
@@ -12,7 +12,7 @@ func test_touch_button_mouse_and_action_bridges_are_opt_in_by_default() -> void:
 
 
 func test_touch_joystick_action_bridges_are_opt_in_by_default() -> void:
-	var joystick := GFTouchJoystick.new()
+	var joystick: GFTouchJoystick = GFTouchJoystick.new()
 	add_child_autofree(joystick)
 
 	assert_eq(joystick.action_left, &"", "触屏摇杆默认不应映射左方向动作。")

@@ -93,7 +93,7 @@ static func create(
 	result_metadata: Dictionary = {},
 	result_context: Dictionary = {}
 ) -> GFModalResult:
-	var result := GFModalResult.new()
+	var result: GFModalResult = GFModalResult.new()
 	result.status = result_status
 	result.action_id = result_action_id
 	result.payload = result_payload

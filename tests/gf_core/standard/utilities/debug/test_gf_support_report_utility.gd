@@ -2,77 +2,75 @@
 extends GutTest
 
 
-# --- 常量 ---
-
-const GFSupportReportUtilityBase = preload("res://addons/gf/standard/utilities/debug/gf_support_report_utility.gd")
-
-
 # --- 测试方法 ---
 
 ## 验证支持报告可聚合用户描述、元数据和自定义分区。
 func test_support_report_collects_custom_sections() -> void:
-	var utility := GFSupportReportUtilityBase.new()
+	var utility: GFSupportReportUtility = GFSupportReportUtility.new()
 	assert_true(utility.register_section(&"save", func(options: Dictionary) -> Dictionary:
-		return { "slot": options.get("slot", "A") }
+		return { "slot": GFVariantData.get_option_string(options, "slot", "A") }
 	), "有效分区应注册成功。")
 
-	var report := utility.build_report("Need help", {
+	var report: Dictionary = utility.build_report("Need help", {
 		"include_diagnostics": false,
 		"include_scene": false,
 		"section_options": { "slot": "B" },
 		"metadata": { "screen": "settings" },
 		"tags": ["qa", "runtime"],
 	})
-	var sections := report["sections"] as Dictionary
-	var save_section := sections[&"save"] as Dictionary
+	var sections: Dictionary = GFVariantData.get_option_dictionary(report, "sections")
+	var save_section: Dictionary = GFVariantData.get_option_dictionary(sections, &"save")
+	var metadata: Dictionary = GFVariantData.get_option_dictionary(report, "metadata")
+	var save_value: Dictionary = GFVariantData.get_option_dictionary(save_section, "value")
 
-	assert_eq(report["description"], "Need help", "报告应保留用户描述。")
-	assert_eq((report["metadata"] as Dictionary).get("screen"), "settings", "报告应保留元数据。")
-	assert_eq((save_section["value"] as Dictionary).get("slot"), "B", "分区 provider 应收到调用选项。")
+	assert_eq(GFVariantData.get_option_string(report, "description"), "Need help", "报告应保留用户描述。")
+	assert_eq(GFVariantData.get_option_string(metadata, "screen"), "settings", "报告应保留元数据。")
+	assert_eq(GFVariantData.get_option_string(save_value, "slot"), "B", "分区 provider 应收到调用选项。")
 
 
 ## 验证支持报告文本选项可安全接收非字符串值。
 func test_support_report_string_options_are_safe_for_variants() -> void:
-	var utility := GFSupportReportUtilityBase.new()
-	var provider := func(_options: Dictionary) -> String:
+	var utility: GFSupportReportUtility = GFSupportReportUtility.new()
+	var provider: Callable = func(_options: Dictionary) -> String:
 		return "ok"
 	assert_true(utility.register_section(&"runtime", provider, { "label": 123 }), "数字 label 应被安全转换。")
 
-	var report := utility.build_report("Variants", {
+	var report: Dictionary = utility.build_report("Variants", {
 		"include_diagnostics": false,
 		"include_scene": false,
 		"report_id": 456,
 		"tags": [1, &"two"],
 	})
-	var catalog := utility.get_section_catalog()
+	var catalog: Dictionary = utility.get_section_catalog()
+	var runtime_section: Dictionary = GFVariantData.get_option_dictionary(catalog, &"runtime")
 
-	assert_eq(report["report_id"], "456", "数字 report_id 应转换为文本。")
-	assert_true((report["tags"] as PackedStringArray).has("1"), "数字 tag 应转换为文本。")
-	assert_eq((catalog[&"runtime"] as Dictionary)["label"], "123", "数字分区 label 应转换为文本。")
+	assert_eq(GFVariantData.get_option_string(report, "report_id"), "456", "数字 report_id 应转换为文本。")
+	assert_true(GFVariantData.get_option_packed_string_array(report, "tags").has("1"), "数字 tag 应转换为文本。")
+	assert_eq(GFVariantData.get_option_string(runtime_section, "label"), "123", "数字分区 label 应转换为文本。")
 
 
 ## 验证支持报告可导出 JSON 并通过回调提交。
 func test_support_report_exports_and_submits_with_transport_callback() -> void:
-	var utility := GFSupportReportUtilityBase.new()
-	var report := utility.build_report("Export", {
+	var utility: GFSupportReportUtility = GFSupportReportUtility.new()
+	var report: Dictionary = utility.build_report("Export", {
 		"include_diagnostics": false,
 		"include_scene": false,
 	})
 	var submitted_ids: Array[String] = []
-	var result := utility.submit_report(report, func(next_report: Dictionary, _options: Dictionary) -> String:
-		submitted_ids.append(String(next_report.get("report_id", "")))
+	var result: Dictionary = utility.submit_report(report, func(next_report: Dictionary, _options: Dictionary) -> String:
+		submitted_ids.append(GFVariantData.get_option_string(next_report, "report_id"))
 		return "accepted"
 	)
 
 	assert_true(utility.export_report_json(report).contains("report_id"), "JSON 导出应包含报告 ID。")
-	assert_true(bool(result["ok"]), "有效 transport 应提交成功。")
-	assert_eq(result["value"], "accepted", "提交结果应保留回调返回值。")
+	assert_true(GFVariantData.get_option_bool(result, "ok"), "有效 transport 应提交成功。")
+	assert_eq(GFVariantData.get_option_string(result, "value"), "accepted", "提交结果应保留回调返回值。")
 	assert_eq(submitted_ids.size(), 1, "transport 应收到报告副本。")
 
 
 ## 验证支持报告可导出适合人工审阅的 Markdown。
 func test_support_report_exports_markdown_summary_sections_and_attachments() -> void:
-	var utility := GFSupportReportUtilityBase.new()
+	var utility: GFSupportReportUtility = GFSupportReportUtility.new()
 	assert_true(utility.register_section(&"runtime_state", func(_options: Dictionary) -> Dictionary:
 		return {
 			"screen": "settings",
@@ -80,7 +78,7 @@ func test_support_report_exports_markdown_summary_sections_and_attachments() -> 
 		}
 	), "有效分区应注册成功。")
 
-	var report := utility.build_report("Markdown export", {
+	var report: Dictionary = utility.build_report("Markdown export", {
 		"include_diagnostics": false,
 		"include_scene": false,
 		"metadata": {
@@ -93,7 +91,7 @@ func test_support_report_exports_markdown_summary_sections_and_attachments() -> 
 			},
 		},
 	})
-	var markdown := utility.export_report_markdown(report, {
+	var markdown: String = utility.export_report_markdown(report, {
 		"title": "QA Support Report",
 	})
 
@@ -108,9 +106,9 @@ func test_support_report_exports_markdown_summary_sections_and_attachments() -> 
 
 ## 验证支持报告可规范化文本附件。
 func test_support_report_collects_text_attachments() -> void:
-	var utility := GFSupportReportUtilityBase.new()
+	var utility: GFSupportReportUtility = GFSupportReportUtility.new()
 
-	var report := utility.build_report("Attachment", {
+	var report: Dictionary = utility.build_report("Attachment", {
 		"include_diagnostics": false,
 		"include_scene": false,
 		"attachments": {
@@ -121,60 +119,62 @@ func test_support_report_collects_text_attachments() -> void:
 			},
 		},
 	})
-	var attachments := report["attachments"] as Dictionary
-	var log_attachment := attachments[&"log"] as Dictionary
+	var attachments: Dictionary = GFVariantData.get_option_dictionary(report, "attachments")
+	var log_attachment: Dictionary = GFVariantData.get_option_dictionary(attachments, &"log")
 
-	assert_true(bool(log_attachment["ok"]), "文本附件应规范化成功。")
-	assert_eq(log_attachment["encoding"], "text", "文本附件应保留 text 编码。")
-	assert_eq(log_attachment["data"], "hello", "文本附件应保留内容。")
+	assert_true(GFVariantData.get_option_bool(log_attachment, "ok"), "文本附件应规范化成功。")
+	assert_eq(GFVariantData.get_option_string(log_attachment, "encoding"), "text", "文本附件应保留 text 编码。")
+	assert_eq(GFVariantData.get_option_string(log_attachment, "data"), "hello", "文本附件应保留内容。")
 
 
 ## 验证场景节点数量统计会遵守节点上限。
 func test_support_report_scene_node_count_respects_limit() -> void:
-	var utility := GFSupportReportUtilityBase.new()
-	var root := Node.new()
-	root.add_child(Node.new())
-	var counters := utility._make_node_count_counters()
+	var utility: GFSupportReportUtility = GFSupportReportUtility.new()
+	var root: Node = Node.new()
+	var child: Node = Node.new()
+	root.add_child(child)
+	var counters: Dictionary = utility._make_node_count_counters()
 
-	var count := utility._count_nodes(root, 0, 64, 1, counters)
+	var count: int = utility._count_nodes(root, 0, 64, 1, counters)
 
 	assert_eq(count, 1, "节点数量统计应遵守 max_nodes 上限。")
-	assert_true(bool(counters["truncated"]), "节点数量统计被截断时应记录 truncated。")
+	assert_true(GFVariantData.get_option_bool(counters, "truncated"), "节点数量统计被截断时应记录 truncated。")
 
 	root.free()
 
 
 ## 验证支持报告会按大小限制拒绝附件。
 func test_support_report_rejects_oversized_attachments() -> void:
-	var utility := GFSupportReportUtilityBase.new()
+	var utility: GFSupportReportUtility = GFSupportReportUtility.new()
 
-	var attachments := utility.collect_attachments({
+	var attachments: Dictionary = utility.collect_attachments({
 		"large": "abcdef",
 	}, {
 		"max_attachment_bytes": 3,
 	})
-	var large_attachment := attachments[&"large"] as Dictionary
+	var large_attachment: Dictionary = GFVariantData.get_option_dictionary(attachments, &"large")
 
-	assert_false(bool(large_attachment["ok"]), "超出大小限制的附件应被拒绝。")
-	assert_eq(large_attachment["reason"], "attachment_too_large", "拒绝原因应稳定。")
+	assert_false(GFVariantData.get_option_bool(large_attachment, "ok"), "超出大小限制的附件应被拒绝。")
+	assert_eq(GFVariantData.get_option_string(large_attachment, "reason"), "attachment_too_large", "拒绝原因应稳定。")
 
 
 ## 验证支持报告提交会归一化 transport 结果。
 func test_support_report_normalizes_transport_result() -> void:
-	var utility := GFSupportReportUtilityBase.new()
-	var report := utility.build_report("Submit", {
+	var utility: GFSupportReportUtility = GFSupportReportUtility.new()
+	var report: Dictionary = utility.build_report("Submit", {
 		"include_diagnostics": false,
 		"include_scene": false,
 	})
 
-	var result := utility.submit_report(report, func(_next_report: Dictionary, _options: Dictionary) -> Dictionary:
+	var result: Dictionary = utility.submit_report(report, func(_next_report: Dictionary, _options: Dictionary) -> Dictionary:
 		return {
 			"ok": false,
 			"error": "rejected",
 			"metadata": { "status": 400 },
 		}
 	)
+	var metadata: Dictionary = GFVariantData.get_option_dictionary(result, "metadata")
 
-	assert_false(bool(result["ok"]), "transport 返回失败时应保留失败状态。")
-	assert_eq(result["error"], "rejected", "transport 错误说明应保留。")
-	assert_eq((result["metadata"] as Dictionary).get("status"), 400, "transport 元数据应保留。")
+	assert_false(GFVariantData.get_option_bool(result, "ok"), "transport 返回失败时应保留失败状态。")
+	assert_eq(GFVariantData.get_option_string(result, "error"), "rejected", "transport 错误说明应保留。")
+	assert_eq(GFVariantData.get_option_int(metadata, "status"), 400, "transport 元数据应保留。")

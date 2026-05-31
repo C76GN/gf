@@ -8,22 +8,22 @@ const SOURCE_ROOTS: Array[String] = [
 	"res://addons/gf/kernel",
 	"res://addons/gf/standard",
 ]
-const GF_EXTENSION_SETTINGS_BASE := preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
-const GF_PLUGIN_ACTIONS := preload("res://addons/gf/kernel/editor/gf_plugin_actions.gd")
-const GF_PLUGIN_DOCK_TOOLS := preload("res://addons/gf/kernel/editor/gf_plugin_dock_tools.gd")
-const GF_PLUGIN_INSPECTOR_TOOLS := preload("res://addons/gf/kernel/editor/gf_plugin_inspector_tools.gd")
+const GF_VARIANT_ACCESS = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
+const GF_PLUGIN_ACTIONS = preload("res://addons/gf/kernel/editor/gf_plugin_actions.gd")
+const GF_PLUGIN_DOCK_TOOLS = preload("res://addons/gf/kernel/editor/gf_plugin_dock_tools.gd")
+const GF_PLUGIN_INSPECTOR_TOOLS = preload("res://addons/gf/kernel/editor/gf_plugin_inspector_tools.gd")
 
 
 # --- 测试用例 ---
 
 func test_all_extensions_disabled_keeps_extension_queries_empty() -> void:
-	var restore := _set_enabled_extensions([])
-	var enabled_manifests := GF_EXTENSION_SETTINGS_BASE.get_enabled_manifests()
-	var editor_action_paths := GF_EXTENSION_SETTINGS_BASE.get_enabled_editor_action_paths()
-	var editor_dock_paths := GF_EXTENSION_SETTINGS_BASE.get_enabled_editor_dock_paths()
-	var editor_inspector_paths := GF_EXTENSION_SETTINGS_BASE.get_enabled_editor_inspector_paths()
-	var export_plugin_paths := GF_EXTENSION_SETTINGS_BASE.get_enabled_export_plugin_paths()
-	var access_extension_paths := GF_EXTENSION_SETTINGS_BASE.get_enabled_access_generator_extension_paths()
+	var restore: Dictionary = _set_enabled_extensions([])
+	var enabled_manifests: Array = GFExtensionSettings.get_enabled_manifests()
+	var editor_action_paths: Array[String] = GFExtensionSettings.get_enabled_editor_action_paths()
+	var editor_dock_paths: Array[String] = GFExtensionSettings.get_enabled_editor_dock_paths()
+	var editor_inspector_paths: Array[String] = GFExtensionSettings.get_enabled_editor_inspector_paths()
+	var export_plugin_paths: Array[String] = GFExtensionSettings.get_enabled_export_plugin_paths()
+	var access_extension_paths: Array[String] = GFExtensionSettings.get_enabled_access_generator_extension_paths()
 	_restore_enabled_extensions(restore)
 
 	assert_true(enabled_manifests.is_empty(), "全禁用时不应解析出启用扩展 manifest。")
@@ -35,21 +35,21 @@ func test_all_extensions_disabled_keeps_extension_queries_empty() -> void:
 
 
 func test_all_extensions_disabled_plugin_helpers_discover_no_extension_extensions() -> void:
-	var restore := _set_enabled_extensions([])
-	var actions: Variant = GF_PLUGIN_ACTIONS.new()
-	actions._load_extension_editor_actions()
-	actions._register_loaded_extension_action_entries()
-	var action_entries := _filter_extension_menu_entries(
-		actions.get_menu_entries(),
-		int(actions.EXTENSION_MENU_ID_START)
+	var restore: Dictionary = _set_enabled_extensions([])
+	var actions: Object = _new_object(GF_PLUGIN_ACTIONS)
+	_call_void(actions, &"_load_extension_editor_actions")
+	_call_void(actions, &"_register_loaded_extension_action_entries")
+	var action_entries: Array[Dictionary] = _filter_extension_menu_entries(
+		_call_array(actions, &"get_menu_entries"),
+		_read_int(actions, &"EXTENSION_MENU_ID_START")
 	)
-	actions._cleanup_extension_editor_actions()
+	_call_void(actions, &"_cleanup_extension_editor_actions")
 
-	var dock_tools: Variant = GF_PLUGIN_DOCK_TOOLS.new()
-	var dock_records: Array = dock_tools._collect_enabled_extension_dock_records()
+	var dock_tools: Object = _new_object(GF_PLUGIN_DOCK_TOOLS)
+	var dock_records: Array = _call_array(dock_tools, &"_collect_enabled_extension_dock_records")
 
-	var inspector_tools: Variant = GF_PLUGIN_INSPECTOR_TOOLS.new()
-	var inspector_records: Array = inspector_tools._collect_enabled_extension_inspector_records()
+	var inspector_tools: Object = _new_object(GF_PLUGIN_INSPECTOR_TOOLS)
+	var inspector_records: Array = _call_array(inspector_tools, &"_collect_enabled_extension_inspector_records")
 	_restore_enabled_extensions(restore)
 
 	assert_true(action_entries.is_empty(), "全禁用时 GF 菜单不应注册扩展级动作。")
@@ -58,7 +58,7 @@ func test_all_extensions_disabled_plugin_helpers_discover_no_extension_extension
 
 
 func test_kernel_and_standard_scripts_load_with_all_extensions_disabled() -> void:
-	var restore := _set_enabled_extensions([])
+	var restore: Dictionary = _set_enabled_extensions([])
 	var paths: Array[String] = []
 	for root: String in SOURCE_ROOTS:
 		_collect_gd_files(root, paths)
@@ -75,8 +75,8 @@ func test_kernel_and_standard_scripts_load_with_all_extensions_disabled() -> voi
 # --- 私有/辅助方法 ---
 
 func _set_enabled_extensions(extension_ids: Array[String]) -> Dictionary:
-	var setting_name: String = GF_EXTENSION_SETTINGS_BASE.ENABLED_EXTENSIONS_SETTING
-	var restore := {
+	var setting_name: String = GFExtensionSettings.ENABLED_EXTENSIONS_SETTING
+	var restore: Dictionary = {
 		"had_setting": ProjectSettings.has_setting(setting_name),
 		"value": ProjectSettings.get_setting(setting_name, []),
 	}
@@ -85,22 +85,46 @@ func _set_enabled_extensions(extension_ids: Array[String]) -> Dictionary:
 
 
 func _restore_enabled_extensions(restore: Dictionary) -> void:
-	var setting_name: String = GF_EXTENSION_SETTINGS_BASE.ENABLED_EXTENSIONS_SETTING
-	if bool(restore.get("had_setting", false)):
-		ProjectSettings.set_setting(setting_name, restore.get("value", []))
+	var setting_name: String = GFExtensionSettings.ENABLED_EXTENSIONS_SETTING
+	if GF_VARIANT_ACCESS.get_option_bool(restore, "had_setting", false):
+		ProjectSettings.set_setting(setting_name, GF_VARIANT_ACCESS.get_option_value(restore, "value", []))
 	else:
 		ProjectSettings.clear(setting_name)
 
 
+func _new_object(script_value: Variant) -> Object:
+	assert_true(script_value is Script, "测试工具脚本应可实例化。")
+	if script_value is Script:
+		var script: Script = script_value
+		var instance: Variant = script.call(&"new")
+		assert_true(instance is Object, "测试工具脚本应实例化为 Object。")
+		if instance is Object:
+			var object_instance: Object = instance
+			return object_instance
+	return null
+
+
+func _call_void(target: Object, method_name: StringName, args: Array = []) -> void:
+	var _call_result: Variant = target.callv(method_name, args)
+
+
+func _call_array(target: Object, method_name: StringName, args: Array = []) -> Array:
+	return GF_VARIANT_ACCESS.as_array(target.callv(method_name, args))
+
+
+func _read_int(target: Object, property_name: StringName) -> int:
+	return GF_VARIANT_ACCESS.to_int(target.get(property_name))
+
+
 func _collect_gd_files(root_path: String, result: Array[String]) -> void:
-	var dir := DirAccess.open(root_path)
+	var dir: DirAccess = DirAccess.open(root_path)
 	if dir == null:
 		return
 
-	dir.list_dir_begin()
-	var entry := dir.get_next()
+	var _list_dir_begin_result_100: Variant = dir.list_dir_begin()
+	var entry: String = dir.get_next()
 	while not entry.is_empty():
-		var path := root_path.path_join(entry)
+		var path: String = root_path.path_join(entry)
 		if dir.current_is_dir():
 			if not entry.begins_with("."):
 				_collect_gd_files(path, result)
@@ -113,16 +137,16 @@ func _collect_gd_files(root_path: String, result: Array[String]) -> void:
 func _filter_extension_menu_entries(entries: Array, extension_menu_id_start: int) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for entry_variant: Variant in entries:
-		var entry := entry_variant as Dictionary
-		if entry == null:
+		if not entry_variant is Dictionary:
 			continue
-		if int(entry.get("id", -1)) >= extension_menu_id_start:
+		var entry: Dictionary = GF_VARIANT_ACCESS.as_dictionary(entry_variant)
+		if GF_VARIANT_ACCESS.get_option_int(entry, "id", -1) >= extension_menu_id_start:
 			result.append(entry.duplicate(true))
 	return result
 
 
 func _join_lines(lines: Array[String]) -> String:
-	var packed := PackedStringArray()
+	var packed: PackedStringArray = PackedStringArray()
 	for line: String in lines:
-		packed.append(line)
+		var _append_result_127: Variant = packed.append(line)
 	return "\n".join(packed)

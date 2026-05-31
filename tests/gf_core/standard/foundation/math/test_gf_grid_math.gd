@@ -2,13 +2,13 @@
 extends GutTest
 
 
-const GF_GRID_MATH := preload("res://addons/gf/standard/foundation/math/gf_grid_math.gd")
+const GF_GRID_MATH = preload("res://addons/gf/standard/foundation/math/gf_grid_math.gd")
 
 
 # --- 测试 ---
 
 func test_cell_index_roundtrip() -> void:
-	var cell := Vector2i(2, 3)
+	var cell: Vector2i = Vector2i(2, 3)
 	var index: int = GF_GRID_MATH.cell_to_index(cell, 5)
 
 	assert_eq(index, 17, "二维坐标应正确转换为一维索引。")
@@ -83,7 +83,7 @@ func test_range_and_ring_follow_movement_topology() -> void:
 
 func test_line_and_line_of_sight_use_bresenham_cells() -> void:
 	var line: Array[Vector2i] = GF_GRID_MATH.get_line(Vector2i.ZERO, Vector2i(3, 2))
-	var blocked := {
+	var blocked: Dictionary = {
 		Vector2i(1, 1): true,
 	}
 	var blocked_los: bool = GF_GRID_MATH.has_line_of_sight(
@@ -160,7 +160,7 @@ func test_diagonal_neighbors_unlock_diagonal_flood_fill() -> void:
 
 
 func test_find_path_bfs_avoids_blocked_cells() -> void:
-	var blocked := {
+	var blocked: Dictionary = {
 		Vector2i(1, 0): true,
 		Vector2i(1, 1): true,
 	}
@@ -173,8 +173,8 @@ func test_find_path_bfs_avoids_blocked_cells() -> void:
 	)
 
 	assert_false(path.is_empty(), "BFS 应能绕过障碍找到路径。")
-	assert_eq(path.front(), Vector2i.ZERO, "路径应从起点开始。")
-	assert_eq(path.back(), Vector2i(2, 0), "路径应抵达终点。")
+	assert_eq(_vector2i_at(path, 0), Vector2i.ZERO, "路径应从起点开始。")
+	assert_eq(_vector2i_at(path, path.size() - 1), Vector2i(2, 0), "路径应抵达终点。")
 	assert_false(path.has(Vector2i(1, 0)), "路径不应穿过障碍。")
 
 
@@ -198,7 +198,7 @@ func test_find_path_bfs_rejects_blocked_goal_and_invalid_callable() -> void:
 
 
 func test_find_path_a_star_uses_custom_step_cost() -> void:
-	var expensive := {
+	var expensive: Dictionary = {
 		Vector2i(1, 0): true,
 	}
 	var path: Array[Vector2i] = GF_GRID_MATH.find_path_a_star(
@@ -213,8 +213,8 @@ func test_find_path_a_star_uses_custom_step_cost() -> void:
 	)
 
 	assert_false(path.is_empty(), "A* 应能找到可达路径。")
-	assert_eq(path.front(), Vector2i.ZERO, "路径应从起点开始。")
-	assert_eq(path.back(), Vector2i(2, 0), "路径应抵达终点。")
+	assert_eq(_vector2i_at(path, 0), Vector2i.ZERO, "路径应从起点开始。")
+	assert_eq(_vector2i_at(path, path.size() - 1), Vector2i(2, 0), "路径应抵达终点。")
 	assert_false(path.has(Vector2i(1, 0)), "A* 应避开高代价格子。")
 
 
@@ -234,22 +234,22 @@ func test_find_path_a_star_allows_diagonal_path() -> void:
 
 
 func test_build_flow_field_points_toward_nearest_goal() -> void:
-	var field := GF_GRID_MATH.build_flow_field(
+	var field: Dictionary = GF_GRID_MATH.build_flow_field(
 		Vector2i(3, 1),
 		[Vector2i(2, 0)],
 		func(_cell: Vector2i) -> bool:
 			return true
 	)
-	var directions := field.get("directions", {}) as Dictionary
-	var costs := field.get("costs", {}) as Dictionary
+	var directions: Dictionary = GFVariantData.get_option_dictionary(field, "directions", {})
+	var costs: Dictionary = GFVariantData.get_option_dictionary(field, "costs", {})
 
-	assert_eq(directions.get(Vector2i(0, 0)), Vector2i.RIGHT, "Flow Field 应指向下一步方向。")
-	assert_eq(directions.get(Vector2i(2, 0)), Vector2i.ZERO, "目标格方向应为 ZERO。")
-	assert_eq(float(costs.get(Vector2i(0, 0))), 2.0, "Flow Field 应记录到目标的累计代价。")
+	assert_eq(_option_vector2i(directions, Vector2i(0, 0)), Vector2i.RIGHT, "Flow Field 应指向下一步方向。")
+	assert_eq(_option_vector2i(directions, Vector2i(2, 0)), Vector2i.ZERO, "目标格方向应为 ZERO。")
+	assert_eq(GFVariantData.get_option_float(costs, Vector2i(0, 0), 0.0), 2.0, "Flow Field 应记录到目标的累计代价。")
 
 
 func test_can_connect_with_max_turns_uses_outer_border() -> void:
-	var blocked := {
+	var blocked: Dictionary = {
 		Vector2i(1, 0): true,
 	}
 	var can_connect: bool = GF_GRID_MATH.can_connect_with_max_turns(
@@ -266,7 +266,7 @@ func test_can_connect_with_max_turns_uses_outer_border() -> void:
 
 
 func test_can_connect_with_max_turns_rejects_excess_turns() -> void:
-	var blocked := {
+	var blocked: Dictionary = {
 		Vector2i(1, 0): true,
 	}
 	var can_connect: bool = GF_GRID_MATH.can_connect_with_max_turns(
@@ -280,3 +280,17 @@ func test_can_connect_with_max_turns_rejects_excess_turns() -> void:
 	)
 
 	assert_false(can_connect, "只允许一次转折时，绕过中间障碍的外圈路径应失败。")
+
+
+func _vector2i_at(cells: Array[Vector2i], index: int) -> Vector2i:
+	if index < 0 or index >= cells.size():
+		return Vector2i.ZERO
+	return cells[index]
+
+
+func _option_vector2i(options: Dictionary, key: Variant) -> Vector2i:
+	var value: Variant = GFVariantData.get_option_value(options, key)
+	if value is Vector2i:
+		var cell: Vector2i = value
+		return cell
+	return Vector2i.ZERO

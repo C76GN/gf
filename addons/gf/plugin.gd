@@ -73,12 +73,12 @@ const GFStandardEditorExtensions = preload("res://addons/gf/standard/editor/gf_s
 
 # --- 私有变量 ---
 
-var _inspector_tools: RefCounted
-var _actions: RefCounted
-var _menu: RefCounted
-var _dock_tools: RefCounted
-var _import_tools: RefCounted
-var _gltf_document_tools: RefCounted
+var _inspector_tools: GFPluginInspectorTools
+var _actions: GFPluginActions
+var _menu: GFPluginMenu
+var _dock_tools: GFPluginDockTools
+var _import_tools: GFPluginImportTools
+var _gltf_document_tools: GFPluginGltfDocumentTools
 var _plugin_active: bool = false
 var _standard_editor_extension_records: Dictionary = {}
 
@@ -95,8 +95,8 @@ func _enter_tree() -> void:
 	_inspector_tools.setup(self, _standard_editor_extension_records)
 
 	_actions = GFPluginActions.new()
-	_actions.setup(_standard_editor_extension_records.get("template_records", []))
-	_actions.workspace_requested.connect(_on_workspace_requested)
+	_actions.setup(GFVariantData.get_option_array(_standard_editor_extension_records, "template_records"))
+	var _workspace_requested_connected: int = Signal(_actions, &"workspace_requested").connect(_on_workspace_requested)
 
 	_menu = GFPluginMenu.new()
 	_menu.setup(self, Callable(_actions, "handle_menu_id"), _actions.get_menu_entries())
@@ -140,7 +140,9 @@ func _setup_dock_tools() -> void:
 	if not _plugin_active or _dock_tools == null:
 		return
 
-	_dock_tools.setup(self, _standard_editor_extension_records.get("dock_records", []) as Array[Dictionary])
+	var dock_records: Array[Dictionary] = []
+	dock_records.assign(GFVariantData.get_option_array(_standard_editor_extension_records, "dock_records"))
+	_dock_tools.setup(self, dock_records)
 	call_deferred("_open_workspace_on_startup")
 
 

@@ -100,8 +100,9 @@ const DEFAULT_MAX_SCAN_DEPTH: int = 32
 ## [br]
 ## @api public
 const DEFAULT_MAX_RESOURCE_PATHS: int = 10000
-const _OBJECT_PROPERTY_TOOLS: Script = preload("res://addons/gf/kernel/core/gf_object_property_tools.gd")
-const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
+const _OBJECT_PROPERTY_TOOLS = preload("res://addons/gf/kernel/core/gf_object_property_tools.gd")
+const _SCRIPT_TYPE_INSPECTOR = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
 
 
 # --- 公共变量 ---
@@ -160,20 +161,20 @@ static func build_export_columns(resource: Resource, include_read_only: bool = f
 		return result
 
 	for property_info: Dictionary in _OBJECT_PROPERTY_TOOLS.get_property_infos(resource):
-		var usage := int(property_info.get("usage", 0))
-		var has_storage := (usage & PROPERTY_USAGE_STORAGE) != 0
-		var has_editor := (usage & PROPERTY_USAGE_EDITOR) != 0
-		var read_only := (usage & PROPERTY_USAGE_READ_ONLY) != 0
+		var usage: int = _GF_VARIANT_ACCESS_SCRIPT.get_option_int(property_info, "usage", 0)
+		var has_storage: bool = (usage & PROPERTY_USAGE_STORAGE) != 0
+		var has_editor: bool = (usage & PROPERTY_USAGE_EDITOR) != 0
+		var read_only: bool = (usage & PROPERTY_USAGE_READ_ONLY) != 0
 		if not has_storage or not has_editor:
 			continue
 		if read_only and not include_read_only:
 			continue
 
 		result.append({
-			"name": StringName(property_info.get("name", "")),
-			"type": int(property_info.get("type", TYPE_NIL)),
-			"hint": int(property_info.get("hint", PROPERTY_HINT_NONE)),
-			"hint_string": str(property_info.get("hint_string", "")),
+			"name": _GF_VARIANT_ACCESS_SCRIPT.get_option_string_name(property_info, "name", &""),
+			"type": _GF_VARIANT_ACCESS_SCRIPT.get_option_int(property_info, "type", TYPE_NIL),
+			"hint": _GF_VARIANT_ACCESS_SCRIPT.get_option_int(property_info, "hint", PROPERTY_HINT_NONE),
+			"hint_string": _GF_VARIANT_ACCESS_SCRIPT.get_option_string(property_info, "hint_string", ""),
 			"usage": usage,
 			"read_only": read_only,
 		})
@@ -198,10 +199,10 @@ static func scan_resource_paths(
 	extensions: PackedStringArray = PackedStringArray(["tres", "res"]),
 	options: Dictionary = {}
 ) -> PackedStringArray:
-	var result := PackedStringArray()
-	var max_scan_depth := maxi(int(options.get("max_scan_depth", DEFAULT_MAX_SCAN_DEPTH)), 0)
-	var max_resource_paths := maxi(int(options.get("max_resource_paths", DEFAULT_MAX_RESOURCE_PATHS)), 0)
-	var scan_state := _make_scan_state()
+	var result: PackedStringArray = PackedStringArray()
+	var max_scan_depth: int = maxi(_GF_VARIANT_ACCESS_SCRIPT.get_option_int(options, "max_scan_depth", DEFAULT_MAX_SCAN_DEPTH), 0)
+	var max_resource_paths: int = maxi(_GF_VARIANT_ACCESS_SCRIPT.get_option_int(options, "max_resource_paths", DEFAULT_MAX_RESOURCE_PATHS), 0)
+	var scan_state: Dictionary = _make_scan_state()
 	_scan_resource_paths_recursive(
 		root_path,
 		_normalize_extensions(extensions),
@@ -227,7 +228,7 @@ static func scan_resource_paths(
 static func load_resources_from_paths(paths: PackedStringArray, script_filter: Script = null) -> Array[Resource]:
 	var result: Array[Resource] = []
 	for path: String in paths:
-		var resource := ResourceLoader.load(path) as Resource
+		var resource: Resource = ResourceLoader.load(path)
 		if resource == null:
 			continue
 		if script_filter != null and not _resource_matches_script_filter(resource, script_filter):
@@ -326,7 +327,7 @@ func sort_by_property(property: StringName = &"", ascending: bool = true) -> voi
 	sort_property = property
 	sort_ascending = ascending
 	_resources.sort_custom(func(left: Resource, right: Resource) -> bool:
-		var compare_result := _compare_resources_for_sort(left, right, property)
+		var compare_result: int = _compare_resources_for_sort(left, right, property)
 		if compare_result == 0:
 			return false
 		return compare_result < 0 if ascending else compare_result > 0
@@ -349,13 +350,13 @@ func move_resource(from_index: int, to_index: int) -> bool:
 		return false
 	if _resources.is_empty():
 		return false
-	var target_index := clampi(to_index, 0, _resources.size() - 1)
+	var target_index: int = clampi(to_index, 0, _resources.size() - 1)
 	if from_index == target_index:
 		return true
 
-	var resource := _resources[from_index]
+	var resource: Resource = _resources[from_index]
 	_resources.remove_at(from_index)
-	_resources.insert(target_index, resource)
+	var _insert_result_359: Variant = _resources.insert(target_index, resource)
 	refresh()
 	resources_reordered.emit(get_resources())
 	return true
@@ -373,10 +374,10 @@ func move_resource(from_index: int, to_index: int) -> bool:
 func insert_resource(resource: Resource, index: int = -1) -> bool:
 	if resource == null:
 		return false
-	var target_index := index
+	var target_index: int = index
 	if target_index < 0 or target_index > _resources.size():
 		target_index = _resources.size()
-	_resources.insert(target_index, resource)
+	var _insert_result_380: Variant = _resources.insert(target_index, resource)
 	if _columns.is_empty():
 		_columns = build_export_columns(resource)
 	refresh()
@@ -394,7 +395,7 @@ func insert_resource(resource: Resource, index: int = -1) -> bool:
 func remove_resource(row_index: int) -> Resource:
 	if row_index < 0 or row_index >= _resources.size():
 		return null
-	var resource := _resources[row_index]
+	var resource: Resource = _resources[row_index]
 	_resources.remove_at(row_index)
 	refresh()
 	resource_removed.emit(resource, row_index)
@@ -415,17 +416,17 @@ func remove_resource(row_index: int) -> Resource:
 func duplicate_resource(row_index: int, deep: bool = false, insert_after: bool = true) -> Resource:
 	if row_index < 0 or row_index >= _resources.size():
 		return null
-	var source := _resources[row_index]
+	var source: Resource = _resources[row_index]
 	if source == null:
 		return null
-	var duplicate := source.duplicate(deep) as Resource
-	if duplicate == null:
+	var duplicated_resource: Resource = source.duplicate(deep)
+	if duplicated_resource == null:
 		return null
-	var target_index := row_index + 1 if insert_after else row_index
-	_resources.insert(target_index, duplicate)
+	var target_index: int = row_index + 1 if insert_after else row_index
+	var _insert_result_426: Variant = _resources.insert(target_index, duplicated_resource)
 	refresh()
-	resource_inserted.emit(duplicate, target_index)
-	return duplicate
+	resource_inserted.emit(duplicated_resource, target_index)
+	return duplicated_resource
 
 
 ## 提交单元格值。
@@ -445,15 +446,15 @@ func commit_cell_value(row_index: int, property: StringName, new_value: Variant)
 	if row_index < 0 or row_index >= _resources.size() or property == &"":
 		return false
 
-	var resource := _resources[row_index]
+	var resource: Resource = _resources[row_index]
 	if resource == null or not _OBJECT_PROPERTY_TOOLS.has_property(resource, property):
 		return false
 
-	var old_value: Variant = resource.get(property)
+	var old_value: Variant = _OBJECT_PROPERTY_TOOLS.read_property(resource, NodePath(String(property)))
 	var result: Dictionary = _OBJECT_PROPERTY_TOOLS.write_property(resource, NodePath(String(property)), new_value, {
 		"check_type": false,
 	})
-	if not bool(result.get("ok", false)):
+	if not _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(result, "ok"):
 		return false
 	cell_value_committed.emit(resource, property, old_value, new_value)
 	_save_resource_if_requested(resource)
@@ -490,20 +491,20 @@ func refresh() -> void:
 	_tree.columns = _columns.size() + 1
 	_tree.set_column_title(0, "Resource")
 	for column_index: int in range(_columns.size()):
-		var column := _columns[column_index] as Dictionary
-		_tree.set_column_title(column_index + 1, str(column.get("name", "")))
+		var column: Dictionary = _columns[column_index]
+		_tree.set_column_title(column_index + 1, _GF_VARIANT_ACCESS_SCRIPT.get_option_string(column, "name", ""))
 
-	var root := _tree.create_item()
+	var root: TreeItem = _tree.create_item()
 	for row_index: int in _visible_row_indices:
-		var resource := _resources[row_index]
+		var resource: Resource = _resources[row_index]
 		if resource == null:
 			continue
-		var item := _tree.create_item(root)
+		var item: TreeItem = _tree.create_item(root)
 		item.set_metadata(0, row_index)
 		item.set_text(0, _resource_label(resource, row_index))
 		for column_index: int in range(_columns.size()):
-			var column := _columns[column_index] as Dictionary
-			var property := StringName(column.get("name", ""))
+			var column: Dictionary = _columns[column_index]
+			var property: StringName = _GF_VARIANT_ACCESS_SCRIPT.get_option_string_name(column, "name", &"")
 			var value: Variant = _OBJECT_PROPERTY_TOOLS.read_property(resource, NodePath(String(property)))
 			item.set_text(column_index + 1, _format_cell_value(value))
 
@@ -519,18 +520,18 @@ func _ensure_tree() -> void:
 	_tree.column_titles_visible = true
 	_tree.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_tree.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_tree.item_selected.connect(_on_tree_item_selected)
+	var _connect_result_523: Variant = _tree.item_selected.connect(_on_tree_item_selected)
 	add_child(_tree)
 
 
 func _rebuild_visible_row_indices() -> void:
 	_visible_row_indices = PackedInt32Array()
 	for row_index: int in range(_resources.size()):
-		var resource := _resources[row_index]
+		var resource: Resource = _resources[row_index]
 		if resource == null:
 			continue
 		if _resource_matches_search(resource, row_index, search_text):
-			_visible_row_indices.append(row_index)
+			var _append_result_534: Variant = _visible_row_indices.append(row_index)
 
 
 static func _scan_resource_paths_recursive(
@@ -546,18 +547,18 @@ static func _scan_resource_paths_recursive(
 		_warn_resource_path_limit(max_resource_paths, scan_state)
 		return
 
-	var dir := DirAccess.open(root_path)
+	var dir: DirAccess = DirAccess.open(root_path)
 	if dir == null:
 		return
 
-	dir.list_dir_begin()
-	var file_name := dir.get_next()
+	var _list_dir_begin_result_554: Variant = dir.list_dir_begin()
+	var file_name: String = dir.get_next()
 	while not file_name.is_empty():
 		if not _can_collect_more_resource_paths(result, max_resource_paths):
 			_warn_resource_path_limit(max_resource_paths, scan_state)
 			break
 
-		var path := "%s/%s" % [root_path.trim_suffix("/"), file_name]
+		var path: String = "%s/%s" % [root_path.trim_suffix("/"), file_name]
 		if dir.current_is_dir():
 			if not file_name.begins_with("."):
 				if _can_scan_deeper(path, depth, max_scan_depth, scan_state):
@@ -571,9 +572,9 @@ static func _scan_resource_paths_recursive(
 						scan_state
 					)
 		else:
-			var extension := file_name.get_extension().to_lower()
+			var extension: String = file_name.get_extension().to_lower()
 			if extensions.has(extension):
-				result.append(path)
+				var _append_result_577: Variant = result.append(path)
 		file_name = dir.get_next()
 	dir.list_dir_end()
 
@@ -596,48 +597,57 @@ static func _make_scan_state() -> Dictionary:
 	}
 
 
+static func _get_resource_script_or_null(resource: Resource) -> Script:
+	if resource == null:
+		return null
+	var raw_script: Variant = resource.get_script()
+	if raw_script is Script:
+		return raw_script
+	return null
+
+
 static func _warn_resource_path_limit(max_resource_paths: int, scan_state: Dictionary) -> void:
-	if max_resource_paths <= 0 or bool(scan_state.get("count_warning_emitted", false)):
+	if max_resource_paths <= 0 or _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(scan_state, "count_warning_emitted"):
 		return
 	scan_state["count_warning_emitted"] = true
 	push_warning("[GFResourceTableEditor] scan_resource_paths 已达到 max_resource_paths=%d，后续资源已跳过。" % max_resource_paths)
 
 
 static func _warn_scan_depth_limit(path: String, max_scan_depth: int, scan_state: Dictionary) -> void:
-	if max_scan_depth <= 0 or bool(scan_state.get("depth_warning_emitted", false)):
+	if max_scan_depth <= 0 or _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(scan_state, "depth_warning_emitted"):
 		return
 	scan_state["depth_warning_emitted"] = true
 	push_warning("[GFResourceTableEditor] scan_resource_paths 已达到 max_scan_depth=%d，已跳过更深目录：%s。" % [max_scan_depth, path])
 
 
 static func _normalize_extensions(extensions: PackedStringArray) -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	for extension: String in extensions:
-		result.append(extension.trim_prefix(".").to_lower())
+		var _append_result_626: Variant = result.append(extension.trim_prefix(".").to_lower())
 	return result
 
 
 static func _resource_matches_script_filter(resource: Resource, script_filter: Script) -> bool:
-	return _SCRIPT_TYPE_INSPECTOR.script_extends_or_equals(resource.get_script() as Script, script_filter)
+	return _SCRIPT_TYPE_INSPECTOR.script_extends_or_equals(_get_resource_script_or_null(resource), script_filter)
 
 
 func _resource_matches_search(resource: Resource, row_index: int, query: String) -> bool:
-	var normalized_query := query.strip_edges().to_lower()
+	var normalized_query: String = query.strip_edges().to_lower()
 	if normalized_query.is_empty():
 		return true
 
-	var label := _resource_label(resource, row_index).to_lower()
+	var label: String = _resource_label(resource, row_index).to_lower()
 	if label.contains(normalized_query):
 		return true
 	if resource.get_class().to_lower().contains(normalized_query):
 		return true
 
-	var script := resource.get_script() as Script
+	var script: Script = _get_resource_script_or_null(resource)
 	if script != null and script.resource_path.to_lower().contains(normalized_query):
 		return true
 
 	for column: Dictionary in _columns:
-		var property := StringName(column.get("name", ""))
+		var property: StringName = _GF_VARIANT_ACCESS_SCRIPT.get_option_string_name(column, "name", &"")
 		if property == &"" or not _OBJECT_PROPERTY_TOOLS.has_property(resource, property):
 			continue
 		var value: Variant = _OBJECT_PROPERTY_TOOLS.read_property(resource, NodePath(String(property)))
@@ -670,15 +680,21 @@ func _compare_variant_values(left: Variant, right: Variant) -> int:
 	if right == null:
 		return -1
 
-	var left_type := typeof(left)
-	var right_type := typeof(right)
+	var left_type: int = typeof(left)
+	var right_type: int = typeof(right)
 	if _is_numeric_type(left_type) and _is_numeric_type(right_type):
-		return _compare_float_values(float(left), float(right))
+		return _compare_float_values(
+			_GF_VARIANT_ACCESS_SCRIPT.to_float(left),
+			_GF_VARIANT_ACCESS_SCRIPT.to_float(right)
+		)
 	if left_type == TYPE_BOOL and right_type == TYPE_BOOL:
-		return _compare_float_values(1.0 if bool(left) else 0.0, 1.0 if bool(right) else 0.0)
+		return _compare_float_values(
+			1.0 if _GF_VARIANT_ACCESS_SCRIPT.to_bool(left) else 0.0,
+			1.0 if _GF_VARIANT_ACCESS_SCRIPT.to_bool(right) else 0.0
+		)
 
-	var left_text := str(left)
-	var right_text := str(right)
+	var left_text: String = str(left)
+	var right_text: String = str(right)
 	return left_text.naturalnocasecmp_to(right_text)
 
 
@@ -698,11 +714,11 @@ func _save_resource_if_requested(resource: Resource) -> void:
 	if not auto_save_committed_resources:
 		return
 
-	var path := resource.resource_path
+	var path: String = resource.resource_path
 	if path.is_empty():
 		return
 
-	var error := ResourceSaver.save(resource, path)
+	var error: Error = ResourceSaver.save(resource, path)
 	if error != OK:
 		resource_save_failed.emit(resource, path, error)
 
@@ -725,10 +741,11 @@ func _on_tree_item_selected() -> void:
 	if _tree == null:
 		return
 
-	var item := _tree.get_selected()
+	var item: TreeItem = _tree.get_selected()
 	if item == null:
 		return
 
-	var row_index := int(item.get_metadata(0))
+	var raw_row_index: Variant = item.get_metadata(0)
+	var row_index: int = raw_row_index if raw_row_index is int else -1
 	if row_index >= 0 and row_index < _resources.size():
 		resource_selected.emit(_resources[row_index])

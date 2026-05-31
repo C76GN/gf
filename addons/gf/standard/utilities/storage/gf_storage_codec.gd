@@ -148,17 +148,17 @@ const _COMPRESSION_MODE: int = FileAccess.COMPRESSION_DEFLATE
 ## [br]
 ## @return 编码后的 bytes。
 func encode(data: Dictionary, options: Dictionary = {}) -> PackedByteArray:
-	var active_format := _get_format(options)
-	var should_compress := _get_bool_option(options, "use_compression", use_compression)
-	var key := _get_int_option(options, "obfuscation_key", obfuscation_key)
-	var should_write_checksum := _get_bool_option(options, "use_integrity_checksum", use_integrity_checksum)
-	var should_write_metadata := _get_bool_option(options, "include_metadata", include_metadata) or should_write_checksum
-	var payload := _make_storage_payload(data, should_write_metadata)
+	var active_format: Format = _get_format(options)
+	var should_compress: bool = GFVariantData.get_option_bool(options, "use_compression", use_compression)
+	var key: int = GFVariantData.get_option_int(options, "obfuscation_key", obfuscation_key)
+	var should_write_checksum: bool = GFVariantData.get_option_bool(options, "use_integrity_checksum", use_integrity_checksum)
+	var should_write_metadata: bool = GFVariantData.get_option_bool(options, "include_metadata", include_metadata) or should_write_checksum
+	var payload: Dictionary = _make_storage_payload(data, should_write_metadata)
 
 	if should_write_metadata:
 		_prepare_metadata(payload, active_format, should_compress, should_write_checksum, options)
 
-	var bytes := _serialize_dictionary(payload, active_format)
+	var bytes: PackedByteArray = _serialize_dictionary(payload, active_format)
 	if should_compress:
 		bytes = bytes.compress(_COMPRESSION_MODE)
 	if key != 0:
@@ -181,56 +181,56 @@ func encode(data: Dictionary, options: Dictionary = {}) -> PackedByteArray:
 ## [br]
 ## @schema return: Dictionary，包含 ok: bool、data: Dictionary、metadata: Dictionary、integrity_valid: bool 和 error: String。
 func decode(bytes: PackedByteArray, options: Dictionary = {}) -> Dictionary:
-	var active_format := _get_format(options)
-	var should_compress := _get_bool_option(options, "use_compression", use_compression)
-	var key := _get_int_option(options, "obfuscation_key", obfuscation_key)
-	var should_allow_legacy_plain_json := _get_bool_option(
+	var active_format: Format = _get_format(options)
+	var should_compress: bool = GFVariantData.get_option_bool(options, "use_compression", use_compression)
+	var key: int = GFVariantData.get_option_int(options, "obfuscation_key", obfuscation_key)
+	var should_allow_legacy_plain_json: bool = GFVariantData.get_option_bool(
 		options,
 		"allow_legacy_plain_json_fallback",
 		allow_legacy_plain_json_fallback
 	)
-	var should_verify_checksum := _get_bool_option(options, "use_integrity_checksum", use_integrity_checksum)
-	var should_reject_bad_checksum := _get_bool_option(options, "strict_integrity", strict_integrity)
-	var should_normalize_json_numbers := _get_bool_option(options, "normalize_json_numbers", normalize_json_numbers)
-	var should_require_checksum := _get_bool_option(
+	var should_verify_checksum: bool = GFVariantData.get_option_bool(options, "use_integrity_checksum", use_integrity_checksum)
+	var should_reject_bad_checksum: bool = GFVariantData.get_option_bool(options, "strict_integrity", strict_integrity)
+	var should_normalize_json_numbers: bool = GFVariantData.get_option_bool(options, "normalize_json_numbers", normalize_json_numbers)
+	var should_require_checksum: bool = GFVariantData.get_option_bool(
 		options,
 		"require_integrity_checksum",
 		require_integrity_checksum
 	)
-	var payload_bytes := _decode_obfuscation(bytes, key, should_allow_legacy_plain_json)
+	var payload_bytes: PackedByteArray = _decode_obfuscation(bytes, key, should_allow_legacy_plain_json)
 	if payload_bytes.is_empty():
 		return _make_result(false, {}, "Payload is empty", true)
 
 	if should_compress:
 		payload_bytes = payload_bytes.decompress_dynamic(
-			_get_int_option(options, "max_decompressed_bytes", max_decompressed_bytes),
+			GFVariantData.get_option_int(options, "max_decompressed_bytes", max_decompressed_bytes),
 			_COMPRESSION_MODE
 		)
 		if payload_bytes.is_empty() and not bytes.is_empty():
 			return _make_result(false, {}, "Decompression failed", true)
 
-	var deserialize_result := _try_deserialize_dictionary(
+	var deserialize_result: Dictionary = _try_deserialize_dictionary(
 		payload_bytes,
 		active_format,
 		should_normalize_json_numbers
 	)
-	var data := deserialize_result["data"] as Dictionary
+	var data: Dictionary = GFVariantData.as_dictionary(GFVariantData.get_option_value(deserialize_result, "data", {}))
 	if (
 		should_allow_legacy_plain_json
-		and not bool(deserialize_result.get("ok", false))
+		and not GFVariantData.get_option_bool(deserialize_result, "ok")
 		and not payload_bytes.is_empty()
 	):
-		var fallback_result := _try_legacy_plain_json(bytes, should_normalize_json_numbers)
-		if bool(fallback_result.get("ok", false)):
-			data = fallback_result["data"] as Dictionary
+		var fallback_result: Dictionary = _try_legacy_plain_json(bytes, should_normalize_json_numbers)
+		if GFVariantData.get_option_bool(fallback_result, "ok"):
+			data = GFVariantData.as_dictionary(GFVariantData.get_option_value(fallback_result, "data", {}))
 			deserialize_result = fallback_result
 
-	if not bool(deserialize_result.get("ok", false)) and not payload_bytes.is_empty():
+	if not GFVariantData.get_option_bool(deserialize_result, "ok") and not payload_bytes.is_empty():
 		return _make_result(false, {}, "Decode failed", true)
 
-	var integrity_valid := true
+	var integrity_valid: bool = true
 	if should_verify_checksum:
-		var has_checksum := has_integrity_checksum(data)
+		var has_checksum: bool = has_integrity_checksum(data)
 		integrity_valid = has_checksum and verify_integrity(data, active_format)
 		if not has_checksum and not should_require_checksum:
 			integrity_valid = true
@@ -285,11 +285,11 @@ func deserialize_dictionary(bytes: PackedByteArray, p_format: Format = Format.JS
 ## [br]
 ## @return checksum hex 字符串。
 func calculate_checksum(data: Dictionary, p_format: Format = Format.JSON) -> String:
-	var checksum_data := _normalize_checksum_data(data, p_format)
-	var bytes := _serialize_dictionary(checksum_data, p_format)
-	var hashing := HashingContext.new()
-	hashing.start(HashingContext.HASH_SHA256)
-	hashing.update(bytes)
+	var checksum_data: Dictionary = _normalize_checksum_data(data, p_format)
+	var bytes: PackedByteArray = _serialize_dictionary(checksum_data, p_format)
+	var hashing: HashingContext = HashingContext.new()
+	var _start_error: Error = hashing.start(HashingContext.HASH_SHA256)
+	var _update_error: Error = hashing.update(bytes)
 	return hashing.finish().hex_encode()
 
 
@@ -305,16 +305,16 @@ func calculate_checksum(data: Dictionary, p_format: Format = Format.JSON) -> Str
 ## [br]
 ## @return 缺少 checksum 或校验通过时返回 true。
 func verify_integrity(data: Dictionary, p_format: Format = Format.JSON) -> bool:
-	var metadata := get_metadata(data)
+	var metadata: Dictionary = get_metadata(data)
 	if not metadata.has(CHECKSUM_KEY):
 		return true
 
-	var expected := String(metadata.get(CHECKSUM_KEY, ""))
-	var copy := data.duplicate(true)
-	var copy_metadata := get_metadata(copy)
-	copy_metadata.erase(CHECKSUM_KEY)
+	var expected: String = GFVariantData.get_option_string(metadata, CHECKSUM_KEY)
+	var copy: Dictionary = data.duplicate(true)
+	var copy_metadata: Dictionary = get_metadata(copy)
+	var _checksum_erased: bool = copy_metadata.erase(CHECKSUM_KEY)
 	if copy_metadata.is_empty():
-		copy.erase(META_KEY)
+		var _metadata_erased: bool = copy.erase(META_KEY)
 	else:
 		copy[META_KEY] = copy_metadata
 
@@ -333,9 +333,10 @@ func verify_integrity(data: Dictionary, p_format: Format = Format.JSON) -> bool:
 ## [br]
 ## @schema return: Dictionary，从 `_meta` 复制出的元数据；不存在元数据时为空字典。
 func get_metadata(data: Dictionary) -> Dictionary:
-	var metadata_variant: Variant = data.get(META_KEY, {})
+	var metadata_variant: Variant = GFVariantData.get_option_value(data, META_KEY, {})
 	if metadata_variant is Dictionary:
-		return (metadata_variant as Dictionary).duplicate(true)
+		var metadata: Dictionary = metadata_variant
+		return metadata.duplicate(true)
 	return {}
 
 
@@ -361,24 +362,24 @@ func _prepare_metadata(
 	should_write_checksum: bool,
 	options: Dictionary
 ) -> void:
-	var metadata := get_metadata(payload)
-	var should_include_metadata := _get_bool_option(options, "include_metadata", include_metadata)
+	var metadata: Dictionary = get_metadata(payload)
+	var should_include_metadata: bool = GFVariantData.get_option_bool(options, "include_metadata", include_metadata)
 	if should_include_metadata:
-		metadata[VERSION_KEY] = _get_int_option(options, "version", version)
+		metadata[VERSION_KEY] = GFVariantData.get_option_int(options, "version", version)
 		metadata[TIMESTAMP_KEY] = Time.get_datetime_string_from_system(true, true)
 		metadata[FORMAT_KEY] = _format_to_string(active_format)
 		if should_compress:
 			metadata[COMPRESSION_KEY] = "deflate"
 
 	if metadata.is_empty():
-		payload.erase(META_KEY)
+		var _metadata_erased: bool = payload.erase(META_KEY)
 	else:
 		payload[META_KEY] = metadata
 
 	if should_write_checksum:
-		metadata.erase(CHECKSUM_KEY)
+		var _checksum_erased: bool = metadata.erase(CHECKSUM_KEY)
 		if metadata.is_empty():
-			payload.erase(META_KEY)
+			var _checksum_metadata_erased: bool = payload.erase(META_KEY)
 		else:
 			payload[META_KEY] = metadata
 		metadata[CHECKSUM_KEY] = calculate_checksum(payload, active_format)
@@ -386,7 +387,7 @@ func _prepare_metadata(
 
 
 func _make_storage_payload(data: Dictionary, should_write_metadata: bool) -> Dictionary:
-	var payload := data.duplicate(true)
+	var payload: Dictionary = data.duplicate(true)
 	if should_write_metadata and payload.has(META_KEY):
 		return {
 			ENVELOPE_KEY: true,
@@ -397,13 +398,15 @@ func _make_storage_payload(data: Dictionary, should_write_metadata: bool) -> Dic
 
 func _get_user_payload(data: Dictionary) -> Dictionary:
 	if _is_storage_envelope(data):
-		var payload := data.get(ENVELOPE_DATA_KEY) as Dictionary
-		return payload.duplicate(true) if payload != null else {}
+		return GFVariantData.to_dictionary(GFVariantData.get_option_value(data, ENVELOPE_DATA_KEY, {}))
 	return data
 
 
 func _is_storage_envelope(data: Dictionary) -> bool:
-	return bool(data.get(ENVELOPE_KEY, false)) and data.get(ENVELOPE_DATA_KEY) is Dictionary
+	return (
+		GFVariantData.get_option_bool(data, ENVELOPE_KEY)
+		and GFVariantData.get_option_value(data, ENVELOPE_DATA_KEY) is Dictionary
+	)
 
 
 func _serialize_dictionary(data: Dictionary, p_format: Format) -> PackedByteArray:
@@ -415,8 +418,8 @@ func _serialize_dictionary(data: Dictionary, p_format: Format) -> PackedByteArra
 
 
 func _deserialize_dictionary(bytes: PackedByteArray, p_format: Format) -> Dictionary:
-	var result := _try_deserialize_dictionary(bytes, p_format, normalize_json_numbers)
-	return result["data"] as Dictionary
+	var result: Dictionary = _try_deserialize_dictionary(bytes, p_format, normalize_json_numbers)
+	return GFVariantData.as_dictionary(GFVariantData.get_option_value(result, "data", {}))
 
 
 func _try_deserialize_dictionary(
@@ -428,14 +431,15 @@ func _try_deserialize_dictionary(
 		Format.BINARY:
 			var value: Variant = bytes_to_var(bytes)
 			if value is Dictionary:
-				return { "ok": true, "data": value as Dictionary }
+				var data: Dictionary = value
+				return { "ok": true, "data": data }
 			return { "ok": false, "data": {} }
 		_:
 			var parsed: Variant = JSON.parse_string(bytes.get_string_from_utf8())
 			if parsed is Dictionary:
-				var data := parsed as Dictionary
+				var data: Dictionary = parsed
 				if should_normalize_json_numbers:
-					data = _normalize_numbers(data) as Dictionary
+					data = _normalize_dictionary_numbers(data)
 				return { "ok": true, "data": data }
 			return { "ok": false, "data": {} }
 
@@ -443,8 +447,8 @@ func _try_deserialize_dictionary(
 func _sort_value_recursive(value: Variant) -> Variant:
 	if value is Dictionary:
 		var result: Dictionary = {}
-		var dictionary := value as Dictionary
-		var keys := dictionary.keys()
+		var dictionary: Dictionary = value
+		var keys: Array = dictionary.keys()
 		keys.sort_custom(func(left: Variant, right: Variant) -> bool:
 			return str(left) < str(right)
 		)
@@ -463,18 +467,19 @@ func _normalize_checksum_data(data: Dictionary, p_format: Format) -> Dictionary:
 	if p_format != Format.JSON:
 		return data
 
-	var normalized: Dictionary = _normalize_numbers(data) as Dictionary
-	var bytes := _serialize_dictionary(normalized, p_format)
+	var normalized: Dictionary = _normalize_dictionary_numbers(data)
+	var bytes: PackedByteArray = _serialize_dictionary(normalized, p_format)
 	var parsed: Variant = JSON.parse_string(bytes.get_string_from_utf8())
 	if parsed is Dictionary:
-		return _normalize_numbers(parsed) as Dictionary
+		var parsed_dictionary: Dictionary = parsed
+		return _normalize_dictionary_numbers(parsed_dictionary)
 	return normalized
 
 
 func _normalize_numbers(value: Variant) -> Variant:
 	if value is Dictionary:
 		var result: Dictionary = {}
-		var dictionary := value as Dictionary
+		var dictionary: Dictionary = value
 		for key: Variant in dictionary.keys():
 			result[key] = _normalize_numbers(dictionary[key])
 		return result
@@ -483,11 +488,15 @@ func _normalize_numbers(value: Variant) -> Variant:
 		for item: Variant in value:
 			result.append(_normalize_numbers(item))
 		return result
-	if typeof(value) == TYPE_FLOAT:
-		var float_value := float(value)
+	if value is float:
+		var float_value: float = value
 		if is_equal_approx(float_value, floorf(float_value)):
 			return int(float_value)
 	return value
+
+
+func _normalize_dictionary_numbers(data: Dictionary) -> Dictionary:
+	return GFVariantData.as_dictionary(_normalize_numbers(data))
 
 
 func _decode_obfuscation(
@@ -498,11 +507,11 @@ func _decode_obfuscation(
 	if key == 0:
 		return bytes
 
-	var encoded_text := bytes.get_string_from_utf8().strip_edges()
+	var encoded_text: String = bytes.get_string_from_utf8().strip_edges()
 	if not _looks_like_base64_text(encoded_text):
 		return bytes if should_allow_legacy_plain_json else PackedByteArray()
 
-	var raw := Marshalls.base64_to_raw(encoded_text)
+	var raw: PackedByteArray = Marshalls.base64_to_raw(encoded_text)
 	if raw.is_empty() and not bytes.is_empty() and should_allow_legacy_plain_json:
 		return bytes
 	return _obfuscate_bytes(raw, key)
@@ -512,10 +521,10 @@ func _looks_like_base64_text(text: String) -> bool:
 	if text.is_empty() or text.length() % 4 != 0:
 		return false
 
-	var padding_count := 0
-	var padding_started := false
+	var padding_count: int = 0
+	var padding_started: bool = false
 	for index: int in range(text.length()):
-		var code := text.unicode_at(index)
+		var code: int = text.unicode_at(index)
 		if code == 61:
 			padding_started = true
 			padding_count += 1
@@ -540,8 +549,8 @@ func _is_base64_code(code: int) -> bool:
 
 
 func _obfuscate_bytes(bytes: PackedByteArray, key: int) -> PackedByteArray:
-	var result := PackedByteArray(bytes)
-	var key_byte := key & 0xff
+	var result: PackedByteArray = PackedByteArray(bytes)
+	var key_byte: int = key & 0xff
 	for index: int in range(result.size()):
 		result[index] = result[index] ^ key_byte
 	return result
@@ -550,9 +559,9 @@ func _obfuscate_bytes(bytes: PackedByteArray, key: int) -> PackedByteArray:
 func _try_legacy_plain_json(bytes: PackedByteArray, should_normalize_json_numbers: bool) -> Dictionary:
 	var parsed: Variant = JSON.parse_string(bytes.get_string_from_utf8())
 	if parsed is Dictionary:
-		var data := parsed as Dictionary
+		var data: Dictionary = parsed
 		if should_normalize_json_numbers:
-			data = _normalize_numbers(data) as Dictionary
+			data = _normalize_dictionary_numbers(data)
 		return GFResultDictionary.make_success({
 			GFResultDictionary.KEY_DATA: data,
 		})
@@ -568,7 +577,7 @@ func _make_result(
 	integrity_valid: bool,
 	metadata: Dictionary = {}
 ) -> Dictionary:
-	var result_metadata := metadata if not metadata.is_empty() else get_metadata(data)
+	var result_metadata: Dictionary = metadata if not metadata.is_empty() else get_metadata(data)
 	return GFResultDictionary.make(ok, {
 		GFResultDictionary.KEY_DATA: data,
 		GFResultDictionary.KEY_METADATA: result_metadata,
@@ -578,15 +587,24 @@ func _make_result(
 
 
 func _get_format(options: Dictionary) -> Format:
-	return int(options.get("format", format)) as Format
+	return _variant_to_format(GFVariantData.get_option_value(options, "format", format), format)
 
 
-func _get_bool_option(options: Dictionary, key: String, fallback: bool) -> bool:
-	return bool(options.get(key, fallback))
+static func _variant_to_format(value: Variant, fallback: Format) -> Format:
+	var format_value: int = GFVariantData.to_int(value, int(fallback))
+	if not Format.values().has(format_value):
+		return fallback
+	return _to_format(format_value, fallback)
 
 
-func _get_int_option(options: Dictionary, key: String, fallback: int) -> int:
-	return int(options.get(key, fallback))
+static func _to_format(value: int, fallback: Format) -> Format:
+	match value:
+		Format.BINARY:
+			return Format.BINARY
+		Format.JSON:
+			return Format.JSON
+		_:
+			return fallback
 
 
 func _format_to_string(p_format: Format) -> String:

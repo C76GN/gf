@@ -13,7 +13,7 @@ extends Resource
 
 # --- 常量 ---
 
-const _GF_TAG_SOURCE_ADAPTER_SCRIPT: Script = preload("res://addons/gf/standard/foundation/tags/gf_tag_source_adapter.gd")
+const _GF_TAG_SOURCE_ADAPTER_SCRIPT = preload("res://addons/gf/standard/foundation/tags/gf_tag_source_adapter.gd")
 
 
 # --- 导出变量 ---
@@ -60,8 +60,8 @@ func is_empty() -> bool:
 ## [br]
 ## @return 满足查询返回 true。
 func matches(source: Variant) -> bool:
-	var report := get_match_report(source)
-	return bool(report.get("ok", false))
+	var report: Dictionary = get_match_report(source)
+	return GFVariantData.get_option_bool(report, "ok")
 
 
 ## 获取匹配报告。
@@ -135,8 +135,8 @@ func configure(
 ## [br]
 ## @return 新查询。
 func duplicate_query() -> GFTagQuery:
-	var query := GFTagQuery.new()
-	query.configure(all_tags, any_tags, none_tags, include_child_tags)
+	var query: GFTagQuery = GFTagQuery.new()
+	var _configure_result_139: Variant = query.configure(all_tags, any_tags, none_tags, include_child_tags)
 	return query
 
 
@@ -166,22 +166,9 @@ func to_dictionary() -> Dictionary:
 ## [br]
 ## @return 新查询。
 static func from_dictionary(data: Dictionary) -> GFTagQuery:
-	var query := GFTagQuery.new()
-	query.all_tags = _to_string_name_array(data.get("all_tags", []))
-	query.any_tags = _to_string_name_array(data.get("any_tags", []))
-	query.none_tags = _to_string_name_array(data.get("none_tags", []))
-	query.include_child_tags = bool(data.get("include_child_tags", false))
+	var query: GFTagQuery = GFTagQuery.new()
+	query.all_tags = GFVariantData.get_option_string_name_array(data, "all_tags")
+	query.any_tags = GFVariantData.get_option_string_name_array(data, "any_tags")
+	query.none_tags = GFVariantData.get_option_string_name_array(data, "none_tags")
+	query.include_child_tags = GFVariantData.get_option_bool(data, "include_child_tags")
 	return query
-
-
-# --- 私有/辅助方法 ---
-
-static func _to_string_name_array(values: Variant) -> Array[StringName]:
-	var result: Array[StringName] = []
-	if values is PackedStringArray:
-		for value: String in values:
-			result.append(StringName(value))
-	elif values is Array:
-		for value: Variant in values:
-			result.append(StringName(value))
-	return result

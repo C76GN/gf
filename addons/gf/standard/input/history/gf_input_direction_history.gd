@@ -41,7 +41,7 @@ func press_action(action_id: StringName, direction: Vector2i) -> void:
 ## [br]
 ## @param action_id: 动作标识。
 func release_action(action_id: StringName) -> void:
-	_pressed_actions.erase(action_id)
+	var _erase_result_44: Variant = _pressed_actions.erase(action_id)
 	_history.erase(action_id)
 
 
@@ -87,8 +87,8 @@ func update_action(action_id: StringName, direction: Vector2i, pressed: bool) ->
 func get_current_direction() -> Vector2i:
 	if _history.is_empty():
 		return Vector2i.ZERO
-	var action_id := _history[_history.size() - 1]
-	var direction: Variant = _pressed_actions.get(action_id, Vector2i.ZERO)
+	var action_id: StringName = _history[_history.size() - 1]
+	var direction: Variant = GFVariantData.get_option_value(_pressed_actions, action_id, Vector2i.ZERO)
 	return direction if direction is Vector2i else Vector2i.ZERO
 
 

@@ -1,13 +1,9 @@
 ## 测试 GFSurfaceUtility 的 face index 到 Mesh surface/材质映射。
 extends GutTest
 
-
-const GFSurfaceUtilityBase = preload("res://addons/gf/standard/utilities/display/gf_surface_utility.gd")
-
-
 func test_surface_index_maps_across_mesh_surfaces() -> void:
-	var utility := GFSurfaceUtilityBase.new()
-	var mesh_instance := _make_two_surface_mesh_instance()
+	var utility: GFSurfaceUtility = GFSurfaceUtility.new()
+	var mesh_instance: MeshInstance3D = _make_two_surface_mesh_instance()
 	add_child_autofree(mesh_instance)
 
 	assert_eq(utility.get_surface_index(mesh_instance, 0), 0, "第一个三角面应映射到 surface 0。")
@@ -16,8 +12,8 @@ func test_surface_index_maps_across_mesh_surfaces() -> void:
 
 
 func test_surface_index_maps_unindexed_mesh_surfaces() -> void:
-	var utility := GFSurfaceUtilityBase.new()
-	var mesh_instance := _make_two_surface_mesh_instance(false)
+	var utility: GFSurfaceUtility = GFSurfaceUtility.new()
+	var mesh_instance: MeshInstance3D = _make_two_surface_mesh_instance(false)
 	add_child_autofree(mesh_instance)
 
 	assert_eq(utility.get_surface_index(mesh_instance, 0), 0, "无索引 surface 的第一个三角面应映射到 surface 0。")
@@ -26,11 +22,11 @@ func test_surface_index_maps_unindexed_mesh_surfaces() -> void:
 
 
 func test_surface_utility_returns_base_override_and_active_materials() -> void:
-	var utility := GFSurfaceUtilityBase.new()
-	var mesh_instance := _make_two_surface_mesh_instance()
+	var utility: GFSurfaceUtility = GFSurfaceUtility.new()
+	var mesh_instance: MeshInstance3D = _make_two_surface_mesh_instance()
 	add_child_autofree(mesh_instance)
-	var base_material := mesh_instance.mesh.surface_get_material(1)
-	var override_material := StandardMaterial3D.new()
+	var base_material: Material = mesh_instance.mesh.surface_get_material(1)
+	var override_material: StandardMaterial3D = StandardMaterial3D.new()
 	mesh_instance.set_surface_override_material(1, override_material)
 
 	assert_eq(utility.get_base_material(mesh_instance, 1), base_material, "base material 应来自 Mesh surface。")
@@ -39,10 +35,10 @@ func test_surface_utility_returns_base_override_and_active_materials() -> void:
 
 
 func test_surface_utility_resolves_mesh_from_collision_sibling() -> void:
-	var utility := GFSurfaceUtilityBase.new()
-	var root := Node3D.new()
-	var mesh_instance := _make_two_surface_mesh_instance()
-	var collider := StaticBody3D.new()
+	var utility: GFSurfaceUtility = GFSurfaceUtility.new()
+	var root: Node3D = Node3D.new()
+	var mesh_instance: MeshInstance3D = _make_two_surface_mesh_instance()
+	var collider: StaticBody3D = StaticBody3D.new()
 	root.add_child(mesh_instance)
 	root.add_child(collider)
 	add_child_autofree(root)
@@ -51,70 +47,70 @@ func test_surface_utility_resolves_mesh_from_collision_sibling() -> void:
 
 
 func test_surface_utility_cache_can_be_cleared() -> void:
-	var utility := GFSurfaceUtilityBase.new()
-	var mesh_instance := _make_two_surface_mesh_instance()
+	var utility: GFSurfaceUtility = GFSurfaceUtility.new()
+	var mesh_instance: MeshInstance3D = _make_two_surface_mesh_instance()
 	add_child_autofree(mesh_instance)
 
-	utility.get_surface_index(mesh_instance, 0)
-	assert_eq(utility.get_debug_snapshot()["cached_meshes"], 1, "查询后应缓存 Mesh surface 面数。")
+	var _get_surface_index_result_54: Variant = utility.get_surface_index(mesh_instance, 0)
+	assert_eq(_cached_meshes(utility), 1, "查询后应缓存 Mesh surface 面数。")
 
 	utility.clear_cache()
 
-	assert_eq(utility.get_debug_snapshot()["cached_meshes"], 0, "clear_cache 后缓存应为空。")
+	assert_eq(_cached_meshes(utility), 0, "clear_cache 后缓存应为空。")
 
 
 func test_surface_utility_can_prewarm_manual_cache() -> void:
-	var utility := GFSurfaceUtilityBase.new()
-	var mesh_instance := _make_two_surface_mesh_instance()
+	var utility: GFSurfaceUtility = GFSurfaceUtility.new()
+	var mesh_instance: MeshInstance3D = _make_two_surface_mesh_instance()
 	add_child_autofree(mesh_instance)
 	utility.cache_mode = GFSurfaceUtility.CacheMode.MANUAL
 
 	assert_true(utility.cache_mesh_surface(mesh_instance), "手动缓存模式应允许显式预热 Mesh surface。")
-	assert_eq(utility.get_debug_snapshot()["cached_meshes"], 1, "预热后应记录缓存 Mesh。")
+	assert_eq(_cached_meshes(utility), 1, "预热后应记录缓存 Mesh。")
 
 	assert_true(utility.erase_cached_mesh(mesh_instance), "应能移除指定 Mesh 缓存。")
-	assert_eq(utility.get_debug_snapshot()["cached_meshes"], 0, "移除后缓存应为空。")
+	assert_eq(_cached_meshes(utility), 0, "移除后缓存应为空。")
 
 
 func test_surface_utility_auto_cache_respects_capacity() -> void:
-	var utility := GFSurfaceUtilityBase.new()
+	var utility: GFSurfaceUtility = GFSurfaceUtility.new()
 	utility.set_auto_cache_size(1)
-	var first_mesh_instance := _make_two_surface_mesh_instance()
-	var second_mesh_instance := _make_two_surface_mesh_instance()
+	var first_mesh_instance: MeshInstance3D = _make_two_surface_mesh_instance()
+	var second_mesh_instance: MeshInstance3D = _make_two_surface_mesh_instance()
 	add_child_autofree(first_mesh_instance)
 	add_child_autofree(second_mesh_instance)
 
-	utility.get_surface_index(first_mesh_instance, 0)
-	utility.get_surface_index(second_mesh_instance, 0)
+	var _get_surface_index_result_83: Variant = utility.get_surface_index(first_mesh_instance, 0)
+	var _get_surface_index_result_84: Variant = utility.get_surface_index(second_mesh_instance, 0)
 
-	assert_eq(utility.get_debug_snapshot()["cached_meshes"], 1, "自动缓存应按容量裁剪旧 Mesh。")
+	assert_eq(_cached_meshes(utility), 1, "自动缓存应按容量裁剪旧 Mesh。")
 
 
 func test_surface_utility_disabled_cache_does_not_store() -> void:
-	var utility := GFSurfaceUtilityBase.new()
-	var mesh_instance := _make_two_surface_mesh_instance()
+	var utility: GFSurfaceUtility = GFSurfaceUtility.new()
+	var mesh_instance: MeshInstance3D = _make_two_surface_mesh_instance()
 	add_child_autofree(mesh_instance)
 	utility.cache_mode = GFSurfaceUtility.CacheMode.DISABLED
 
-	utility.get_surface_index(mesh_instance, 0)
+	var _get_surface_index_result_95: Variant = utility.get_surface_index(mesh_instance, 0)
 
-	assert_eq(utility.get_debug_snapshot()["cached_meshes"], 0, "禁用缓存时查询不应写入缓存。")
+	assert_eq(_cached_meshes(utility), 0, "禁用缓存时查询不应写入缓存。")
 	assert_false(utility.cache_mesh_surface(mesh_instance), "禁用缓存时显式预热应返回 false。")
 
 
 func _make_two_surface_mesh_instance(use_indices: bool = true) -> MeshInstance3D:
-	var mesh := ArrayMesh.new()
+	var mesh: ArrayMesh = ArrayMesh.new()
 	_add_triangle_surface(mesh, Vector3.ZERO, _make_material(Color.RED), use_indices)
 	_add_triangle_surface(mesh, Vector3(4.0, 0.0, 0.0), _make_material(Color.BLUE), use_indices)
 
-	var mesh_instance := MeshInstance3D.new()
+	var mesh_instance: MeshInstance3D = MeshInstance3D.new()
 	mesh_instance.mesh = mesh
 	return mesh_instance
 
 
 func _add_triangle_surface(mesh: ArrayMesh, offset: Vector3, material: Material, use_indices: bool = true) -> void:
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
+	var arrays: Array = []
+	var _resize_error: int = arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([
 		offset + Vector3(0.0, 0.0, 0.0),
 		offset + Vector3(1.0, 0.0, 0.0),
@@ -127,6 +123,10 @@ func _add_triangle_surface(mesh: ArrayMesh, offset: Vector3, material: Material,
 
 
 func _make_material(color: Color) -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
+	var material: StandardMaterial3D = StandardMaterial3D.new()
 	material.albedo_color = color
 	return material
+
+
+func _cached_meshes(utility: GFSurfaceUtility) -> int:
+	return GFVariantData.get_option_int(utility.get_debug_snapshot(), "cached_meshes")

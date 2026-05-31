@@ -69,7 +69,7 @@ func set_entry(catalog_id: StringName, entry_id: StringName, metadata: Dictionar
 ## [br]
 ## @param entry_id: 条目标识。
 func remove_entry(catalog_id: StringName, entry_id: StringName) -> void:
-	_get_catalog(catalog_id).erase(entry_id)
+	var _erase_result_72: Variant = _get_catalog(catalog_id).erase(entry_id)
 
 
 ## 获取目录 ID 列表。
@@ -80,9 +80,9 @@ func remove_entry(catalog_id: StringName, entry_id: StringName) -> void:
 ## [br]
 ## @return: 排序后的条目 ID。
 func get_ids(catalog_id: StringName) -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	for key: Variant in _get_catalog(catalog_id).keys():
-		result.append(String(key))
+		var _id_appended: bool = result.append(GFVariantData.to_text(key))
 	result.sort()
 	return result
 
@@ -99,8 +99,7 @@ func get_ids(catalog_id: StringName) -> PackedStringArray:
 ## [br]
 ## @schema return: 条目元数据 Dictionary；键和值由目录提供器或项目工具约定。
 func describe_entry(catalog_id: StringName, entry_id: StringName) -> Dictionary:
-	var data := _get_catalog(catalog_id).get(entry_id) as Dictionary
-	return data.duplicate(true) if data != null else {}
+	return GFVariantData.to_dictionary(GFVariantData.get_option_value(_get_catalog(catalog_id), entry_id, {}))
 
 
 ## 获取完整目录快照。

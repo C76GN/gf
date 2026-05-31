@@ -69,20 +69,23 @@ func execute() -> Variant:
 
 	_clear_active_tween()
 	_reset_completion_state()
-	var original_color_value := _get_color_property_value()
+	var original_color_value: Variant = _get_color_property_value()
 	if not (original_color_value is Color):
 		return null
 
-	var original_color := original_color_value as Color
+	var original_color: Color = _get_color_value(original_color_value)
 	if duration <= 0.0:
 		target.set_indexed(property_name, original_color)
 		return null
 
 	_active_tween = target.create_tween()
-	var half_duration := duration * 0.5
-	_active_tween.tween_property(target, property_name, flash_color, half_duration)
-	_active_tween.tween_property(target, property_name, original_color, half_duration)
-	_active_tween.finished.connect(_on_active_tween_finished, CONNECT_ONE_SHOT)
+	var half_duration: float = duration * 0.5
+	var _tween_property_result_83: Variant = _active_tween.tween_property(target, property_name, flash_color, half_duration)
+	var _tween_property_result_84: Variant = _active_tween.tween_property(target, property_name, original_color, half_duration)
+	var _finished_connected: Error = _active_tween.finished.connect(
+		_on_active_tween_finished,
+		CONNECT_ONE_SHOT as Object.ConnectFlags
+	) as Error
 	return _action_completed
 
 
@@ -127,12 +130,12 @@ func _get_color_property_value() -> Variant:
 
 
 func _has_target_property_path() -> bool:
-	var base_name := _get_property_base_name(property_name)
+	var base_name: String = _get_property_base_name(property_name)
 	if base_name.is_empty():
 		return false
 
 	for property: Dictionary in target.get_property_list():
-		if String(property.get("name", "")) == base_name:
+		if GFVariantData.get_option_string(property, "name") == base_name:
 			return true
 	return false
 
@@ -141,11 +144,18 @@ func _get_property_base_name(path: NodePath) -> String:
 	if path.get_name_count() > 0:
 		return String(path.get_name(0))
 
-	var text := String(path)
-	var separator_index := text.find(":")
+	var text: String = String(path)
+	var separator_index: int = text.find(":")
 	if separator_index >= 0:
 		text = text.substr(0, separator_index)
 	return text
+
+
+func _get_color_value(value: Variant) -> Color:
+	if value is Color:
+		var color: Color = value
+		return color
+	return Color.WHITE
 
 
 # --- 信号处理函数 ---

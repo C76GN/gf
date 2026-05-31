@@ -89,8 +89,11 @@ func execute() -> Variant:
 		return null
 
 	_active_tween = target.create_tween()
-	_active_tween.tween_property(target, property_name, target_position, duration).set_trans(transition_type).set_ease(ease_type)
-	_active_tween.finished.connect(_on_active_tween_finished, CONNECT_ONE_SHOT)
+	var _set_ease_result_92: Variant = _active_tween.tween_property(target, property_name, target_position, duration).set_trans(transition_type).set_ease(ease_type)
+	var _finished_connected: Error = _active_tween.finished.connect(
+		_on_active_tween_finished,
+		CONNECT_ONE_SHOT as Object.ConnectFlags
+	) as Error
 	return _action_completed
 
 
@@ -123,7 +126,7 @@ func resume() -> void:
 ## @api public
 func finish() -> void:
 	if is_instance_valid(_active_tween):
-		_active_tween.custom_step(INF)
+		var _custom_step_result_129: Variant = _active_tween.custom_step(INF)
 	_clear_active_tween()
 	_emit_completed_once()
 
@@ -182,12 +185,12 @@ func _is_numeric_value(value: Variant) -> bool:
 
 
 func _has_target_property_path() -> bool:
-	var base_name := _get_property_base_name(property_name)
+	var base_name: String = _get_property_base_name(property_name)
 	if base_name.is_empty():
 		return false
 
 	for property: Dictionary in target.get_property_list():
-		if String(property.get("name", "")) == base_name:
+		if GFVariantData.get_option_string(property, "name") == base_name:
 			return true
 	return false
 
@@ -196,8 +199,8 @@ func _get_property_base_name(path: NodePath) -> String:
 	if path.get_name_count() > 0:
 		return String(path.get_name(0))
 
-	var text := String(path)
-	var separator_index := text.find(":")
+	var text: String = String(path)
+	var separator_index: int = text.find(":")
 	if separator_index >= 0:
 		text = text.substr(0, separator_index)
 	return text

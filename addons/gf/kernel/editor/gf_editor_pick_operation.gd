@@ -42,6 +42,7 @@ enum State {
 ## [br]
 ## @layer kernel/editor
 const GFEditorToolContextBase = preload("res://addons/gf/kernel/editor/gf_editor_tool_context.gd")
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
 
 
 # --- 公共变量 ---
@@ -105,13 +106,13 @@ func pick(input_data: Dictionary) -> State:
 	if _state != State.PICKING and _state != State.READY:
 		return _state
 
-	var response := _on_pick(input_data)
+	var response: Dictionary = _on_pick(input_data)
 	if response.has("preview") and response["preview"] is Dictionary:
-		_preview = (response["preview"] as Dictionary).duplicate(true)
+		_preview = _GF_VARIANT_ACCESS_SCRIPT.to_dictionary(response["preview"], {})
 	if response.has("result") and response["result"] is Dictionary:
-		_result = (response["result"] as Dictionary).duplicate(true)
+		_result = _GF_VARIANT_ACCESS_SCRIPT.to_dictionary(response["result"], {})
 
-	var ready := bool(response.get("ready", _on_can_apply()))
+	var ready: bool = _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(response, "ready", _on_can_apply())
 	_state = State.READY if ready else State.PICKING
 	return _state
 
@@ -138,7 +139,7 @@ func apply() -> Dictionary:
 			"ok": false,
 			"reason": &"not_ready",
 		}
-	var result := _on_apply(_context, _result.duplicate(true))
+	var result: Dictionary = _on_apply(_context, _result.duplicate(true))
 	_state = State.APPLIED
 	return result
 
@@ -208,8 +209,8 @@ func get_debug_snapshot() -> Dictionary:
 ## [br]
 ## @api protected
 ## [br]
-## @param _context: 编辑器工具上下文。
-func _on_begin(_context: GFEditorToolContextBase) -> void:
+## @param _tool_context: 编辑器工具上下文。
+func _on_begin(_tool_context: GFEditorToolContextBase) -> void:
 	pass
 
 
@@ -241,7 +242,7 @@ func _on_can_apply() -> bool:
 ## [br]
 ## @api protected
 ## [br]
-## @param _context: 编辑器工具上下文。
+## @param _tool_context: 编辑器工具上下文。
 ## [br]
 ## @param result: 拾取结果副本。
 ## [br]
@@ -250,7 +251,7 @@ func _on_can_apply() -> bool:
 ## @return 应用结果字典。
 ## [br]
 ## @schema return: Dictionary apply result.
-func _on_apply(_context: GFEditorToolContextBase, result: Dictionary) -> Dictionary:
+func _on_apply(_tool_context: GFEditorToolContextBase, result: Dictionary) -> Dictionary:
 	return {
 		"ok": true,
 		"result": result,
@@ -261,6 +262,6 @@ func _on_apply(_context: GFEditorToolContextBase, result: Dictionary) -> Diction
 ## [br]
 ## @api protected
 ## [br]
-## @param _context: 编辑器工具上下文。
-func _on_cancel(_context: GFEditorToolContextBase) -> void:
+## @param _tool_context: 编辑器工具上下文。
+func _on_cancel(_tool_context: GFEditorToolContextBase) -> void:
 	pass

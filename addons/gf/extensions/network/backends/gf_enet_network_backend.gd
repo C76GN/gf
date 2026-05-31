@@ -49,18 +49,18 @@ var _is_server: bool = false
 ## [br]
 ## @schema options: Dictionary，支持 port、max_clients、max_channels、in_bandwidth、out_bandwidth。
 func host(options: Dictionary = {}) -> Error:
-	var port := int(options.get("port", 0))
+	var port: int = GFVariantData.get_option_int(options, "port")
 	if port <= 0:
 		return ERR_INVALID_PARAMETER
 
 	_close_peer(false)
 	_peer = ENetMultiplayerPeer.new()
-	var error := _peer.create_server(
+	var error: Error = _peer.create_server(
 		port,
-		int(options.get("max_clients", 32)),
-		int(options.get("max_channels", 0)),
-		int(options.get("in_bandwidth", 0)),
-		int(options.get("out_bandwidth", 0))
+		GFVariantData.get_option_int(options, "max_clients", 32),
+		GFVariantData.get_option_int(options, "max_channels"),
+		GFVariantData.get_option_int(options, "in_bandwidth"),
+		GFVariantData.get_option_int(options, "out_bandwidth")
 	)
 	if error != OK:
 		_peer = null
@@ -71,7 +71,7 @@ func host(options: Dictionary = {}) -> Error:
 	_connect_peer_signals()
 	_last_status = _peer.get_connection_status()
 	if _last_status == MultiplayerPeer.CONNECTION_CONNECTED:
-		connected.emit()
+		_emit_connected()
 	return OK
 
 
@@ -88,20 +88,20 @@ func host(options: Dictionary = {}) -> Error:
 ## [br]
 ## @schema options: Dictionary，支持 port、max_channels、in_bandwidth、out_bandwidth。
 func connect_to_endpoint(endpoint: String, options: Dictionary = {}) -> Error:
-	var parsed := _parse_endpoint(endpoint, options)
-	var address := String(parsed.get("address", ""))
-	var port := int(parsed.get("port", 0))
+	var parsed: Dictionary = _parse_endpoint(endpoint, options)
+	var address: String = GFVariantData.get_option_string(parsed, "address")
+	var port: int = GFVariantData.get_option_int(parsed, "port")
 	if address.is_empty() or port <= 0:
 		return ERR_INVALID_PARAMETER
 
 	_close_peer(false)
 	_peer = ENetMultiplayerPeer.new()
-	var error := _peer.create_client(
+	var error: Error = _peer.create_client(
 		address,
 		port,
-		int(options.get("max_channels", 0)),
-		int(options.get("in_bandwidth", 0)),
-		int(options.get("out_bandwidth", 0))
+		GFVariantData.get_option_int(options, "max_channels"),
+		GFVariantData.get_option_int(options, "in_bandwidth"),
+		GFVariantData.get_option_int(options, "out_bandwidth")
 	)
 	if error != OK:
 		_peer = null
@@ -142,9 +142,9 @@ func send_bytes(peer_id: int, bytes: PackedByteArray, options: Dictionary = {}) 
 		return ERR_INVALID_DATA
 
 	_peer.set_target_peer(_map_target_peer(peer_id))
-	_peer.transfer_channel = int(options.get("channel", 0))
+	_peer.transfer_channel = GFVariantData.get_option_int(options, "channel")
 	_peer.transfer_mode = _get_transfer_mode(options)
-	var error := _peer.put_packet(bytes)
+	var error: Error = _peer.put_packet(bytes)
 	_peer.set_target_peer(MultiplayerPeer.TARGET_PEER_BROADCAST)
 	return error
 
@@ -160,15 +160,15 @@ func poll(_delta: float) -> void:
 
 	_peer.poll()
 	_update_connection_status()
-	var processed_packets := 0
+	var processed_packets: int = 0
 	while (
 		_peer != null
 		and _peer.get_available_packet_count() > 0
 		and (max_packets_per_poll <= 0 or processed_packets < max_packets_per_poll)
 	):
-		var peer_id := _peer.get_packet_peer()
-		var bytes := _peer.get_packet()
-		message_received.emit(peer_id, bytes)
+		var peer_id: int = _peer.get_packet_peer()
+		var bytes: PackedByteArray = _peer.get_packet()
+		_emit_message_received(peer_id, bytes)
 		processed_packets += 1
 
 
@@ -180,7 +180,7 @@ func poll(_delta: float) -> void:
 ## [br]
 ## @schema return: Dictionary，包含 backend、available、endpoint、is_server、connection_status、connection_status_name、available_packet_count、max_packets_per_poll。
 func get_debug_snapshot() -> Dictionary:
-	var status := MultiplayerPeer.CONNECTION_DISCONNECTED if _peer == null else _peer.get_connection_status()
+	var status: int = MultiplayerPeer.CONNECTION_DISCONNECTED if _peer == null else _peer.get_connection_status()
 	return {
 		"backend": "GFENetNetworkBackend",
 		"available": _peer != null,
@@ -199,9 +199,9 @@ func _connect_peer_signals() -> void:
 	if _peer == null:
 		return
 	if not _peer.peer_connected.is_connected(_on_peer_connected):
-		_peer.peer_connected.connect(_on_peer_connected)
+		var _peer_connected_error: int = _peer.peer_connected.connect(_on_peer_connected)
 	if not _peer.peer_disconnected.is_connected(_on_peer_disconnected):
-		_peer.peer_disconnected.connect(_on_peer_disconnected)
+		var _peer_disconnected_error: int = _peer.peer_disconnected.connect(_on_peer_disconnected)
 
 
 func _disconnect_peer_signals() -> void:
@@ -213,7 +213,7 @@ func _disconnect_peer_signals() -> void:
 		_peer.peer_disconnected.disconnect(_on_peer_disconnected)
 
 
-func _close_peer(emit_signal: bool) -> void:
+func _close_peer(should_emit_signal: bool) -> void:
 	if _peer == null:
 		return
 
@@ -223,22 +223,22 @@ func _close_peer(emit_signal: bool) -> void:
 	_last_status = MultiplayerPeer.CONNECTION_DISCONNECTED
 	_endpoint = ""
 	_is_server = false
-	if emit_signal:
-		disconnected.emit("closed")
+	if should_emit_signal:
+		_emit_disconnected("closed")
 
 
 func _parse_endpoint(endpoint: String, options: Dictionary) -> Dictionary:
-	var address := endpoint.strip_edges()
-	var port := int(options.get("port", 0))
+	var address: String = endpoint.strip_edges()
+	var port: int = GFVariantData.get_option_int(options, "port")
 	if address.begins_with("["):
-		var bracket_index := address.find("]")
+		var bracket_index: int = address.find("]")
 		if bracket_index > 0:
-			var host := address.substr(1, bracket_index - 1)
+			var parsed_host: String = address.substr(1, bracket_index - 1)
 			if bracket_index < address.length() - 2 and address.substr(bracket_index + 1, 1) == ":":
 				port = int(address.substr(bracket_index + 2))
-			address = host
+			address = parsed_host
 	elif port <= 0:
-		var separator_index := address.rfind(":")
+		var separator_index: int = address.rfind(":")
 		if (
 			separator_index > 0
 			and separator_index < address.length() - 1
@@ -258,28 +258,38 @@ func _map_target_peer(peer_id: int) -> int:
 	return peer_id
 
 
-func _get_transfer_mode(options: Dictionary) -> int:
+func _get_transfer_mode(options: Dictionary) -> MultiplayerPeer.TransferMode:
 	if options.has("transfer_mode"):
-		return int(options["transfer_mode"])
-	if bool(options.get("reliable", true)):
+		return _to_transfer_mode(GFVariantData.to_int(options["transfer_mode"]))
+	if GFVariantData.get_option_bool(options, "reliable", true):
 		return MultiplayerPeer.TRANSFER_MODE_RELIABLE
 	return MultiplayerPeer.TRANSFER_MODE_UNRELIABLE
+
+
+func _to_transfer_mode(value: int) -> MultiplayerPeer.TransferMode:
+	match value:
+		MultiplayerPeer.TRANSFER_MODE_UNRELIABLE:
+			return MultiplayerPeer.TRANSFER_MODE_UNRELIABLE
+		MultiplayerPeer.TRANSFER_MODE_UNRELIABLE_ORDERED:
+			return MultiplayerPeer.TRANSFER_MODE_UNRELIABLE_ORDERED
+		_:
+			return MultiplayerPeer.TRANSFER_MODE_RELIABLE
 
 
 func _update_connection_status() -> void:
 	if _peer == null:
 		return
 
-	var status := _peer.get_connection_status()
+	var status: int = _peer.get_connection_status()
 	if status == _last_status:
 		return
 
 	_last_status = status
 	match status:
 		MultiplayerPeer.CONNECTION_CONNECTED:
-			connected.emit()
+			_emit_connected()
 		MultiplayerPeer.CONNECTION_DISCONNECTED:
-			disconnected.emit("connection_status_disconnected")
+			_emit_disconnected("connection_status_disconnected")
 
 
 func _get_status_name(status: int) -> String:
@@ -295,8 +305,8 @@ func _get_status_name(status: int) -> String:
 
 
 func _on_peer_connected(peer_id: int) -> void:
-	peer_connected.emit(peer_id)
+	_emit_peer_connected(peer_id)
 
 
 func _on_peer_disconnected(peer_id: int) -> void:
-	peer_disconnected.emit(peer_id)
+	_emit_peer_disconnected(peer_id)

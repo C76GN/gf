@@ -108,14 +108,14 @@ func _build_ui() -> void:
 	if _tree != null:
 		return
 
-	var root_box := VBoxContainer.new()
+	var root_box: VBoxContainer = VBoxContainer.new()
 	root_box.clip_contents = true
 	root_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	root_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	add_child(root_box)
 	root_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
-	var toolbar := _EDITOR_WORKSPACE_UI.make_toolbar()
+	var toolbar: HBoxContainer = _EDITOR_WORKSPACE_UI.make_toolbar()
 	root_box.add_child(toolbar)
 
 	toolbar.add_child(_EDITOR_WORKSPACE_UI.make_button("采集", "采集当前诊断快照。", collect_snapshot))
@@ -129,20 +129,20 @@ func _build_ui() -> void:
 	_add_monitor_preset_option(&"architecture", "Architecture")
 	_add_monitor_preset_option(&"tools", "Tools")
 	_add_monitor_preset_option(&"overlay", "Overlay")
-	_preset_option.item_selected.connect(_on_option_selected)
+	var _preset_connected: int = _preset_option.item_selected.connect(_on_option_selected)
 	toolbar.add_child(_preset_option)
 
 	_include_scene_tree_check = CheckBox.new()
 	_include_scene_tree_check.text = "场景树"
 	_include_scene_tree_check.tooltip_text = "采集只读场景树摘要。"
-	_include_scene_tree_check.toggled.connect(_on_option_toggled)
+	var _scene_tree_connected: int = _include_scene_tree_check.toggled.connect(_on_option_toggled)
 	toolbar.add_child(_include_scene_tree_check)
 
 	_include_logs_check = CheckBox.new()
 	_include_logs_check.text = "最近日志"
 	_include_logs_check.button_pressed = true
 	_include_logs_check.tooltip_text = "快照中包含最近内存日志条目。"
-	_include_logs_check.toggled.connect(_on_option_toggled)
+	var _logs_connected: int = _include_logs_check.toggled.connect(_on_option_toggled)
 	toolbar.add_child(_include_logs_check)
 
 	toolbar.add_child(_EDITOR_WORKSPACE_UI.make_button("复制快照", "复制当前诊断快照 JSON。", _on_copy_pressed))
@@ -153,7 +153,7 @@ func _build_ui() -> void:
 	_empty_label = _EDITOR_WORKSPACE_UI.make_empty_label()
 	root_box.add_child(_empty_label)
 
-	var split := HSplitContainer.new()
+	var split: HSplitContainer = HSplitContainer.new()
 	split.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root_box.add_child(split)
@@ -168,7 +168,7 @@ func _build_ui() -> void:
 	_tree.set_column_expand(2, true)
 	_tree.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_tree.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_tree.item_selected.connect(_on_tree_item_selected)
+	var _tree_connected: int = _tree.item_selected.connect(_on_tree_item_selected)
 	split.add_child(_tree)
 
 	_details = _EDITOR_WORKSPACE_UI.make_details_output()
@@ -178,7 +178,7 @@ func _build_ui() -> void:
 
 
 func _add_monitor_preset_option(preset_id: StringName, label: String) -> void:
-	var index := _preset_option.item_count
+	var index: int = _preset_option.item_count
 	_preset_option.add_item(label, index)
 	_preset_option.set_item_metadata(index, preset_id)
 
@@ -194,14 +194,14 @@ func _render_snapshot() -> void:
 	_summary_label.text = _make_snapshot_summary(_last_snapshot)
 	_summary_label.modulate = _EDITOR_WORKSPACE_UI.OK_TEXT_COLOR
 
-	var root_item := _tree.create_item()
-	var keys := PackedStringArray()
+	var root_item: TreeItem = _tree.create_item()
+	var keys: PackedStringArray = PackedStringArray()
 	for key: Variant in _last_snapshot.keys():
-		keys.append(String(key))
+		_append_packed_string(keys, GFVariantData.to_text(key))
 	keys.sort()
 	for key_text: String in keys:
 		var value: Variant = _last_snapshot[key_text]
-		var item := _tree.create_item(root_item)
+		var item: TreeItem = _tree.create_item(root_item)
 		item.set_text(0, key_text)
 		item.set_text(1, _get_value_kind(value))
 		item.set_text(2, _make_value_summary(value))
@@ -213,14 +213,14 @@ func _add_child_items(parent: TreeItem, value: Variant) -> void:
 	if not (value is Dictionary):
 		return
 
-	var dictionary := value as Dictionary
-	var keys := PackedStringArray()
+	var dictionary: Dictionary = GFVariantData.as_dictionary(value)
+	var keys: PackedStringArray = PackedStringArray()
 	for key: Variant in dictionary.keys():
-		keys.append(String(key))
+		_append_packed_string(keys, GFVariantData.to_text(key))
 	keys.sort()
 	for key_text: String in keys:
 		var child_value: Variant = dictionary[key_text]
-		var item := _tree.create_item(parent)
+		var item: TreeItem = _tree.create_item(parent)
 		item.set_text(0, key_text)
 		item.set_text(1, _get_value_kind(child_value))
 		item.set_text(2, _make_value_summary(child_value))
@@ -240,14 +240,14 @@ func _render_empty(message: String) -> void:
 
 
 func _make_snapshot_summary(snapshot: Dictionary) -> String:
-	var performance := snapshot.get("performance", {}) as Dictionary
-	var architecture := snapshot.get("architecture", {}) as Dictionary
-	var monitors := snapshot.get("monitors", {}) as Dictionary
-	var fps := float(performance.get("fps", 0.0)) if performance != null else 0.0
-	var model_count := _count_dictionary_section(architecture, "models")
-	var system_count := _count_dictionary_section(architecture, "systems")
-	var utility_count := _count_dictionary_section(architecture, "utilities")
-	var monitor_count := int(monitors.get("monitor_count", 0)) if monitors != null else 0
+	var performance: Dictionary = GFVariantData.as_dictionary(GFVariantData.get_option_value(snapshot, "performance", {}))
+	var architecture: Dictionary = GFVariantData.as_dictionary(GFVariantData.get_option_value(snapshot, "architecture", {}))
+	var monitors: Dictionary = GFVariantData.as_dictionary(GFVariantData.get_option_value(snapshot, "monitors", {}))
+	var fps: float = GFVariantData.get_option_float(performance, "fps", 0.0)
+	var model_count: int = _count_dictionary_section(architecture, "models")
+	var system_count: int = _count_dictionary_section(architecture, "systems")
+	var utility_count: int = _count_dictionary_section(architecture, "utilities")
+	var monitor_count: int = GFVariantData.get_option_int(monitors, "monitor_count", 0)
 	return "FPS：%.1f  Models：%d  Systems：%d  Utilities：%d  Monitors：%d" % [
 		fps,
 		model_count,
@@ -258,17 +258,15 @@ func _make_snapshot_summary(snapshot: Dictionary) -> String:
 
 
 func _count_dictionary_section(source: Dictionary, key: String) -> int:
-	if source == null:
-		return 0
-	var section := source.get(key, {}) as Dictionary
-	return section.size() if section != null else 0
+	var section: Dictionary = GFVariantData.as_dictionary(GFVariantData.get_option_value(source, key, {}))
+	return section.size()
 
 
 func _get_selected_preset_id() -> StringName:
 	if _preset_option == null:
 		return &""
 	var metadata: Variant = _preset_option.get_item_metadata(_preset_option.selected)
-	return metadata if metadata is StringName else StringName(str(metadata))
+	return GFVariantData.to_string_name(metadata)
 
 
 func _get_value_kind(value: Variant) -> String:
@@ -283,12 +281,15 @@ func _get_value_kind(value: Variant) -> String:
 
 func _make_value_summary(value: Variant) -> String:
 	if value is Dictionary:
-		return "%d keys" % (value as Dictionary).size()
+		var dictionary: Dictionary = GFVariantData.as_dictionary(value)
+		return "%d keys" % dictionary.size()
 	if value is Array:
-		return "%d items" % (value as Array).size()
+		var array: Array = GFVariantData.as_array(value)
+		return "%d items" % array.size()
 	if value is PackedStringArray:
-		return "%d items" % (value as PackedStringArray).size()
-	var text := str(value)
+		var packed_strings: PackedStringArray = value
+		return "%d items" % packed_strings.size()
+	var text: String = str(value)
 	return text.substr(0, 120) if text.length() > 120 else text
 
 
@@ -298,23 +299,32 @@ func _safe_json(value: Variant) -> String:
 
 func _sanitize_for_display(value: Variant) -> Variant:
 	if value is Dictionary:
+		var dictionary: Dictionary = GFVariantData.as_dictionary(value)
 		var result: Dictionary = {}
-		for key: Variant in value.keys():
-			result[str(key)] = _sanitize_for_display(value[key])
+		for key: Variant in dictionary.keys():
+			result[GFVariantData.to_text(key)] = _sanitize_for_display(dictionary[key])
 		return result
 	if value is Array:
+		var array: Array = GFVariantData.as_array(value)
 		var array_result: Array = []
-		for item: Variant in value:
+		for item: Variant in array:
 			array_result.append(_sanitize_for_display(item))
 		return array_result
 	if value is PackedStringArray:
+		var packed_strings: PackedStringArray = value
 		var strings: Array[String] = []
-		for item: String in value:
+		for item: String in packed_strings:
 			strings.append(item)
 		return strings
 	if value is Object:
 		return str(value)
 	return value
+
+
+func _append_packed_string(target: PackedStringArray, value: String) -> void:
+	var appended: bool = target.append(value)
+	if appended:
+		return
 
 
 # --- 信号处理函数 ---
@@ -328,7 +338,7 @@ func _on_option_toggled(_pressed: bool) -> void:
 
 
 func _on_tree_item_selected() -> void:
-	var item := _tree.get_selected()
+	var item: TreeItem = _tree.get_selected()
 	if item == null:
 		return
 	_details.text = _safe_json(item.get_metadata(0))

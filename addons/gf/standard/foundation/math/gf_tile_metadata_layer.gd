@@ -38,7 +38,7 @@ extends GFTileMapCache
 func set_cell_value(cell: Vector2i, key: StringName, value: Variant) -> void:
 	if key == &"":
 		return
-	var data := get_cell_data(cell)
+	var data: Dictionary = get_cell_data(cell)
 	data[key] = GFVariantData.duplicate_variant(value)
 	set_cell_data(cell, data)
 
@@ -56,7 +56,10 @@ func get_cell_data(cell: Vector2i) -> Dictionary:
 	if not cells.has(cell):
 		return {}
 	var value: Variant = cells[cell]
-	return (value as Dictionary).duplicate(true) if value is Dictionary else {}
+	if value is Dictionary:
+		var data: Dictionary = GFVariantData.as_dictionary(value)
+		return data.duplicate(true)
+	return {}
 
 
 ## 获取格子字段值。
@@ -75,8 +78,8 @@ func get_cell_data(cell: Vector2i) -> Dictionary:
 ## [br]
 ## @schema return: Variant metadata field value or default_value.
 func get_cell_value(cell: Vector2i, key: StringName, default_value: Variant = null) -> Variant:
-	var data := get_cell_data(cell)
-	return data.get(key, default_value)
+	var data: Dictionary = get_cell_data(cell)
+	return GFVariantData.get_option_value(data, key, default_value)
 
 
 ## 合并格子数据。
@@ -91,7 +94,7 @@ func get_cell_value(cell: Vector2i, key: StringName, default_value: Variant = nu
 ## [br]
 ## @param overwrite: 为 false 时不覆盖已有字段。
 func merge_cell_data(cell: Vector2i, data: Dictionary, overwrite: bool = true) -> void:
-	var current := get_cell_data(cell)
+	var current: Dictionary = get_cell_data(cell)
 	for key: Variant in data.keys():
 		if overwrite or not current.has(key):
 			current[key] = GFVariantData.duplicate_variant(data[key])
@@ -113,10 +116,10 @@ func erase_cell_key(cell: Vector2i, key: StringName) -> bool:
 	var value: Variant = cells[cell]
 	if not (value is Dictionary):
 		return false
-	var data := value as Dictionary
+	var data: Dictionary = GFVariantData.as_dictionary(value)
 	if not data.has(key):
 		return false
-	data.erase(key)
+	var _erase_result_122: Variant = data.erase(key)
 	if data.is_empty():
 		erase_cell(cell)
 	else:
@@ -137,7 +140,9 @@ func has_cell_key(cell: Vector2i, key: StringName) -> bool:
 	if not cells.has(cell):
 		return false
 	var value: Variant = cells[cell]
-	return value is Dictionary and (value as Dictionary).has(key)
+	if not (value is Dictionary):
+		return false
+	return GFVariantData.as_dictionary(value).has(key)
 
 
 ## 批量为格子绘制同一个字段值。
@@ -156,7 +161,7 @@ func has_cell_key(cell: Vector2i, key: StringName) -> bool:
 func paint_cells(target_cells: Array[Vector2i], key: StringName, value: Variant) -> int:
 	if key == &"":
 		return 0
-	var count := 0
+	var count: int = 0
 	for cell: Vector2i in target_cells:
 		set_cell_value(cell, key, value)
 		count += 1
@@ -173,7 +178,7 @@ func paint_cells(target_cells: Array[Vector2i], key: StringName, value: Variant)
 ## [br]
 ## @return 实际移除的字段数量。
 func erase_cells_key(target_cells: Array[Vector2i], key: StringName) -> int:
-	var count := 0
+	var count: int = 0
 	for cell: Vector2i in target_cells:
 		if erase_cell_key(cell, key):
 			count += 1
@@ -195,7 +200,7 @@ func get_cells_with_value(key: StringName, value: Variant) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	for cell: Vector2i in cells:
 		var cell_value: Variant = cells[cell]
-		if cell_value is Dictionary and (cell_value as Dictionary).get(key) == value:
+		if cell_value is Dictionary and GFVariantData.get_option_value(GFVariantData.as_dictionary(cell_value), key) == value:
 			result.append(cell)
 	return result
 
@@ -225,8 +230,8 @@ func set_schema_entry(key: StringName, metadata: Dictionary) -> void:
 ## [br]
 ## @schema return: Dictionary project-defined schema metadata for a field.
 func get_schema_entry(key: StringName) -> Dictionary:
-	var data := schema.get(key) as Dictionary
-	return data.duplicate(true) if data != null else {}
+	var data: Dictionary = GFVariantData.as_dictionary(GFVariantData.get_option_value(schema, key, {}))
+	return data.duplicate(true)
 
 
 ## 移除 schema 字段元数据。
@@ -235,7 +240,7 @@ func get_schema_entry(key: StringName) -> Dictionary:
 ## [br]
 ## @param key: 字段名。
 func erase_schema_entry(key: StringName) -> void:
-	schema.erase(key)
+	var _erase_result_243: Variant = schema.erase(key)
 
 
 ## 转换为基础 TileMap 缓存。
@@ -244,11 +249,11 @@ func erase_schema_entry(key: StringName) -> void:
 ## [br]
 ## @return 缓存副本。
 func to_tile_map_cache() -> GFTileMapCache:
-	var cache := GFTileMapCache.new()
+	var cache: GFTileMapCache = GFTileMapCache.new()
 	for cell: Vector2i in cells:
 		var value: Variant = cells[cell]
 		if value is Dictionary:
-			cache.set_cell_data(cell, value as Dictionary)
+			cache.set_cell_data(cell, GFVariantData.as_dictionary(value))
 	return cache
 
 
@@ -267,4 +272,4 @@ func from_tile_map_cache(cache: GFTileMapCache, merge: bool = false) -> void:
 	for cell: Vector2i in cache.cells:
 		var value: Variant = cache.cells[cell]
 		if value is Dictionary:
-			set_cell_data(cell, value as Dictionary)
+			set_cell_data(cell, GFVariantData.as_dictionary(value))

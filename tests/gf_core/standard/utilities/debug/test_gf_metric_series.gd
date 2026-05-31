@@ -2,8 +2,8 @@ extends GutTest
 
 
 func test_metric_series_keeps_bounded_samples_and_stats() -> void:
-	var series := GFMetricSeries.new()
-	series.configure(&"frame_time", {
+	var series: GFMetricSeries = GFMetricSeries.new()
+	var _configure_result_6: Variant = series.configure(&"frame_time", {
 		"label": "Frame Time",
 		"group": "Runtime",
 		"max_samples": 3,
@@ -22,7 +22,7 @@ func test_metric_series_keeps_bounded_samples_and_stats() -> void:
 
 
 func test_debug_overlay_records_metric_series_panel() -> void:
-	var overlay := GFDebugOverlayUtility.new()
+	var overlay: GFDebugOverlayUtility = GFDebugOverlayUtility.new()
 	overlay.include_diagnostics_monitors = false
 	overlay.include_recent_logs = false
 	overlay.metric_series_width = 4
@@ -36,19 +36,19 @@ func test_debug_overlay_records_metric_series_panel() -> void:
 		"timestamp_seconds": 2.0,
 	}), "同一指标应追加采样。")
 
-	var metrics := overlay.get_metric_series_snapshot()
+	var metrics: Array[Dictionary] = overlay.get_metric_series_snapshot()
 	assert_eq(metrics.size(), 1, "应返回一个指标序列快照。")
-	assert_eq(metrics[0]["label"], "FPS", "快照应保留指标标签。")
-	assert_eq(int(metrics[0]["sample_count"]), 2, "快照应包含采样数量。")
+	assert_eq(GFVariantData.get_option_string(metrics[0], "label"), "FPS", "快照应保留指标标签。")
+	assert_eq(GFVariantData.get_option_int(metrics[0], "sample_count"), 2, "快照应包含采样数量。")
 
-	var panels := overlay.get_panel_snapshot()
+	var panels: Array[Dictionary] = overlay.get_panel_snapshot()
 	assert_eq(panels.size(), 1, "Overlay 应生成指标面板。")
-	assert_true(String(panels[0]["content"]).contains("FPS"), "指标面板应包含指标标签。")
-	assert_true(String(panels[0]["content"]).contains("latest=60.000"), "指标面板应包含最新值。")
+	assert_true(GFVariantData.get_option_string(panels[0], "content").contains("FPS"), "指标面板应包含指标标签。")
+	assert_true(GFVariantData.get_option_string(panels[0], "content").contains("latest=60.000"), "指标面板应包含最新值。")
 
 
 func test_hidden_metric_series_is_filtered_by_default() -> void:
-	var overlay := GFDebugOverlayUtility.new()
+	var overlay: GFDebugOverlayUtility = GFDebugOverlayUtility.new()
 	overlay.include_diagnostics_monitors = false
 	overlay.include_recent_logs = false
 

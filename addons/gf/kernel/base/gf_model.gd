@@ -18,7 +18,7 @@ class_name GFModel
 
 # --- 常量 ---
 
-const _DEPENDENCY_SCOPE_SUPPORT: Script = preload("res://addons/gf/kernel/base/gf_dependency_scope_support.gd")
+const _DEPENDENCY_SCOPE_SUPPORT = preload("res://addons/gf/kernel/base/gf_dependency_scope_support.gd")
 
 
 # --- 公共变量 ---
@@ -127,7 +127,7 @@ func inject_dependencies(architecture: GFArchitecture) -> void:
 ## [br]
 ## @return 所属架构仍处于活动生命周期时返回 true。
 func is_lifecycle_active() -> bool:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	return architecture != null and architecture.is_lifecycle_active()
 
 
@@ -137,7 +137,7 @@ func is_lifecycle_active() -> bool:
 ## [br]
 ## @return 当前模块完成 ready 阶段时返回 true。
 func is_ready_in_architecture() -> bool:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	return architecture != null and architecture.is_module_ready(self)
 
 
@@ -151,7 +151,7 @@ func is_ready_in_architecture() -> bool:
 ## [br]
 ## @return 工具实例。
 func get_utility(utility_type: Script, require_ready: bool = false) -> Object:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_utility(utility_type, require_ready)
@@ -163,7 +163,7 @@ func get_utility(utility_type: Script, require_ready: bool = false) -> Object:
 ## [br]
 ## @param event_instance: 要分发的事件实例。
 func send_event(event_instance: Object) -> void:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
 		architecture.send_event(event_instance)
 
@@ -181,7 +181,7 @@ func send_event(event_instance: Object) -> void:
 ##   "description": "事件附加数据；由事件消费者约定结构。"
 ## }
 func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
 		architecture.send_simple_event(event_id, payload)
 
@@ -193,7 +193,10 @@ func _gf_set_dependency_scope(architecture: GFArchitecture) -> void:
 
 
 func _get_architecture() -> GFArchitecture:
-	return _DEPENDENCY_SCOPE_SUPPORT._get_architecture_or_global(_dependency_scope, "GFModel") as GFArchitecture
+	var raw_architecture: Variant = _DEPENDENCY_SCOPE_SUPPORT._get_architecture_or_global(_dependency_scope, "GFModel")
+	if raw_architecture is GFArchitecture:
+		return raw_architecture
+	return null
 
 
 func _release_dependency_scope() -> void:
@@ -201,4 +204,7 @@ func _release_dependency_scope() -> void:
 
 
 func _get_architecture_or_null() -> GFArchitecture:
-	return _DEPENDENCY_SCOPE_SUPPORT._get_architecture_or_null(_dependency_scope, "GFModel") as GFArchitecture
+	var raw_architecture: Variant = _DEPENDENCY_SCOPE_SUPPORT._get_architecture_or_null(_dependency_scope, "GFModel")
+	if raw_architecture is GFArchitecture:
+		return raw_architecture
+	return null

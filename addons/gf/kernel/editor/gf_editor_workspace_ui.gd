@@ -8,6 +8,8 @@ extends RefCounted
 
 # --- 常量 ---
 
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
+
 ## 默认详情区最小高度。
 ## [br]
 ## @api framework_internal
@@ -27,35 +29,35 @@ const TOOLBAR_SEPARATION: int = 6
 ## @api framework_internal
 ## [br]
 ## @layer kernel/editor
-const EMPTY_TEXT_COLOR := Color(0.72, 0.72, 0.72)
+const EMPTY_TEXT_COLOR: Color = Color(0.72, 0.72, 0.72)
 
 ## 信息文本颜色。
 ## [br]
 ## @api framework_internal
 ## [br]
 ## @layer kernel/editor
-const INFO_TEXT_COLOR := Color(0.72, 0.72, 0.72)
+const INFO_TEXT_COLOR: Color = Color(0.72, 0.72, 0.72)
 
 ## 成功状态文本颜色。
 ## [br]
 ## @api framework_internal
 ## [br]
 ## @layer kernel/editor
-const OK_TEXT_COLOR := Color(0.45, 0.9, 0.55)
+const OK_TEXT_COLOR: Color = Color(0.45, 0.9, 0.55)
 
 ## 警告状态文本颜色。
 ## [br]
 ## @api framework_internal
 ## [br]
 ## @layer kernel/editor
-const WARNING_TEXT_COLOR := Color(1.0, 0.78, 0.35)
+const WARNING_TEXT_COLOR: Color = Color(1.0, 0.78, 0.35)
 
 ## 错误状态文本颜色。
 ## [br]
 ## @api framework_internal
 ## [br]
 ## @layer kernel/editor
-const ERROR_TEXT_COLOR := Color(1.0, 0.45, 0.35)
+const ERROR_TEXT_COLOR: Color = Color(1.0, 0.45, 0.35)
 
 
 # --- 公共方法 ---
@@ -84,7 +86,7 @@ static func apply_page_root(control: Control) -> void:
 ## [br]
 ## @return 工具栏容器。
 static func make_toolbar() -> HBoxContainer:
-	var toolbar := HBoxContainer.new()
+	var toolbar: HBoxContainer = HBoxContainer.new()
 	toolbar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	toolbar.add_theme_constant_override("separation", TOOLBAR_SEPARATION)
 	return toolbar
@@ -104,11 +106,11 @@ static func make_toolbar() -> HBoxContainer:
 ## [br]
 ## @return 按钮。
 static func make_button(text: String, tooltip: String = "", pressed: Callable = Callable()) -> Button:
-	var button := Button.new()
+	var button: Button = Button.new()
 	button.text = text
 	button.tooltip_text = tooltip
 	if pressed.is_valid():
-		button.pressed.connect(pressed)
+		var _connect_result_113: Variant = button.pressed.connect(pressed)
 	return button
 
 
@@ -122,7 +124,7 @@ static func make_button(text: String, tooltip: String = "", pressed: Callable = 
 ## [br]
 ## @return 摘要 Label。
 static func make_summary_label(text: String = "") -> Label:
-	var label := Label.new()
+	var label: Label = Label.new()
 	label.text = text
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -140,7 +142,7 @@ static func make_summary_label(text: String = "") -> Label:
 ## [br]
 ## @return 空状态 Label。
 static func make_empty_label(text: String = "") -> Label:
-	var label := make_summary_label(text)
+	var label: Label = make_summary_label(text)
 	label.modulate = EMPTY_TEXT_COLOR
 	label.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	return label
@@ -156,7 +158,7 @@ static func make_empty_label(text: String = "") -> Label:
 ## [br]
 ## @return 详情输出框。
 static func make_details_output(min_height: float = DEFAULT_DETAILS_MIN_HEIGHT) -> TextEdit:
-	var details := TextEdit.new()
+	var details: TextEdit = TextEdit.new()
 	details.editable = false
 	details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	details.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
@@ -176,9 +178,9 @@ static func make_details_output(min_height: float = DEFAULT_DETAILS_MIN_HEIGHT) 
 ## [br]
 ## @return 状态颜色。
 static func get_report_color(report: Dictionary) -> Color:
-	if int(report.get("error_count", 0)) > 0:
+	if _GF_VARIANT_ACCESS_SCRIPT.get_option_int(report, "error_count", 0) > 0:
 		return ERROR_TEXT_COLOR
-	if int(report.get("warning_count", 0)) > 0:
+	if _GF_VARIANT_ACCESS_SCRIPT.get_option_int(report, "warning_count", 0) > 0:
 		return WARNING_TEXT_COLOR
 	return OK_TEXT_COLOR
 

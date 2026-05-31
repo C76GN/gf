@@ -3,56 +3,58 @@ extends GutTest
 
 # --- 常量 ---
 
-const GF_ACCESS_GENERATOR_BASE := preload("res://addons/gf/kernel/editor/gf_access_generator.gd")
-const GF_SOURCE_BUILDER_BASE := preload("res://addons/gf/kernel/editor/gf_source_builder.gd")
-const GF_CAPABILITY_ACCESS_GENERATOR_EXTENSION_BASE := preload("res://addons/gf/extensions/capability/editor/gf_capability_access_generator_extension.gd")
-const GF_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/core/gf_capability.gd")
-const GF_NODE_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/nodes/gf_node_capability.gd")
-const GF_NODE_2D_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/nodes/gf_node_2d_capability.gd")
-const GF_NODE_3D_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/nodes/gf_node_3d_capability.gd")
-const GF_CONTROL_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/nodes/gf_control_capability.gd")
+const GF_CAPABILITY_ACCESS_GENERATOR_EXTENSION_BASE = preload("res://addons/gf/extensions/capability/editor/gf_capability_access_generator_extension.gd")
+const GF_CAPABILITY_BASE = preload("res://addons/gf/extensions/capability/core/gf_capability.gd")
+const GF_NODE_CAPABILITY_BASE = preload("res://addons/gf/extensions/capability/nodes/gf_node_capability.gd")
+const GF_NODE_2D_CAPABILITY_BASE = preload("res://addons/gf/extensions/capability/nodes/gf_node_2d_capability.gd")
+const GF_NODE_3D_CAPABILITY_BASE = preload("res://addons/gf/extensions/capability/nodes/gf_node_3d_capability.gd")
+const GF_CONTROL_CAPABILITY_BASE = preload("res://addons/gf/extensions/capability/nodes/gf_control_capability.gd")
+const GF_VARIANT_ACCESS = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
 
 
 # --- 测试用例 ---
 
 func test_build_source_generates_typed_accessors() -> void:
-	var generator: Variant = GF_ACCESS_GENERATOR_BASE.new()
+	var generator: GFAccessGenerator = GFAccessGenerator.new()
 	var source: String = generator.build_source([
 		{
 			"class_name": "PlayerModel",
 			"path": "res://player_model.gd",
-			"kind": GF_ACCESS_GENERATOR_BASE.TargetKind.MODEL,
+			"kind": GFAccessGenerator.TargetKind.MODEL,
 		},
 		{
 			"class_name": "BattleSystem",
 			"path": "res://battle_system.gd",
-			"kind": GF_ACCESS_GENERATOR_BASE.TargetKind.SYSTEM,
+			"kind": GFAccessGenerator.TargetKind.SYSTEM,
 		},
 		{
 			"class_name": "StorageUtility",
 			"path": "res://storage_utility.gd",
-			"kind": GF_ACCESS_GENERATOR_BASE.TargetKind.UTILITY,
+			"kind": GFAccessGenerator.TargetKind.UTILITY,
 		},
 		{
 			"class_name": "GFUIUtility",
 			"path": "res://gf_ui_utility.gd",
-			"kind": GF_ACCESS_GENERATOR_BASE.TargetKind.UTILITY,
+			"kind": GFAccessGenerator.TargetKind.UTILITY,
 		},
 		{
 			"class_name": "DealDamageCommand",
 			"path": "res://deal_damage_command.gd",
-			"kind": GF_ACCESS_GENERATOR_BASE.TargetKind.COMMAND,
+			"kind": GFAccessGenerator.TargetKind.COMMAND,
 		},
 		{
 			"class_name": "HealthCapability",
 			"path": "res://health_capability.gd",
-			"kind": GF_ACCESS_GENERATOR_BASE.TargetKind.CAPABILITY,
+			"kind": GFAccessGenerator.TargetKind.CAPABILITY,
 			"utility_path": "res://addons/gf/extensions/capability/core/gf_capability_utility.gd",
 		},
 	])
+	var unsafe_cast_snippet: String = "return resolved_architecture.get_system(BattleSystem) " + "as BattleSystem"
 
 	assert_true(source.contains("static func get_player_model(architecture: GFArchitecture = null) -> PlayerModel:"), "应生成 Model 强类型访问器。")
-	assert_true(source.contains("return resolved_architecture.get_system(BattleSystem) as BattleSystem"), "应生成 System 查询。")
+	assert_true(source.contains("var system_value: Variant = resolved_architecture.get_system(BattleSystem)"), "应生成 System 查询。")
+	assert_true(source.contains("if system_value is BattleSystem:"), "System 查询应先收窄再返回。")
+	assert_false(source.contains(unsafe_cast_snippet), "生成访问器不应传播 unsafe cast。")
 	assert_true(source.contains("static func get_storage_utility(architecture: GFArchitecture = null) -> StorageUtility:"), "应生成 Utility 强类型访问器。")
 	assert_true(source.contains("static func get_gf_ui_utility(architecture: GFArchitecture = null) -> GFUIUtility:"), "GF 前缀加缩写类名应生成可读函数名。")
 	assert_true(source.contains("static func create_deal_damage_command(architecture: GFArchitecture = null) -> DealDamageCommand:"), "应生成 Command 创建入口。")
@@ -64,12 +66,12 @@ func test_build_source_generates_typed_accessors() -> void:
 
 
 func test_build_source_omits_capability_helper_without_capability_records() -> void:
-	var generator: Variant = GF_ACCESS_GENERATOR_BASE.new()
+	var generator: GFAccessGenerator = GFAccessGenerator.new()
 	var source: String = generator.build_source([
 		{
 			"class_name": "PlayerModel",
 			"path": "res://player_model.gd",
-			"kind": GF_ACCESS_GENERATOR_BASE.TargetKind.MODEL,
+			"kind": GFAccessGenerator.TargetKind.MODEL,
 		},
 	])
 
@@ -78,17 +80,17 @@ func test_build_source_omits_capability_helper_without_capability_records() -> v
 
 
 func test_build_source_skips_duplicate_function_names() -> void:
-	var generator: Variant = GF_ACCESS_GENERATOR_BASE.new()
+	var generator: GFAccessGenerator = GFAccessGenerator.new()
 	var source: String = generator.build_source([
 		{
 			"class_name": "PlayerModel",
 			"path": "res://a.gd",
-			"kind": GF_ACCESS_GENERATOR_BASE.TargetKind.MODEL,
+			"kind": GFAccessGenerator.TargetKind.MODEL,
 		},
 		{
 			"class_name": "Player",
 			"path": "res://b.gd",
-			"kind": GF_ACCESS_GENERATOR_BASE.TargetKind.MODEL,
+			"kind": GFAccessGenerator.TargetKind.MODEL,
 		},
 	])
 
@@ -97,14 +99,14 @@ func test_build_source_skips_duplicate_function_names() -> void:
 
 
 func test_access_generator_extension_can_append_source_with_builder() -> void:
-	var generator: Variant = GF_ACCESS_GENERATOR_BASE.new()
-	var builder: Variant = GF_SOURCE_BUILDER_BASE.new()
-	var extension := AppendAccessExtension.new()
+	var generator: GFAccessGenerator = GFAccessGenerator.new()
+	var builder: GFSourceBuilder = GFSourceBuilder.new()
+	var extension: AppendAccessExtension = AppendAccessExtension.new()
 
 	generator._append_access_generator_extension(builder, [
 		{
 			"class_name": "PlayerModel",
-			"kind": GF_ACCESS_GENERATOR_BASE.TargetKind.MODEL,
+			"kind": GFAccessGenerator.TargetKind.MODEL,
 		},
 	], extension, "test://append")
 	var source: String = builder.build()
@@ -115,17 +117,17 @@ func test_access_generator_extension_can_append_source_with_builder() -> void:
 
 
 func test_access_generator_extension_can_return_source_sections() -> void:
-	var generator: Variant = GF_ACCESS_GENERATOR_BASE.new()
-	var builder: Variant = GF_SOURCE_BUILDER_BASE.new()
+	var generator: GFAccessGenerator = GFAccessGenerator.new()
+	var builder: GFSourceBuilder = GFSourceBuilder.new()
 
 	generator._append_access_generator_extension(builder, [
 		{
 			"class_name": "PlayerModel",
-			"kind": GF_ACCESS_GENERATOR_BASE.TargetKind.MODEL,
+			"kind": GFAccessGenerator.TargetKind.MODEL,
 		},
 		{
 			"class_name": "BattleSystem",
-			"kind": GF_ACCESS_GENERATOR_BASE.TargetKind.SYSTEM,
+			"kind": GFAccessGenerator.TargetKind.SYSTEM,
 		},
 	], SectionAccessExtension.new(), "test://sections")
 	var source: String = builder.build()
@@ -135,17 +137,23 @@ func test_access_generator_extension_can_return_source_sections() -> void:
 
 
 func test_save_source_can_refuse_overwrite() -> void:
-	var generator: Variant = GF_ACCESS_GENERATOR_BASE.new()
-	var path := "user://gf_access_generator_no_overwrite.gd"
-	var file := FileAccess.open(path, FileAccess.WRITE)
-	file.store_string("old")
+	var generator: GFAccessGenerator = GFAccessGenerator.new()
+	var path: String = "user://gf_access_generator_no_overwrite.gd"
+	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
+	assert_not_null(file, "测试应能创建临时访问器源文件。")
+	if file == null:
+		return
+	var _store_string_result_146: Variant = file.store_string("old")
 	file.close()
 
 	var error: Error = generator.save_source(path, "new", false)
-	var read_file := FileAccess.open(path, FileAccess.READ)
-	var content := read_file.get_as_text()
+	var read_file: FileAccess = FileAccess.open(path, FileAccess.READ)
+	assert_not_null(read_file, "测试应能读取临时访问器源文件。")
+	if read_file == null:
+		return
+	var content: String = read_file.get_as_text()
 	read_file.close()
-	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	assert_eq(DirAccess.remove_absolute(ProjectSettings.globalize_path(path)), OK, "测试应能删除临时访问器源文件。")
 
 	assert_eq(error, ERR_ALREADY_EXISTS, "禁止覆盖时已有目标文件应返回 ERR_ALREADY_EXISTS。")
 	assert_eq(content, "old", "禁止覆盖时不应改写已有文件。")
@@ -153,37 +161,37 @@ func test_save_source_can_refuse_overwrite() -> void:
 
 
 func test_capability_access_extension_accepts_spatial_node_capability_bases() -> void:
-	var extension: Variant = GF_CAPABILITY_ACCESS_GENERATOR_EXTENSION_BASE.new()
+	var extension: Object = _new_object(GF_CAPABILITY_ACCESS_GENERATOR_EXTENSION_BASE)
 
-	assert_false(extension._is_capability_script(GF_CAPABILITY_BASE), "GFCapability 基类不应生成访问器。")
-	assert_false(extension._is_capability_script(GF_NODE_CAPABILITY_BASE), "GFNodeCapability 基类不应生成访问器。")
-	assert_true(extension._is_capability_script(GF_NODE_2D_CAPABILITY_BASE), "GFNode2DCapability 应由能力扩展识别。")
-	assert_true(extension._is_capability_script(GF_NODE_3D_CAPABILITY_BASE), "GFNode3DCapability 应由能力扩展识别。")
-	assert_true(extension._is_capability_script(GF_CONTROL_CAPABILITY_BASE), "GFControlCapability 应由能力扩展识别。")
+	assert_false(_call_bool(extension, &"_is_capability_script", [GF_CAPABILITY_BASE]), "GFCapability 基类不应生成访问器。")
+	assert_false(_call_bool(extension, &"_is_capability_script", [GF_NODE_CAPABILITY_BASE]), "GFNodeCapability 基类不应生成访问器。")
+	assert_true(_call_bool(extension, &"_is_capability_script", [GF_NODE_2D_CAPABILITY_BASE]), "GFNode2DCapability 应由能力扩展识别。")
+	assert_true(_call_bool(extension, &"_is_capability_script", [GF_NODE_3D_CAPABILITY_BASE]), "GFNode3DCapability 应由能力扩展识别。")
+	assert_true(_call_bool(extension, &"_is_capability_script", [GF_CONTROL_CAPABILITY_BASE]), "GFControlCapability 应由能力扩展识别。")
 
 
 func test_kernel_access_generator_no_longer_resolves_capability_kind() -> void:
-	var generator: Variant = GF_ACCESS_GENERATOR_BASE.new()
+	var generator: GFAccessGenerator = GFAccessGenerator.new()
 	var kind: int = generator._resolve_kind(GF_NODE_2D_CAPABILITY_BASE)
 
 	assert_eq(kind, -1, "Capability 记录应由能力扩展的访问器扩展贡献，而不是 kernel 直接识别。")
 
 
 func test_access_generator_extension_can_append_records() -> void:
-	var generator: Variant = GF_ACCESS_GENERATOR_BASE.new()
+	var generator: GFAccessGenerator = GFAccessGenerator.new()
 	var records: Array[Dictionary] = []
-	var extension := RecordAccessExtension.new()
+	var extension: RecordAccessExtension = RecordAccessExtension.new()
 
 	generator._append_access_generator_extension_records_from_instance(records, extension, "test://records")
 
 	assert_eq(records.size(), 1, "扩展应能向访问器记录列表追加记录。")
-	assert_eq(String((records[0] as Dictionary).get("class_name", "")), "GeneratedModel", "追加记录应保留 class_name。")
+	assert_eq(GF_VARIANT_ACCESS.get_option_string(records[0], "class_name"), "GeneratedModel", "追加记录应保留 class_name。")
 
 
 func test_record_only_access_generator_extension_does_not_warn_for_missing_source_hook() -> void:
-	var generator: Variant = GF_ACCESS_GENERATOR_BASE.new()
-	var builder: Variant = GF_SOURCE_BUILDER_BASE.new()
-	var extension := RecordAccessExtension.new()
+	var generator: GFAccessGenerator = GFAccessGenerator.new()
+	var builder: GFSourceBuilder = GFSourceBuilder.new()
+	var extension: RecordAccessExtension = RecordAccessExtension.new()
 
 	generator._append_access_generator_extension(builder, [], extension, "test://records")
 
@@ -192,7 +200,7 @@ func test_record_only_access_generator_extension_does_not_warn_for_missing_sourc
 
 
 func test_build_project_source_generates_layer_input_and_setting_constants() -> void:
-	var generator: Variant = GF_ACCESS_GENERATOR_BASE.new()
+	var generator: GFAccessGenerator = GFAccessGenerator.new()
 	var source: String = generator.build_project_source({
 		"layers": [
 			{
@@ -213,13 +221,13 @@ func test_build_project_source_generates_layer_input_and_setting_constants() -> 
 
 
 func test_collect_project_records_uses_project_input_settings_only() -> void:
-	var generator: Variant = GF_ACCESS_GENERATOR_BASE.new()
+	var generator: GFAccessGenerator = GFAccessGenerator.new()
 	ProjectSettings.set_setting("input/gf_test_jump", { "deadzone": 0.5, "events": [] })
 	ProjectSettings.set_setting("input/ui_gf_test_accept", { "deadzone": 0.5, "events": [] })
 	ProjectSettings.set_setting("input/spatial_editor/gf_test_forward", { "deadzone": 0.5, "events": [] })
 
 	var records: Dictionary = generator.collect_project_records()
-	var actions: Array = records.get("input_actions", []) as Array
+	var actions: Array = GF_VARIANT_ACCESS.get_option_array(records, "input_actions")
 
 	ProjectSettings.clear("input/gf_test_jump")
 	ProjectSettings.clear("input/ui_gf_test_accept")
@@ -231,14 +239,30 @@ func test_collect_project_records_uses_project_input_settings_only() -> void:
 
 
 func test_collect_project_records_includes_known_gf_settings_without_plugin_registration() -> void:
-	var generator: Variant = GF_ACCESS_GENERATOR_BASE.new()
+	var generator: GFAccessGenerator = GFAccessGenerator.new()
 
 	var records: Dictionary = generator.collect_project_records()
-	var settings: Array = records.get("settings", []) as Array
+	var settings: Array = GF_VARIANT_ACCESS.get_option_array(records, "settings")
 
 	assert_true(settings.has("gf/codegen/access_output_path"), "生成器应稳定包含 GF codegen 设置。")
 	assert_true(settings.has("gf/project/installers"), "生成器应稳定包含 GF installer 设置。")
 	assert_true(settings.has("gf/build/export/write_git_metadata"), "生成器应稳定包含 GF build export 设置。")
+
+
+# --- 私有/辅助方法 ---
+
+func _new_object(script: Variant) -> Object:
+	if script is Script:
+		var helper_script: Script = script
+		var instance: Variant = helper_script.call(&"new")
+		if instance is Object:
+			var object_instance: Object = instance
+			return object_instance
+	return null
+
+
+func _call_bool(target: Object, method_name: StringName, args: Array = []) -> bool:
+	return GF_VARIANT_ACCESS.to_bool(target.callv(method_name, args))
 
 
 # --- 内部类 ---
@@ -246,7 +270,7 @@ func test_collect_project_records_includes_known_gf_settings_without_plugin_regi
 class AppendAccessExtension:
 	var record_count: int = -1
 
-	func append_access_source(builder: Variant, records: Array) -> void:
+	func append_access_source(builder: GFSourceBuilder, records: Array) -> void:
 		record_count = records.size()
 		builder.doc("测试扩展访问器。")
 		builder.line("static func get_test_extension_marker() -> String:")
@@ -268,5 +292,5 @@ class RecordAccessExtension:
 		records.append({
 			"class_name": "GeneratedModel",
 			"path": "res://generated_model.gd",
-			"kind": GF_ACCESS_GENERATOR_BASE.TargetKind.MODEL,
+			"kind": GFAccessGenerator.TargetKind.MODEL,
 		})

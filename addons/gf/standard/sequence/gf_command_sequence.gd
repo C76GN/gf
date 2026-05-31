@@ -76,8 +76,8 @@ signal sequence_cancelled
 
 # --- 常量 ---
 
-const _GF_ASYNC_WAIT_SUPPORT: Script = preload("res://addons/gf/standard/common/gf_async_wait_support.gd")
-const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
+const _GF_ASYNC_WAIT_SUPPORT = preload("res://addons/gf/standard/common/gf_async_wait_support.gd")
+const _INSTANCE_GUARD = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
 
 
 # --- 公共变量 ---
@@ -175,14 +175,14 @@ func run(p_steps: Array = []) -> void:
 		push_warning("[GFCommandSequence] 序列正在执行，忽略重复 run()。")
 		return
 
-	var run_steps := p_steps if not p_steps.is_empty() else steps
+	var run_steps: Array = p_steps if not p_steps.is_empty() else steps
 	is_running = true
 	_cancel_requested = false
 	var completed_steps: Array = []
 	var results: Array[Dictionary] = []
-	var failed := false
-	var failed_index := -1
-	var failed_error := ""
+	var failed: bool = false
+	var failed_index: int = -1
+	var failed_error: String = ""
 	sequence_started.emit()
 
 	for index: int in range(run_steps.size()):
@@ -199,10 +199,11 @@ func run(p_steps: Array = []) -> void:
 		if _cancel_requested:
 			break
 		if _should_wait_for_step(step, result):
-			result = await _await_signal_result_safely(result as Signal)
+			var result_signal: Signal = result
+			result = await _await_signal_result_safely(result_signal)
 			if _cancel_requested:
 				break
-		var step_error := _get_step_error(result)
+		var step_error: String = _get_step_error(result)
 		if not step_error.is_empty():
 			failed = true
 			failed_index = index
@@ -220,7 +221,7 @@ func run(p_steps: Array = []) -> void:
 		_current_step = null
 
 	_current_step = null
-	var rolled_back := false
+	var rolled_back: bool = false
 	if failed and stop_on_error and rollback_on_failure:
 		await _rollback_steps(completed_steps)
 		rolled_back = true
@@ -289,17 +290,18 @@ func with_failure_policy(
 # --- 私有/辅助方法 ---
 
 func _execute_step(step: Variant) -> Variant:
-	var step_object := _get_valid_step_object(step)
+	var step_object: Object = _get_valid_step_object(step)
 	if step_object != null:
 		_inject_step(step_object)
 		if step_object is GFSequenceStep:
-			return (step_object as GFSequenceStep).execute(context)
+			var sequence_step: GFSequenceStep = step_object
+			return sequence_step.execute(context)
 		if step_object.has_method("execute"):
 			return step_object.call("execute")
 		if step_object.has_method("resolve"):
 			return step_object.call("resolve")
 	if step is Callable:
-		var callable := step as Callable
+		var callable: Callable = step
 		if callable.is_valid():
 			return callable.call()
 	return null
@@ -309,41 +311,50 @@ func _cancel_current_step() -> void:
 	if _current_step == null:
 		return
 
-	var step_object := _get_valid_step_object(_current_step)
+	var step_object: Object = _get_valid_step_object(_current_step)
 	if step_object == null:
 		return
 
 	if step_object is GFSequenceStep:
-		(step_object as GFSequenceStep).cancel(context)
+		var sequence_step: GFSequenceStep = step_object
+		sequence_step.cancel(context)
 		return
 
 	if step_object.has_method("cancel"):
-		step_object.call("cancel")
+		var _cancel_result: Variant = step_object.call("cancel")
 
 
 func _get_step_error(result: Variant) -> String:
 	if not (result is Dictionary):
 		return ""
 
-	var data := result as Dictionary
-	var failed := false
-	if data.has("ok") and not bool(data.get("ok", true)):
+	var data: Dictionary = result
+	var failed: bool = false
+	if data.has("ok") and not GFVariantData.get_option_bool(data, "ok", true):
 		failed = true
-	if data.has("success") and not bool(data.get("success", true)):
+	if data.has("success") and not GFVariantData.get_option_bool(data, "success", true):
 		failed = true
 
-	var status := String(data.get("status", "")).to_lower()
+	var status: String = GFVariantData.get_option_string(data, "status").to_lower()
 	if status == "error" or status == "failed" or status == "failure":
 		failed = true
 
 	if not failed:
 		return ""
 
-	var error_value: Variant = data.get("error", data.get("message", data.get("reason", "")))
+	var error_value: Variant = GFVariantData.get_option_value(
+		data,
+		"error",
+		GFVariantData.get_option_value(
+			data,
+			"message",
+			GFVariantData.get_option_value(data, "reason", "")
+		)
+	)
 	if error_value is Dictionary or error_value is Array:
 		return JSON.stringify(error_value)
 
-	var error := String(error_value)
+	var error: String = GFVariantData.to_text(error_value)
 	return error if not error.is_empty() else "Step failed."
 
 
@@ -358,31 +369,33 @@ func _make_step_report(index: int, ok: bool, error: String, result: Variant) -> 
 
 func _rollback_steps(completed_steps: Array) -> void:
 	for index: int in range(completed_steps.size() - 1, -1, -1):
-		var step := _get_valid_step_object(completed_steps[index])
+		var step: Object = _get_valid_step_object(completed_steps[index])
 		if step == null or not step.has_method("undo"):
 			continue
 		_inject_step(step)
 		var result: Variant = step.call("undo")
 		if result is Signal:
-			await _await_signal_safely(result as Signal)
+			var result_signal: Signal = result
+			await _await_signal_safely(result_signal)
 
 
 func _inject_step(step: Object) -> void:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return
 	if step.has_method("inject_dependencies"):
-		step.call("inject_dependencies", architecture)
+		var _dependencies_injected: Variant = step.call("inject_dependencies", architecture)
 	if step.has_method("inject"):
-		step.call("inject", architecture)
+		var _injected: Variant = step.call("inject", architecture)
 
 
 func _should_wait_for_step(step: Variant, result: Variant) -> bool:
 	if not (result is Signal):
 		return false
-	var step_object := _get_valid_step_object(step)
+	var step_object: Object = _get_valid_step_object(step)
 	if step_object is GFSequenceStep:
-		return (step_object as GFSequenceStep).wait_for_result
+		var sequence_step: GFSequenceStep = step_object
+		return sequence_step.wait_for_result
 	return true
 
 
@@ -410,15 +423,15 @@ func _await_signal_result_safely(result_signal: Signal) -> Variant:
 		signal_timeout_respects_time_scale,
 		"[GFCommandSequence] 等待 Signal 超时，序列将继续执行后续步骤。"
 	)
-	if not bool(wait_result.get("completed", false)):
+	if not GFVariantData.get_option_bool(wait_result, "completed"):
 		return null
-	return _normalize_signal_result(wait_result.get("args", []))
+	return _normalize_signal_result(GFVariantData.get_option_array(wait_result, "args"))
 
 
 func _normalize_signal_result(args: Variant) -> Variant:
 	if not (args is Array):
 		return args
-	var values := args as Array
+	var values: Array = args
 	if values.is_empty():
 		return null
 	if values.size() == 1:
@@ -427,10 +440,14 @@ func _normalize_signal_result(args: Variant) -> Variant:
 
 
 func _get_time_utility() -> GFTimeUtility:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
-	return architecture.get_utility(GFTimeUtility) as GFTimeUtility
+	var utility: Object = architecture.get_utility(GFTimeUtility)
+	if utility is GFTimeUtility:
+		var time_utility: GFTimeUtility = utility
+		return time_utility
+	return null
 
 
 func _should_continue_waiting() -> bool:
@@ -439,8 +456,9 @@ func _should_continue_waiting() -> bool:
 
 func _get_architecture_or_null() -> GFArchitecture:
 	if _architecture_ref != null:
-		var architecture := _architecture_ref.get_ref() as GFArchitecture
-		if architecture != null:
+		var architecture_value: Object = _architecture_ref.get_ref()
+		if architecture_value is GFArchitecture:
+			var architecture: GFArchitecture = architecture_value
 			return architecture
 	if context != null:
 		return context.get_architecture()

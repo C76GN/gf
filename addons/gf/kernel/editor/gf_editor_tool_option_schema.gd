@@ -15,6 +15,11 @@ class_name GFEditorToolOptionSchema
 extends Resource
 
 
+# --- 常量 ---
+
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
+
+
 # --- 导出变量 ---
 
 ## 工具选项列表。
@@ -43,7 +48,7 @@ func add_option(option: GFEditorToolOption) -> bool:
 	if option == null or not option.is_valid_definition():
 		return false
 	for index: int in range(options.size()):
-		var current := options[index]
+		var current: GFEditorToolOption = options[index]
 		if current != null and current.option_id == option.option_id:
 			options[index] = option
 			return true
@@ -60,7 +65,7 @@ func add_option(option: GFEditorToolOption) -> bool:
 ## @return 移除成功返回 true。
 func remove_option(option_id: StringName) -> bool:
 	for index: int in range(options.size()):
-		var option := options[index]
+		var option: GFEditorToolOption = options[index]
 		if option != null and option.option_id == option_id:
 			options.remove_at(index)
 			return true
@@ -105,10 +110,10 @@ func has_option(option_id: StringName) -> bool:
 ## [br]
 ## @return 排序后的选项 ID。
 func get_option_ids() -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	for option: GFEditorToolOption in options:
 		if option != null and option.option_id != &"":
-			result.append(String(option.option_id))
+			var _append_result_116: Variant = result.append(String(option.option_id))
 	result.sort()
 	return result
 
@@ -142,10 +147,10 @@ func get_default_values() -> Dictionary:
 ## [br]
 ## @schema return: Dictionary keyed by option_id, storing normalized option values.
 func normalize_values(values: Dictionary, include_defaults: bool = true) -> Dictionary:
-	var result := get_default_values() if include_defaults else {}
+	var result: Dictionary = get_default_values() if include_defaults else {}
 	for key: Variant in values.keys():
-		var option_id := StringName(key)
-		var option := get_option(option_id)
+		var option_id: StringName = _GF_VARIANT_ACCESS_SCRIPT.to_string_name(key)
+		var option: GFEditorToolOption = get_option(option_id)
 		if option == null:
 			continue
 		result[option_id] = option.normalize_value(values[key])
@@ -164,23 +169,25 @@ func normalize_values(values: Dictionary, include_defaults: bool = true) -> Dict
 ## [br]
 ## @schema return: Dictionary containing ok, error_count, warning_count, and issues.
 func validate_values(values: Dictionary) -> Dictionary:
-	var report := {
+	var report: Dictionary = {
 		"ok": true,
 		"error_count": 0,
 		"warning_count": 0,
 		"issues": [],
 	}
-	var issues := report["issues"] as Array
+	var issues: Array = _GF_VARIANT_ACCESS_SCRIPT.as_array(
+		_GF_VARIANT_ACCESS_SCRIPT.get_option_value(report, "issues", [])
+	)
 	for key: Variant in values.keys():
-		var option_id := StringName(key)
-		var option := get_option(option_id)
+		var option_id: StringName = _GF_VARIANT_ACCESS_SCRIPT.to_string_name(key)
+		var option: GFEditorToolOption = get_option(option_id)
 		if option == null:
 			issues.append(_make_issue("warning", "unknown_option", option_id, "未知工具选项：%s。" % String(option_id)))
-			report["warning_count"] = int(report["warning_count"]) + 1
+			report["warning_count"] = _GF_VARIANT_ACCESS_SCRIPT.get_option_int(report, "warning_count", 0) + 1
 			continue
 		if not option.is_value_valid(values[key]):
 			issues.append(_make_issue("error", "invalid_option_value", option_id, "工具选项值类型不匹配：%s。" % String(option_id)))
-			report["error_count"] = int(report["error_count"]) + 1
+			report["error_count"] = _GF_VARIANT_ACCESS_SCRIPT.get_option_int(report, "error_count", 0) + 1
 			report["ok"] = false
 	return report
 
@@ -191,7 +198,7 @@ func validate_values(values: Dictionary) -> Dictionary:
 ## [br]
 ## @return 新选项集合声明。
 func duplicate_schema() -> GFEditorToolOptionSchema:
-	var schema := GFEditorToolOptionSchema.new()
+	var schema: GFEditorToolOptionSchema = GFEditorToolOptionSchema.new()
 	schema.metadata = metadata.duplicate(true)
 	for option: GFEditorToolOption in options:
 		schema.options.append(option.duplicate_option() if option != null else null)

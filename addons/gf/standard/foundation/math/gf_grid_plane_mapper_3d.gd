@@ -69,7 +69,7 @@ static func normalize_axis_normal(normal: Vector3i) -> Vector3i:
 ## [br]
 ## @schema return: Dictionary with valid: bool, normal: Vector3i, u: Vector3i, and v: Vector3i.
 static func get_plane_basis(normal: Vector3i) -> Dictionary:
-	var normalized := normalize_axis_normal(normal)
+	var normalized: Vector3i = normalize_axis_normal(normal)
 	if normalized == Vector3i.ZERO:
 		return _make_basis(false, Vector3i.ZERO, Vector3i.ZERO, Vector3i.ZERO)
 	if normalized == Vector3i(1, 0, 0):
@@ -97,14 +97,14 @@ static func get_plane_basis(normal: Vector3i) -> Dictionary:
 ## [br]
 ## @return 局部 2D 坐标；normal 无效时返回 Vector2i.ZERO。
 static func map_cell_to_plane(cell: Vector3i, origin: Vector3i, normal: Vector3i) -> Vector2i:
-	var basis := get_plane_basis(normal)
-	if not bool(basis.get("valid", false)):
+	var basis: Dictionary = get_plane_basis(normal)
+	if not _basis_is_valid(basis):
 		return Vector2i.ZERO
 
-	var delta := cell - origin
+	var delta: Vector3i = cell - origin
 	return Vector2i(
-		_dot(delta, basis.get("u", Vector3i.ZERO) as Vector3i),
-		_dot(delta, basis.get("v", Vector3i.ZERO) as Vector3i)
+		_dot(delta, _get_basis_vector(basis, "u")),
+		_dot(delta, _get_basis_vector(basis, "v"))
 	)
 
 
@@ -127,15 +127,15 @@ static func map_plane_to_cell(
 	normal: Vector3i,
 	depth: int = 0
 ) -> Vector3i:
-	var basis := get_plane_basis(normal)
-	if not bool(basis.get("valid", false)):
+	var basis: Dictionary = get_plane_basis(normal)
+	if not _basis_is_valid(basis):
 		return origin
 
 	return (
 		origin
-		+ _scale(basis.get("u", Vector3i.ZERO) as Vector3i, plane_cell.x)
-		+ _scale(basis.get("v", Vector3i.ZERO) as Vector3i, plane_cell.y)
-		+ _scale(basis.get("normal", Vector3i.ZERO) as Vector3i, depth)
+		+ _scale(_get_basis_vector(basis, "u"), plane_cell.x)
+		+ _scale(_get_basis_vector(basis, "v"), plane_cell.y)
+		+ _scale(_get_basis_vector(basis, "normal"), depth)
 	)
 
 
@@ -151,11 +151,11 @@ static func map_plane_to_cell(
 ## [br]
 ## @return 沿 normal 的偏移层数；normal 无效时返回 0。
 static func get_cell_depth(cell: Vector3i, origin: Vector3i, normal: Vector3i) -> int:
-	var basis := get_plane_basis(normal)
-	if not bool(basis.get("valid", false)):
+	var basis: Dictionary = get_plane_basis(normal)
+	if not _basis_is_valid(basis):
 		return 0
 
-	return _dot(cell - origin, basis.get("normal", Vector3i.ZERO) as Vector3i)
+	return _dot(cell - origin, _get_basis_vector(basis, "normal"))
 
 
 ## 按 2D offset 获取同一平面上的 3D 邻居格。
@@ -170,14 +170,14 @@ static func get_cell_depth(cell: Vector3i, origin: Vector3i, normal: Vector3i) -
 ## [br]
 ## @return 3D 邻居格列表。
 static func get_neighbor_cells(center: Vector3i, normal: Vector3i, offsets: Array[Vector2i] = []) -> Array[Vector3i]:
-	var basis := get_plane_basis(normal)
+	var basis: Dictionary = get_plane_basis(normal)
 	var result: Array[Vector3i] = []
-	if not bool(basis.get("valid", false)):
+	if not _basis_is_valid(basis):
 		return result
 
-	var effective_offsets := DEFAULT_CARDINAL_OFFSETS if offsets.is_empty() else offsets
-	var u := basis.get("u", Vector3i.ZERO) as Vector3i
-	var v := basis.get("v", Vector3i.ZERO) as Vector3i
+	var effective_offsets: Array[Vector2i] = DEFAULT_CARDINAL_OFFSETS if offsets.is_empty() else offsets
+	var u: Vector3i = _get_basis_vector(basis, "u")
+	var v: Vector3i = _get_basis_vector(basis, "v")
 	for offset: Vector2i in effective_offsets:
 		result.append(center + _scale(u, offset.x) + _scale(v, offset.y))
 
@@ -229,6 +229,18 @@ static func _make_basis(valid: bool, normal: Vector3i, u: Vector3i, v: Vector3i)
 		"u": u,
 		"v": v,
 	}
+
+
+static func _basis_is_valid(basis: Dictionary) -> bool:
+	return GFVariantData.get_option_bool(basis, "valid", false)
+
+
+static func _get_basis_vector(basis: Dictionary, key: String) -> Vector3i:
+	var value: Variant = GFVariantData.get_option_value(basis, key, Vector3i.ZERO)
+	if value is Vector3i:
+		var vector: Vector3i = value
+		return vector
+	return Vector3i.ZERO
 
 
 static func _dot(a: Vector3i, b: Vector3i) -> int:

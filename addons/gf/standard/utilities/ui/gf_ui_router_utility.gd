@@ -72,7 +72,7 @@ enum Operation {
 
 # --- 常量 ---
 
-const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
+const _INSTANCE_GUARD = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
 
 
 # --- 公共变量 ---
@@ -122,7 +122,7 @@ func dispose() -> void:
 func configure(routes: Array[GFUIRoute] = [], ui_utility: GFUIUtility = null) -> void:
 	_routes.clear()
 	for route: GFUIRoute in routes:
-		register_route(route)
+		var _registered: bool = register_route(route)
 	set_ui_utility(ui_utility)
 
 
@@ -157,7 +157,7 @@ func register_route(route: GFUIRoute) -> bool:
 ## @param routes: 路由资源列表。
 func register_routes(routes: Array[GFUIRoute]) -> void:
 	for route: GFUIRoute in routes:
-		register_route(route)
+		var _registered: bool = register_route(route)
 
 
 ## 注销路由。
@@ -166,7 +166,7 @@ func register_routes(routes: Array[GFUIRoute]) -> void:
 ## [br]
 ## @param route_id: 路由标识。
 func unregister_route(route_id: StringName) -> void:
-	_routes.erase(route_id)
+	var _erased: bool = _routes.erase(route_id)
 
 
 ## 清空路由表。
@@ -184,7 +184,7 @@ func clear_routes() -> void:
 ## [br]
 ## @return 路由资源；不存在时返回 null。
 func get_route(route_id: StringName) -> GFUIRoute:
-	return _routes.get(route_id) as GFUIRoute
+	return _get_route_value(GFVariantData.get_option_value(_routes, route_id))
 
 
 ## 检查路由是否已注册。
@@ -204,9 +204,9 @@ func has_route(route_id: StringName) -> bool:
 ## [br]
 ## @return 路由标识列表。
 func get_route_ids() -> PackedStringArray:
-	var ids := PackedStringArray()
+	var ids: PackedStringArray = PackedStringArray()
 	for key: Variant in _routes.keys():
-		ids.append(String(key))
+		var _appended: bool = ids.append(GFVariantData.to_text(key))
 	ids.sort()
 	return ids
 
@@ -322,23 +322,23 @@ func replace_route_async(
 ## @return 成功返回 true。
 func back(layer: int = -1, do_free: bool = true) -> bool:
 	_prune_history()
-	var history_index := _find_top_history_index(layer)
+	var history_index: int = _find_top_history_index(layer)
 	if history_index < 0:
 		return false
 
-	var entry := _history[history_index]
-	var ui_utility := _get_ui_utility()
+	var entry: Dictionary = _history[history_index]
+	var ui_utility: GFUIUtility = _get_ui_utility()
 	if ui_utility == null:
 		return false
 
-	var route_id := StringName(entry.get("route_id", &""))
-	var route_layer := int(entry.get("layer", GFUIUtility.Layer.POPUP))
-	var route_panel := _get_history_panel(entry)
-	if route_panel == null or ui_utility.get_top_panel(route_layer as GFUIUtility.Layer) != route_panel:
+	var route_id: StringName = GFVariantData.get_option_string_name(entry, "route_id", &"")
+	var route_layer: int = GFVariantData.get_option_int(entry, "layer", GFUIUtility.Layer.POPUP)
+	var route_panel: Node = _get_history_panel(entry)
+	if route_panel == null or ui_utility.get_top_panel(_get_ui_layer(route_layer)) != route_panel:
 		push_warning("[GFUIRouterUtility] back 失败：路由面板不是当前 UI 栈顶。")
 		return false
 
-	ui_utility.pop_panel(route_layer as GFUIUtility.Layer, do_free)
+	ui_utility.pop_panel(_get_ui_layer(route_layer), do_free)
 	_history.remove_at(history_index)
 	_prune_history()
 	route_back_completed.emit(route_id, route_layer)
@@ -354,10 +354,10 @@ func back(layer: int = -1, do_free: bool = true) -> bool:
 ## @return 当前路由标识；没有时返回空 StringName。
 func get_current_route_id(layer: int = -1) -> StringName:
 	_prune_history()
-	var history_index := _find_top_history_index(layer)
+	var history_index: int = _find_top_history_index(layer)
 	if history_index < 0:
 		return &""
-	return StringName(_history[history_index].get("route_id", &""))
+	return GFVariantData.get_option_string_name(_history[history_index], "route_id", &"")
 
 
 ## 获取路由历史副本。
@@ -408,31 +408,31 @@ func _open_route(
 	option_overrides: Dictionary,
 	config_callback: Callable
 ) -> Node:
-	var route := _resolve_route_or_fail(route_id)
+	var route: GFUIRoute = _resolve_route_or_fail(route_id)
 	if route == null:
 		return null
 
-	var ui_utility := _get_ui_utility()
+	var ui_utility: GFUIUtility = _get_ui_utility()
 	if ui_utility == null:
 		_fail_route(route_id, "missing_ui_utility")
 		return null
 
 	route_open_requested.emit(route_id, operation, params.duplicate(true))
-	var options := route.build_options(params, option_overrides)
-	var wrapped_callback := _make_route_config_callback(route, params, config_callback, operation)
+	var options: Dictionary = route.build_options(params, option_overrides)
+	var wrapped_callback: Callable = _make_route_config_callback(route, params, config_callback, operation)
 	var panel: Node = null
 	if operation == Operation.REPLACE:
 		_remove_history_for_layer(route.layer)
 		panel = ui_utility.replace_layer_with_options(
 			route.scene_path,
-			route.layer as GFUIUtility.Layer,
+			_get_ui_layer(route.layer),
 			options,
 			wrapped_callback
 		)
 	else:
 		panel = ui_utility.push_panel_with_options(
 			route.scene_path,
-			route.layer as GFUIUtility.Layer,
+			_get_ui_layer(route.layer),
 			options,
 			wrapped_callback
 		)
@@ -452,37 +452,37 @@ func _open_route_async(
 	option_overrides: Dictionary,
 	config_callback: Callable
 ) -> void:
-	var route := _resolve_route_or_fail(route_id)
+	var route: GFUIRoute = _resolve_route_or_fail(route_id)
 	if route == null:
 		return
 
-	var ui_utility := _get_ui_utility()
+	var ui_utility: GFUIUtility = _get_ui_utility()
 	if ui_utility == null:
 		_fail_route(route_id, "missing_ui_utility")
 		return
 
 	route_open_requested.emit(route_id, operation, params.duplicate(true))
-	var options := route.build_options(params, option_overrides)
-	var wrapped_callback := _make_route_config_callback(route, params, config_callback, operation)
+	var options: Dictionary = route.build_options(params, option_overrides)
+	var wrapped_callback: Callable = _make_route_config_callback(route, params, config_callback, operation)
 	if operation == Operation.REPLACE:
 		_remove_history_for_layer(route.layer)
 		ui_utility.replace_layer_async_with_options(
 			route.scene_path,
-			route.layer as GFUIUtility.Layer,
+			_get_ui_layer(route.layer),
 			options,
 			wrapped_callback
 		)
 	else:
 		ui_utility.push_panel_async_with_options(
 			route.scene_path,
-			route.layer as GFUIUtility.Layer,
+			_get_ui_layer(route.layer),
 			options,
 			wrapped_callback
 		)
 
 
 func _resolve_route_or_fail(route_id: StringName) -> GFUIRoute:
-	var route := get_route(route_id)
+	var route: GFUIRoute = get_route(route_id)
 	if route == null:
 		_fail_route(route_id, "missing_route")
 		return null
@@ -528,7 +528,7 @@ func _record_async_open_if_needed(
 ) -> void:
 	if route == null or not is_instance_valid(panel):
 		return
-	var ui_utility := _get_ui_utility()
+	var ui_utility: GFUIUtility = _get_ui_utility()
 	if ui_utility == null or not ui_utility.is_panel_open(panel, route.layer):
 		return
 	if _history_has_panel(panel):
@@ -560,25 +560,25 @@ func _record_route_open(
 
 
 func _prune_history() -> void:
-	var ui_utility := _get_ui_utility()
+	var ui_utility: GFUIUtility = _get_ui_utility()
 	for index: int in range(_history.size() - 1, -1, -1):
-		var entry := _history[index]
-		var panel := _get_history_panel(entry)
-		var layer := int(entry.get("layer", GFUIUtility.Layer.POPUP))
+		var entry: Dictionary = _history[index]
+		var panel: Node = _get_history_panel(entry)
+		var layer: int = GFVariantData.get_option_int(entry, "layer", GFUIUtility.Layer.POPUP)
 		if panel == null or (ui_utility != null and not ui_utility.is_panel_open(panel, layer)):
 			_history.remove_at(index)
 
 
 func _find_top_history_index(layer: int = -1) -> int:
 	for index: int in range(_history.size() - 1, -1, -1):
-		if layer < 0 or int(_history[index].get("layer", -1)) == layer:
+		if layer < 0 or GFVariantData.get_option_int(_history[index], "layer", -1) == layer:
 			return index
 	return -1
 
 
 func _remove_history_for_layer(layer: int) -> void:
 	for index: int in range(_history.size() - 1, -1, -1):
-		if int(_history[index].get("layer", -1)) == layer:
+		if GFVariantData.get_option_int(_history[index], "layer", -1) == layer:
 			_history.remove_at(index)
 
 
@@ -590,7 +590,7 @@ func _history_has_panel(panel: Node) -> bool:
 
 
 func _get_history_panel(entry: Dictionary) -> Node:
-	var panel_ref := entry.get("panel_ref") as WeakRef
+	var panel_ref: WeakRef = _get_weak_ref_value(GFVariantData.get_option_value(entry, "panel_ref"))
 	if panel_ref == null:
 		return null
 	return _INSTANCE_GUARD._get_live_node_from_ref(panel_ref)
@@ -598,21 +598,49 @@ func _get_history_panel(entry: Dictionary) -> Node:
 
 func _make_public_history_entry(entry: Dictionary) -> Dictionary:
 	return {
-		"route_id": entry.get("route_id", &""),
-		"layer": int(entry.get("layer", GFUIUtility.Layer.POPUP)),
+		"route_id": GFVariantData.get_option_string_name(entry, "route_id", &""),
+		"layer": GFVariantData.get_option_int(entry, "layer", GFUIUtility.Layer.POPUP),
 		"panel": _get_history_panel(entry),
-		"params": (entry.get("params", {}) as Dictionary).duplicate(true),
-		"metadata": (entry.get("metadata", {}) as Dictionary).duplicate(true),
+		"params": GFVariantData.get_option_dictionary(entry, "params"),
+		"metadata": GFVariantData.get_option_dictionary(entry, "metadata"),
 	}
 
 
 func _get_ui_utility() -> GFUIUtility:
 	if _ui_utility_ref != null:
-		var ui_utility := _ui_utility_ref.get_ref() as GFUIUtility
+		var ui_utility: GFUIUtility = _get_ui_utility_value(_ui_utility_ref.get_ref())
 		if ui_utility != null:
 			return ui_utility
 
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
-	return architecture.get_utility(GFUIUtility) as GFUIUtility
+	return _get_ui_utility_value(architecture.get_utility(GFUIUtility))
+
+
+func _get_route_value(value: Variant) -> GFUIRoute:
+	if value is GFUIRoute:
+		var route: GFUIRoute = value
+		return route
+	return null
+
+
+func _get_ui_utility_value(value: Variant) -> GFUIUtility:
+	if value is GFUIUtility:
+		var ui_utility: GFUIUtility = value
+		return ui_utility
+	return null
+
+
+func _get_weak_ref_value(value: Variant) -> WeakRef:
+	if value is WeakRef:
+		var object_ref: WeakRef = value
+		return object_ref
+	return null
+
+
+func _get_ui_layer(value: Variant, fallback: GFUIUtility.Layer = GFUIUtility.Layer.POPUP) -> GFUIUtility.Layer:
+	var layer_value: int = GFVariantData.to_int(value, int(fallback))
+	if not GFUIUtility.Layer.values().has(layer_value):
+		return fallback
+	return layer_value as GFUIUtility.Layer

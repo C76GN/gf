@@ -82,7 +82,7 @@ var is_active: bool = false
 ## 后端是否已报告连接成功。
 ## [br]
 ## @api public
-var is_connected: bool = false
+var has_connection: bool = false
 
 ## 启动时间。
 ## [br]
@@ -108,12 +108,17 @@ var metadata: Dictionary = {}
 ## @schema options: Dictionary，支持 endpoint、port、max_clients、max_peers、local_peer_id、metadata。
 func start_host(options: Dictionary = {}) -> void:
 	mode = Mode.HOST
-	endpoint = String(options.get("endpoint", "0.0.0.0:%d" % int(options.get("port", 0))))
-	max_peers = int(options.get("max_clients", options.get("max_peers", 0)))
-	local_peer_id = int(options.get("local_peer_id", 1))
+	var default_endpoint: String = "0.0.0.0:%d" % GFVariantData.get_option_int(options, "port")
+	endpoint = GFVariantData.get_option_string(options, "endpoint", default_endpoint)
+	max_peers = GFVariantData.get_option_int(
+		options,
+		"max_clients",
+		GFVariantData.get_option_int(options, "max_peers")
+	)
+	local_peer_id = GFVariantData.get_option_int(options, "local_peer_id", 1)
 	metadata = _get_metadata_copy(options)
 	is_active = true
-	is_connected = false
+	has_connection = false
 	started_at_unix = Time.get_unix_time_from_system()
 	session_started.emit(mode, endpoint)
 
@@ -130,11 +135,11 @@ func start_host(options: Dictionary = {}) -> void:
 func start_client(next_endpoint: String, options: Dictionary = {}) -> void:
 	mode = Mode.CLIENT
 	endpoint = next_endpoint
-	max_peers = int(options.get("max_peers", 0))
-	local_peer_id = int(options.get("local_peer_id", -1))
+	max_peers = GFVariantData.get_option_int(options, "max_peers")
+	local_peer_id = GFVariantData.get_option_int(options, "local_peer_id", -1)
 	metadata = _get_metadata_copy(options)
 	is_active = true
-	is_connected = false
+	has_connection = false
 	started_at_unix = Time.get_unix_time_from_system()
 	session_started.emit(mode, endpoint)
 
@@ -147,7 +152,7 @@ func start_client(next_endpoint: String, options: Dictionary = {}) -> void:
 func mark_connected(next_local_peer_id: int = -1) -> void:
 	if next_local_peer_id >= 0:
 		local_peer_id = next_local_peer_id
-	is_connected = true
+	has_connection = true
 	session_connected.emit(local_peer_id)
 
 
@@ -165,7 +170,7 @@ func close(reason: String = "closed") -> void:
 	local_peer_id = -1
 	max_peers = 0
 	is_active = false
-	is_connected = false
+	has_connection = false
 	started_at_unix = 0.0
 	metadata.clear()
 	session_closed.emit(reason)
@@ -177,7 +182,7 @@ func close(reason: String = "closed") -> void:
 ## [br]
 ## @return 会话状态字典。
 ## [br]
-## @schema return: Dictionary，包含 mode、mode_name、endpoint、local_peer_id、max_peers、is_active、is_connected、started_at_unix、metadata。
+## @schema return: Dictionary，包含 mode、mode_name、endpoint、local_peer_id、max_peers、is_active、has_connection、started_at_unix、metadata。
 func get_debug_snapshot() -> Dictionary:
 	return {
 		"mode": mode,
@@ -186,7 +191,7 @@ func get_debug_snapshot() -> Dictionary:
 		"local_peer_id": local_peer_id,
 		"max_peers": max_peers,
 		"is_active": is_active,
-		"is_connected": is_connected,
+		"has_connection": has_connection,
 		"started_at_unix": started_at_unix,
 		"metadata": metadata.duplicate(true),
 	}
@@ -205,11 +210,11 @@ func _get_mode_name(query_mode: Mode) -> String:
 
 
 func _get_metadata_copy(options: Dictionary) -> Dictionary:
-	if not options.has("metadata") or options.get("metadata") == null:
+	var metadata_variant: Variant = GFVariantData.get_option_value(options, "metadata")
+	if metadata_variant == null:
 		return {}
 
-	var metadata_variant: Variant = options.get("metadata", {})
 	if metadata_variant is Dictionary:
-		return (metadata_variant as Dictionary).duplicate(true)
+		return GFVariantData.to_dictionary(metadata_variant)
 	push_warning("[GFNetworkSession] metadata 必须是 Dictionary，已忽略。")
 	return {}

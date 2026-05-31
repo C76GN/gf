@@ -7,19 +7,6 @@ extends GutTest
 var _utility: GFTimeUtility
 
 
-# --- 辅助类 ---
-
-class DeltaRecorderSystem extends GFSystem:
-	var last_delta: float = -1.0
-	var physics_deltas: Array[float] = []
-
-	func tick(delta: float) -> void:
-		last_delta = delta
-
-	func physics_tick(delta: float) -> void:
-		physics_deltas.append(delta)
-
-
 # --- Godot 生命周期方法 ---
 
 func before_each() -> void:
@@ -57,7 +44,7 @@ func test_max_scaled_delta_clamps_large_delta() -> void:
 	_utility.time_scale = 10.0
 	_utility.max_scaled_delta = 0.05
 
-	var result := _utility.get_scaled_delta(0.016)
+	var result: float = _utility.get_scaled_delta(0.016)
 
 	assert_almost_eq(result, 0.05, 0.0001, "max_scaled_delta 应限制普通 scaled delta。")
 
@@ -65,7 +52,7 @@ func test_max_scaled_delta_clamps_large_delta() -> void:
 func test_physics_substep_splits_scaled_delta() -> void:
 	_utility.time_scale = 10.0
 	_utility.physics_substep_max_delta = 0.05
-	var steps := _utility.get_physics_scaled_delta_steps(0.016)
+	var steps: Array[float] = _utility.get_physics_scaled_delta_steps(0.016)
 
 	assert_eq(steps.size(), 4, "0.16 秒缩放 delta 应拆分为 4 个子步。")
 	assert_almost_eq(steps[0], 0.04, 0.0001, "子步应均分缩放后的 delta。")
@@ -146,9 +133,9 @@ func test_init_resets_state() -> void:
 
 ## 验证模块可选择忽略 time_scale 但仍尊重暂停。
 func test_architecture_module_can_ignore_time_scale() -> void:
-	var arch := GFArchitecture.new()
-	var time_utility := GFTimeUtility.new()
-	var system := DeltaRecorderSystem.new()
+	var arch: GFArchitecture = GFArchitecture.new()
+	var time_utility: GFTimeUtility = GFTimeUtility.new()
+	var system: DeltaRecorderSystem = DeltaRecorderSystem.new()
 	system.ignore_time_scale = true
 	await arch.register_utility_instance(time_utility)
 	await arch.register_system_instance(system)
@@ -166,9 +153,9 @@ func test_architecture_module_can_ignore_time_scale() -> void:
 
 
 func test_architecture_physics_tick_uses_time_utility_substeps() -> void:
-	var arch := GFArchitecture.new()
-	var time_utility := GFTimeUtility.new()
-	var system := DeltaRecorderSystem.new()
+	var arch: GFArchitecture = GFArchitecture.new()
+	var time_utility: GFTimeUtility = GFTimeUtility.new()
+	var system: DeltaRecorderSystem = DeltaRecorderSystem.new()
 	await arch.register_utility_instance(time_utility)
 	await arch.register_system_instance(system)
 	await arch.init()
@@ -181,3 +168,16 @@ func test_architecture_physics_tick_uses_time_utility_substeps() -> void:
 	assert_almost_eq(system.physics_deltas[0], 0.04, 0.0001, "模块应收到缩放后的子步 delta。")
 
 	arch.dispose()
+
+
+# --- 辅助类 ---
+
+class DeltaRecorderSystem extends GFSystem:
+	var last_delta: float = -1.0
+	var physics_deltas: Array[float] = []
+
+	func tick(delta: float) -> void:
+		last_delta = delta
+
+	func physics_tick(delta: float) -> void:
+		physics_deltas.append(delta)

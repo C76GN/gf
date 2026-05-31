@@ -39,7 +39,7 @@ signal projectile_emit_failed(reason: StringName, details: Dictionary)
 
 # --- 常量 ---
 
-const _GF_NODE_CONTEXT_SCRIPT: Script = preload("res://addons/gf/kernel/core/gf_node_context.gd")
+const _GF_NODE_CONTEXT_SCRIPT = preload("res://addons/gf/kernel/core/gf_node_context.gd")
 
 
 # --- 导出变量 ---
@@ -134,7 +134,7 @@ func inject_dependencies(architecture: GFArchitecture) -> void:
 ## [br]
 ## @schema projectile_context: Dictionary，本次发射上下文；会与 default_context 合并后传给发射体。
 func emit_projectile(projectile_context: Dictionary = {}, projectile_id: StringName = &"") -> Node:
-	var projectiles := emit_projectiles(projectile_context, projectile_id, 1)
+	var projectiles: Array[Node] = emit_projectiles(projectile_context, projectile_id, 1)
 	if projectiles.is_empty():
 		return null
 	return projectiles[0]
@@ -158,26 +158,26 @@ func emit_projectiles(
 	projectile_id: StringName = &"",
 	emit_count: int = -1
 ) -> Array[Node]:
-	var effective_id := projectile_id if projectile_id != &"" else default_projectile_id
-	var scene := resolve_projectile_scene(effective_id)
+	var effective_id: StringName = projectile_id if projectile_id != &"" else default_projectile_id
+	var scene: PackedScene = resolve_projectile_scene(effective_id)
 	if scene == null:
 		_emit_failure(&"missing_scene", { "projectile_id": effective_id })
 		return []
 
-	var parent := resolve_spawn_parent()
+	var parent: Node = resolve_spawn_parent()
 	if parent == null:
 		_emit_failure(&"missing_parent", { "projectile_id": effective_id })
 		return []
 
-	var transforms := _get_spawn_transforms(projectile_context, emit_count)
+	var transforms: Array[Transform3D] = _get_spawn_transforms(projectile_context, emit_count)
 	if transforms.is_empty():
 		_emit_failure(&"empty_spawn_pattern", { "projectile_id": effective_id })
 		return []
 
 	var result: Array[Node] = []
 	for index: int in range(transforms.size()):
-		var spawn_transform := transforms[index]
-		var projectile := _create_projectile_node(scene, parent)
+		var spawn_transform: Transform3D = transforms[index]
+		var projectile: Node = _create_projectile_node(scene, parent)
 		if projectile == null:
 			_emit_failure(&"instantiate_failed", {
 				"projectile_id": effective_id,
@@ -186,10 +186,10 @@ func emit_projectiles(
 			continue
 
 		_apply_spawn_transform(projectile, spawn_transform)
-		var context := _build_spawn_context(projectile_context, effective_id, spawn_transform, index, transforms.size())
+		var context: Dictionary = _build_spawn_context(projectile_context, effective_id, spawn_transform, index, transforms.size())
 		_prepare_projectile_runtime(projectile, scene)
 		if launch_after_spawn and projectile.has_method(&"launch"):
-			projectile.call("launch", context)
+			var _launch_result: Variant = projectile.call(&"launch", context)
 		projectile_emitted.emit(projectile, context.duplicate(true))
 		result.append(projectile)
 	return result
@@ -204,7 +204,7 @@ func emit_projectiles(
 ## @return 找到时返回 PackedScene，否则返回 null。
 func resolve_projectile_scene(projectile_id: StringName = &"") -> PackedScene:
 	if projectile_catalog != null and projectile_id != &"":
-		var catalog_scene := projectile_catalog.get_scene(projectile_id)
+		var catalog_scene: PackedScene = projectile_catalog.get_scene(projectile_id)
 		if catalog_scene != null:
 			return catalog_scene
 	return projectile_scene
@@ -217,10 +217,10 @@ func resolve_projectile_scene(projectile_id: StringName = &"") -> PackedScene:
 ## @return 有效父节点；找不到时返回 null。
 func resolve_spawn_parent() -> Node:
 	if spawn_parent_path != NodePath(""):
-		var configured_parent := get_node_or_null(spawn_parent_path)
+		var configured_parent: Node = get_node_or_null(spawn_parent_path)
 		if configured_parent != null:
 			return configured_parent
-	var parent := get_parent()
+	var parent: Node = get_parent()
 	if parent != null:
 		return parent
 	return self if is_inside_tree() else null
@@ -238,11 +238,11 @@ func resolve_spawn_parent() -> Node:
 func prewarm_projectiles(count: int, projectile_id: StringName = &"") -> bool:
 	if count <= 0:
 		return false
-	var pool := _get_object_pool()
+	var pool: GFObjectPoolUtility = _get_object_pool()
 	if pool == null:
 		return false
-	var scene := resolve_projectile_scene(projectile_id if projectile_id != &"" else default_projectile_id)
-	var parent := resolve_spawn_parent()
+	var scene: PackedScene = resolve_projectile_scene(projectile_id if projectile_id != &"" else default_projectile_id)
+	var parent: Node = resolve_spawn_parent()
 	if scene == null or parent == null:
 		return false
 	pool.prewarm(scene, parent, count)
@@ -259,11 +259,11 @@ func _get_spawn_transforms(projectile_context: Dictionary, emit_count: int) -> A
 
 func _create_projectile_node(scene: PackedScene, parent: Node) -> Node:
 	if use_object_pool:
-		var pool := _get_object_pool()
+		var pool: GFObjectPoolUtility = _get_object_pool()
 		if pool != null:
 			return pool.acquire(scene, parent)
 
-	var projectile := scene.instantiate() as Node
+	var projectile: Node = _variant_to_node(scene.instantiate())
 	if projectile == null:
 		return null
 	_disable_auto_launch_if_supported(projectile)
@@ -273,13 +273,13 @@ func _create_projectile_node(scene: PackedScene, parent: Node) -> Node:
 
 func _prepare_projectile_runtime(projectile: Node, scene: PackedScene) -> void:
 	_disable_auto_launch_if_supported(projectile)
-	var emission_token := _next_emission_token
+	var emission_token: int = _next_emission_token
 	_next_emission_token += 1
 	projectile.set_meta(&"gf_emission_token", emission_token)
 	if use_object_pool and "queue_free_on_finish" in projectile:
 		projectile.set("queue_free_on_finish", false)
 	if use_object_pool and release_pooled_projectile_on_finish and projectile.has_signal("projectile_finished"):
-		projectile.connect(
+		var _connected: int = projectile.connect(
 			"projectile_finished",
 			_on_pooled_projectile_finished.bind(projectile, scene, emission_token),
 			CONNECT_ONE_SHOT
@@ -293,7 +293,8 @@ func _disable_auto_launch_if_supported(projectile: Node) -> void:
 
 func _apply_spawn_transform(projectile: Node, spawn_transform: Transform3D) -> void:
 	if projectile is Node3D:
-		(projectile as Node3D).global_transform = spawn_transform
+		var projectile_3d: Node3D = projectile
+		projectile_3d.global_transform = spawn_transform
 	elif "global_position" in projectile:
 		projectile.set("global_position", spawn_transform.origin)
 	elif "position" in projectile:
@@ -307,7 +308,7 @@ func _build_spawn_context(
 	spawn_index: int,
 	spawn_count: int
 ) -> Dictionary:
-	var context := default_context.duplicate(true)
+	var context: Dictionary = default_context.duplicate(true)
 	for key: Variant in projectile_context.keys():
 		context[key] = projectile_context[key]
 	context["projectile_id"] = projectile_id
@@ -322,15 +323,15 @@ func _get_object_pool() -> GFObjectPoolUtility:
 	if object_pool_utility != null and is_instance_valid(object_pool_utility):
 		return object_pool_utility
 
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
-	return architecture.get_utility(GFObjectPoolUtility) as GFObjectPoolUtility
+	return _variant_to_object_pool(architecture.get_utility(GFObjectPoolUtility))
 
 
 func _get_architecture_or_null() -> GFArchitecture:
 	if _architecture_ref != null:
-		var architecture := _architecture_ref.get_ref() as GFArchitecture
+		var architecture: GFArchitecture = _variant_to_architecture(_architecture_ref.get_ref())
 		if architecture != null:
 			return architecture
 	return _find_context_architecture()
@@ -340,8 +341,8 @@ func _find_context_architecture() -> GFArchitecture:
 	var current_node: Node = self
 	while current_node != null:
 		if current_node is _GF_NODE_CONTEXT_SCRIPT:
-			var context := current_node as GFNodeContext
-			var architecture := context.get_architecture()
+			var context: GFNodeContext = current_node
+			var architecture: GFArchitecture = context.get_architecture()
 			if architecture != null:
 				return architecture
 		current_node = current_node.get_parent()
@@ -350,6 +351,27 @@ func _find_context_architecture() -> GFArchitecture:
 
 func _emit_failure(reason: StringName, details: Dictionary) -> void:
 	projectile_emit_failed.emit(reason, details)
+
+
+func _variant_to_node(value: Variant) -> Node:
+	if value is Node:
+		var node: Node = value
+		return node
+	return null
+
+
+func _variant_to_architecture(value: Variant) -> GFArchitecture:
+	if value is GFArchitecture:
+		var architecture: GFArchitecture = value
+		return architecture
+	return null
+
+
+func _variant_to_object_pool(value: Variant) -> GFObjectPoolUtility:
+	if value is GFObjectPoolUtility:
+		var object_pool: GFObjectPoolUtility = value
+		return object_pool
+	return null
 
 
 # --- 信号处理函数 ---
@@ -363,8 +385,8 @@ func _on_pooled_projectile_finished(
 ) -> void:
 	if not is_instance_valid(projectile):
 		return
-	if int(projectile.get_meta(&"gf_emission_token", -1)) != emission_token:
+	if GFVariantData.to_int(projectile.get_meta(&"gf_emission_token", -1), -1) != emission_token:
 		return
-	var pool := _get_object_pool()
+	var pool: GFObjectPoolUtility = _get_object_pool()
 	if pool != null:
 		pool.release(projectile, scene)

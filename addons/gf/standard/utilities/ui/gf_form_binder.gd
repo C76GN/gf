@@ -27,7 +27,7 @@ signal field_changed(key: StringName, value: Variant)
 
 # --- 常量 ---
 
-const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
+const _INSTANCE_GUARD = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
 
 
 # --- 私有变量 ---
@@ -57,12 +57,12 @@ func bind_field(key: StringName, control: Control, default_value: Variant = null
 		return
 
 	unbind_field(key)
-	var value_changed_connections := GFControlValueAdapter.connect_value_changed_with_handles(control, func() -> void:
+	var value_changed_connections: Array[Dictionary] = GFControlValueAdapter.connect_value_changed_with_handles(control, func() -> void:
 		_on_field_changed(key)
 	)
-	var tree_exited_callback := func() -> void:
+	var tree_exited_callback: Callable = func() -> void:
 		unbind_field(key)
-	control.tree_exited.connect(tree_exited_callback, CONNECT_ONE_SHOT)
+	var _tree_exited_connection_result: int = control.tree_exited.connect(tree_exited_callback, CONNECT_ONE_SHOT)
 	_fields[key] = {
 		"control_ref": weakref(control),
 		"default_value": default_value,
@@ -79,16 +79,16 @@ func bind_field(key: StringName, control: Control, default_value: Variant = null
 func unbind_field(key: StringName) -> void:
 	if _fields.has(key):
 		_disconnect_field_info(_get_field_info(key))
-	_fields.erase(key)
+	var _erased: bool = _fields.erase(key)
 
 
 ## 清空所有字段绑定。
 ## [br]
 ## @api public
 func clear() -> void:
-	var keys := _fields.keys()
+	var keys: Array = _fields.keys()
 	for key_variant: Variant in keys:
-		unbind_field(StringName(key_variant))
+		unbind_field(GFVariantData.to_string_name(key_variant))
 
 
 ## 获取绑定字段列表。
@@ -98,11 +98,13 @@ func clear() -> void:
 ## @return 字段键数组。
 func get_bound_fields() -> Array[StringName]:
 	var result: Array[StringName] = []
-	for key: StringName in _fields.keys():
+	var keys: Array = _fields.keys()
+	for key_variant: Variant in keys:
+		var key: StringName = GFVariantData.to_string_name(key_variant)
 		if _get_control(key) != null:
 			result.append(key)
 		else:
-			_fields.erase(key)
+			var _erased: bool = _fields.erase(key)
 	return result
 
 
@@ -120,12 +122,12 @@ func get_bound_fields() -> Array[StringName]:
 ## [br]
 ## @schema return: Variant，字段当前值；无法读取时返回 fallback。
 func get_field_value(key: StringName, fallback: Variant = null) -> Variant:
-	var control := _get_control(key)
+	var control: Control = _get_control(key)
 	if control == null:
 		return fallback
 
-	var info := _get_field_info(key)
-	var default_value: Variant = info.get("default_value", fallback)
+	var info: Dictionary = _get_field_info(key)
+	var default_value: Variant = GFVariantData.get_option_value(info, "default_value", fallback)
 	return GFControlValueAdapter.get_value(control, default_value)
 
 
@@ -141,7 +143,7 @@ func get_field_value(key: StringName, fallback: Variant = null) -> Variant:
 ## [br]
 ## @return 成功写入时返回 true。
 func set_field_value(key: StringName, value: Variant) -> bool:
-	var control := _get_control(key)
+	var control: Control = _get_control(key)
 	if control == null:
 		return false
 	return GFControlValueAdapter.set_value(control, value)
@@ -172,23 +174,22 @@ func read_values() -> Dictionary:
 ## @param ignore_missing_fields: true 时忽略未绑定字段，false 时输出 warning。
 func write_values(data: Dictionary, ignore_missing_fields: bool = true) -> void:
 	for key_variant: Variant in data.keys():
-		var key := StringName(key_variant)
+		var key: StringName = GFVariantData.to_string_name(key_variant)
 		if not _fields.has(key):
 			if not ignore_missing_fields:
 				push_warning("[GFFormBinder] 未绑定字段：%s" % String(key))
 			continue
-		set_field_value(key, data[key_variant])
+		var _set_field_value_result_182: Variant = set_field_value(key, data[key_variant])
 
 
 # --- 私有/辅助方法 ---
 
 func _get_control(key: StringName) -> Control:
-	var info := _get_field_info(key)
+	var info: Dictionary = _get_field_info(key)
 	if info.is_empty():
 		return null
 
-	var control_ref_variant: Variant = info.get("control_ref")
-	var control_ref := control_ref_variant as WeakRef if control_ref_variant is WeakRef else null
+	var control_ref: WeakRef = _variant_to_weak_ref(GFVariantData.get_option_value(info, "control_ref"))
 	var control: Control = _INSTANCE_GUARD._get_live_control_from_ref(control_ref)
 	if not is_instance_valid(control):
 		unbind_field(key)
@@ -203,9 +204,10 @@ func _on_field_changed(key: StringName) -> void:
 
 
 func _get_field_info(key: StringName) -> Dictionary:
-	var info_variant: Variant = _fields.get(key, {})
+	var info_variant: Variant = GFVariantData.get_option_value(_fields, key, {})
 	if info_variant is Dictionary:
-		return info_variant as Dictionary
+		var info: Dictionary = info_variant
+		return info
 	return {}
 
 
@@ -213,17 +215,29 @@ func _disconnect_field_info(info: Dictionary) -> void:
 	if info.is_empty():
 		return
 
-	var connections := info.get("value_changed_connections", []) as Array
-	if connections != null:
-		GFControlValueAdapter.disconnect_value_changed_handles(connections)
+	var connections: Array = GFVariantData.get_option_array(info, "value_changed_connections")
+	GFControlValueAdapter.disconnect_value_changed_handles(connections)
 
-	var control_ref_variant: Variant = info.get("control_ref")
-	var control_ref := control_ref_variant as WeakRef if control_ref_variant is WeakRef else null
+	var control_ref: WeakRef = _variant_to_weak_ref(GFVariantData.get_option_value(info, "control_ref"))
 	var control: Control = _INSTANCE_GUARD._get_live_control_from_ref(control_ref)
-	var tree_exited_callable := info.get("tree_exited_callable") as Callable
+	var tree_exited_callable: Callable = _variant_to_callable(GFVariantData.get_option_value(info, "tree_exited_callable"))
 	if (
 		is_instance_valid(control)
 		and tree_exited_callable.is_valid()
 		and control.tree_exited.is_connected(tree_exited_callable)
 	):
 		control.tree_exited.disconnect(tree_exited_callable)
+
+
+func _variant_to_weak_ref(value: Variant) -> WeakRef:
+	if value is WeakRef:
+		var control_ref: WeakRef = value
+		return control_ref
+	return null
+
+
+func _variant_to_callable(value: Variant) -> Callable:
+	if value is Callable:
+		var callable: Callable = value
+		return callable
+	return Callable()

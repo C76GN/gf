@@ -161,7 +161,7 @@ func tick(_delta: float = 0.0) -> void:
 	if not is_instance_valid(_http_request):
 		return
 
-	var now_msec := Time.get_ticks_msec()
+	var now_msec: int = Time.get_ticks_msec()
 	if now_msec - _last_progress_emit_msec < int(emit_progress_interval_seconds * 1000.0):
 		return
 
@@ -198,7 +198,7 @@ func enqueue_download(
 		push_error("[GFDownloadUtility] enqueue_download 失败：url 或 target_path 为空。")
 		return 0
 
-	var task := GFDownloadTask.new()
+	var task: GFDownloadTask = GFDownloadTask.new()
 	task.task_id = _next_task_id
 	_next_task_id += 1
 	task.url = url
@@ -234,7 +234,7 @@ func cancel(task_id: int, delete_temp: bool = false) -> bool:
 		return false
 
 	if _active_task != null and _active_task.task_id == task_id:
-		var task := _active_task
+		var task: GFDownloadTask = _active_task
 		if is_instance_valid(_http_request):
 			_http_request.cancel_request()
 		_active_task = null
@@ -248,7 +248,7 @@ func cancel(task_id: int, delete_temp: bool = false) -> bool:
 		return true
 
 	for index: int in range(_pending_tasks.size() - 1, -1, -1):
-		var task := _pending_tasks[index]
+		var task: GFDownloadTask = _pending_tasks[index]
 		if task.task_id == task_id:
 			_pending_tasks.remove_at(index)
 			task.status = GFDownloadTask.Status.CANCELLED
@@ -316,7 +316,7 @@ func clear_queue(cancel_active: bool = false, delete_temp: bool = false) -> void
 	_pending_tasks.clear()
 
 	if cancel_active and _active_task != null:
-		cancel(_active_task.task_id, delete_temp)
+		var _cancelled: bool = cancel(_active_task.task_id, delete_temp)
 
 
 ## 获取当前正在下载的任务拷贝。
@@ -334,9 +334,9 @@ func get_active_task() -> GFDownloadTask:
 ## [br]
 ## @return 任务 ID 列表。
 func get_queued_task_ids() -> PackedInt32Array:
-	var result := PackedInt32Array()
+	var result: PackedInt32Array = PackedInt32Array()
 	for task: GFDownloadTask in _pending_tasks:
-		result.append(task.task_id)
+		_append_packed_int32(result, task.task_id)
 	return result
 
 
@@ -350,7 +350,7 @@ func get_queued_task_ids() -> PackedInt32Array:
 ## [br]
 ## @schema return: Dictionary，包含最新任务结果；没有结果时为空字典。
 func get_result(task_id: int) -> Dictionary:
-	return (_results.get(task_id, {}) as Dictionary).duplicate(true)
+	return GFVariantData.to_dictionary(GFVariantData.get_option_value(_results, task_id, {}))
 
 
 ## 获取下载工具诊断快照。
@@ -361,9 +361,9 @@ func get_result(task_id: int) -> Dictionary:
 ## [br]
 ## @schema return: Dictionary，包含 paused、queued_count、queued_task_ids、active_task 和 result_count。
 func get_debug_snapshot() -> Dictionary:
-	var queued_ids := PackedInt32Array()
+	var queued_ids: PackedInt32Array = PackedInt32Array()
 	for task: GFDownloadTask in _pending_tasks:
-		queued_ids.append(task.task_id)
+		_append_packed_int32(queued_ids, task.task_id)
 
 	return {
 		"paused": _paused,
@@ -386,15 +386,15 @@ func get_debug_snapshot() -> Dictionary:
 ## [br]
 ## @schema request_data: Dictionary，包含 task_id、url、headers、download_file 和 resume_offset。
 func _start_http_request(request_data: Dictionary) -> Error:
-	var request := _ensure_http_request()
+	var request: HTTPRequest = _ensure_http_request()
 	if request == null:
 		return ERR_UNAVAILABLE
 
 	request.timeout = timeout_seconds
-	request.download_file = str(request_data["download_file"])
+	request.download_file = GFVariantData.get_option_string(request_data, "download_file")
 	return request.request(
-		str(request_data["url"]),
-		request_data["headers"] as PackedStringArray
+		GFVariantData.get_option_string(request_data, "url"),
+		_get_dictionary_packed_string_array(request_data, "headers")
 	)
 
 
@@ -418,14 +418,14 @@ func _complete_active_download(
 	if _active_task == null:
 		return
 
-	var task := _active_task
-	var request_data := _active_request_data.duplicate(true)
+	var task: GFDownloadTask = _active_task
+	var request_data: Dictionary = _active_request_data.duplicate(true)
 	_active_task = null
 	_active_request_data.clear()
 	task.response_code = response_code
 
 	if success:
-		var commit_error := _commit_download_file(task, request_data, response_code)
+		var commit_error: Error = _commit_download_file(task, request_data, response_code)
 		if commit_error == OK:
 			task.status = GFDownloadTask.Status.COMPLETED
 			task.error = ""
@@ -450,7 +450,7 @@ func _try_start_next_download() -> void:
 	if _paused or _active_task != null or _pending_tasks.is_empty():
 		return
 
-	var task := _pop_next_ready_task()
+	var task: GFDownloadTask = _pop_next_ready_task()
 	if task == null:
 		return
 
@@ -471,7 +471,7 @@ func _try_start_next_download() -> void:
 	_active_task = task
 	_active_task.status = GFDownloadTask.Status.RUNNING
 	_active_request_data = _build_request_data(task)
-	var error := _start_http_request(_active_request_data)
+	var error: Error = _start_http_request(_active_request_data)
 	if error != OK:
 		_active_task = null
 		_active_request_data.clear()
@@ -486,14 +486,14 @@ func _try_start_next_download() -> void:
 
 
 func _build_request_data(task: GFDownloadTask) -> Dictionary:
-	var resume_offset := 0
+	var resume_offset: int = 0
 	if task.resume and FileAccess.file_exists(task.temp_path):
 		resume_offset = _get_file_size(task.temp_path)
 
-	var request_headers := task.headers.duplicate()
-	var download_file := task.temp_path
+	var request_headers: PackedStringArray = task.headers.duplicate()
+	var download_file: String = task.temp_path
 	if resume_offset > 0:
-		request_headers.append("Range: bytes=%d-" % resume_offset)
+		_append_packed_string(request_headers, "Range: bytes=%d-" % resume_offset)
 		download_file = task.segment_path
 
 	return {
@@ -509,29 +509,32 @@ func _ensure_http_request() -> HTTPRequest:
 	if is_instance_valid(_http_request):
 		return _http_request
 
-	var tree := Engine.get_main_loop() as SceneTree
+	var main_loop: MainLoop = Engine.get_main_loop()
+	if not (main_loop is SceneTree):
+		return null
+	var tree: SceneTree = main_loop
 	if tree == null:
 		return null
 
 	_http_request = HTTPRequest.new()
 	_http_request.name = "GFDownloadHTTPRequest"
-	_http_request.request_completed.connect(_on_request_completed)
+	_connect_request_completed(_http_request)
 	tree.root.add_child(_http_request)
 	return _http_request
 
 
 func _commit_download_file(task: GFDownloadTask, request_data: Dictionary, response_code: int) -> Error:
-	var resume_offset := int(request_data.get("resume_offset", 0))
+	var resume_offset: int = GFVariantData.get_option_int(request_data, "resume_offset")
 	if resume_offset > 0:
 		if response_code == 206:
-			var append_error := _append_file(task.segment_path, task.temp_path)
+			var append_error: Error = _append_file(task.segment_path, task.temp_path)
 			if append_error != OK:
 				return append_error
-			DirAccess.remove_absolute(task.segment_path)
+			_remove_absolute_file_if_exists(task.segment_path)
 		elif FileAccess.file_exists(task.segment_path):
 			if FileAccess.file_exists(task.temp_path):
-				DirAccess.remove_absolute(task.temp_path)
-			var replace_error := DirAccess.rename_absolute(task.segment_path, task.temp_path)
+				_remove_absolute_file_if_exists(task.temp_path)
+			var replace_error: Error = DirAccess.rename_absolute(task.segment_path, task.temp_path)
 			if replace_error != OK:
 				return replace_error
 
@@ -541,7 +544,7 @@ func _commit_download_file(task: GFDownloadTask, request_data: Dictionary, respo
 	if FileAccess.file_exists(task.target_path):
 		if not task.overwrite:
 			return ERR_ALREADY_EXISTS
-		var remove_error := DirAccess.remove_absolute(task.target_path)
+		var remove_error: Error = DirAccess.remove_absolute(task.target_path)
 		if remove_error != OK:
 			return remove_error
 
@@ -552,16 +555,16 @@ func _append_file(source_path: String, target_path: String) -> Error:
 	if not FileAccess.file_exists(source_path):
 		return OK
 
-	var source := FileAccess.open(source_path, FileAccess.READ)
+	var source: FileAccess = FileAccess.open(source_path, FileAccess.READ)
 	if source == null:
 		return FileAccess.get_open_error()
-	var target := FileAccess.open(target_path, FileAccess.READ_WRITE)
+	var target: FileAccess = FileAccess.open(target_path, FileAccess.READ_WRITE)
 	if target == null:
 		source.close()
 		return FileAccess.get_open_error()
 
 	target.seek_end()
-	target.store_buffer(source.get_buffer(source.get_length()))
+	var _stored: Variant = target.store_buffer(source.get_buffer(source.get_length()))
 	source.close()
 	target.close()
 	return OK
@@ -578,7 +581,7 @@ func _verify_file_checksum(task: GFDownloadTask, file_path: String, label: Strin
 		task.error = "checksum failed: %s missing" % label
 		return false
 
-	var actual := FileAccess.get_sha256(file_path).to_lower()
+	var actual: String = FileAccess.get_sha256(file_path).to_lower()
 	if actual != task.expected_sha256:
 		task.error = "checksum mismatch: %s" % label
 		return false
@@ -591,16 +594,16 @@ func _finish_task(
 	cancelled: bool,
 	extra: Dictionary = {}
 ) -> void:
-	var result := task.to_dict()
+	var result: Dictionary = task.to_dict()
 	result["success"] = success
 	result["cancelled"] = cancelled
 	for key: Variant in extra.keys():
 		result[key] = extra[key]
 
 	_results[task.task_id] = result.duplicate(true)
-	var callback := _callbacks.get(task.task_id, Callable()) as Callable
-	_callbacks.erase(task.task_id)
-	if callback != null and callback.is_valid():
+	var callback: Callable = _get_callback(task.task_id)
+	_erase_dictionary_key(_callbacks, task.task_id)
+	if callback.is_valid():
 		callback.call(result.duplicate(true))
 
 	if cancelled:
@@ -615,7 +618,7 @@ func _pause_active_task() -> void:
 	if _active_task == null:
 		return
 
-	var task := _active_task
+	var task: GFDownloadTask = _active_task
 	task.status = GFDownloadTask.Status.PAUSED
 	if is_instance_valid(_http_request):
 		_http_request.cancel_request()
@@ -626,25 +629,26 @@ func _pause_active_task() -> void:
 
 func _normalize_headers(value: Variant) -> PackedStringArray:
 	if value is PackedStringArray:
-		return (value as PackedStringArray).duplicate()
+		var headers: PackedStringArray = value
+		return headers.duplicate()
 	if value is Array:
-		var result := PackedStringArray()
+		var result: PackedStringArray = PackedStringArray()
 		for item: Variant in value:
-			result.append(str(item))
+			_append_packed_string(result, str(item))
 		return result
 	if value is Dictionary:
-		var result := PackedStringArray()
-		var data := value as Dictionary
+		var result: PackedStringArray = PackedStringArray()
+		var data: Dictionary = value
 		for key: Variant in data.keys():
-			result.append("%s: %s" % [str(key), str(data[key])])
+			_append_packed_string(result, "%s: %s" % [str(key), str(data[key])])
 		return result
 	return PackedStringArray()
 
 
 func _pop_next_ready_task() -> GFDownloadTask:
-	var now_msec := Time.get_ticks_msec()
+	var now_msec: int = Time.get_ticks_msec()
 	for index: int in range(_pending_tasks.size()):
-		var task := _pending_tasks[index]
+		var task: GFDownloadTask = _pending_tasks[index]
 		if task.retry_not_before_msec > now_msec:
 			continue
 		_pending_tasks.remove_at(index)
@@ -690,33 +694,79 @@ func _cleanup_failed_retry_download_file(request_data: Dictionary, response_code
 	if response_code == 0:
 		return
 
-	var download_file := String(request_data.get("download_file", ""))
+	var download_file: String = GFVariantData.get_option_string(request_data, "download_file")
 	if download_file.is_empty() or not FileAccess.file_exists(download_file):
 		return
-	DirAccess.remove_absolute(download_file)
+	_remove_absolute_file_if_exists(download_file)
 
 
 func _delete_task_temp_files(task: GFDownloadTask) -> void:
 	if FileAccess.file_exists(task.temp_path):
-		DirAccess.remove_absolute(task.temp_path)
+		_remove_absolute_file_if_exists(task.temp_path)
 	if FileAccess.file_exists(task.segment_path):
-		DirAccess.remove_absolute(task.segment_path)
+		_remove_absolute_file_if_exists(task.segment_path)
 
 
 func _get_file_size(path: String) -> int:
-	var file := FileAccess.open(path, FileAccess.READ)
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		return 0
-	var size := int(file.get_length())
+	var size: int = int(file.get_length())
 	file.close()
 	return size
 
 
 func _ensure_parent_dir(path: String) -> void:
-	var dir_path := path.get_base_dir()
+	var dir_path: String = path.get_base_dir()
 	if dir_path.is_empty() or DirAccess.dir_exists_absolute(dir_path):
 		return
-	DirAccess.make_dir_recursive_absolute(dir_path)
+	_make_dir_recursive_absolute(dir_path)
+
+
+func _get_dictionary_packed_string_array(source: Dictionary, key: Variant) -> PackedStringArray:
+	return _normalize_headers(GFVariantData.get_option_value(source, key, PackedStringArray()))
+
+
+func _get_callback(task_id: int) -> Callable:
+	var value: Variant = GFVariantData.get_option_value(_callbacks, task_id, Callable())
+	if value is Callable:
+		var callback: Callable = value
+		return callback
+	return Callable()
+
+
+func _connect_request_completed(request: HTTPRequest) -> void:
+	var error: Error = request.request_completed.connect(_on_request_completed) as Error
+	if error != OK:
+		return
+
+
+func _append_packed_int32(target: PackedInt32Array, value: int) -> void:
+	var appended: bool = target.append(value)
+	if appended:
+		return
+
+
+func _append_packed_string(target: PackedStringArray, value: String) -> void:
+	var appended: bool = target.append(value)
+	if appended:
+		return
+
+
+func _erase_dictionary_key(target: Dictionary, key: Variant) -> void:
+	var erased: bool = target.erase(key)
+	if erased:
+		return
+
+
+func _remove_absolute_file_if_exists(path: String) -> void:
+	if not FileAccess.file_exists(path):
+		return
+	var _remove_error: Error = DirAccess.remove_absolute(path)
+
+
+func _make_dir_recursive_absolute(path: String) -> void:
+	var _mkdir_error: Error = DirAccess.make_dir_recursive_absolute(path)
 
 
 # --- 信号处理函数 ---

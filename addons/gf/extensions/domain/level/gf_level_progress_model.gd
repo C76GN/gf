@@ -81,7 +81,7 @@ func lock_level(level_id: StringName) -> void:
 	if not _unlocked_levels.has(level_id):
 		return
 
-	_unlocked_levels.erase(level_id)
+	var _erase_result_84: Variant = _unlocked_levels.erase(level_id)
 	level_locked.emit(level_id)
 
 
@@ -93,7 +93,7 @@ func lock_level(level_id: StringName) -> void:
 ## [br]
 ## @return: 已解锁时返回 true。
 func is_level_unlocked(level_id: StringName) -> bool:
-	return bool(_unlocked_levels.get(level_id, false))
+	return GFVariantData.get_option_bool(_unlocked_levels, level_id)
 
 
 ## 标记关卡完成。
@@ -125,7 +125,7 @@ func complete_level(level_id: StringName, result: Dictionary = {}, merge_result:
 ## [br]
 ## @return: 已完成时返回 true。
 func is_level_completed(level_id: StringName) -> bool:
-	return bool(_completed_levels.get(level_id, false))
+	return GFVariantData.get_option_bool(_completed_levels, level_id)
 
 
 ## 设置关卡结果。
@@ -143,9 +143,9 @@ func set_level_result(level_id: StringName, result: Dictionary, merge_result: bo
 	if level_id == &"":
 		return
 
-	var next_result := result.duplicate(true)
+	var next_result: Dictionary = result.duplicate(true)
 	if merge_result and _level_results.has(level_id):
-		next_result = (_level_results[level_id] as Dictionary).duplicate(true)
+		next_result = GFVariantData.get_option_dictionary(_level_results, level_id)
 		for key: Variant in result.keys():
 			next_result[key] = result[key]
 
@@ -163,10 +163,7 @@ func set_level_result(level_id: StringName, result: Dictionary, merge_result: bo
 ## [br]
 ## @schema return: Dictionary，项目自定义关卡结果副本；不存在时为空字典。
 func get_level_result(level_id: StringName) -> Dictionary:
-	var result_variant: Variant = _level_results.get(level_id, {})
-	if result_variant is Dictionary:
-		return (result_variant as Dictionary).duplicate(true)
-	return {}
+	return GFVariantData.get_option_dictionary(_level_results, level_id)
 
 
 ## 清空所有进度。
@@ -201,9 +198,9 @@ func to_dict() -> Dictionary:
 ## [br]
 ## @schema data: Dictionary，包含 unlocked_levels、completed_levels 与 level_results 三个可选字典字段。
 func from_dict(data: Dictionary) -> void:
-	_unlocked_levels = _string_name_key_dictionary(data.get("unlocked_levels", {}))
-	_completed_levels = _string_name_key_dictionary(data.get("completed_levels", {}))
-	_level_results = _string_name_key_dictionary(data.get("level_results", {}))
+	_unlocked_levels = _string_name_key_dictionary(GFVariantData.get_option_value(data, "unlocked_levels", {}))
+	_completed_levels = _string_name_key_dictionary(GFVariantData.get_option_value(data, "completed_levels", {}))
+	_level_results = _string_name_key_dictionary(GFVariantData.get_option_value(data, "level_results", {}))
 
 
 # --- 私有/辅助方法 ---
@@ -211,7 +208,7 @@ func from_dict(data: Dictionary) -> void:
 func _stringify_key_dictionary(data: Dictionary) -> Dictionary:
 	var result: Dictionary = {}
 	for key: Variant in data.keys():
-		result[String(key)] = data[key]
+		result[GFVariantData.to_text(key)] = data[key]
 	return result
 
 
@@ -220,9 +217,9 @@ func _string_name_key_dictionary(data_variant: Variant) -> Dictionary:
 	if not data_variant is Dictionary:
 		return result
 
-	var data := data_variant as Dictionary
+	var data: Dictionary = GFVariantData.as_dictionary(data_variant)
 	for key: Variant in data.keys():
-		var level_id := StringName(key)
+		var level_id: StringName = GFVariantData.to_string_name(key)
 		var value: Variant = data[key]
-		result[level_id] = value.duplicate(true) if value is Dictionary or value is Array else value
+		result[level_id] = GFVariantData.duplicate_collection(value, true)
 	return result

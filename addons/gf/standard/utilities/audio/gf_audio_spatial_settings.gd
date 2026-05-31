@@ -116,7 +116,7 @@ func apply_to_2d(player: AudioStreamPlayer2D) -> bool:
 	player.max_polyphony = maxi(max_polyphony, 1)
 	player.panning_strength = maxf(panning_strength, 0.0)
 	player.area_mask = area_mask_2d
-	player.playback_type = playback_type
+	player.playback_type = clampi(playback_type, 0, 2) as AudioServer.PlaybackType
 	player.max_distance = maxf(max_distance_2d, 0.0)
 	player.attenuation = maxf(attenuation_2d, 0.0)
 	return true
@@ -136,8 +136,8 @@ func apply_to_3d(player: AudioStreamPlayer3D) -> bool:
 	player.max_polyphony = maxi(max_polyphony, 1)
 	player.panning_strength = maxf(panning_strength, 0.0)
 	player.area_mask = area_mask_3d
-	player.playback_type = playback_type
-	player.attenuation_model = clampi(attenuation_model_3d, 0, 3)
+	player.playback_type = clampi(playback_type, 0, 2) as AudioServer.PlaybackType
+	player.attenuation_model = clampi(attenuation_model_3d, 0, 3) as AudioStreamPlayer3D.AttenuationModel
 	player.unit_size = maxf(unit_size_3d, 0.01)
 	player.max_db = clampf(max_db_3d, -80.0, 24.0)
 	player.max_distance = maxf(max_distance_3d, 0.0)
@@ -146,5 +146,5 @@ func apply_to_3d(player: AudioStreamPlayer3D) -> bool:
 	player.emission_angle_filter_attenuation_db = clampf(emission_angle_filter_attenuation_db_3d, -80.0, 0.0)
 	player.attenuation_filter_cutoff_hz = clampf(attenuation_filter_cutoff_hz_3d, 1.0, 20500.0)
 	player.attenuation_filter_db = clampf(attenuation_filter_db_3d, -80.0, 0.0)
-	player.doppler_tracking = clampi(doppler_tracking_3d, 0, 2)
+	player.doppler_tracking = clampi(doppler_tracking_3d, 0, 2) as AudioStreamPlayer3D.DopplerTracking
 	return true

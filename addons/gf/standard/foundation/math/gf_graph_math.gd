@@ -103,21 +103,21 @@ static func build_distance_map(
 	var frontier: Array[Dictionary] = []
 	_heap_push_node(frontier, start, 0.0)
 	while not frontier.is_empty():
-		var current_entry := _heap_pop_node(frontier)
-		var current: Variant = current_entry.get("node")
-		var current_cost := float(distances.get(current, INF))
-		if float(current_entry.get("priority", INF)) > current_cost:
+		var current_entry: Dictionary = _heap_pop_node(frontier)
+		var current: Variant = GFVariantData.get_option_value(current_entry, "node")
+		var current_cost: float = GFVariantData.get_option_float(distances, current, INF)
+		if _get_entry_priority(current_entry) > current_cost:
 			continue
 		if current_cost > max_cost:
 			continue
 
-		for next_node in _get_neighbors(current, get_neighbors):
-			var move_cost := _get_step_cost(current, next_node, get_step_cost)
+		for next_node: Variant in _get_neighbors(current, get_neighbors):
+			var move_cost: float = _get_step_cost(current, next_node, get_step_cost)
 			if move_cost < 0.0:
 				continue
 
-			var next_cost := current_cost + move_cost
-			if next_cost > max_cost or next_cost >= float(distances.get(next_node, INF)):
+			var next_cost: float = current_cost + move_cost
+			if next_cost > max_cost or next_cost >= GFVariantData.get_option_float(distances, next_node, INF):
 				continue
 
 			distances[next_node] = next_cost
@@ -171,35 +171,35 @@ static func _find_path(
 	var came_from: Dictionary = {}
 	var g_score: Dictionary = { start: 0.0 }
 	var f_score: Dictionary = { start: _get_heuristic(start, goal, heuristic) }
-	_heap_push_node(open_heap, start, float(f_score[start]))
+	_heap_push_node(open_heap, start, GFVariantData.to_float(f_score[start], INF))
 
 	while not open_heap.is_empty():
-		var current_entry := _heap_pop_node(open_heap)
-		var current: Variant = current_entry.get("node")
+		var current_entry: Dictionary = _heap_pop_node(open_heap)
+		var current: Variant = GFVariantData.get_option_value(current_entry, "node")
 		if closed.has(current):
 			continue
-		if float(current_entry.get("priority", INF)) > float(f_score.get(current, INF)):
+		if _get_entry_priority(current_entry) > GFVariantData.get_option_float(f_score, current, INF):
 			continue
 		if current == goal:
 			return _reconstruct_path(start, goal, came_from)
 
 		closed[current] = true
-		for next_node in _get_neighbors(current, get_neighbors):
+		for next_node: Variant in _get_neighbors(current, get_neighbors):
 			if closed.has(next_node):
 				continue
 
-			var move_cost := _get_step_cost(current, next_node, get_step_cost)
+			var move_cost: float = _get_step_cost(current, next_node, get_step_cost)
 			if move_cost < 0.0:
 				continue
 
-			var tentative_score := float(g_score.get(current, INF)) + move_cost
-			if tentative_score >= float(g_score.get(next_node, INF)):
+			var tentative_score: float = GFVariantData.get_option_float(g_score, current, INF) + move_cost
+			if tentative_score >= GFVariantData.get_option_float(g_score, next_node, INF):
 				continue
 
 			came_from[next_node] = current
 			g_score[next_node] = tentative_score
 			f_score[next_node] = tentative_score + _get_heuristic(next_node, goal, heuristic)
-			_heap_push_node(open_heap, next_node, float(f_score[next_node]))
+			_heap_push_node(open_heap, next_node, GFVariantData.to_float(f_score[next_node], INF))
 
 	return []
 
@@ -219,10 +219,10 @@ static func _reconstruct_path(start: Variant, goal: Variant, came_from: Dictiona
 
 
 static func _take_lowest_score_node(nodes: Array, scores: Dictionary) -> Variant:
-	var best_index := 0
-	var best_score := float(scores.get(nodes[0], INF))
+	var best_index: int = 0
+	var best_score: float = GFVariantData.get_option_float(scores, nodes[0], INF)
 	for index: int in range(1, nodes.size()):
-		var score := float(scores.get(nodes[index], INF))
+		var score: float = GFVariantData.get_option_float(scores, nodes[index], INF)
 		if score < best_score:
 			best_index = index
 			best_score = score
@@ -237,12 +237,12 @@ static func _heap_push_node(heap: Array[Dictionary], node: Variant, priority: fl
 		"node": node,
 		"priority": priority,
 	})
-	var index := heap.size() - 1
+	var index: int = heap.size() - 1
 	while index > 0:
-		var parent_index := int((index - 1) / 2)
-		if float(heap[parent_index].get("priority", INF)) <= priority:
+		var parent_index: int = (index - 1) >> 1
+		if _get_entry_priority(heap[parent_index]) <= priority:
 			break
-		var parent_entry := heap[parent_index]
+		var parent_entry: Dictionary = heap[parent_index]
 		heap[parent_index] = heap[index]
 		heap[index] = parent_entry
 		index = parent_index
@@ -252,31 +252,31 @@ static func _heap_pop_node(heap: Array[Dictionary]) -> Dictionary:
 	if heap.is_empty():
 		return {}
 
-	var result := heap[0]
-	var last_entry := heap.pop_back() as Dictionary
+	var result: Dictionary = heap[0]
+	var last_entry: Dictionary = GFVariantData.as_dictionary(heap.pop_back())
 	if heap.is_empty():
 		return result
 
 	heap[0] = last_entry
-	var index := 0
+	var index: int = 0
 	while true:
-		var left_index := index * 2 + 1
-		var right_index := left_index + 1
-		var best_index := index
+		var left_index: int = index * 2 + 1
+		var right_index: int = left_index + 1
+		var best_index: int = index
 		if (
 			left_index < heap.size()
-			and float(heap[left_index].get("priority", INF)) < float(heap[best_index].get("priority", INF))
+			and _get_entry_priority(heap[left_index]) < _get_entry_priority(heap[best_index])
 		):
 			best_index = left_index
 		if (
 			right_index < heap.size()
-			and float(heap[right_index].get("priority", INF)) < float(heap[best_index].get("priority", INF))
+			and _get_entry_priority(heap[right_index]) < _get_entry_priority(heap[best_index])
 		):
 			best_index = right_index
 		if best_index == index:
 			break
 
-		var best_entry := heap[best_index]
+		var best_entry: Dictionary = heap[best_index]
 		heap[best_index] = heap[index]
 		heap[index] = best_entry
 		index = best_index
@@ -288,18 +288,22 @@ static func _get_neighbors(node: Variant, get_neighbors: Callable) -> Array:
 	if typeof(raw_neighbors) != TYPE_ARRAY:
 		return []
 
-	return raw_neighbors as Array
+	return GFVariantData.as_array(raw_neighbors)
 
 
 static func _get_step_cost(from_node: Variant, to_node: Variant, get_step_cost: Callable) -> float:
 	if get_step_cost.is_valid():
-		return float(get_step_cost.call(from_node, to_node))
+		return GFVariantData.to_float(get_step_cost.call(from_node, to_node), -1.0)
 
 	return 1.0
 
 
 static func _get_heuristic(node: Variant, goal: Variant, heuristic: Callable) -> float:
 	if heuristic.is_valid():
-		return maxf(0.0, float(heuristic.call(node, goal)))
+		return maxf(0.0, GFVariantData.to_float(heuristic.call(node, goal), 0.0))
 
 	return 0.0
+
+
+static func _get_entry_priority(entry: Dictionary, fallback: float = INF) -> float:
+	return GFVariantData.get_option_float(entry, "priority", fallback)

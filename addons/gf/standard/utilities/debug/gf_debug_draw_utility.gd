@@ -167,21 +167,22 @@ func draw_vector_2d(
 	width: float = 1.0,
 	options: Dictionary = {}
 ) -> Array[int]:
-	var resolved_vector := _resolve_debug_vector_2d(vector, options)
-	var half_vector := resolved_vector * 0.5
-	var begin := origin - half_vector if bool(options.get("centered", false)) else origin
-	var end := origin + half_vector if bool(options.get("centered", false)) else origin + resolved_vector
+	var resolved_vector: Vector2 = _resolve_debug_vector_2d(vector, options)
+	var half_vector: Vector2 = resolved_vector * 0.5
+	var centered: bool = GFVariantData.get_option_bool(options, "centered")
+	var begin: Vector2 = origin - half_vector if centered else origin
+	var end: Vector2 = origin + half_vector if centered else origin + resolved_vector
 	var result: Array[int] = []
 	result.append(draw_line_2d(begin, end, color, lifetime_seconds, channel, width))
 
-	if bool(options.get("draw_components", false)):
-		var corner := begin + Vector2(resolved_vector.x, 0.0)
-		var x_color := _get_debug_color_option(options, "x_color", Color.RED)
-		var y_color := _get_debug_color_option(options, "y_color", Color.GREEN)
+	if GFVariantData.get_option_bool(options, "draw_components"):
+		var corner: Vector2 = begin + Vector2(resolved_vector.x, 0.0)
+		var x_color: Color = _get_debug_color_option(options, "x_color", Color.RED)
+		var y_color: Color = _get_debug_color_option(options, "y_color", Color.GREEN)
 		result.append(draw_line_2d(begin, corner, x_color, lifetime_seconds, channel, width))
 		result.append(draw_line_2d(corner, end, y_color, lifetime_seconds, channel, width))
 
-	if bool(options.get("arrowhead", false)):
+	if GFVariantData.get_option_bool(options, "arrowhead"):
 		_append_vector_arrowhead_2d(result, begin, end, color, lifetime_seconds, channel, width, options)
 	return result
 
@@ -366,19 +367,20 @@ func draw_vector_3d(
 	width: float = 1.0,
 	options: Dictionary = {}
 ) -> Array[int]:
-	var resolved_vector := _resolve_debug_vector_3d(vector, options)
-	var half_vector := resolved_vector * 0.5
-	var begin := origin - half_vector if bool(options.get("centered", false)) else origin
-	var end := origin + half_vector if bool(options.get("centered", false)) else origin + resolved_vector
+	var resolved_vector: Vector3 = _resolve_debug_vector_3d(vector, options)
+	var half_vector: Vector3 = resolved_vector * 0.5
+	var centered: bool = GFVariantData.get_option_bool(options, "centered")
+	var begin: Vector3 = origin - half_vector if centered else origin
+	var end: Vector3 = origin + half_vector if centered else origin + resolved_vector
 	var result: Array[int] = []
 	result.append(draw_line_3d(begin, end, color, lifetime_seconds, channel, width))
 
-	if bool(options.get("draw_components", false)):
-		var x_end := begin + Vector3(resolved_vector.x, 0.0, 0.0)
-		var y_end := x_end + Vector3(0.0, resolved_vector.y, 0.0)
-		var x_color := _get_debug_color_option(options, "x_color", Color.RED)
-		var y_color := _get_debug_color_option(options, "y_color", Color.GREEN)
-		var z_color := _get_debug_color_option(options, "z_color", Color.BLUE)
+	if GFVariantData.get_option_bool(options, "draw_components"):
+		var x_end: Vector3 = begin + Vector3(resolved_vector.x, 0.0, 0.0)
+		var y_end: Vector3 = x_end + Vector3(0.0, resolved_vector.y, 0.0)
+		var x_color: Color = _get_debug_color_option(options, "x_color", Color.RED)
+		var y_color: Color = _get_debug_color_option(options, "y_color", Color.GREEN)
+		var z_color: Color = _get_debug_color_option(options, "z_color", Color.BLUE)
 		result.append(draw_line_3d(begin, x_end, x_color, lifetime_seconds, channel, width))
 		result.append(draw_line_3d(x_end, y_end, y_color, lifetime_seconds, channel, width))
 		result.append(draw_line_3d(y_end, end, z_color, lifetime_seconds, channel, width))
@@ -467,18 +469,20 @@ func draw_text_3d(
 ## [br]
 ## @schema item: Dictionary，至少可包含 type、channel、lifetime_seconds 以及项目自定义绘制载荷。
 func push_item(item: Dictionary) -> int:
-	var stored_item := item.duplicate(true)
-	stored_item["id"] = _next_item_id
-	stored_item["channel"] = StringName(stored_item.get("channel", &"default"))
+	var stored_item: Dictionary = item.duplicate(true)
+	var item_id: int = _next_item_id
+	var resolved_lifetime: float = _resolve_lifetime(GFVariantData.get_option_float(stored_item, "lifetime_seconds", -1.0))
+	stored_item["id"] = item_id
+	stored_item["channel"] = GFVariantData.get_option_string_name(stored_item, "channel", &"default")
 	stored_item["created_at_msec"] = Time.get_ticks_msec()
-	stored_item["lifetime_seconds"] = _resolve_lifetime(float(stored_item.get("lifetime_seconds", -1.0)))
-	stored_item["remaining_seconds"] = stored_item["lifetime_seconds"]
+	stored_item["lifetime_seconds"] = resolved_lifetime
+	stored_item["remaining_seconds"] = resolved_lifetime
 	_next_item_id += 1
 
 	_items.append(stored_item)
 	_trim_to_max_items()
 	items_changed.emit()
-	return int(stored_item["id"])
+	return item_id
 
 
 ## 清理命令。
@@ -494,9 +498,9 @@ func clear(channel: StringName = &"") -> void:
 		items_changed.emit()
 		return
 
-	var changed := false
+	var changed: bool = false
 	for index: int in range(_items.size() - 1, -1, -1):
-		if StringName(_items[index].get("channel", &"default")) == channel:
+		if _get_item_channel(_items[index]) == channel:
 			_items.remove_at(index)
 			changed = true
 	if changed:
@@ -523,7 +527,7 @@ func set_channel_enabled(channel: StringName, channel_enabled: bool) -> void:
 ## [br]
 ## @return 启用返回 true。
 func is_channel_enabled(channel: StringName) -> bool:
-	return bool(_channels_enabled.get(channel, true))
+	return GFVariantData.get_option_bool(_channels_enabled, channel, true)
 
 
 ## 获取绘制命令。
@@ -543,7 +547,7 @@ func get_items(channel: StringName = &"", include_disabled: bool = false) -> Arr
 
 	var result: Array[Dictionary] = []
 	for item: Dictionary in _items:
-		var item_channel := StringName(item.get("channel", &"default"))
+		var item_channel: StringName = _get_item_channel(item)
 		if channel != &"" and item_channel != channel:
 			continue
 		if not include_disabled and not is_channel_enabled(item_channel):
@@ -574,10 +578,10 @@ func get_debug_snapshot() -> Dictionary:
 	var channels: Dictionary = {}
 	var primitive_types: Dictionary = {}
 	for item: Dictionary in _items:
-		var channel := StringName(item.get("channel", &"default"))
-		var primitive_type := int(item.get("type", PrimitiveType.CUSTOM))
-		channels[channel] = int(channels.get(channel, 0)) + 1
-		primitive_types[primitive_type] = int(primitive_types.get(primitive_type, 0)) + 1
+		var channel: StringName = _get_item_channel(item)
+		var primitive_type: int = _get_item_primitive_type(item)
+		_increment_dictionary_int(channels, channel)
+		_increment_dictionary_int(primitive_types, primitive_type)
 	return {
 		"enabled": enabled,
 		"item_count": _items.size(),
@@ -590,18 +594,20 @@ func get_debug_snapshot() -> Dictionary:
 # --- 私有/辅助方法 ---
 
 func _resolve_debug_vector_2d(vector: Vector2, options: Dictionary) -> Vector2:
-	var scaled := vector * float(options.get("scale", 1.0))
+	var scale: float = GFVariantData.get_option_float(options, "scale", 1.0)
+	var scaled: Vector2 = vector * scale
 	return _apply_debug_vector_length_mode_2d(scaled, options)
 
 
 func _resolve_debug_vector_3d(vector: Vector3, options: Dictionary) -> Vector3:
-	var scaled := vector * float(options.get("scale", 1.0))
+	var scale: float = GFVariantData.get_option_float(options, "scale", 1.0)
+	var scaled: Vector3 = vector * scale
 	return _apply_debug_vector_length_mode_3d(scaled, options)
 
 
 func _apply_debug_vector_length_mode_2d(vector: Vector2, options: Dictionary) -> Vector2:
-	var length_mode := str(options.get("length_mode", "normal")).to_lower()
-	var max_length := float(options.get("max_length", 0.0))
+	var length_mode: String = GFVariantData.get_option_string(options, "length_mode", "normal").to_lower()
+	var max_length: float = GFVariantData.get_option_float(options, "max_length")
 	match length_mode:
 		"clamp":
 			return vector.limit_length(max_length) if max_length > 0.0 else vector
@@ -612,8 +618,8 @@ func _apply_debug_vector_length_mode_2d(vector: Vector2, options: Dictionary) ->
 
 
 func _apply_debug_vector_length_mode_3d(vector: Vector3, options: Dictionary) -> Vector3:
-	var length_mode := str(options.get("length_mode", "normal")).to_lower()
-	var max_length := float(options.get("max_length", 0.0))
+	var length_mode: String = GFVariantData.get_option_string(options, "length_mode", "normal").to_lower()
+	var max_length: float = GFVariantData.get_option_float(options, "max_length")
 	match length_mode:
 		"clamp":
 			return vector.limit_length(max_length) if max_length > 0.0 else vector
@@ -633,19 +639,21 @@ func _append_vector_arrowhead_2d(
 	width: float,
 	options: Dictionary
 ) -> void:
-	var direction := end - begin
+	var direction: Vector2 = end - begin
 	if direction.is_zero_approx():
 		return
-	var size := maxf(float(options.get("arrowhead_size", width * 4.0)), 0.0)
+	var size: float = maxf(GFVariantData.get_option_float(options, "arrowhead_size", width * 4.0), 0.0)
 	if size <= 0.0:
 		return
-	var normal := direction.normalized()
+	var normal: Vector2 = direction.normalized()
 	result.append(draw_line_2d(end, end - normal.rotated(PI / 6.0) * size, color, lifetime_seconds, channel, width))
 	result.append(draw_line_2d(end, end - normal.rotated(-PI / 6.0) * size, color, lifetime_seconds, channel, width))
 
 
 func _get_debug_color_option(options: Dictionary, key: String, fallback: Color) -> Color:
-	var value: Variant = options.get(key, fallback)
+	if not options.has(key):
+		return fallback
+	var value: Variant = options[key]
 	return value if value is Color else fallback
 
 
@@ -659,12 +667,13 @@ func _expire_items(delta: float) -> void:
 	if _items.is_empty():
 		return
 
-	var changed := false
+	var changed: bool = false
 	for index: int in range(_items.size() - 1, -1, -1):
-		var lifetime_seconds := float(_items[index].get("lifetime_seconds", 0.0))
+		var item: Dictionary = _items[index]
+		var lifetime_seconds: float = GFVariantData.get_option_float(item, "lifetime_seconds")
 		if lifetime_seconds < 0.0:
 			continue
-		var remaining_seconds := float(_items[index].get("remaining_seconds", lifetime_seconds)) - maxf(delta, 0.0)
+		var remaining_seconds: float = GFVariantData.get_option_float(item, "remaining_seconds", lifetime_seconds) - maxf(delta, 0.0)
 		_items[index]["remaining_seconds"] = remaining_seconds
 		if remaining_seconds <= 0.0:
 			_items.remove_at(index)
@@ -678,3 +687,15 @@ func _trim_to_max_items() -> void:
 		return
 	while _items.size() > max_items:
 		_items.remove_at(0)
+
+
+func _get_item_channel(item: Dictionary) -> StringName:
+	return GFVariantData.get_option_string_name(item, "channel", &"default")
+
+
+func _get_item_primitive_type(item: Dictionary) -> int:
+	return GFVariantData.get_option_int(item, "type", PrimitiveType.CUSTOM)
+
+
+func _increment_dictionary_int(target: Dictionary, key: Variant) -> void:
+	target[key] = GFVariantData.get_option_int(target, key) + 1

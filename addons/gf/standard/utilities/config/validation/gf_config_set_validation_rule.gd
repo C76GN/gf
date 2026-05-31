@@ -36,7 +36,7 @@ extends GFConfigValidationRule
 ## [br]
 ## @schema return: Dictionary，包含基础规则字段、allowed_values 和 case_sensitive。
 func describe() -> Dictionary:
-	var result := super.describe()
+	var result: Dictionary = super.describe()
 	result["allowed_values"] = GFVariantData.duplicate_variant(allowed_values)
 	result["case_sensitive"] = case_sensitive
 	return result
@@ -69,7 +69,7 @@ func _get_default_rule_id() -> StringName:
 ## [br]
 ## @schema report: GFConfigValidationReport 兼容 Dictionary，会被当前规则修改。
 func _validate_value(value: Variant, context: Dictionary, report: Dictionary) -> void:
-	var lookup := _build_lookup()
+	var lookup: Dictionary = _build_lookup()
 	if not lookup.has(_make_comparison_key(value)):
 		_add_issue(report, context, "set_value_not_allowed", "值不在允许集合中。")
 
@@ -85,5 +85,5 @@ func _build_lookup() -> Dictionary:
 
 func _make_comparison_key(value: Variant) -> String:
 	if not case_sensitive and (typeof(value) == TYPE_STRING or typeof(value) == TYPE_STRING_NAME):
-		return "string:%s" % String(value).to_lower()
+		return "string:%s" % GFVariantData.to_text(value).to_lower()
 	return _make_variant_key(value)

@@ -15,8 +15,8 @@ extends RefCounted
 # --- 常量 ---
 
 const _GF_VALIDATION_ISSUE_SCRIPT: Script = preload("res://addons/gf/standard/foundation/validation/gf_validation_issue.gd")
-const _GF_VALIDATION_REPORT_SCRIPT: Script = preload("res://addons/gf/standard/foundation/validation/gf_validation_report.gd")
-const _GF_SOURCE_SPAN_SCRIPT: Script = preload("res://addons/gf/standard/foundation/validation/gf_source_span.gd")
+const _GF_VALIDATION_REPORT_SCRIPT = preload("res://addons/gf/standard/foundation/validation/gf_validation_report.gd")
+const _GF_SOURCE_SPAN_SCRIPT = preload("res://addons/gf/standard/foundation/validation/gf_source_span.gd")
 
 
 # --- 公共方法 ---
@@ -35,17 +35,18 @@ const _GF_SOURCE_SPAN_SCRIPT: Script = preload("res://addons/gf/standard/foundat
 ## [br]
 ## @schema return: Dictionary serialized issue payload.
 static func issue_to_dict(issue: Variant, include_empty_fields: bool = false) -> Dictionary:
-	if issue is _GF_VALIDATION_ISSUE_SCRIPT:
-		var issue_dict: Variant = (issue as RefCounted).call("to_dict", include_empty_fields)
-		return issue_dict as Dictionary if issue_dict is Dictionary else {}
+	var issue_instance: RefCounted = _get_script_instance(issue, _GF_VALIDATION_ISSUE_SCRIPT)
+	if issue_instance != null:
+		return _call_dictionary(issue_instance, &"to_dict", [include_empty_fields])
 	if issue is Dictionary:
-		var issue_data := issue as Dictionary
+		var issue_data: Dictionary = issue
 		if issue_data.is_empty():
 			return {}
-		var normalized_issue := _GF_VALIDATION_ISSUE_SCRIPT.new() as RefCounted
-		normalized_issue.call("apply_dict", issue_data)
-		var normalized_dict: Variant = normalized_issue.call("to_dict", include_empty_fields)
-		return normalized_dict as Dictionary if normalized_dict is Dictionary else {}
+		var normalized_issue: RefCounted = _make_validation_issue()
+		if normalized_issue == null:
+			return {}
+		_call_void(normalized_issue, &"apply_dict", [issue_data])
+		return _call_dictionary(normalized_issue, &"to_dict", [include_empty_fields])
 	return {}
 
 
@@ -59,8 +60,10 @@ static func issue_to_dict(issue: Variant, include_empty_fields: bool = false) ->
 ## [br]
 ## @return 新报告。
 static func report_from_dict(data: Dictionary) -> RefCounted:
-	var report := _GF_VALIDATION_REPORT_SCRIPT.new() as RefCounted
-	report.call("apply_dict", data)
+	var report: RefCounted = _make_validation_report()
+	if report == null:
+		return null
+	_call_void(report, &"apply_dict", [data])
 	return report
 
 
@@ -94,18 +97,19 @@ static func append_issue(
 	message: String,
 	fields: Dictionary = {}
 ) -> Dictionary:
-	var issue := {
-		"severity": _GF_VALIDATION_ISSUE_SCRIPT.severity_to_string(severity),
+	var issue: Dictionary = {
+		"severity": _severity_to_string(severity),
 		"kind": String(kind),
 		"message": message,
 	}
 	for field_key: Variant in fields.keys():
-		var field_name := String(field_key)
+		var field_name: String = GFVariantData.to_text(field_key)
 		if field_name == "severity" or field_name == "kind" or field_name == "message":
 			continue
 		issue[field_key] = GFVariantData.duplicate_variant(fields[field_key])
 
-	_get_issue_array(report).append(issue)
+	var issues: Array = _get_issue_array(report)
+	issues.append(issue)
 	return issue
 
 
@@ -144,8 +148,8 @@ static func append_source_issue(
 	source_span: Variant,
 	fields: Dictionary = {}
 ) -> Dictionary:
-	var merged_fields := fields.duplicate(true)
-	var span_dict := _source_span_to_dict(source_span)
+	var merged_fields: Dictionary = fields.duplicate(true)
+	var span_dict: Dictionary = _source_span_to_dict(source_span)
 	for field_key: Variant in span_dict.keys():
 		merged_fields[field_key] = GFVariantData.duplicate_variant(span_dict[field_key])
 	if not span_dict.is_empty():
@@ -175,19 +179,19 @@ static func finalize_report(
 	subject: String = "",
 	options: Dictionary = {}
 ) -> Dictionary:
-	var error_count := 0
-	var warning_count := 0
-	var info_count := 0
+	var error_count: int = 0
+	var warning_count: int = 0
+	var info_count: int = 0
 	var issue_counts_by_kind: Dictionary = {}
-	var issues := _get_issue_array(report)
-	for issue_index in range(issues.size()):
-		var issue := issue_to_dict(issues[issue_index])
+	var issues: Array = _get_issue_array(report)
+	for issue_index: int in range(issues.size()):
+		var issue: Dictionary = issue_to_dict(issues[issue_index])
 		if issue.is_empty():
 			continue
 		issues[issue_index] = issue
 
-		var kind_key := _get_issue_kind(issue)
-		issue_counts_by_kind[kind_key] = int(issue_counts_by_kind.get(kind_key, 0)) + 1
+		var kind_key: String = _get_issue_kind(issue)
+		issue_counts_by_kind[kind_key] = GFVariantData.get_option_int(issue_counts_by_kind, kind_key, 0) + 1
 
 		match _get_effective_severity(issue, options):
 			"error":
@@ -199,23 +203,21 @@ static func finalize_report(
 
 	report["error_count"] = error_count
 	report["warning_count"] = warning_count
-	if _get_option_bool(options, "include_info_count", report.has("info_count")):
+	if GFVariantData.get_option_bool(options, "include_info_count", report.has("info_count")):
 		report["info_count"] = info_count
 	report[GFResultDictionary.KEY_ISSUE_COUNT] = issues.size()
 	report["issue_counts_by_kind"] = issue_counts_by_kind
 	report[GFResultDictionary.KEY_OK] = error_count == 0
 	report[GFResultDictionary.KEY_HEALTHY] = error_count == 0 and warning_count == 0
 
-	var summary_subject := subject
+	var summary_subject: String = subject
 	if summary_subject.is_empty():
-		summary_subject = String(report.get("subject", ""))
+		summary_subject = GFVariantData.get_option_string(report, "subject")
 	report[GFResultDictionary.KEY_SUMMARY] = make_summary(summary_subject, error_count, warning_count)
 
-	var next_actions: Dictionary = options.get("next_actions", {}) as Dictionary
-	if next_actions == null:
-		next_actions = {}
-	var fallback_action := String(options.get("fallback_action", "Review the first reported issue."))
-	var no_action := String(options.get("no_action", "No action required."))
+	var next_actions: Dictionary = GFVariantData.get_option_dictionary(options, "next_actions")
+	var fallback_action: String = GFVariantData.get_option_string(options, "fallback_action", "Review the first reported issue.")
+	var no_action: String = GFVariantData.get_option_string(options, "no_action", "No action required.")
 	report[GFResultDictionary.KEY_NEXT_ACTION] = get_next_action(report, next_actions, fallback_action, no_action, options)
 	return report
 
@@ -232,7 +234,7 @@ static func finalize_report(
 ## [br]
 ## @return 摘要文本。
 static func make_summary(subject: String, error_count: int, warning_count: int) -> String:
-	var label := subject
+	var label: String = subject
 	if label.is_empty():
 		label = "Validation report"
 	if error_count > 0:
@@ -270,16 +272,16 @@ static func get_next_action(
 	no_action: String = "No action required.",
 	options: Dictionary = {}
 ) -> String:
-	var issue := _get_first_issue_by_priority(report, options)
+	var issue: Dictionary = _get_first_issue_by_priority(report, options)
 	if issue.is_empty():
 		return no_action
 
-	var kind_key := _get_issue_kind(issue)
+	var kind_key: String = _get_issue_kind(issue)
 	if action_map.has(kind_key):
-		return String(action_map[kind_key])
-	var kind_name := StringName(kind_key)
+		return GFVariantData.to_text(action_map[kind_key])
+	var kind_name: StringName = StringName(kind_key)
 	if action_map.has(kind_name):
-		return String(action_map[kind_name])
+		return GFVariantData.to_text(action_map[kind_name])
 	return fallback_action
 
 
@@ -298,7 +300,7 @@ static func get_next_action(
 ## @return 存在错误时返回 true。
 static func has_error_issues(report: Dictionary, options: Dictionary = {}) -> bool:
 	for issue_variant: Variant in _get_issue_array(report):
-		var issue := issue_to_dict(issue_variant)
+		var issue: Dictionary = issue_to_dict(issue_variant)
 		if not issue.is_empty() and _get_effective_severity(issue, options) == "error":
 			return true
 	return false
@@ -316,19 +318,19 @@ static func has_error_issues(report: Dictionary, options: Dictionary = {}) -> bo
 ## [br]
 ## @return 问题指纹；输入无效时返回空字符串。
 static func make_issue_fingerprint(issue: Variant, fields: PackedStringArray = PackedStringArray()) -> String:
-	var issue_data := issue_to_dict(issue)
+	var issue_data: Dictionary = issue_to_dict(issue)
 	if issue_data.is_empty():
 		return ""
 
-	var selected_fields := fields.duplicate()
+	var selected_fields: PackedStringArray = fields.duplicate()
 	if selected_fields.is_empty():
 		selected_fields = PackedStringArray(["severity", "kind", "path", "source_path", "key", "message"])
 
-	var parts := PackedStringArray()
+	var parts: PackedStringArray = PackedStringArray()
 	for field_name: String in selected_fields:
-		parts.append("%s=%s" % [
+		_append_packed_string(parts, "%s=%s" % [
 			field_name,
-			_fingerprint_value(issue_data.get(field_name, null)),
+			_fingerprint_value(GFVariantData.get_option_value(issue_data, field_name)),
 		])
 	return "|".join(parts)
 
@@ -349,12 +351,12 @@ static func make_issue_fingerprint(issue: Variant, fields: PackedStringArray = P
 ## [br]
 ## @schema return: Dictionary finalized report payload.
 static func filter_issues(report: Dictionary, options: Dictionary = {}) -> Dictionary:
-	var filtered_report := report.duplicate(true)
-	var source_issues := _get_issue_array(filtered_report)
+	var filtered_report: Dictionary = report.duplicate(true)
+	var source_issues: Array = _get_issue_array(filtered_report)
 	var retained_issues: Array = []
-	var filtered_count := 0
+	var filtered_count: int = 0
 	for issue_variant: Variant in source_issues:
-		var issue := issue_to_dict(issue_variant)
+		var issue: Dictionary = issue_to_dict(issue_variant)
 		if issue.is_empty():
 			continue
 		if _issue_matches_filter(issue, options):
@@ -363,11 +365,13 @@ static func filter_issues(report: Dictionary, options: Dictionary = {}) -> Dicti
 		retained_issues.append(issue)
 
 	filtered_report["issues"] = retained_issues
-	if bool(options.get("include_filter_summary", true)):
+	if GFVariantData.get_option_bool(options, "include_filter_summary", true):
 		filtered_report["original_issue_count"] = source_issues.size()
 		filtered_report["filtered_issue_count"] = filtered_count
 
-	var subject := String(options.get("subject", String(filtered_report.get("subject", ""))))
+	var subject: String = GFVariantData.to_text(
+		GFVariantData.get_option_value(options, "subject", GFVariantData.get_option_string(filtered_report, "subject"))
+	)
 	return finalize_report(filtered_report, subject, options)
 
 
@@ -386,14 +390,15 @@ static func filter_issues(report: Dictionary, options: Dictionary = {}) -> Dicti
 ## @schema return: Dictionary report payload mutated in place.
 static func promote_warnings(report: Dictionary, kinds: PackedStringArray = PackedStringArray()) -> Dictionary:
 	for issue_variant: Variant in _get_issue_array(report):
-		if issue_variant is _GF_VALIDATION_ISSUE_SCRIPT:
-			var validation_issue := issue_variant as RefCounted
-			var kind_key := String(validation_issue.call("get_kind_key"))
-			if bool(validation_issue.call("is_warning")) and (kinds.is_empty() or kinds.has(kind_key)):
-				validation_issue.set("severity", _GF_VALIDATION_ISSUE_SCRIPT.Severity.ERROR)
-		elif issue_variant is Dictionary:
-			var issue := issue_variant as Dictionary
-			if _GF_VALIDATION_ISSUE_SCRIPT.severity_to_string(issue.get("severity", "")) != "warning":
+		var validation_issue: RefCounted = _get_script_instance(issue_variant, _GF_VALIDATION_ISSUE_SCRIPT)
+		if validation_issue != null:
+			var kind_key: String = GFVariantData.to_text(validation_issue.call(&"get_kind_key"))
+			if GFVariantData.to_bool(validation_issue.call(&"is_warning")) and (kinds.is_empty() or kinds.has(kind_key)):
+				validation_issue.set("severity", _error_severity_value())
+			continue
+		if issue_variant is Dictionary:
+			var issue: Dictionary = issue_variant
+			if _severity_to_string(GFVariantData.get_option_value(issue, "severity", "")) != "warning":
 				continue
 			if kinds.is_empty() or kinds.has(_get_issue_kind(issue)):
 				issue["severity"] = "error"
@@ -403,100 +408,110 @@ static func promote_warnings(report: Dictionary, kinds: PackedStringArray = Pack
 # --- 私有/辅助方法 ---
 
 static func _get_issue_array(report: Dictionary) -> Array:
-	var issues_variant: Variant = report.get("issues", [])
+	var issues_variant: Variant = GFVariantData.get_option_value(report, "issues", [])
 	if not (issues_variant is Array):
-		report["issues"] = []
-	return report["issues"] as Array
+		var empty_issues: Array = []
+		report["issues"] = empty_issues
+		return empty_issues
+	var issues: Array = issues_variant
+	report["issues"] = issues
+	return issues
 
 
 static func _source_span_to_dict(source_span: Variant) -> Dictionary:
-	if source_span is _GF_SOURCE_SPAN_SCRIPT:
-		var span_dict: Variant = (source_span as RefCounted).call("to_dict", false, true)
-		return span_dict as Dictionary if span_dict is Dictionary else {}
+	var source_span_instance: RefCounted = _get_script_instance(source_span, _GF_SOURCE_SPAN_SCRIPT)
+	if source_span_instance != null:
+		return _call_dictionary(source_span_instance, &"to_dict", [false, true])
 	if source_span is Dictionary:
-		var span := _GF_SOURCE_SPAN_SCRIPT.new() as RefCounted
-		span.call("apply_dict", source_span as Dictionary)
-		var span_dict: Variant = span.call("to_dict", false, true)
-		return span_dict as Dictionary if span_dict is Dictionary else {}
+		var span: RefCounted = _make_source_span()
+		if span == null:
+			return {}
+		var source_span_data: Dictionary = source_span
+		_call_void(span, &"apply_dict", [source_span_data])
+		return _call_dictionary(span, &"to_dict", [false, true])
 	return {}
 
 
 static func _get_effective_severity(issue: Dictionary, options: Dictionary) -> String:
-	var severity_name: String = _GF_VALIDATION_ISSUE_SCRIPT.severity_to_string(issue.get("severity", "error"))
+	var severity_name: String = _severity_to_string(GFVariantData.get_option_value(issue, "severity", "error"))
 	if severity_name == "warning":
-		if _get_option_bool(options, "warnings_as_errors", false):
+		if GFVariantData.get_option_bool(options, "warnings_as_errors", false):
 			return "error"
-		if _kind_is_promoted(_get_issue_kind(issue), options.get("promote_warning_kinds", PackedStringArray())):
+		if _kind_is_promoted(_get_issue_kind(issue), GFVariantData.get_option_value(options, "promote_warning_kinds", PackedStringArray())):
 			return "error"
 	return severity_name
 
 
 static func _kind_is_promoted(kind_key: String, promoted_kinds: Variant) -> bool:
 	if promoted_kinds is PackedStringArray:
-		return (promoted_kinds as PackedStringArray).has(kind_key)
+		var promoted_names: PackedStringArray = promoted_kinds
+		return promoted_names.has(kind_key)
 	if promoted_kinds is Array:
-		return (promoted_kinds as Array).has(kind_key) or (promoted_kinds as Array).has(StringName(kind_key))
+		var promoted_values: Array = promoted_kinds
+		return promoted_values.has(kind_key) or promoted_values.has(StringName(kind_key))
 	return false
 
 
 static func _get_issue_kind(issue: Dictionary) -> String:
-	var kind_value: Variant = issue.get("kind", "unknown")
-	var kind_text := String(kind_value)
+	var kind_value: Variant = GFVariantData.get_option_value(issue, "kind", "unknown")
+	var kind_text: String = GFVariantData.to_text(kind_value)
 	return kind_text if not kind_text.is_empty() else "unknown"
 
 
 static func _get_first_issue_by_priority(report: Dictionary, options: Dictionary) -> Dictionary:
 	for issue_variant: Variant in _get_issue_array(report):
-		var issue := issue_to_dict(issue_variant)
+		var issue: Dictionary = issue_to_dict(issue_variant)
 		if not issue.is_empty() and _get_effective_severity(issue, options) == "error":
 			return issue
 	for issue_variant: Variant in _get_issue_array(report):
-		var issue := issue_to_dict(issue_variant)
+		var issue: Dictionary = issue_to_dict(issue_variant)
 		if not issue.is_empty() and _get_effective_severity(issue, options) == "warning":
 			return issue
 	for issue_variant: Variant in _get_issue_array(report):
-		var issue := issue_to_dict(issue_variant)
+		var issue: Dictionary = issue_to_dict(issue_variant)
 		if not issue.is_empty():
 			return issue
 	return {}
 
 
 static func _issue_matches_filter(issue: Dictionary, options: Dictionary) -> bool:
-	var kind := _get_issue_kind(issue)
-	if _lookup_has_value(_make_string_lookup(options.get("ignored_kinds", PackedStringArray())), kind):
+	var kind: String = _get_issue_kind(issue)
+	if _lookup_has_value(_make_string_lookup(GFVariantData.get_option_value(options, "ignored_kinds", PackedStringArray())), kind):
 		return true
-	if _lookup_has_value(_make_string_lookup(options.get("ignored_keys", PackedStringArray())), String(issue.get("key", ""))):
+	if _lookup_has_value(
+		_make_string_lookup(GFVariantData.get_option_value(options, "ignored_keys", PackedStringArray())),
+		GFVariantData.get_option_string(issue, "key")
+	):
 		return true
 
-	var path := String(issue.get("path", ""))
-	var source_path := String(issue.get("source_path", ""))
-	var ignored_paths := _make_string_lookup(options.get("ignored_paths", PackedStringArray()))
+	var path: String = GFVariantData.get_option_string(issue, "path")
+	var source_path: String = GFVariantData.get_option_string(issue, "source_path")
+	var ignored_paths: Dictionary = _make_string_lookup(GFVariantData.get_option_value(options, "ignored_paths", PackedStringArray()))
 	if _lookup_has_value(ignored_paths, path) or _lookup_has_value(ignored_paths, source_path):
 		return true
-	if _path_matches_patterns(path, options.get("ignored_path_patterns", PackedStringArray())):
+	if _path_matches_patterns(path, GFVariantData.get_option_value(options, "ignored_path_patterns", PackedStringArray())):
 		return true
-	if _path_matches_patterns(source_path, options.get("ignored_path_patterns", PackedStringArray())):
+	if _path_matches_patterns(source_path, GFVariantData.get_option_value(options, "ignored_path_patterns", PackedStringArray())):
 		return true
 
-	var fingerprint_fields := _to_packed_string_array(options.get("fingerprint_fields", PackedStringArray()))
-	var issue_fingerprint := make_issue_fingerprint(issue, fingerprint_fields)
+	var fingerprint_fields: PackedStringArray = _to_packed_string_array(GFVariantData.get_option_value(options, "fingerprint_fields", PackedStringArray()))
+	var issue_fingerprint: String = make_issue_fingerprint(issue, fingerprint_fields)
 	if _lookup_has_value(_make_filter_fingerprint_lookup(options, fingerprint_fields), issue_fingerprint):
 		return true
 	return false
 
 
 static func _make_filter_fingerprint_lookup(options: Dictionary, fingerprint_fields: PackedStringArray) -> Dictionary:
-	var lookup := _make_string_lookup(options.get("ignored_fingerprints", PackedStringArray()))
-	for fingerprint: String in _to_packed_string_array(options.get("baseline_fingerprints", PackedStringArray())):
+	var lookup: Dictionary = _make_string_lookup(GFVariantData.get_option_value(options, "ignored_fingerprints", PackedStringArray()))
+	for fingerprint: String in _to_packed_string_array(GFVariantData.get_option_value(options, "baseline_fingerprints", PackedStringArray())):
 		if not fingerprint.is_empty():
 			lookup[fingerprint] = true
 
-	var baseline_issues := options.get("baseline_issues", []) as Array
-	if baseline_issues != null:
-		for issue_variant: Variant in baseline_issues:
-			var fingerprint := make_issue_fingerprint(issue_variant, fingerprint_fields)
-			if not fingerprint.is_empty():
-				lookup[fingerprint] = true
+	var baseline_issues: Array = GFVariantData.get_option_array(options, "baseline_issues")
+	for issue_variant: Variant in baseline_issues:
+		var fingerprint: String = make_issue_fingerprint(issue_variant, fingerprint_fields)
+		if not fingerprint.is_empty():
+			lookup[fingerprint] = true
 	return lookup
 
 
@@ -514,17 +529,19 @@ static func _lookup_has_value(lookup: Dictionary, value: String) -> bool:
 
 static func _to_packed_string_array(value: Variant) -> PackedStringArray:
 	if value is PackedStringArray:
-		return (value as PackedStringArray).duplicate()
-	var result := PackedStringArray()
+		var packed_value: PackedStringArray = value
+		return packed_value.duplicate()
+	var result: PackedStringArray = PackedStringArray()
 	if value is Array:
-		for item: Variant in value as Array:
-			var text := String(item)
+		var values: Array = value
+		for item: Variant in values:
+			var text: String = GFVariantData.to_text(item)
 			if not text.is_empty():
-				result.append(text)
+				_append_packed_string(result, text)
 	elif value is String or value is StringName:
-		var text := String(value)
+		var text: String = GFVariantData.to_text(value)
 		if not text.is_empty():
-			result.append(text)
+			_append_packed_string(result, text)
 	return result
 
 
@@ -534,7 +551,7 @@ static func _path_matches_patterns(path: String, patterns: Variant) -> bool:
 	for pattern: String in _to_packed_string_array(patterns):
 		if pattern.is_empty():
 			continue
-		var regex := RegEx.new()
+		var regex: RegEx = RegEx.new()
 		if regex.compile("^%s$" % _glob_to_regex(pattern)) != OK:
 			continue
 		if regex.search(path) != null:
@@ -543,10 +560,10 @@ static func _path_matches_patterns(path: String, patterns: Variant) -> bool:
 
 
 static func _glob_to_regex(pattern: String) -> String:
-	var result := ""
-	var index := 0
+	var result: String = ""
+	var index: int = 0
 	while index < pattern.length():
-		var character := pattern.substr(index, 1)
+		var character: String = pattern.substr(index, 1)
 		if character == "*":
 			if index + 1 < pattern.length() and pattern.substr(index + 1, 1) == "*":
 				result += ".*"
@@ -566,11 +583,70 @@ static func _glob_to_regex(pattern: String) -> String:
 
 
 static func _fingerprint_value(value: Variant) -> String:
-	var compatible := GFVariantJsonCodec.variant_to_json_compatible(value, {
+	var compatible: Variant = GFVariantJsonCodec.variant_to_json_compatible(value, {
 		"unsupported": "string",
 	})
 	return JSON.stringify(compatible)
 
 
-static func _get_option_bool(options: Dictionary, field_name: String, default_value: bool) -> bool:
-	return GFVariantData.get_option_bool(options, field_name, default_value)
+static func _get_script_instance(value: Variant, expected_script: Script) -> RefCounted:
+	if not (value is RefCounted):
+		return null
+	var instance: RefCounted = value
+	if _script_matches(instance, expected_script):
+		return instance
+	return null
+
+
+static func _script_matches(instance: Object, expected_script: Script) -> bool:
+	var script_value: Variant = instance.get_script()
+	if not (script_value is Script):
+		return false
+	var current_script: Script = script_value
+	while current_script != null:
+		if current_script == expected_script:
+			return true
+		current_script = current_script.get_base_script()
+	return false
+
+
+static func _make_validation_issue() -> RefCounted:
+	return GFValidationIssue.new()
+
+
+static func _make_validation_report() -> RefCounted:
+	return GFValidationReport.new()
+
+
+static func _make_source_span() -> RefCounted:
+	return GFSourceSpan.new()
+
+
+static func _call_dictionary(instance: RefCounted, method_name: StringName, arguments: Array = []) -> Dictionary:
+	if instance == null:
+		return {}
+	var result: Variant = instance.callv(method_name, arguments)
+	return GFVariantData.as_dictionary(result)
+
+
+static func _call_void(instance: RefCounted, method_name: StringName, arguments: Array = []) -> void:
+	if instance == null:
+		return
+	var _result: Variant = instance.callv(method_name, arguments)
+
+
+static func _severity_to_string(value: Variant) -> String:
+	var severity_value: Variant = _GF_VALIDATION_ISSUE_SCRIPT.call(&"severity_to_string", value)
+	var severity_name: String = GFVariantData.to_text(severity_value, "error")
+	return severity_name if not severity_name.is_empty() else "error"
+
+
+static func _error_severity_value() -> int:
+	var severity_value: Variant = _GF_VALIDATION_ISSUE_SCRIPT.call(&"normalize_severity", "error")
+	return GFVariantData.to_int(severity_value, 2)
+
+
+static func _append_packed_string(target: PackedStringArray, value: String) -> void:
+	var appended: bool = target.append(value)
+	if appended:
+		return

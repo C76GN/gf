@@ -42,7 +42,7 @@ enum CompletionMode {
 
 # --- 常量 ---
 
-const _GF_ASYNC_WAIT_SUPPORT: Script = preload("res://addons/gf/standard/common/gf_async_wait_support.gd")
+const _GF_ASYNC_WAIT_SUPPORT = preload("res://addons/gf/standard/common/gf_async_wait_support.gd")
 
 
 # --- 公共变量 ---
@@ -212,8 +212,9 @@ func await_result_safely(result: Variant, should_continue: Callable = Callable()
 	if not should_wait_for_result(result):
 		return
 
+	var signal_result: Signal = result
 	await _GF_ASYNC_WAIT_SUPPORT.await_signal_safely(
-		result as Signal,
+		signal_result,
 		should_continue,
 		_get_time_utility(),
 		signal_timeout_seconds,
@@ -237,15 +238,29 @@ func _emit_completed_once() -> void:
 
 
 func _get_time_utility() -> GFTimeUtility:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
-	return architecture.get_utility(GFTimeUtility) as GFTimeUtility
+	return _get_time_utility_value(architecture.get_utility(GFTimeUtility))
 
 
 func _get_architecture_or_null() -> GFArchitecture:
 	if _architecture_ref != null:
-		var architecture := _architecture_ref.get_ref() as GFArchitecture
+		var architecture: GFArchitecture = _get_architecture_value(_architecture_ref.get_ref())
 		if architecture != null:
 			return architecture
 	return GFAutoload.get_architecture_or_null()
+
+
+func _get_time_utility_value(value: Variant) -> GFTimeUtility:
+	if value is GFTimeUtility:
+		var utility: GFTimeUtility = value
+		return utility
+	return null
+
+
+func _get_architecture_value(value: Variant) -> GFArchitecture:
+	if value is GFArchitecture:
+		var architecture: GFArchitecture = value
+		return architecture
+	return null

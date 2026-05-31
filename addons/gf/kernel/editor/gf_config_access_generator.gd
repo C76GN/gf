@@ -32,6 +32,7 @@ const DEFAULT_CLASS_NAME: String = "GFConfigAccess"
 ## [br]
 ## @api public
 const DEFAULT_PROVIDER_ACCESSOR: String = "null"
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
 
 
 # --- 公共方法 ---
@@ -91,9 +92,9 @@ func build_source(
 	provider_accessor: String = DEFAULT_PROVIDER_ACCESSOR,
 	options: Dictionary = {}
 ) -> String:
-	var generation_options := _normalize_generation_options(options)
-	var records := _collect_schema_records(schemas, generation_options)
-	var builder := GFSourceBuilder.new()
+	var generation_options: Dictionary = _normalize_generation_options(options)
+	var records: Array[Dictionary] = _collect_schema_records(schemas, generation_options)
+	var builder: GFSourceBuilder = GFSourceBuilder.new()
 	builder.doc("%s: 自动生成的静态导表访问器。" % access_class_name)
 	builder.doc()
 	builder.doc("该文件由 GFConfigAccessGenerator 生成，可以提交到版本库；请不要手动编辑。")
@@ -103,8 +104,8 @@ func build_source(
 	builder.section("常量")
 	for record: Dictionary in records:
 		builder.line("const %s: StringName = &\"%s\"" % [
-			String(record.get("constant_name", "")),
-			_escape_string(String(record.get("table_name", ""))),
+			_GF_VARIANT_ACCESS_SCRIPT.get_option_string(record, "constant_name"),
+			_escape_string(_GF_VARIANT_ACCESS_SCRIPT.get_option_string(record, "table_name")),
 		])
 
 	builder.blank(2)
@@ -122,6 +123,36 @@ func build_source(
 	builder.line("return provider")
 	builder.dedent()
 	builder.line("return %s" % provider_accessor)
+	builder.dedent()
+	builder.blank(2)
+	builder.line("static func _get_provider_record(provider: Variant, table_name: StringName, id: Variant) -> Variant:")
+	builder.indent()
+	builder.line("var resolved_provider: Variant = _provider_or_null(provider)")
+	builder.line("if not (resolved_provider is Object):")
+	builder.indent()
+	builder.line("return null")
+	builder.dedent()
+	builder.line("var provider_object: Object = resolved_provider")
+	builder.line("if not provider_object.has_method(\"get_record\"):")
+	builder.indent()
+	builder.line("return null")
+	builder.dedent()
+	builder.line("return provider_object.call(\"get_record\", table_name, id)")
+	builder.dedent()
+	builder.blank(2)
+	builder.line("static func _get_provider_table(provider: Variant, table_name: StringName) -> Variant:")
+	builder.indent()
+	builder.line("var resolved_provider: Variant = _provider_or_null(provider)")
+	builder.line("if not (resolved_provider is Object):")
+	builder.indent()
+	builder.line("return null")
+	builder.dedent()
+	builder.line("var provider_object: Object = resolved_provider")
+	builder.line("if not provider_object.has_method(\"get_table\"):")
+	builder.indent()
+	builder.line("return null")
+	builder.dedent()
+	builder.line("return provider_object.call(\"get_table\", table_name)")
 	builder.dedent()
 	return builder.build()
 
@@ -146,18 +177,22 @@ func save_source(output_path: String, source: String, overwrite_existing: bool =
 		push_warning("[GFConfigAccessGenerator] 目标文件已存在，已跳过：%s" % output_path)
 		return ERR_ALREADY_EXISTS
 
-	DirAccess.make_dir_recursive_absolute(output_path.get_base_dir())
-	var file := FileAccess.open(output_path, FileAccess.WRITE)
+	var dir_error: Error = DirAccess.make_dir_recursive_absolute(output_path.get_base_dir())
+	if dir_error != OK:
+		push_error("[GFConfigAccessGenerator] 无法创建导表访问器输出目录：%s (%s)" % [output_path.get_base_dir(), error_string(dir_error)])
+		return dir_error
+
+	var file: FileAccess = FileAccess.open(output_path, FileAccess.WRITE)
 	if file == null:
-		var open_error := FileAccess.get_open_error()
+		var open_error: Error = FileAccess.get_open_error()
 		push_error("[GFConfigAccessGenerator] 无法写入导表访问器脚本：%s (%s)" % [output_path, error_string(open_error)])
 		return open_error
 
-	file.store_string(source)
+	_store_file_string(file, source)
 	file.close()
 
 	if Engine.is_editor_hint():
-		var filesystem := EditorInterface.get_resource_filesystem()
+		var filesystem: EditorFileSystem = EditorInterface.get_resource_filesystem()
 		if filesystem != null:
 			filesystem.scan()
 
@@ -169,25 +204,25 @@ func save_source(output_path: String, source: String, overwrite_existing: bool =
 func _collect_schema_records(schemas: Array, options: Dictionary) -> Array[Dictionary]:
 	var records: Array[Dictionary] = []
 	for schema_variant: Variant in schemas:
-		var table_name := _get_schema_table_name(schema_variant)
+		var table_name: String = _get_schema_table_name(schema_variant)
 		if table_name.is_empty():
 			continue
 
-		var method_prefix := _sanitize_identifier(table_name)
+		var method_prefix: String = _sanitize_identifier(table_name)
 		if method_prefix.is_empty():
 			push_warning("[GFConfigAccessGenerator] 表名无法生成有效访问器，已跳过：%s" % table_name)
 			continue
 
-		var metadata := _get_schema_metadata(schema_variant)
+		var metadata: Dictionary = _get_schema_metadata(schema_variant)
 		records.append({
 			"table_name": table_name,
-			"method_prefix": _format_identifier(method_prefix, String(options.get("method_name_style", "snake"))),
-			"constant_name": "%s%s" % [String(options.get("constant_prefix", "")), _to_constant_name(method_prefix)],
+			"method_prefix": _format_identifier(method_prefix, _GF_VARIANT_ACCESS_SCRIPT.get_option_string(options, "method_name_style", "snake")),
+			"constant_name": "%s%s" % [_GF_VARIANT_ACCESS_SCRIPT.get_option_string(options, "constant_prefix"), _to_constant_name(method_prefix)],
 			"comment": _get_schema_comment(metadata),
 		})
 
 	records.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
-		return String(left.get("table_name", "")) < String(right.get("table_name", ""))
+		return _GF_VARIANT_ACCESS_SCRIPT.get_option_string(left, "table_name") < _GF_VARIANT_ACCESS_SCRIPT.get_option_string(right, "table_name")
 	)
 	return records
 
@@ -198,77 +233,67 @@ func _append_table_accessors(
 	used_methods: Dictionary,
 	options: Dictionary
 ) -> void:
-	var method_prefix := String(record.get("method_prefix", ""))
-	var constant_name := String(record.get("constant_name", ""))
-	var record_method := _format_method_pattern(String(options.get("record_method_pattern", "get_{table}_record")), method_prefix)
-	var table_method := _format_method_pattern(String(options.get("table_method_pattern", "get_{table}_table")), method_prefix)
+	var method_prefix: String = _GF_VARIANT_ACCESS_SCRIPT.get_option_string(record, "method_prefix")
+	var constant_name: String = _GF_VARIANT_ACCESS_SCRIPT.get_option_string(record, "constant_name")
+	var record_method: String = _format_method_pattern(_GF_VARIANT_ACCESS_SCRIPT.get_option_string(options, "record_method_pattern", "get_{table}_record"), method_prefix)
+	var table_method: String = _format_method_pattern(_GF_VARIANT_ACCESS_SCRIPT.get_option_string(options, "table_method_pattern", "get_{table}_table"), method_prefix)
 	if used_methods.has(record_method) or used_methods.has(table_method):
 		push_warning("[GFConfigAccessGenerator] 函数名重复，已跳过：%s" % method_prefix)
 		return
 
 	used_methods[record_method] = true
 	used_methods[table_method] = true
-	var comment := String(record.get("comment", ""))
-	if bool(options.get("include_schema_comments", true)) and not comment.is_empty():
+	var comment: String = _GF_VARIANT_ACCESS_SCRIPT.get_option_string(record, "comment")
+	if _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(options, "include_schema_comments", true) and not comment.is_empty():
 		builder.doc(comment)
-	builder.doc("获取 `%s` 表中的单条记录。" % String(record.get("table_name", "")))
+	builder.doc("获取 `%s` 表中的单条记录。" % _GF_VARIANT_ACCESS_SCRIPT.get_option_string(record, "table_name"))
 	builder.line("static func %s(id: Variant, provider: Variant = null) -> Variant:" % record_method)
 	builder.indent()
-	builder.line("var resolved_provider := _provider_or_null(provider)")
-	builder.line("if resolved_provider == null:")
-	builder.indent()
-	builder.line("return null")
-	builder.dedent()
-	builder.line("return resolved_provider.get_record(%s, id)" % constant_name)
+	builder.line("return _get_provider_record(provider, %s, id)" % constant_name)
 	builder.dedent()
 	builder.blank(2)
-	builder.doc("获取 `%s` 整张表数据。" % String(record.get("table_name", "")))
+	builder.doc("获取 `%s` 整张表数据。" % _GF_VARIANT_ACCESS_SCRIPT.get_option_string(record, "table_name"))
 	builder.line("static func %s(provider: Variant = null) -> Variant:" % table_method)
 	builder.indent()
-	builder.line("var resolved_provider := _provider_or_null(provider)")
-	builder.line("if resolved_provider == null:")
-	builder.indent()
-	builder.line("return null")
-	builder.dedent()
-	builder.line("return resolved_provider.get_table(%s)" % constant_name)
+	builder.line("return _get_provider_table(provider, %s)" % constant_name)
 	builder.dedent()
 	builder.blank(2)
 
 
 func _sanitize_identifier(value: String) -> String:
-	var parts := PackedStringArray()
-	var current := ""
+	var parts: PackedStringArray = PackedStringArray()
+	var current: String = ""
 	for index: int in range(value.length()):
-		var character := value.substr(index, 1).to_lower()
+		var character: String = value.substr(index, 1).to_lower()
 		if _is_identifier_part(character):
 			current += character
 		elif not current.is_empty():
-			parts.append(current)
+			_append_packed_string(parts, current)
 			current = ""
 	if not current.is_empty():
-		parts.append(current)
+		_append_packed_string(parts, current)
 	if parts.is_empty():
 		return ""
 
-	var result := "_".join(parts)
+	var result: String = "_".join(parts)
 	if result.substr(0, 1).is_valid_int():
 		result = "table_" + result
 	return result
 
 
 func _normalize_generation_options(options: Dictionary) -> Dictionary:
-	var result := {
-		"method_name_style": String(options.get("method_name_style", "snake")).to_lower(),
-		"constant_prefix": _sanitize_constant_prefix(String(options.get("constant_prefix", ""))),
-		"record_method_pattern": String(options.get("record_method_pattern", "get_{table}_record")),
-		"table_method_pattern": String(options.get("table_method_pattern", "get_{table}_table")),
-		"include_schema_comments": bool(options.get("include_schema_comments", true)),
+	var result: Dictionary = {
+		"method_name_style": _GF_VARIANT_ACCESS_SCRIPT.get_option_string(options, "method_name_style", "snake").to_lower(),
+		"constant_prefix": _sanitize_constant_prefix(_GF_VARIANT_ACCESS_SCRIPT.get_option_string(options, "constant_prefix")),
+		"record_method_pattern": _GF_VARIANT_ACCESS_SCRIPT.get_option_string(options, "record_method_pattern", "get_{table}_record"),
+		"table_method_pattern": _GF_VARIANT_ACCESS_SCRIPT.get_option_string(options, "table_method_pattern", "get_{table}_table"),
+		"include_schema_comments": _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(options, "include_schema_comments", true),
 	}
-	if not (String(result["method_name_style"]) in ["snake", "camel", "pascal"]):
+	if not (_GF_VARIANT_ACCESS_SCRIPT.get_option_string(result, "method_name_style") in ["snake", "camel", "pascal"]):
 		result["method_name_style"] = "snake"
-	if String(result["record_method_pattern"]).is_empty():
+	if _GF_VARIANT_ACCESS_SCRIPT.get_option_string(result, "record_method_pattern").is_empty():
 		result["record_method_pattern"] = "get_{table}_record"
-	if String(result["table_method_pattern"]).is_empty():
+	if _GF_VARIANT_ACCESS_SCRIPT.get_option_string(result, "table_method_pattern").is_empty():
 		result["table_method_pattern"] = "get_{table}_table"
 	return result
 
@@ -276,7 +301,7 @@ func _normalize_generation_options(options: Dictionary) -> Dictionary:
 func _sanitize_constant_prefix(value: String) -> String:
 	if value.is_empty():
 		return ""
-	var sanitized := _sanitize_identifier(value).to_upper()
+	var sanitized: String = _sanitize_identifier(value).to_upper()
 	return "%s_" % sanitized if not sanitized.is_empty() and not sanitized.ends_with("_") else sanitized
 
 
@@ -291,7 +316,7 @@ func _format_identifier(identifier: String, style: String) -> String:
 
 
 func _format_method_pattern(pattern: String, table_token: String) -> String:
-	var method_name := pattern.replace("{table}", table_token)
+	var method_name: String = pattern.replace("{table}", table_token)
 	method_name = _sanitize_generated_method_name(method_name)
 	if method_name.is_empty():
 		return "get_%s" % table_token
@@ -299,10 +324,10 @@ func _format_method_pattern(pattern: String, table_token: String) -> String:
 
 
 func _sanitize_generated_method_name(value: String) -> String:
-	var result := ""
-	var previous_was_separator := false
+	var result: String = ""
+	var previous_was_separator: bool = false
 	for index: int in range(value.length()):
-		var character := value.substr(index, 1)
+		var character: String = value.substr(index, 1)
 		if _is_identifier_part(character.to_lower()) or character == "_":
 			result += character
 			previous_was_separator = false
@@ -320,8 +345,8 @@ func _sanitize_generated_method_name(value: String) -> String:
 
 
 func _to_pascal_case(identifier: String) -> String:
-	var parts := identifier.split("_", false)
-	var result := ""
+	var parts: PackedStringArray = identifier.split("_", false)
+	var result: String = ""
 	for part: String in parts:
 		if part.is_empty():
 			continue
@@ -330,7 +355,7 @@ func _to_pascal_case(identifier: String) -> String:
 
 
 func _to_camel_case(identifier: String) -> String:
-	var pascal := _to_pascal_case(identifier)
+	var pascal: String = _to_pascal_case(identifier)
 	if pascal.is_empty():
 		return identifier
 	return pascal.substr(0, 1).to_lower() + pascal.substr(1)
@@ -340,18 +365,18 @@ func _get_schema_table_name(schema: Variant) -> String:
 	if schema == null:
 		return ""
 	if schema is Dictionary:
-		var dictionary := schema as Dictionary
+		var dictionary: Dictionary = schema
 		if dictionary.has("table_name"):
-			return String(dictionary.get("table_name"))
+			return _GF_VARIANT_ACCESS_SCRIPT.get_option_string(dictionary, "table_name")
 		if dictionary.has("table_key"):
-			return String(dictionary.get("table_key"))
+			return _GF_VARIANT_ACCESS_SCRIPT.get_option_string(dictionary, "table_key")
 		return ""
 	if schema is Object:
-		var object := schema as Object
-		var table_name := String(_get_object_property_or_default(object, &"table_name", ""))
+		var object: Object = schema
+		var table_name: String = _GF_VARIANT_ACCESS_SCRIPT.to_text(_get_object_property_or_default(object, &"table_name", ""))
 		if not table_name.is_empty():
 			return table_name
-		return String(_get_object_property_or_default(object, &"table_key", ""))
+		return _GF_VARIANT_ACCESS_SCRIPT.to_text(_get_object_property_or_default(object, &"table_key", ""))
 	return ""
 
 
@@ -359,28 +384,34 @@ func _get_schema_metadata(schema: Variant) -> Dictionary:
 	if schema == null:
 		return {}
 	if schema is Dictionary:
-		var dictionary := schema as Dictionary
-		var metadata: Variant = dictionary.get("metadata", {})
-		return (metadata as Dictionary).duplicate(true) if metadata is Dictionary else {}
+		var dictionary: Dictionary = schema
+		var metadata: Variant = _GF_VARIANT_ACCESS_SCRIPT.get_option_value(dictionary, "metadata", {})
+		if metadata is Dictionary:
+			var metadata_dictionary: Dictionary = metadata
+			return metadata_dictionary.duplicate(true)
+		return {}
 	if schema is Object:
-		var object := schema as Object
+		var object: Object = schema
 		var metadata_variant: Variant = _get_object_property_or_default(object, &"metadata", {})
-		return (metadata_variant as Dictionary).duplicate(true) if metadata_variant is Dictionary else {}
+		if metadata_variant is Dictionary:
+			var metadata_dictionary: Dictionary = metadata_variant
+			return metadata_dictionary.duplicate(true)
+		return {}
 	return {}
 
 
 func _get_schema_comment(metadata: Dictionary) -> String:
 	if metadata.has("comment"):
-		return String(metadata.get("comment", ""))
+		return _GF_VARIANT_ACCESS_SCRIPT.get_option_string(metadata, "comment")
 	if metadata.has("description"):
-		return String(metadata.get("description", ""))
+		return _GF_VARIANT_ACCESS_SCRIPT.get_option_string(metadata, "description")
 	return ""
 
 
 func _get_object_property_or_default(object: Object, property_name: StringName, default_value: Variant) -> Variant:
 	for property: Dictionary in object.get_property_list():
-		if StringName(property.get("name", "")) == property_name:
-			return object.get(property_name)
+		if _GF_VARIANT_ACCESS_SCRIPT.get_option_string_name(property, "name") == property_name:
+			return object.get_indexed(NodePath(String(property_name)))
 	return default_value
 
 
@@ -392,7 +423,7 @@ func _is_identifier_part(character: String) -> bool:
 	if character.length() != 1:
 		return false
 
-	var code := character.unicode_at(0)
+	var code: int = character.unicode_at(0)
 	return (
 		(code >= 97 and code <= 122)
 		or (code >= 48 and code <= 57)
@@ -401,3 +432,11 @@ func _is_identifier_part(character: String) -> bool:
 
 func _escape_string(value: String) -> String:
 	return value.replace("\\", "\\\\").replace("\"", "\\\"")
+
+
+func _store_file_string(file: FileAccess, value: String) -> void:
+	var _stored: bool = file.store_string(value)
+
+
+func _append_packed_string(target: PackedStringArray, value: String) -> void:
+	var _appended: bool = target.append(value)

@@ -8,6 +8,7 @@ var shake := Gf.get_utility(GFShakeUtility) as GFShakeUtility
 var preset := GFShakePreset.new()
 preset.duration_seconds = 0.18
 preset.frequency = 18.0
+preset.sample_seed = 7
 preset.position_axis = Vector3(6.0, 4.0, 0.0)
 preset.rotation_axis_degrees = Vector3(0.0, 0.0, 1.2)
 

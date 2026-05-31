@@ -40,8 +40,8 @@ func set_field_serializer(field_name: StringName, serializer: GFNetworkFieldSeri
 	if field_name == &"":
 		return
 	if serializer == null:
-		field_serializers.erase(field_name)
-		field_serializers.erase(String(field_name))
+		var _name_erased: bool = field_serializers.erase(field_name)
+		var _text_erased: bool = field_serializers.erase(String(field_name))
 		return
 	field_serializers[field_name] = serializer
 
@@ -52,8 +52,8 @@ func set_field_serializer(field_name: StringName, serializer: GFNetworkFieldSeri
 ## [br]
 ## @param field_name: 字段名。
 func remove_field_serializer(field_name: StringName) -> void:
-	field_serializers.erase(field_name)
-	field_serializers.erase(String(field_name))
+	var _name_erased: bool = field_serializers.erase(field_name)
+	var _text_erased: bool = field_serializers.erase(String(field_name))
 
 
 ## 获取字段编码器。
@@ -69,7 +69,7 @@ func get_field_serializer(field_name: StringName) -> GFNetworkFieldSerializer:
 		value = field_serializers[field_name]
 	elif field_serializers.has(String(field_name)):
 		value = field_serializers[String(field_name)]
-	return value as GFNetworkFieldSerializer
+	return _variant_to_field_serializer(value)
 
 
 ## 检查字段是否注册了编码器。
@@ -89,17 +89,17 @@ func has_field_serializer(field_name: StringName) -> bool:
 ## [br]
 ## @return 字段名列表。
 func get_registered_fields() -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	var seen: Dictionary = {}
 	for key: Variant in field_serializers.keys():
-		var serializer := field_serializers[key] as GFNetworkFieldSerializer
+		var serializer: GFNetworkFieldSerializer = _variant_to_field_serializer(field_serializers[key])
 		if serializer == null:
 			continue
-		var field_name := str(key)
+		var field_name: String = GFVariantData.to_text(key)
 		if seen.has(field_name):
 			continue
 		seen[field_name] = true
-		result.append(field_name)
+		_append_packed_string(result, field_name)
 	result.sort()
 	return result
 
@@ -118,11 +118,11 @@ func get_registered_fields() -> PackedStringArray:
 func encode_state(state: Dictionary) -> Dictionary:
 	var encoded: Dictionary = {}
 	for field_name: String in get_registered_fields():
-		var field_key := StringName(field_name)
+		var field_key: StringName = StringName(field_name)
 		if not _state_has_field(state, field_key):
 			continue
 
-		var serializer := get_field_serializer(field_key)
+		var serializer: GFNetworkFieldSerializer = get_field_serializer(field_key)
 		if serializer != null:
 			encoded[field_key] = serializer.serialize_value(_state_get_field(state, field_key))
 
@@ -148,11 +148,11 @@ func encode_state(state: Dictionary) -> Dictionary:
 func decode_state(encoded_state: Dictionary) -> Dictionary:
 	var decoded: Dictionary = {}
 	for field_name: String in get_registered_fields():
-		var field_key := StringName(field_name)
+		var field_key: StringName = StringName(field_name)
 		if not _state_has_field(encoded_state, field_key):
 			continue
 
-		var serializer := get_field_serializer(field_key)
+		var serializer: GFNetworkFieldSerializer = get_field_serializer(field_key)
 		if serializer != null:
 			decoded[field_key] = serializer.deserialize_value(_state_get_field(encoded_state, field_key))
 
@@ -177,7 +177,7 @@ func encode_snapshot(snapshot: GFNetworkSnapshot) -> Dictionary:
 	if snapshot == null:
 		return {}
 
-	var data := snapshot.to_dict()
+	var data: Dictionary = snapshot.to_dict()
 	data["state"] = encode_state(snapshot.state)
 	return data
 
@@ -192,7 +192,7 @@ func encode_snapshot(snapshot: GFNetworkSnapshot) -> Dictionary:
 ## [br]
 ## @schema data: Dictionary，encode_snapshot() 或 GFNetworkSnapshot.to_dict() 结构。
 func decode_snapshot(data: Dictionary) -> GFNetworkSnapshot:
-	var snapshot := GFNetworkSnapshot.new()
+	var snapshot: GFNetworkSnapshot = GFNetworkSnapshot.new()
 	snapshot.from_dict(data)
 	snapshot.state = decode_state(snapshot.state)
 	return snapshot
@@ -234,10 +234,10 @@ func decode_patch(encoded_patch: Dictionary) -> Dictionary:
 ## [br]
 ## @return 新 Schema。
 func duplicate_schema() -> GFNetworkSnapshotSchema:
-	var schema := GFNetworkSnapshotSchema.new()
+	var schema: GFNetworkSnapshotSchema = GFNetworkSnapshotSchema.new()
 	schema.include_unregistered_fields = include_unregistered_fields
 	for key: Variant in field_serializers.keys():
-		var serializer := field_serializers[key] as GFNetworkFieldSerializer
+		var serializer: GFNetworkFieldSerializer = _variant_to_field_serializer(field_serializers[key])
 		if serializer != null:
 			schema.field_serializers[key] = serializer.duplicate_serializer()
 	return schema
@@ -252,33 +252,33 @@ func _state_has_field(state: Dictionary, field_name: StringName) -> bool:
 func _state_get_field(state: Dictionary, field_name: StringName) -> Variant:
 	if state.has(field_name):
 		return state[field_name]
-	return state.get(String(field_name))
+	return GFVariantData.get_option_value(state, String(field_name))
 
 
 func _transform_patch(patch: Dictionary, encode: bool) -> Dictionary:
-	var result := patch.duplicate(true)
-	result["set"] = _transform_patch_set_ops(patch.get("set", []), encode)
-	result["erase"] = _filter_patch_erase_ops(patch.get("erase", []))
+	var result: Dictionary = patch.duplicate(true)
+	result["set"] = _transform_patch_set_ops(GFVariantData.get_option_value(patch, "set", []), encode)
+	result["erase"] = _filter_patch_erase_ops(GFVariantData.get_option_value(patch, "erase", []))
 	return result
 
 
 func _transform_patch_set_ops(set_value: Variant, encode: bool) -> Variant:
 	if set_value is Dictionary:
-		return _transform_patch_set_dictionary(set_value as Dictionary, encode)
+		return _transform_patch_set_dictionary(GFVariantData.as_dictionary(set_value), encode)
 	if not (set_value is Array):
 		return set_value
 
 	var result: Array[Dictionary] = []
-	var set_array := set_value as Array
+	var set_array: Array = GFVariantData.as_array(set_value)
 	for op_value: Variant in set_array:
 		if not (op_value is Dictionary):
 			continue
-		var op := (op_value as Dictionary).duplicate(true)
-		var path := _patch_path_from_value(op.get("path", []))
+		var op: Dictionary = GFVariantData.as_dictionary(op_value).duplicate(true)
+		var path: Array = _patch_path_from_value(GFVariantData.get_option_value(op, "path", []))
 		if not _should_include_patch_path(path):
 			continue
 		op["path"] = path
-		op["value"] = _transform_patch_value_for_path(path, op.get("value"), encode)
+		op["value"] = _transform_patch_value_for_path(path, GFVariantData.get_option_value(op, "value"), encode)
 		result.append(op)
 	return result
 
@@ -286,7 +286,7 @@ func _transform_patch_set_ops(set_value: Variant, encode: bool) -> Variant:
 func _transform_patch_set_dictionary(set_values: Dictionary, encode: bool) -> Dictionary:
 	var result: Dictionary = {}
 	for key: Variant in set_values.keys():
-		var path := [key]
+		var path: Array = [key]
 		if not _should_include_patch_path(path):
 			continue
 		result[key] = _transform_patch_value_for_path(path, set_values[key], encode)
@@ -295,28 +295,28 @@ func _transform_patch_set_dictionary(set_values: Dictionary, encode: bool) -> Di
 
 func _filter_patch_erase_ops(erase_value: Variant) -> Variant:
 	if erase_value is PackedStringArray:
-		var result := PackedStringArray()
+		var erase_keys: PackedStringArray = PackedStringArray()
 		for key: String in erase_value:
 			if _should_include_patch_path([key]):
-				result.append(key)
-		return result
+				_append_packed_string(erase_keys, key)
+		return erase_keys
 	if not (erase_value is Array):
 		return erase_value
 
-	var result: Array = []
-	var erase_array := erase_value as Array
+	var erase_paths: Array = []
+	var erase_array: Array = GFVariantData.as_array(erase_value)
 	for op_value: Variant in erase_array:
-		var path := _patch_path_from_value(op_value)
+		var path: Array = _patch_path_from_value(op_value)
 		if _should_include_patch_path(path):
-			result.append(path)
-	return result
+			erase_paths.append(path)
+	return erase_paths
 
 
 func _transform_patch_value_for_path(path: Array, value: Variant, encode: bool) -> Variant:
 	if path.size() != 1:
 		return GFVariantData.duplicate_variant(value)
 
-	var serializer := get_field_serializer(StringName(str(path[0])))
+	var serializer: GFNetworkFieldSerializer = get_field_serializer(StringName(str(path[0])))
 	if serializer == null:
 		return GFVariantData.duplicate_variant(value)
 	if encode:
@@ -341,3 +341,16 @@ func _patch_path_from_value(path_value: Variant) -> Array:
 	elif path_value is String or path_value is StringName:
 		result.append(path_value)
 	return result
+
+
+func _variant_to_field_serializer(value: Variant) -> GFNetworkFieldSerializer:
+	if value is GFNetworkFieldSerializer:
+		var serializer: GFNetworkFieldSerializer = value
+		return serializer
+	return null
+
+
+func _append_packed_string(target: PackedStringArray, value: String) -> void:
+	var appended: bool = target.append(value)
+	if appended:
+		return

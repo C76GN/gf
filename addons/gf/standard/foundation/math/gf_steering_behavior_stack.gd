@@ -108,19 +108,34 @@ func calculate(agent: GFSteeringAgent, context: Dictionary = {}) -> GFSteeringAc
 ## [br]
 ## @return 新行为组合。
 func duplicate_stack() -> Resource:
-	var stack := get_script().new() as Resource
+	var stack_script: Script = _get_script_value(get_script())
+	if stack_script == null:
+		return null
+
+	var raw_stack: Variant = stack_script.call("new")
+	if not (raw_stack is Resource):
+		return null
+
+	var stack: Resource = raw_stack
 	stack.set("mode", mode)
 	stack.set("max_linear", max_linear)
 	stack.set("max_angular", max_angular)
 	stack.set("priority_threshold", priority_threshold)
 	var duplicated_behaviors: Array[GFSteeringBehaviorResource] = []
 	for behavior: GFSteeringBehaviorResource in behaviors:
-		duplicated_behaviors.append(behavior.duplicate_behavior() as GFSteeringBehaviorResource if behavior != null else null)
+		duplicated_behaviors.append(_duplicate_behavior_or_null(behavior))
 	stack.set("behaviors", duplicated_behaviors)
 	return stack
 
 
 # --- 私有/辅助方法 ---
+
+func _get_script_value(value: Variant) -> Script:
+	if value is Script:
+		var script: Script = value
+		return script
+	return null
+
 
 func _calculate_blend(agent: GFSteeringAgent, context: Dictionary) -> GFSteeringAcceleration:
 	var accelerations: Array[GFSteeringAcceleration] = []
@@ -142,12 +157,22 @@ func _calculate_priority(agent: GFSteeringAgent, context: Dictionary) -> GFSteer
 	for behavior: GFSteeringBehaviorResource in behaviors:
 		if behavior == null or not behavior.enabled:
 			continue
-		var acceleration := behavior.calculate(agent, context)
+		var acceleration: GFSteeringAcceleration = behavior.calculate(agent, context)
 		if behavior.weight != 1.0:
-			acceleration.add_scaled(acceleration.duplicate_acceleration(), behavior.weight - 1.0)
+			var _add_scaled_result_162: Variant = acceleration.add_scaled(acceleration.duplicate_acceleration(), behavior.weight - 1.0)
 		if not acceleration.is_zero(priority_threshold):
 			return acceleration.clamp_to(_resolve_max_linear(agent), _resolve_max_angular(agent))
 	return GFSteeringAcceleration.new()
+
+
+func _duplicate_behavior_or_null(behavior: GFSteeringBehaviorResource) -> GFSteeringBehaviorResource:
+	if behavior == null:
+		return null
+	var duplicated: Resource = behavior.duplicate_behavior()
+	if duplicated is GFSteeringBehaviorResource:
+		var duplicated_behavior: GFSteeringBehaviorResource = duplicated
+		return duplicated_behavior
+	return null
 
 
 func _resolve_max_linear(agent: GFSteeringAgent) -> float:

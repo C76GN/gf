@@ -42,7 +42,7 @@ func modify(value: Vector2, _event: InputEvent = null, _action: GFInputAction = 
 ## [br]
 ## @return 修饰后的三维贡献值。
 func modify_3d(value: Vector3, event: InputEvent = null, action: GFInputAction = null) -> Vector3:
-	var xy := modify(Vector2(value.x, value.y), event, action)
+	var xy: Vector2 = modify(Vector2(value.x, value.y), event, action)
 	return Vector3(xy.x, xy.y, value.z)
 
 
@@ -52,4 +52,8 @@ func modify_3d(value: Vector3, event: InputEvent = null, action: GFInputAction =
 ## [br]
 ## @return 修饰器副本。
 func duplicate_modifier() -> GFInputModifier:
-	return duplicate(true) as GFInputModifier
+	var modifier: Resource = duplicate(true)
+	if modifier is GFInputModifier:
+		var input_modifier: GFInputModifier = modifier
+		return input_modifier
+	return null

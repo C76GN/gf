@@ -82,7 +82,7 @@ func generate(candidates: Array[Vector2i], context: Dictionary = {}) -> Dictiona
 	for step: GFGridGenerationStep2D in steps:
 		if step == null:
 			continue
-		step.apply(grid, candidates, context)
+		var _apply_result_85: Variant = step.apply(grid, candidates, context)
 	return grid
 
 
@@ -116,7 +116,7 @@ func apply_to_grid(
 	for step: GFGridGenerationStep2D in steps:
 		if step == null:
 			continue
-		step.apply(grid, candidates, context)
+		var _apply_result_119: Variant = step.apply(grid, candidates, context)
 	return grid
 
 

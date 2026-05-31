@@ -36,7 +36,7 @@ const _MAX_UNIX_TIME_MSEC: int = 281474976710655
 ## [br]
 ## @return 小写 canonical UUID 字符串。
 static func generate_v4() -> String:
-	var bytes := _generate_random_bytes()
+	var bytes: PackedByteArray = _generate_random_bytes()
 	bytes[6] = (bytes[6] & 0x0f) | 0x40
 	bytes[8] = (bytes[8] & 0x3f) | 0x80
 	return _format_uuid_bytes(bytes)
@@ -50,8 +50,8 @@ static func generate_v4() -> String:
 ## [br]
 ## @return 小写 canonical UUID 字符串。
 static func generate_v7(unix_time_msec: int = -1) -> String:
-	var timestamp_msec := _resolve_unix_time_msec(unix_time_msec)
-	var bytes := _generate_random_bytes()
+	var timestamp_msec: int = _resolve_unix_time_msec(unix_time_msec)
+	var bytes: PackedByteArray = _generate_random_bytes()
 	bytes[0] = (timestamp_msec >> 40) & 0xff
 	bytes[1] = (timestamp_msec >> 32) & 0xff
 	bytes[2] = (timestamp_msec >> 24) & 0xff
@@ -73,7 +73,7 @@ static func generate_v7(unix_time_msec: int = -1) -> String:
 ## [br]
 ## @return 字符串符合 canonical UUID 形态且版本匹配时返回 true。
 static func is_valid(value: String, version: int = 0) -> bool:
-	var normalized := value.strip_edges().to_lower()
+	var normalized: String = value.strip_edges().to_lower()
 	if normalized.length() != CANONICAL_LENGTH:
 		return false
 	if version < 0 or version > 15:
@@ -96,27 +96,27 @@ static func is_valid(value: String, version: int = 0) -> bool:
 	if version > 0 and normalized.substr(14, 1) != _hex_nibble(version):
 		return false
 
-	var variant := normalized.substr(19, 1)
+	var variant: String = normalized.substr(19, 1)
 	return ["8", "9", "a", "b"].has(variant)
 
 
 # --- 私有/辅助方法 ---
 
 static func _generate_random_bytes() -> PackedByteArray:
-	var crypto := Crypto.new()
+	var crypto: Crypto = Crypto.new()
 	return crypto.generate_random_bytes(BYTE_COUNT)
 
 
 static func _resolve_unix_time_msec(unix_time_msec: int) -> int:
 	if unix_time_msec < 0:
-		return int(floor(Time.get_unix_time_from_system() * 1000.0))
+		return GFVariantData.to_int(floor(Time.get_unix_time_from_system() * 1000.0))
 	if unix_time_msec > _MAX_UNIX_TIME_MSEC:
 		return _MAX_UNIX_TIME_MSEC
 	return unix_time_msec
 
 
 static func _format_uuid_bytes(bytes: PackedByteArray) -> String:
-	var hex := bytes.hex_encode()
+	var hex: String = bytes.hex_encode()
 	return "%s-%s-%s-%s-%s" % [
 		hex.substr(0, 8),
 		hex.substr(8, 4),

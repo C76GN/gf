@@ -80,7 +80,7 @@ func is_available(context: GFDialogueContext) -> bool:
 		return true
 	if context == null:
 		return false
-	return bool(context.check_condition(condition_id, condition_payload, self).get("ok", false))
+	return GFVariantData.get_option_bool(context.check_condition(condition_id, condition_payload, self), "ok", false)
 
 
 ## 创建深拷贝。
@@ -89,7 +89,8 @@ func is_available(context: GFDialogueContext) -> bool:
 ## [br]
 ## @return: 响应副本。
 func duplicate_response() -> GFDialogueResponse:
-	return duplicate(true) as GFDialogueResponse
+	var response: GFDialogueResponse = _get_dialogue_response_value(duplicate(true))
+	return response if response != null else GFDialogueResponse.new()
 
 
 ## 转换为字典。
@@ -111,3 +112,12 @@ func to_dictionary() -> Dictionary:
 		"tags": tags,
 		"metadata": metadata.duplicate(true),
 	}
+
+
+# --- 私有/辅助方法 ---
+
+func _get_dialogue_response_value(value: Variant) -> GFDialogueResponse:
+	if value is GFDialogueResponse:
+		var response: GFDialogueResponse = value
+		return response
+	return null

@@ -78,7 +78,7 @@ func register_schema(schema: GFConfigTableSchema) -> bool:
 ## [br]
 ## @param table_name: 表名。
 func unregister_schema(table_name: StringName) -> void:
-	_schemas.erase(table_name)
+	var _erase_result_81: Variant = _schemas.erase(table_name)
 
 
 ## 检查是否注册了导表结构声明。
@@ -100,7 +100,7 @@ func has_schema(table_name: StringName) -> bool:
 ## [br]
 ## @return 已注册时返回 schema 拷贝，否则返回 null。
 func get_schema(table_name: StringName) -> GFConfigTableSchema:
-	var schema := _schemas.get(table_name) as GFConfigTableSchema
+	var schema: GFConfigTableSchema = _get_schema_reference(table_name)
 	return schema.duplicate_schema() if schema != null else null
 
 
@@ -110,9 +110,9 @@ func get_schema(table_name: StringName) -> GFConfigTableSchema:
 ## [br]
 ## @return 表名列表。
 func get_schema_ids() -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	for table_name: StringName in _schemas.keys():
-		result.append(String(table_name))
+		var _id_appended: bool = result.append(String(table_name))
 	result.sort()
 	return result
 
@@ -144,7 +144,7 @@ func validate_record(
 	row_key: Variant = null,
 	options: Dictionary = {}
 ) -> Dictionary:
-	var schema := get_schema(table_name)
+	var schema: GFConfigTableSchema = get_schema(table_name)
 	if schema == null:
 		return _make_missing_schema_report(table_name)
 	return schema.validate_record(record, row_key, options)
@@ -168,7 +168,7 @@ func validate_record(
 ## [br]
 ## @schema return: GFConfigValidationReport 兼容 Dictionary。
 func validate_table(table_name: StringName, table_data: Variant = null, options: Dictionary = {}) -> Dictionary:
-	var schema := get_schema(table_name)
+	var schema: GFConfigTableSchema = get_schema(table_name)
 	if schema == null:
 		return _make_missing_schema_report(table_name)
 
@@ -192,7 +192,7 @@ func validate_table(table_name: StringName, table_data: Variant = null, options:
 ## [br]
 ## @schema return: Dictionary，转换后的记录副本。
 func coerce_record(table_name: StringName, record: Dictionary) -> Dictionary:
-	var schema := get_schema(table_name)
+	var schema: GFConfigTableSchema = get_schema(table_name)
 	if schema == null:
 		return record.duplicate(true)
 	return schema.coerce_record(record)
@@ -202,3 +202,14 @@ func coerce_record(table_name: StringName, record: Dictionary) -> Dictionary:
 
 func _make_missing_schema_report(table_name: StringName) -> Dictionary:
 	return _CONFIG_VALIDATION_REPORT.new().make_error_report(table_name, "missing_schema", "未注册导表结构声明：%s。" % String(table_name))
+
+
+func _get_schema_reference(table_name: StringName) -> GFConfigTableSchema:
+	return _variant_to_schema(GFVariantData.get_option_value(_schemas, table_name))
+
+
+func _variant_to_schema(value: Variant) -> GFConfigTableSchema:
+	if value is GFConfigTableSchema:
+		var schema: GFConfigTableSchema = value
+		return schema
+	return null

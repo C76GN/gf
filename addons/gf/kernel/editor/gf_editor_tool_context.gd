@@ -70,13 +70,13 @@ var metadata: Dictionary = {}
 ## [br]
 ## @return 新上下文。
 static func from_plugin(editor_plugin: EditorPlugin, extra_metadata: Dictionary = {}) -> GFEditorToolContext:
-	var context := GFEditorToolContext.new()
+	var context: GFEditorToolContext = GFEditorToolContext.new()
 	context.plugin = editor_plugin
 	context.metadata = extra_metadata.duplicate(true)
 	if editor_plugin != null:
 		context.undo_manager = editor_plugin.get_undo_redo()
 		context.edited_scene_root = EditorInterface.get_edited_scene_root()
-		var selection := EditorInterface.get_selection()
+		var selection: EditorSelection = EditorInterface.get_selection()
 		if selection != null:
 			for node: Node in selection.get_selected_nodes():
 				context.selected_nodes.append(node)

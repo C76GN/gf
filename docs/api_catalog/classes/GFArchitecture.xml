@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFArchitecture" path="addons/gf/kernel/core/gf_architecture.gd" module="kernel" extends="Object" classDigest="7d6ccae2591636f09cac4ad767a21d966ab0cdba7cdd062a0f9bddeca0394d93">
+<class name="GFArchitecture" path="addons/gf/kernel/core/gf_architecture.gd" module="kernel" extends="Object" classDigest="6f497b60073c9cfb4c47329f8b8b54b1838a14552237f576bb67cb792cd9c39b">
 	<description>GFArchitecture: 管理 Model、System 和 Utility 的注册与生命周期的容器。
 生命周期遵循三阶段初始化协议：
 阶段一 (init)       ：所有模块执行自身内部变量初始化。
@@ -201,12 +201,12 @@
 			</tags>
 		</member>
 		<member kind="method" name="create_binder">
-			<signature>func create_binder() -&gt; Variant:</signature>
+			<signature>func create_binder() -&gt; GFBinder:</signature>
 			<description>创建一个声明式装配器，便于 Installer 使用 fluent API 注册模块与工厂。</description>
 			<tags>
 				<tag name="api">public</tag>
 				<tag name="return">绑定到当前架构的装配器。</tag>
-				<tag name="schema">return: GFBindBuilder-compatible binder owned by this architecture.</tag>
+				<tag name="schema">return: GFBinder owned by this architecture.</tag>
 			</tags>
 		</member>
 		<member kind="method" name="init">

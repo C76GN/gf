@@ -44,11 +44,11 @@ extends Resource
 ## [br]
 ## @return: 主命令和别名。
 func get_all_names() -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	if not command_name.is_empty():
-		result.append(command_name)
+		var _append_result_49: Variant = result.append(command_name)
 	for alias: String in aliases:
 		if alias.is_empty() or result.has(alias):
 			continue
-		result.append(alias)
+		var _append_result_53: Variant = result.append(alias)
 	return result

@@ -2,14 +2,8 @@
 extends GutTest
 
 
-const GFNodeStateBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state.gd")
-const GFNodeStateBehaviorBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_behavior.gd")
-const GFNodeStateConditionBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_condition.gd")
-const GFNodeStateMachineBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine.gd")
-
-
 class TrackingNodeState:
-	extends GFNodeStateBase
+	extends GFNodeState
 
 	var enter_count: int = 0
 	var exit_count: int = 0
@@ -22,7 +16,7 @@ class TrackingNodeState:
 
 
 class ToggleCondition:
-	extends GFNodeStateConditionBase
+	extends GFNodeStateCondition
 
 	var allowed: bool = true
 	var phases: Array[StringName] = []
@@ -35,7 +29,7 @@ class ToggleCondition:
 
 
 class RecordingBehavior:
-	extends GFNodeStateBehaviorBase
+	extends GFNodeStateBehavior
 
 	var calls: Array[String] = []
 	var handled_event_id: StringName = &""
@@ -61,75 +55,75 @@ class RecordingBehavior:
 
 
 func test_enter_condition_blocks_transition_until_allowed() -> void:
-	var machine: Node = GFNodeStateMachineBase.new()
-	var idle := TrackingNodeState.new()
-	var run := TrackingNodeState.new()
-	var condition := ToggleCondition.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var idle: TrackingNodeState = TrackingNodeState.new()
+	var run: TrackingNodeState = TrackingNodeState.new()
+	var condition: ToggleCondition = ToggleCondition.new()
 	idle.name = "Idle"
 	run.name = "Run"
 	condition.allowed = false
 	run.enter_conditions.append(condition)
-	machine.set("initial_state", &"Idle")
+	machine.initial_state = &"Idle"
 	add_child_autofree(machine)
 	machine.add_child(idle)
 	machine.add_child(run)
 	await get_tree().process_frame
 
-	machine.call("transition_to", &"Run")
+	machine.transition_to(&"Run")
 
-	assert_eq(machine.call("get_current_state"), idle, "条件拒绝时不应进入目标状态。")
+	assert_eq(machine.get_current_state(), idle, "条件拒绝时不应进入目标状态。")
 	assert_eq(run.enter_count, 0, "条件拒绝时目标 enter 不应执行。")
 	assert_eq(condition.phases, [&"enter"], "进入条件应以 enter 阶段评估。")
 	assert_eq(condition.peers, [&"Idle"], "进入条件应收到来源状态名。")
 
 	condition.allowed = true
-	machine.call("transition_to", &"Run")
+	machine.transition_to(&"Run")
 
-	assert_eq(machine.call("get_current_state"), run, "条件允许后应完成切换。")
+	assert_eq(machine.get_current_state(), run, "条件允许后应完成切换。")
 	assert_eq(run.enter_count, 1, "条件允许后目标 enter 应执行。")
 
 
 func test_exit_condition_blocks_leaving_current_state() -> void:
-	var machine: Node = GFNodeStateMachineBase.new()
-	var idle := TrackingNodeState.new()
-	var run := TrackingNodeState.new()
-	var condition := ToggleCondition.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var idle: TrackingNodeState = TrackingNodeState.new()
+	var run: TrackingNodeState = TrackingNodeState.new()
+	var condition: ToggleCondition = ToggleCondition.new()
 	idle.name = "Idle"
 	run.name = "Run"
 	condition.allowed = false
 	idle.exit_conditions.append(condition)
-	machine.set("initial_state", &"Idle")
+	machine.initial_state = &"Idle"
 	add_child_autofree(machine)
 	machine.add_child(idle)
 	machine.add_child(run)
 	await get_tree().process_frame
 
-	machine.call("transition_to", &"Run")
+	machine.transition_to(&"Run")
 
-	assert_eq(machine.call("get_current_state"), idle, "退出条件拒绝时应保持当前状态。")
+	assert_eq(machine.get_current_state(), idle, "退出条件拒绝时应保持当前状态。")
 	assert_eq(idle.exit_count, 0, "退出条件拒绝时当前 exit 不应执行。")
 	assert_eq(condition.phases, [&"exit"], "退出条件应以 exit 阶段评估。")
 	assert_eq(condition.peers, [&"Run"], "退出条件应收到目标状态名。")
 
 
 func test_behavior_receives_lifecycle_and_can_handle_events() -> void:
-	var machine: Node = GFNodeStateMachineBase.new()
-	var idle := TrackingNodeState.new()
-	var run := TrackingNodeState.new()
-	var behavior := RecordingBehavior.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var idle: TrackingNodeState = TrackingNodeState.new()
+	var run: TrackingNodeState = TrackingNodeState.new()
+	var behavior: RecordingBehavior = RecordingBehavior.new()
 	idle.name = "Idle"
 	run.name = "Run"
 	behavior.handled_event_id = &"ping"
 	idle.behaviors.append(behavior)
-	machine.set("initial_state", &"Idle")
+	machine.initial_state = &"Idle"
 	add_child_autofree(machine)
 	machine.add_child(idle)
 	machine.add_child(run)
 	await get_tree().process_frame
 
-	var group: Node = machine.call("get_state_group", GFNodeStateMachineBase.INTERNAL_GROUP_NAME)
-	var handled: bool = group.call("dispatch_state_event", &"ping", { "value": 1 })
-	machine.call("transition_to", &"Run")
+	var group: GFNodeStateGroup = machine.get_state_group(GFNodeStateMachine.INTERNAL_GROUP_NAME)
+	var handled: bool = group.dispatch_state_event(&"ping", { "value": 1 })
+	machine.transition_to(&"Run")
 
 	assert_true(handled, "状态自身未处理时，行为资源应能处理状态事件。")
 	assert_has(behavior.calls, "initialize:Idle", "行为应收到初始化回调。")
@@ -139,21 +133,21 @@ func test_behavior_receives_lifecycle_and_can_handle_events() -> void:
 
 
 func test_behavior_receives_pause_and_resume_callbacks() -> void:
-	var machine: Node = GFNodeStateMachineBase.new()
-	var idle := TrackingNodeState.new()
-	var menu := TrackingNodeState.new()
-	var behavior := RecordingBehavior.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var idle: TrackingNodeState = TrackingNodeState.new()
+	var menu: TrackingNodeState = TrackingNodeState.new()
+	var behavior: RecordingBehavior = RecordingBehavior.new()
 	idle.name = "Idle"
 	menu.name = "Menu"
 	idle.behaviors.append(behavior)
-	machine.set("initial_state", &"Idle")
+	machine.initial_state = &"Idle"
 	add_child_autofree(machine)
 	machine.add_child(idle)
 	machine.add_child(menu)
 	await get_tree().process_frame
 
-	machine.call("push_state", &"Menu")
-	machine.call("pop_state")
+	machine.push_state(&"Menu")
+	var _pop_state_result_150: Variant = machine.pop_state()
 
 	assert_has(behavior.calls, "pause:Idle:Menu", "push_state 应触发行为资源的 pause。")
 	assert_has(behavior.calls, "resume:Idle:Menu", "pop_state 应触发行为资源的 resume。")

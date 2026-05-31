@@ -1,6 +1,6 @@
 # Variant 深拷贝与 JSON 转换
 
-通用 Variant 基础件分为两个明确职责：`GFVariantData` 负责深拷贝、字典 / metadata 合并、options 读取、默认值合并和 Resource 可选复制；`GFVariantJsonCodec` 负责 JSON 友好的 Godot 类型转换。
+通用 Variant 基础件分为两个明确职责：`GFVariantData` 负责深拷贝、字典 / metadata 合并、options 读取、基础类型收窄、默认值合并和 Resource 可选复制；`GFVariantJsonCodec` 负责 JSON 友好的 Godot 类型转换。
 
 它们都不依赖 `GFArchitecture`，适合存档、配置、校验报告、网络消息、命中上下文等需要复制集合但保留标量语义，或把 Godot 值转成纯数据的地方。
 
@@ -41,7 +41,21 @@ GFVariantData.merge_metadata(metadata, {
 })
 ```
 
-公共 API 的 `options` 字典应使用稳定字段名，并通过 `get_option_bool()`、`get_option_int()`、`get_option_float()`、`get_option_dictionary()` 等读取。读取器支持 `String` 与 `StringName` 键互查，集合返回副本，避免调用方和框架共享内部状态。
+公共 API 的 `options` 字典应使用稳定字段名，并通过 `get_option_bool()`、`get_option_int()`、`get_option_float()`、`get_option_dictionary()` 等读取。读取器支持 `String` 与 `StringName` 键互查，集合返回副本，避免调用方和框架共享内部状态。`merge_dictionary()` / `merge_metadata()` 判断已有字段时也遵循同一套等价键规则，因此不会因为来源字典使用 `StringName`、目标字典使用 `String` 而生成重复字段。
+
+## Variant 收窄
+
+当数据来自 `Dictionary.get()`、反射调用、JSON 解码、网络消息或编辑器配置时，先使用 `GFVariantData` 做显式收窄，再进入业务逻辑：
+
+```gdscript
+var retry_count := GFVariantData.to_int(options.get("retry_count", 0), 0)
+var enabled := GFVariantData.to_bool(options.get("enabled", true), true)
+var route_id := GFVariantData.to_string_name(record.get("route_id", &""))
+```
+
+`to_bool()`、`to_int()`、`to_float()`、`to_text()`、`to_string_name()`、`to_vector2()` 和 `to_vector3()` 都要求调用方显式给出 fallback 语义；非法文本不会被静默解释为 `0` 或 `false`。`Vector2` / `Vector3` 收窄支持同维或相邻维度向量、`x/y/z` 字典和数值数组。常见标量集合可用 `to_string_array()`、`to_string_name_array()` 和 `to_int_array()` 逐项归一并返回副本，options 字段则对应使用 `get_option_string_array()`、`get_option_string_name_array()` 和 `get_option_int_array()`。
+
+集合有两组入口：`as_dictionary()` / `as_array()` 返回原引用，适合继续修改运行时状态；`to_dictionary()` / `to_array()` 返回副本，适合公开快照、metadata、options 和持久化数据。对象、Resource、节点、Callable 等领域类型仍应由具体模块本地收窄，不放进通用 Variant 工具。
 
 ## JSON 兼容转换
 

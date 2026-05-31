@@ -39,7 +39,8 @@ signal worker_idle
 
 # --- 常量 ---
 
-const _GF_ASYNC_WAIT_SUPPORT: Script = preload("res://addons/gf/standard/common/gf_async_wait_support.gd")
+const _GF_ASYNC_WAIT_SUPPORT = preload("res://addons/gf/standard/common/gf_async_wait_support.gd")
+const _GF_ASYNC_CALL_SCRIPT = preload("res://addons/gf/kernel/core/gf_async_call.gd")
 
 
 # --- 导出变量 ---
@@ -109,12 +110,12 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	if not process_in_physics:
-		process_batch()
+		_GF_ASYNC_CALL_SCRIPT.run_detached(Callable(self, &"process_batch"))
 
 
 func _physics_process(_delta: float) -> void:
 	if process_in_physics:
-		process_batch()
+		_GF_ASYNC_CALL_SCRIPT.run_detached(Callable(self, &"process_batch"))
 
 
 # --- 公共方法 ---
@@ -172,25 +173,26 @@ func is_running() -> bool:
 ## [br]
 ## @return 被处理的任务；没有任务或不可处理时返回 null。
 func process_next_job() -> GFJob:
-	var utility := _get_queue_utility()
+	var utility: GFJobQueueUtility = _get_queue_utility()
 	if utility == null or not processor.is_valid():
 		return null
-	var job := utility.start_next_job(queue_name)
+	var job: GFJob = utility.start_next_job(queue_name)
 	if job == null:
 		return null
 
 	var result: Variant = processor.call(job)
 	if result is Signal:
-		var wait_result := await _await_processor_signal_result(result as Signal)
-		if not bool(wait_result.get("completed", false)):
+		var result_signal: Signal = _variant_to_signal(result)
+		var wait_result: Dictionary = await _await_processor_signal_result(result_signal)
+		if not GFVariantData.get_option_bool(wait_result, "completed", false):
 			if not job.is_finished():
-				utility.fail_job(job.job_id, "processor_signal_cancelled_or_timeout", wait_result)
+				var _fail_job_result_189: Variant = utility.fail_job(job.job_id, "processor_signal_cancelled_or_timeout", wait_result)
 			job_processed.emit(job)
 			return job
 		if job.is_finished():
 			job_processed.emit(job)
 			return job
-		result = wait_result.get("result")
+		result = GFVariantData.get_option_value(wait_result, "result")
 	_apply_processor_result(utility, job, result)
 	job_processed.emit(job)
 	return job
@@ -208,9 +210,9 @@ func process_batch() -> int:
 		return 0
 
 	_processing = true
-	var processed_count := 0
+	var processed_count: int = 0
 	for _index: int in range(maxi(batch_size, 1)):
-		var job := await process_next_job()
+		var job: GFJob = await process_next_job()
 		if job == null:
 			break
 		processed_count += 1
@@ -243,14 +245,14 @@ func get_debug_snapshot() -> Dictionary:
 func _get_queue_utility() -> GFJobQueueUtility:
 	if queue_utility != null:
 		return queue_utility
-	var architecture := GFAutoload.get_architecture_or_null()
+	var architecture: GFArchitecture = GFAutoload.get_architecture_or_null()
 	if architecture == null:
 		return null
-	return architecture.get_utility(GFJobQueueUtility) as GFJobQueueUtility
+	return _variant_to_job_queue_utility(architecture.get_utility(GFJobQueueUtility))
 
 
 func _await_processor_signal_result(result_signal: Signal) -> Dictionary:
-	var guard_node := self if is_inside_tree() else null
+	var guard_node: Node = self if is_inside_tree() else null
 	var wait_result: Dictionary = await _GF_ASYNC_WAIT_SUPPORT.await_signal_payload_safely(
 		result_signal,
 		_should_continue_waiting,
@@ -260,10 +262,10 @@ func _await_processor_signal_result(result_signal: Signal) -> Dictionary:
 		"[GFJobWorker] 等待任务处理器 Signal 超时，任务将标记为失败。",
 		guard_node
 	)
-	var completed := bool(wait_result.get("completed", false))
+	var completed: bool = GFVariantData.get_option_bool(wait_result, "completed", false)
 	return {
 		"completed": completed,
-		"result": _normalize_signal_result(wait_result.get("args", [])) if completed else null,
+		"result": _normalize_signal_result(GFVariantData.get_option_value(wait_result, "args", [])) if completed else null,
 		"reason": "completed" if completed else "cancelled_or_timeout",
 	}
 
@@ -271,19 +273,23 @@ func _await_processor_signal_result(result_signal: Signal) -> Dictionary:
 func _apply_processor_result(utility: GFJobQueueUtility, job: GFJob, result: Variant) -> void:
 	if job == null or job.is_finished():
 		return
-	if result is Dictionary and not bool((result as Dictionary).get("ok", true)):
-		utility.fail_job(job.job_id, String((result as Dictionary).get("error", "")), result)
-	elif result is bool and not bool(result):
-		utility.fail_job(job.job_id, "", result)
+	if result is Dictionary:
+		var result_dictionary: Dictionary = GFVariantData.as_dictionary(result)
+		if not GFVariantData.get_option_bool(result_dictionary, "ok", true):
+			var _fail_job_result_279: Variant = utility.fail_job(job.job_id, GFVariantData.get_option_string(result_dictionary, "error"), result)
+			return
+		var _complete_job_result_281: Variant = utility.complete_job(job.job_id, result)
+	elif result is bool and not GFVariantData.to_bool(result):
+		var _fail_job_result_283: Variant = utility.fail_job(job.job_id, "", result)
 	else:
-		utility.complete_job(job.job_id, result)
+		var _complete_job_result_285: Variant = utility.complete_job(job.job_id, result)
 
 
 func _normalize_signal_result(result: Variant) -> Variant:
 	if not (result is Array):
 		return result
 
-	var values := result as Array
+	var values: Array = GFVariantData.as_array(result)
 	if values.is_empty():
 		return null
 	if values.size() == 1:
@@ -291,18 +297,39 @@ func _normalize_signal_result(result: Variant) -> Variant:
 
 	var first_value: Variant = values[0]
 	if first_value is Dictionary:
-		var data := GFVariantData.duplicate_variant(first_value) as Dictionary
+		var data: Dictionary = GFVariantData.as_dictionary(GFVariantData.duplicate_variant(first_value))
 		data["signal_args"] = GFVariantData.duplicate_variant(values)
 		return data
 	return values
 
 
 func _get_time_utility() -> GFTimeUtility:
-	var architecture := GFAutoload.get_architecture_or_null()
+	var architecture: GFArchitecture = GFAutoload.get_architecture_or_null()
 	if architecture == null:
 		return null
-	return architecture.get_utility(GFTimeUtility) as GFTimeUtility
+	return _variant_to_time_utility(architecture.get_utility(GFTimeUtility))
 
 
 func _should_continue_waiting() -> bool:
 	return _running or _processing or not is_inside_tree()
+
+
+static func _variant_to_signal(value: Variant) -> Signal:
+	if value is Signal:
+		var signal_value: Signal = value
+		return signal_value
+	return Signal()
+
+
+static func _variant_to_job_queue_utility(value: Variant) -> GFJobQueueUtility:
+	if value is GFJobQueueUtility:
+		var utility: GFJobQueueUtility = value
+		return utility
+	return null
+
+
+static func _variant_to_time_utility(value: Variant) -> GFTimeUtility:
+	if value is GFTimeUtility:
+		var utility: GFTimeUtility = value
+		return utility
+	return null

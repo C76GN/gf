@@ -2250,7 +2250,7 @@ Schemas:
 - API: `public`
 
 ```gdscript
-func add_amount(add_amount: int, registry: GFInventoryItemRegistry = null) -> int:
+func add_amount(quantity: int, registry: GFInventoryItemRegistry = null) -> int:
 ```
 
 增加数量并返回未加入的剩余数量。
@@ -2259,7 +2259,7 @@ Parameters:
 
 | Name | Description |
 |---|---|
-| `add_amount` | 尝试增加的数量。 |
+| `quantity` | 尝试增加的数量。 |
 | `registry` | 可选物品注册表。 |
 
 Returns: 未加入的剩余数量。
@@ -2269,7 +2269,7 @@ Returns: 未加入的剩余数量。
 - API: `public`
 
 ```gdscript
-func remove_amount(remove_amount: int) -> int:
+func remove_amount(quantity: int) -> int:
 ```
 
 移除数量并返回实际移除数量。
@@ -2278,7 +2278,7 @@ Parameters:
 
 | Name | Description |
 |---|---|
-| `remove_amount` | 尝试移除的数量。 |
+| `quantity` | 尝试移除的数量。 |
 
 Returns: 实际移除数量。
 

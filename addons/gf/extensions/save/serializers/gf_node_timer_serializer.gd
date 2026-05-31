@@ -45,7 +45,7 @@ func supports_node(node: Node) -> bool:
 ## [br]
 ## @schema return: Dictionary，可包含 wait_time、one_shot、autostart、paused、time_left 与 stopped。
 func gather(node: Node, _context: Dictionary = {}) -> Dictionary:
-	var timer := node as Timer
+	var timer: Timer = _get_timer(node)
 	if timer == null:
 		return {}
 
@@ -77,23 +77,32 @@ func gather(node: Node, _context: Dictionary = {}) -> Dictionary:
 ## [br]
 ## @schema return: Dictionary，包含 ok: bool 与 error: String。
 func apply(node: Node, payload: Dictionary, _context: Dictionary = {}) -> Dictionary:
-	var timer := node as Timer
+	var timer: Timer = _get_timer(node)
 	if timer == null:
 		return make_result(false, "Node is not Timer.")
 
 	if payload.has("wait_time"):
-		timer.wait_time = maxf(float(payload["wait_time"]), 0.0)
+		timer.wait_time = maxf(GFVariantData.to_float(payload["wait_time"]), 0.0)
 	if payload.has("one_shot"):
-		timer.one_shot = bool(payload["one_shot"])
+		timer.one_shot = GFVariantData.to_bool(payload["one_shot"])
 	if payload.has("autostart"):
-		timer.autostart = bool(payload["autostart"])
+		timer.autostart = GFVariantData.to_bool(payload["autostart"])
 	if payload.has("paused"):
-		timer.paused = bool(payload["paused"])
+		timer.paused = GFVariantData.to_bool(payload["paused"])
 
 	if payload.has("stopped"):
-		if bool(payload["stopped"]):
+		if GFVariantData.to_bool(payload["stopped"]):
 			timer.stop()
 		else:
-			var time_left := float(payload.get("time_left", timer.wait_time))
+			var time_left: float = GFVariantData.get_option_float(payload, "time_left", timer.wait_time)
 			timer.start(time_left if time_left > 0.0 else timer.wait_time)
 	return make_result(true)
+
+
+# --- 私有/辅助方法 ---
+
+func _get_timer(node: Node) -> Timer:
+	if node is Timer:
+		var timer: Timer = node
+		return timer
+	return null

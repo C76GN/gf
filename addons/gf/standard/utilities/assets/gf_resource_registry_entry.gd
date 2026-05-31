@@ -45,7 +45,7 @@ extends Resource
 ## [br]
 ## @param entry_id: 条目稳定 ID。
 ## [br]
-## @param path: 资源路径，支持 `res://` 或 `uid://`。
+## @param entry_path: 资源路径，支持 `res://` 或 `uid://`。
 ## [br]
 ## @param hint: 可选资源类型提示。
 ## [br]
@@ -56,12 +56,12 @@ extends Resource
 ## @return 当前条目。
 func configure(
 	entry_id: StringName,
-	path: String,
+	entry_path: String,
 	hint: String = "",
 	indexed_fields: Dictionary = {}
 ) -> Resource:
 	id = entry_id
-	self.path = path
+	path = entry_path
 	type_hint = hint
 	fields = indexed_fields.duplicate(true)
 	return self
@@ -82,7 +82,7 @@ func is_valid_entry() -> bool:
 ## [br]
 ## @return 条目副本。
 func duplicate_entry() -> Resource:
-	var entry := get_script().new() as Resource
+	var entry: Resource = _make_entry_instance()
 	entry.set("id", id)
 	entry.set("path", path)
 	entry.set("type_hint", type_hint)
@@ -116,14 +116,30 @@ func to_dict() -> Dictionary:
 ## [br]
 ## @return 新条目。
 static func from_dict(data: Dictionary) -> Resource:
-	var script := load("res://addons/gf/standard/utilities/assets/gf_resource_registry_entry.gd") as Script
-	var entry := script.new() as Resource
-	var raw_fields: Variant = data.get("fields", {})
+	var entry: Resource = GFResourceRegistryEntry.new()
+	var raw_fields: Variant = GFVariantData.get_option_value(data, "fields", {})
 	entry.call(
 		"configure",
-		StringName(String(data.get("id", ""))),
-		String(data.get("resource_path", data.get("path", ""))),
-		String(data.get("type_hint", "")),
+		GFVariantData.get_option_string_name(data, "id"),
+		GFVariantData.get_option_string(
+			data,
+			"resource_path",
+			GFVariantData.get_option_string(data, "path")
+		),
+		GFVariantData.get_option_string(data, "type_hint"),
 		raw_fields if raw_fields is Dictionary else {}
 	)
 	return entry
+
+
+# --- 私有/辅助方法 ---
+
+func _make_entry_instance() -> Resource:
+	var script_value: Variant = get_script()
+	if script_value is Script:
+		var script: Script = script_value
+		var entry_value: Variant = script.call("new")
+		if entry_value is Resource:
+			var entry: Resource = entry_value
+			return entry
+	return GFResourceRegistryEntry.new()

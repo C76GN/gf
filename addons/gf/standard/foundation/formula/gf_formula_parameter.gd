@@ -83,7 +83,7 @@ func set_value(key: StringName, value: Variant) -> GFFormulaParameter:
 ## [br]
 ## @schema return: Variant formula value or fallback.
 func get_value(key: StringName, default_value: Variant = null) -> Variant:
-	return values.get(key, default_value)
+	return GFVariantData.get_option_value(values, key, default_value)
 
 
 ## 检查是否存在指定参数。

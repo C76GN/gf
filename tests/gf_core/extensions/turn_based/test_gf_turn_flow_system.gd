@@ -79,13 +79,13 @@ class ValueActor extends Object:
 ## 验证阶段推进会调用 enter/execute/exit 生命周期。
 func test_advance_phase_runs_phase_lifecycle() -> void:
 	var order: Array[String] = []
-	var system := GFTurnFlowSystem.new()
+	var system: GFTurnFlowSystem = GFTurnFlowSystem.new()
 	system.set_phases([
 		RecordingPhase.new(&"prepare", order),
 	])
 
 	system.start()
-	system.advance_phase()
+	await system.advance_phase()
 
 	assert_eq(order, [
 		"enter:prepare",
@@ -98,12 +98,12 @@ func test_advance_phase_runs_phase_lifecycle() -> void:
 ## 验证行动默认按 priority 与 sort_value 降序解析。
 func test_resolve_actions_sorts_by_priority_and_sort_value() -> void:
 	var order: Array[String] = []
-	var system := GFTurnFlowSystem.new()
+	var system: GFTurnFlowSystem = GFTurnFlowSystem.new()
 
 	system.enqueue_action(RecordingAction.new("low", 0, 100.0, order))
 	system.enqueue_action(RecordingAction.new("fast", 1, 20.0, order))
 	system.enqueue_action(RecordingAction.new("slow", 1, 10.0, order))
-	system.resolve_actions()
+	await system.resolve_actions()
 
 	assert_eq(order, ["fast", "slow", "low"], "行动应优先按 priority 再按 sort_value 降序解析。")
 	assert_true(system.context.actions.is_empty(), "解析后待处理行动应被清空。")
@@ -112,11 +112,12 @@ func test_resolve_actions_sorts_by_priority_and_sort_value() -> void:
 
 func test_stop_prevents_awaited_phase_from_resuming() -> void:
 	var order: Array[String] = []
-	var phase := ManualPhase.new(order)
-	var system := GFTurnFlowSystem.new()
+	var phase: ManualPhase = ManualPhase.new(order)
+	var system: GFTurnFlowSystem = GFTurnFlowSystem.new()
 	system.set_phases([phase])
 
 	system.start()
+	@warning_ignore("missing_await")
 	system.advance_phase()
 	await get_tree().process_frame
 
@@ -129,12 +130,13 @@ func test_stop_prevents_awaited_phase_from_resuming() -> void:
 
 func test_phase_signal_timeout_aborts_without_exit() -> void:
 	var order: Array[String] = []
-	var phase := ManualPhase.new(order)
-	var system := GFTurnFlowSystem.new()
+	var phase: ManualPhase = ManualPhase.new(order)
+	var system: GFTurnFlowSystem = GFTurnFlowSystem.new()
 	system.signal_timeout_seconds = 0.001
 	system.set_phases([phase])
 
 	system.start()
+	@warning_ignore("missing_await")
 	system.advance_phase()
 	await get_tree().create_timer(0.05).timeout
 	await get_tree().process_frame
@@ -145,10 +147,11 @@ func test_phase_signal_timeout_aborts_without_exit() -> void:
 
 func test_stop_prevents_awaited_action_from_resuming() -> void:
 	var order: Array[String] = []
-	var action := ManualAction.new(order)
-	var system := GFTurnFlowSystem.new()
+	var action: ManualAction = ManualAction.new(order)
+	var system: GFTurnFlowSystem = GFTurnFlowSystem.new()
 	system.enqueue_action(action)
 
+	@warning_ignore("missing_await")
 	system.resolve_actions()
 	await get_tree().process_frame
 
@@ -162,12 +165,14 @@ func test_stop_prevents_awaited_action_from_resuming() -> void:
 
 func test_resolve_actions_reentry_is_rejected_while_waiting() -> void:
 	var order: Array[String] = []
-	var action := ManualAction.new(order)
-	var system := GFTurnFlowSystem.new()
+	var action: ManualAction = ManualAction.new(order)
+	var system: GFTurnFlowSystem = GFTurnFlowSystem.new()
 	system.enqueue_action(action)
 
+	@warning_ignore("missing_await")
 	system.resolve_actions()
 	await get_tree().process_frame
+	@warning_ignore("missing_await")
 	system.resolve_actions()
 
 	assert_push_warning("[GFTurnFlowSystem] resolve_actions 失败：行动正在解析中。")
@@ -179,12 +184,12 @@ func test_resolve_actions_reentry_is_rejected_while_waiting() -> void:
 
 ## 验证上下文可安全读取参与者排序值。
 func test_turn_context_reads_actor_value() -> void:
-	var actor := ValueActor.new()
+	var actor: ValueActor = ValueActor.new()
 
-	var context := GFTurnContext.new()
+	var context: GFTurnContext = GFTurnContext.new()
 	context.add_actor(actor)
 
-	assert_eq(context.get_actor_value(actor, &"speed"), 7.0, "应能从对象属性读取值。")
-	assert_eq(context.get_actor_value(null, &"speed", 0.0), 0.0, "空对象应返回 fallback。")
+	assert_eq(GFVariantData.to_float(context.get_actor_value(actor, &"speed")), 7.0, "应能从对象属性读取值。")
+	assert_eq(GFVariantData.to_float(context.get_actor_value(null, &"speed", 0.0)), 0.0, "空对象应返回 fallback。")
 
 	actor.free()

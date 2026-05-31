@@ -25,15 +25,15 @@ func test_value_index_queries_by_fields() -> void:
 
 	assert_eq(index.query(&"tag", "fast"), PackedStringArray(["a", "b"]), "单字段查询应返回匹配条目。")
 	assert_eq(index.query_many({ "tag": "fast", "tier": 2 }), PackedStringArray(["b"]), "多条件交集应返回共同匹配项。")
-	assert_eq((index.get_item(&"a") as Dictionary).get("score"), 1, "索引应保留条目值。")
+	assert_eq(GFVariantData.get_option_int(GFVariantData.as_dictionary(index.get_item(&"a")), "score", 0), 1, "索引应保留条目值。")
 
 
 ## 验证值索引替换条目时会清理旧字段。
 func test_value_index_replaces_old_fields() -> void:
 	var index: GFValueIndexBase = GFValueIndexBase.new()
 
-	index.set_item(&"a", "old", { "tag": "red" })
-	index.set_item(&"a", "new", { "tag": "blue" })
+	var _set_item_result_35: Variant = index.set_item(&"a", "old", { "tag": "red" })
+	var _set_item_result_36: Variant = index.set_item(&"a", "new", { "tag": "blue" })
 
 	assert_eq(index.query(&"tag", "red"), PackedStringArray(), "替换条目后旧字段索引应清理。")
 	assert_eq(index.query(&"tag", "blue"), PackedStringArray(["a"]), "替换条目后新字段索引应可查。")
@@ -43,38 +43,38 @@ func test_value_index_replaces_old_fields() -> void:
 func test_mutation_batch_commits_and_rolls_back() -> void:
 	var batch: GFMutationBatchBase = GFMutationBatchBase.new()
 	var values: Array[String] = []
-	var commit_one := func() -> Dictionary:
+	var commit_one: Callable = func() -> Dictionary:
 		values.append("one")
 		return { "ok": true, "value": "one" }
-	var rollback_one := func() -> void:
+	var rollback_one: Callable = func() -> void:
 		values.append("undo_one")
-	var commit_two := func() -> void:
+	var commit_two: Callable = func() -> void:
 		values.append("two")
-	var rollback_two := func() -> void:
+	var rollback_two: Callable = func() -> void:
 		values.append("undo_two")
 
-	batch.add_operation(commit_one, rollback_one)
-	batch.add_operation(commit_two, rollback_two)
+	var _add_operation_result_56: Variant = batch.add_operation(commit_one, rollback_one)
+	var _add_operation_result_57: Variant = batch.add_operation(commit_two, rollback_two)
 
-	var commit_report := batch.commit()
-	var rollback_report := batch.rollback_committed()
+	var commit_report: Dictionary = batch.commit()
+	var rollback_report: Dictionary = batch.rollback_committed()
 
-	assert_true(bool(commit_report["ok"]), "全部操作成功时提交报告应成功。")
-	assert_eq(int(commit_report["committed_count"]), 2, "提交报告应统计成功数量。")
-	assert_true(bool(rollback_report["ok"]), "有效回滚应成功。")
+	assert_true(GFVariantData.get_option_bool(commit_report, "ok", false), "全部操作成功时提交报告应成功。")
+	assert_eq(GFVariantData.get_option_int(commit_report, "committed_count", 0), 2, "提交报告应统计成功数量。")
+	assert_true(GFVariantData.get_option_bool(rollback_report, "ok", false), "有效回滚应成功。")
 	assert_eq(values, ["one", "two", "undo_two", "undo_one"], "回滚应按提交反向顺序执行。")
 
 
 ## 验证变更批次默认在失败时保留待处理操作。
 func test_mutation_batch_stops_on_failure() -> void:
 	var batch: GFMutationBatchBase = GFMutationBatchBase.new()
-	var blocked_operation := func() -> Dictionary:
+	var blocked_operation: Callable = func() -> Dictionary:
 		return { "ok": false, "error": "blocked" }
 
-	batch.add_operation(blocked_operation)
+	var _add_operation_result_74: Variant = batch.add_operation(blocked_operation)
 
-	var report := batch.commit()
+	var report: Dictionary = batch.commit()
 
-	assert_false(bool(report["ok"]), "操作失败时提交报告应失败。")
-	assert_eq(int(report["failed_count"]), 1, "提交报告应统计失败数量。")
+	assert_false(GFVariantData.get_option_bool(report, "ok", true), "操作失败时提交报告应失败。")
+	assert_eq(GFVariantData.get_option_int(report, "failed_count", 0), 1, "提交报告应统计失败数量。")
 	assert_eq(batch.get_pending_count(), 1, "默认停止失败时应保留待处理操作。")

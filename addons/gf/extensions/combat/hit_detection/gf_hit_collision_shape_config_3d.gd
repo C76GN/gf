@@ -76,6 +76,7 @@ func instantiate_collision_shape() -> CollisionShape3D:
 	if shape == null:
 		return null
 
-	var collision_shape := CollisionShape3D.new()
-	apply_to(collision_shape)
+	var collision_shape: CollisionShape3D = CollisionShape3D.new()
+	if not apply_to(collision_shape):
+		return null
 	return collision_shape

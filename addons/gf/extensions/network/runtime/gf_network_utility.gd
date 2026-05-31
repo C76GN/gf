@@ -128,7 +128,7 @@ func dispose() -> void:
 ## [br]
 ## @param next_backend: 新后端。
 func set_backend(next_backend: GFNetworkBackend) -> void:
-	var close_reason := "backend_replaced" if next_backend != null else "backend_cleared"
+	var close_reason: String = "backend_replaced" if next_backend != null else "backend_cleared"
 	_replace_backend(next_backend, close_reason)
 
 
@@ -149,7 +149,9 @@ func register_channel(channel: GFNetworkChannel) -> void:
 ## [br]
 ## @param channel_id: 通道标识。
 func unregister_channel(channel_id: StringName) -> void:
-	_channels.erase(channel_id)
+	var erased: bool = _channels.erase(channel_id)
+	if erased:
+		return
 
 
 ## 获取网络通道。
@@ -160,7 +162,7 @@ func unregister_channel(channel_id: StringName) -> void:
 ## [br]
 ## @return 通道资源。
 func get_channel(channel_id: StringName) -> GFNetworkChannel:
-	return _channels.get(channel_id) as GFNetworkChannel
+	return _get_network_channel_value(GFVariantData.get_option_value(_channels, channel_id))
 
 
 ## 获取已注册通道标识。
@@ -169,9 +171,9 @@ func get_channel(channel_id: StringName) -> GFNetworkChannel:
 ## [br]
 ## @return 排序后的通道标识。
 func get_channel_ids() -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	for channel_id: StringName in _channels.keys():
-		result.append(String(channel_id))
+		var _channel_id_appended: bool = result.append(String(channel_id))
 	result.sort()
 	return result
 
@@ -198,10 +200,10 @@ func host(options: Dictionary = {}) -> Error:
 
 	if session != null:
 		session.start_host(options)
-	var error := backend.host(options)
+	var error: Error = backend.host(options)
 	if error != OK and session != null:
 		session.close("host_failed")
-	elif session != null and not session.is_connected:
+	elif session != null and not session.has_connection:
 		session.mark_connected()
 	return error
 
@@ -223,7 +225,7 @@ func connect_to_endpoint(endpoint: String, options: Dictionary = {}) -> Error:
 
 	if session != null:
 		session.start_client(endpoint, options)
-	var error := backend.connect_to_endpoint(endpoint, options)
+	var error: Error = backend.connect_to_endpoint(endpoint, options)
 	if error != OK and session != null:
 		session.close("connect_failed")
 	return error
@@ -277,10 +279,10 @@ func send_message_on_channel(
 	channel_id: StringName,
 	options: Dictionary = {}
 ) -> Error:
-	var channel := get_channel(channel_id)
+	var channel: GFNetworkChannel = get_channel(channel_id)
 	if channel == null:
 		return ERR_DOES_NOT_EXIST
-	var channel_message := _copy_message_for_channel(message, channel_id)
+	var channel_message: GFNetworkMessage = _copy_message_for_channel(message, channel_id)
 	return _send_message_internal(peer_id, channel_message, channel.build_send_options(options), channel)
 
 
@@ -292,7 +294,7 @@ func send_message_on_channel(
 ## [br]
 ## @schema return: Dictionary，包含 backend_configured、serializer_configured、validator_configured、backend、session、channels、validator。
 func get_debug_snapshot() -> Dictionary:
-	var snapshot := {
+	var snapshot: Dictionary = {
 		"backend_configured": backend != null,
 		"serializer_configured": serializer != null,
 		"validator_configured": validator != null,
@@ -320,27 +322,27 @@ func _send_message_internal(
 		return ERR_UNCONFIGURED
 	if validator != null:
 		var message_report: Dictionary = validator.validate_message(message)
-		if not bool(message_report.get("ok", false)):
+		if not GFVariantData.get_option_bool(message_report, "ok", false):
 			message_rejected.emit(peer_id, "invalid_message", message_report)
 			return ERR_INVALID_DATA
 
-	var bytes := serializer.serialize_message(message)
+	var bytes: PackedByteArray = serializer.serialize_message(message)
 	if bytes.is_empty():
 		return ERR_INVALID_DATA
 	if validator != null:
 		var bytes_report: Dictionary = validator.validate_bytes(bytes, channel)
-		if not bool(bytes_report.get("ok", false)):
+		if not GFVariantData.get_option_bool(bytes_report, "ok", false):
 			message_rejected.emit(peer_id, "invalid_packet", bytes_report)
 			return ERR_INVALID_DATA
 	return backend.send_bytes(peer_id, bytes, options)
 
 
 func _connect_backend_signals(target_backend: GFNetworkBackend) -> void:
-	target_backend.connected.connect(_on_backend_connected)
-	target_backend.disconnected.connect(_on_backend_disconnected)
-	target_backend.peer_connected.connect(_on_backend_peer_connected)
-	target_backend.peer_disconnected.connect(_on_backend_peer_disconnected)
-	target_backend.message_received.connect(_on_backend_message_received)
+	var _connect_result_341: Variant = target_backend.connected.connect(_on_backend_connected)
+	var _connect_result_342: Variant = target_backend.disconnected.connect(_on_backend_disconnected)
+	var _connect_result_343: Variant = target_backend.peer_connected.connect(_on_backend_peer_connected)
+	var _connect_result_344: Variant = target_backend.peer_disconnected.connect(_on_backend_peer_disconnected)
+	var _connect_result_345: Variant = target_backend.message_received.connect(_on_backend_message_received)
 
 
 func _disconnect_backend_signals(target_backend: GFNetworkBackend) -> void:
@@ -360,7 +362,7 @@ func _replace_backend(next_backend: GFNetworkBackend, close_reason: String) -> v
 	if backend == next_backend:
 		return
 
-	var previous_backend := backend
+	var previous_backend: GFNetworkBackend = backend
 	if previous_backend != null:
 		_disconnect_backend_signals(previous_backend)
 		previous_backend.disconnect_backend()
@@ -374,7 +376,7 @@ func _replace_backend(next_backend: GFNetworkBackend, close_reason: String) -> v
 
 func _on_backend_connected() -> void:
 	if session != null:
-		if not session.is_connected:
+		if not session.has_connection:
 			session.mark_connected()
 	connected.emit()
 
@@ -398,15 +400,15 @@ func _on_backend_message_received(peer_id: int, bytes: PackedByteArray) -> void:
 		return
 	if validator != null:
 		var bytes_report: Dictionary = validator.validate_bytes(bytes)
-		if not bool(bytes_report.get("ok", false)):
+		if not GFVariantData.get_option_bool(bytes_report, "ok", false):
 			message_rejected.emit(peer_id, "invalid_packet", bytes_report)
 			return
 
-	var message_result := serializer.deserialize_message_result(bytes)
-	if not bool(message_result.get("ok", false)):
+	var message_result: Dictionary = serializer.deserialize_message_result(bytes)
+	if not GFVariantData.get_option_bool(message_result, "ok", false):
 		message_rejected.emit(peer_id, "decode_failed", message_result)
 		return
-	var message := message_result.get("data") as GFNetworkMessage
+	var message: GFNetworkMessage = _get_network_message_value(GFVariantData.get_option_value(message_result, "data"))
 	if message == null:
 		message_rejected.emit(peer_id, "decode_failed", {
 			"ok": false,
@@ -416,14 +418,14 @@ func _on_backend_message_received(peer_id: int, bytes: PackedByteArray) -> void:
 		return
 	message.sender_id = peer_id
 	if validator != null:
-		var channel := _resolve_inbound_channel(message)
+		var channel: GFNetworkChannel = _resolve_inbound_channel(message)
 		if channel != null:
 			var channel_bytes_report: Dictionary = validator.validate_bytes(bytes, channel)
-			if not bool(channel_bytes_report.get("ok", false)):
+			if not GFVariantData.get_option_bool(channel_bytes_report, "ok", false):
 				message_rejected.emit(peer_id, "invalid_packet", channel_bytes_report)
 				return
 		var message_report: Dictionary = validator.validate_message(message)
-		if not bool(message_report.get("ok", false)):
+		if not GFVariantData.get_option_bool(message_report, "ok", false):
 			message_rejected.emit(peer_id, "invalid_message", message_report)
 			return
 	message_received.emit(peer_id, message)
@@ -441,9 +443,9 @@ func _resolve_inbound_channel(message: GFNetworkMessage) -> GFNetworkChannel:
 	if message == null:
 		return null
 	if message.channel_id != &"" and _channels.has(message.channel_id):
-		return _channels[message.channel_id] as GFNetworkChannel
+		return _get_network_channel_value(_channels[message.channel_id])
 	if _channels.has(message.message_type):
-		return _channels[message.message_type] as GFNetworkChannel
+		return _get_network_channel_value(_channels[message.message_type])
 	return null
 
 
@@ -462,16 +464,37 @@ func _copy_message_for_channel(message: GFNetworkMessage, channel_id: StringName
 
 
 func _register_diagnostics_contribution() -> void:
-	var diagnostics := get_utility(GFDiagnosticsUtility) as GFDiagnosticsUtility
+	var diagnostics: GFDiagnosticsUtility = _get_diagnostics_utility_value(get_utility(GFDiagnosticsUtility))
 	if diagnostics == null:
 		return
 
-	diagnostics.register_snapshot_section_provider(&"network", Callable(self, "get_debug_snapshot"))
+	var _register_snapshot_section_provider_result_471: Variant = diagnostics.register_snapshot_section_provider(&"network", Callable(self, "get_debug_snapshot"))
 
 
 func _unregister_diagnostics_contribution() -> void:
-	var diagnostics := get_utility(GFDiagnosticsUtility) as GFDiagnosticsUtility
+	var diagnostics: GFDiagnosticsUtility = _get_diagnostics_utility_value(get_utility(GFDiagnosticsUtility))
 	if diagnostics == null:
 		return
 
 	diagnostics.unregister_snapshot_section_provider(&"network")
+
+
+func _get_network_channel_value(value: Variant) -> GFNetworkChannel:
+	if value is GFNetworkChannel:
+		var channel: GFNetworkChannel = value
+		return channel
+	return null
+
+
+func _get_network_message_value(value: Variant) -> GFNetworkMessage:
+	if value is GFNetworkMessage:
+		var message: GFNetworkMessage = value
+		return message
+	return null
+
+
+func _get_diagnostics_utility_value(value: Variant) -> GFDiagnosticsUtility:
+	if value is GFDiagnosticsUtility:
+		var diagnostics: GFDiagnosticsUtility = value
+		return diagnostics
+	return null

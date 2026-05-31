@@ -10,5 +10,22 @@ const AsyncInstallerUtilityFixture = preload("res://tests/gf_core/fixtures/insta
 # --- 公共方法 ---
 
 func install_bindings(binder: Variant) -> void:
-	await Engine.get_main_loop().process_frame
+	var scene_tree: SceneTree = _get_scene_tree()
+	if scene_tree != null:
+		await scene_tree.process_frame
+	if binder is GFBinder:
+		var typed_binder: GFBinder = binder
+		await _bind_utility(typed_binder)
+
+
+# --- 私有/辅助方法 ---
+
+func _bind_utility(binder: GFBinder) -> void:
 	await binder.bind_utility(AsyncInstallerUtilityFixture).as_singleton()
+
+
+func _get_scene_tree() -> SceneTree:
+	var main_loop: MainLoop = Engine.get_main_loop()
+	if main_loop is SceneTree:
+		return main_loop
+	return null

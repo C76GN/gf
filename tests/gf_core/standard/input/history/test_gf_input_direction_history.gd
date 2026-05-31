@@ -3,7 +3,7 @@ extends GutTest
 
 
 func test_last_pressed_direction_wins_until_release() -> void:
-	var history := GFInputDirectionHistory.new()
+	var history: GFInputDirectionHistory = GFInputDirectionHistory.new()
 
 	history.press_direction(Vector2i.LEFT)
 	history.press_direction(Vector2i.UP)
@@ -14,7 +14,7 @@ func test_last_pressed_direction_wins_until_release() -> void:
 
 
 func test_update_action_tracks_action_order() -> void:
-	var history := GFInputDirectionHistory.new()
+	var history: GFInputDirectionHistory = GFInputDirectionHistory.new()
 
 	history.update_action(&"move_left", Vector2i.LEFT, true)
 	history.update_action(&"move_up", Vector2i.UP, true)
@@ -26,7 +26,7 @@ func test_update_action_tracks_action_order() -> void:
 
 
 func test_clear_resets_state() -> void:
-	var history := GFInputDirectionHistory.new()
+	var history: GFInputDirectionHistory = GFInputDirectionHistory.new()
 	history.press_direction(Vector2i.RIGHT)
 	history.clear()
 

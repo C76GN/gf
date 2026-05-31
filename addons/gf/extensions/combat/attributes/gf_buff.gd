@@ -189,7 +189,7 @@ func on_tick(_p_delta: float) -> void:
 ## [br]
 ## @return 如果 Buff 已耗尽生命周期需要被移除，则返回 true。
 func update(p_delta: float) -> bool:
-	var step_delta := maxf(0.0, p_delta)
+	var step_delta: float = maxf(0.0, p_delta)
 	if duration != -1.0:
 		time_left -= step_delta
 		if time_left <= 0.0:
@@ -242,8 +242,8 @@ func _update_periodic_tick(p_delta: float) -> void:
 		return
 
 	_tick_accumulator += p_delta
-	var tick_budget := max_periodic_ticks_per_update
-	var tick_count := 0
+	var tick_budget: int = max_periodic_ticks_per_update
+	var tick_count: int = 0
 	while _tick_accumulator >= tick_interval_seconds and (tick_budget <= 0 or tick_count < tick_budget):
 		_tick_accumulator -= tick_interval_seconds
 		on_tick(tick_interval_seconds)
@@ -254,49 +254,63 @@ func _update_periodic_tick(p_delta: float) -> void:
 
 # 应用 Buff 携带的所有效果。
 func _apply_effects() -> void:
-	var valid_owner := _get_valid_owner()
+	var valid_owner: Object = _get_valid_owner()
 	if valid_owner == null:
 		return
 
 	if valid_owner.has_method("get_tag_component"):
-		var tc := valid_owner.get_tag_component() as GFTagComponent
-		if tc != null:
-			for tag in tags:
-				tc.add_tag(tag)
+		var tag_component: GFTagComponent = _get_tag_component_value(valid_owner.call("get_tag_component"))
+		if tag_component != null:
+			for tag: StringName in tags:
+				tag_component.add_tag(tag)
 
 	if valid_owner.has_method("get_attribute"):
-		for mod in modifiers:
+		for mod: GFModifier in modifiers:
 			if mod == null or mod.attribute_id == &"":
 				continue
 
-			var attr := valid_owner.get_attribute(mod.attribute_id) as GFModifiedAttribute
-			if attr != null:
-				attr.add_modifier(mod)
+			var attribute: GFModifiedAttribute = _get_modified_attribute_value(valid_owner.call("get_attribute", mod.attribute_id))
+			if attribute != null:
+				attribute.add_modifier(mod)
 
 
 # 移除 Buff 携带的所有效果。
 func _remove_effects() -> void:
-	var valid_owner := _get_valid_owner()
+	var valid_owner: Object = _get_valid_owner()
 	if valid_owner == null:
 		return
 
 	if valid_owner.has_method("get_tag_component"):
-		var tc := valid_owner.get_tag_component() as GFTagComponent
-		if tc != null:
-			for tag in tags:
-				tc.remove_tag(tag)
+		var tag_component: GFTagComponent = _get_tag_component_value(valid_owner.call("get_tag_component"))
+		if tag_component != null:
+			for tag: StringName in tags:
+				tag_component.remove_tag(tag)
 
 	if valid_owner.has_method("get_attribute"):
-		for mod in modifiers:
+		for mod: GFModifier in modifiers:
 			if mod == null or mod.attribute_id == &"":
 				continue
 
-			var attr := valid_owner.get_attribute(mod.attribute_id) as GFModifiedAttribute
-			if attr != null:
-				attr.remove_modifier(mod)
+			var attribute: GFModifiedAttribute = _get_modified_attribute_value(valid_owner.call("get_attribute", mod.attribute_id))
+			if attribute != null:
+				attribute.remove_modifier(mod)
 
 
 func _get_valid_owner() -> Object:
 	if owner == null or not is_instance_valid(owner):
 		return null
 	return owner
+
+
+func _get_tag_component_value(value: Variant) -> GFTagComponent:
+	if value is GFTagComponent:
+		var tag_component: GFTagComponent = value
+		return tag_component
+	return null
+
+
+func _get_modified_attribute_value(value: Variant) -> GFModifiedAttribute:
+	if value is GFModifiedAttribute:
+		var attribute: GFModifiedAttribute = value
+		return attribute
+	return null

@@ -84,11 +84,12 @@ func write(entry: Dictionary) -> void:
 	if _file == null:
 		return
 
-	var payload := _sanitize_for_json(entry.duplicate(true))
+	var payload: Variant = _sanitize_for_json(entry.duplicate(true))
 	if payload is Dictionary and omit_formatted_text:
-		(payload as Dictionary).erase("text")
+		var payload_dictionary: Dictionary = payload
+		var _erase_result_90: Variant = payload_dictionary.erase("text")
 
-	_file.store_line(JSON.stringify(payload))
+	var _store_line_result_92: Variant = _file.store_line(JSON.stringify(payload))
 	_flush_if_needed()
 
 
@@ -128,7 +129,7 @@ func _resolve_file_path(owner: Object) -> String:
 		return file_path
 
 	if owner != null and owner.has_method("get_log_file_path"):
-		var owner_path := String(owner.call("get_log_file_path"))
+		var owner_path: String = GFVariantData.to_text(owner.call("get_log_file_path"))
 		if not owner_path.is_empty():
 			return owner_path.get_basename() + ".jsonl"
 
@@ -136,19 +137,19 @@ func _resolve_file_path(owner: Object) -> String:
 
 
 func _ensure_parent_dir(path: String) -> void:
-	var base_dir := path.get_base_dir()
+	var base_dir: String = path.get_base_dir()
 	if base_dir.is_empty() or base_dir == ".":
 		return
 
 	if not DirAccess.dir_exists_absolute(base_dir):
-		DirAccess.make_dir_recursive_absolute(base_dir)
+		var _make_dir_recursive_absolute_result_145: Variant = DirAccess.make_dir_recursive_absolute(base_dir)
 
 
 func _flush_if_needed() -> void:
 	if _file == null:
 		return
 
-	var now := Time.get_ticks_msec()
+	var now: int = Time.get_ticks_msec()
 	if (
 		flush_immediately
 		or flush_interval_msec <= 0
@@ -159,17 +160,17 @@ func _flush_if_needed() -> void:
 
 
 func _cleanup_old_jsonl_files() -> void:
-	var base_dir := _effective_file_path.get_base_dir()
-	var dir := DirAccess.open(base_dir)
+	var base_dir: String = _effective_file_path.get_base_dir()
+	var dir: DirAccess = DirAccess.open(base_dir)
 	if dir == null:
 		return
 
-	var files := PackedStringArray()
-	dir.list_dir_begin()
-	var file_name := dir.get_next()
+	var files: PackedStringArray = PackedStringArray()
+	var _list_dir_begin_result_169: Variant = dir.list_dir_begin()
+	var file_name: String = dir.get_next()
 	while file_name != "":
 		if not dir.current_is_dir() and file_name.begins_with("gf_log_") and file_name.ends_with(".jsonl"):
-			files.append(file_name)
+			var _append_result_173: Variant = files.append(file_name)
 		file_name = dir.get_next()
 	dir.list_dir_end()
 
@@ -177,9 +178,9 @@ func _cleanup_old_jsonl_files() -> void:
 		return
 
 	files.sort()
-	var to_remove := files.size() - max_jsonl_files
+	var to_remove: int = files.size() - max_jsonl_files
 	for index: int in range(to_remove):
-		DirAccess.remove_absolute(base_dir.path_join(files[index]))
+		var _remove_absolute_result_183: Variant = DirAccess.remove_absolute(base_dir.path_join(files[index]))
 
 
 func _sanitize_for_json(value: Variant, _depth: int = 0) -> Variant:

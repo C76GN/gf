@@ -105,15 +105,15 @@ func get_physics_scaled_delta_steps(delta: float) -> Array[float]:
 	if is_paused:
 		return [0.0]
 
-	var scaled_delta := delta * time_scale
+	var scaled_delta: float = delta * time_scale
 	if physics_substep_max_delta <= 0.0 or is_zero_approx(scaled_delta):
 		return [_clamp_scaled_delta(scaled_delta)]
 
-	var step_count := int(ceil(absf(scaled_delta) / physics_substep_max_delta))
+	var step_count: int = GFVariantData.to_int(ceil(absf(scaled_delta) / physics_substep_max_delta))
 	step_count = clampi(step_count, 1, max_physics_substeps)
-	var step_delta := scaled_delta / float(step_count)
+	var step_delta: float = scaled_delta / float(step_count)
 	var result: Array[float] = []
-	for _i in range(step_count):
+	for _i: int in range(step_count):
 		result.append(step_delta)
 	return result
 
@@ -159,7 +159,7 @@ func set_group_paused(group: StringName, paused: bool) -> void:
 ## [br]
 ## @return 该组是否暂停，未注册的组返回 false。
 func is_group_paused(group: StringName) -> bool:
-	return _group_paused.get(group, false)
+	return GFVariantData.get_option_bool(_group_paused, group, false)
 
 
 ## 获取指定组经过缩放的 delta 值。
@@ -184,7 +184,7 @@ func get_group_scaled_delta(group: StringName, delta: float) -> float:
 ## [br]
 ## @param group: 组标识符。
 func remove_group(group: StringName) -> void:
-	_group_paused.erase(group)
+	var _erase_result_187: Variant = _group_paused.erase(group)
 
 
 ## 清除所有组级暂停记录。

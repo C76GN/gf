@@ -26,6 +26,11 @@ signal button_pressed
 signal button_released
 
 
+# --- 常量 ---
+
+const _INPUT_EVENT_TOOLS = preload("res://addons/gf/standard/input/common/gf_input_event_tools.gd")
+
+
 # --- 导出变量 ---
 
 @export_group("Shape")
@@ -94,14 +99,24 @@ func _input(event: InputEvent) -> void:
 	if Engine.is_editor_hint():
 		return
 
-	if event is InputEventScreenTouch:
-		_handle_touch(event as InputEventScreenTouch)
-	elif event is InputEventScreenDrag:
-		_handle_drag(event as InputEventScreenDrag)
-	elif accept_mouse_input and event is InputEventMouseButton:
-		_handle_mouse_button(event as InputEventMouseButton)
-	elif accept_mouse_input and event is InputEventMouseMotion:
-		_handle_mouse_motion(event as InputEventMouseMotion)
+	var screen_touch: InputEventScreenTouch = _INPUT_EVENT_TOOLS.get_screen_touch_event(event)
+	if screen_touch != null:
+		_handle_touch(screen_touch)
+		return
+
+	var screen_drag: InputEventScreenDrag = _INPUT_EVENT_TOOLS.get_screen_drag_event(event)
+	if screen_drag != null:
+		_handle_drag(screen_drag)
+		return
+
+	var mouse_button: InputEventMouseButton = _INPUT_EVENT_TOOLS.get_mouse_button_event(event)
+	if accept_mouse_input and mouse_button != null:
+		_handle_mouse_button(mouse_button)
+		return
+
+	var mouse_motion: InputEventMouseMotion = _INPUT_EVENT_TOOLS.get_mouse_motion_event(event)
+	if accept_mouse_input and mouse_motion != null:
+		_handle_mouse_motion(mouse_motion)
 
 
 func _draw() -> void:
@@ -132,7 +147,7 @@ func release() -> void:
 # --- 私有/辅助方法 ---
 
 func _handle_touch(event: InputEventScreenTouch) -> void:
-	var local_pos := to_local(_screen_to_global_position(event.position))
+	var local_pos: Vector2 = to_local(_screen_to_global_position(event.position))
 	if event.pressed:
 		if _active_touch_index == -1 and local_pos.length() <= radius:
 			_active_touch_index = event.index
@@ -147,7 +162,7 @@ func _handle_drag(event: InputEventScreenDrag) -> void:
 	if event.index != _active_touch_index:
 		return
 
-	var local_pos := to_local(_screen_to_global_position(event.position))
+	var local_pos: Vector2 = to_local(_screen_to_global_position(event.position))
 	if local_pos.length() > radius:
 		release()
 	get_viewport().set_input_as_handled()
@@ -157,7 +172,7 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 	if event.button_index != MOUSE_BUTTON_LEFT:
 		return
 
-	var local_pos := to_local(_screen_to_global_position(event.position))
+	var local_pos: Vector2 = to_local(_screen_to_global_position(event.position))
 	if event.pressed:
 		_mouse_pressed_inside = local_pos.length() <= radius
 		if _mouse_pressed_inside:
@@ -173,7 +188,7 @@ func _handle_mouse_motion(event: InputEventMouseMotion) -> void:
 	if not _mouse_pressed_inside:
 		return
 
-	var local_pos := to_local(_screen_to_global_position(event.position))
+	var local_pos: Vector2 = to_local(_screen_to_global_position(event.position))
 	if local_pos.length() > radius:
 		release()
 	get_viewport().set_input_as_handled()
@@ -206,7 +221,7 @@ func _emit_joypad_button(pressed: bool) -> void:
 	if not emit_joypad_button:
 		return
 
-	var event := InputEventJoypadButton.new()
+	var event: InputEventJoypadButton = InputEventJoypadButton.new()
 	event.device = joypad_device_id
 	event.button_index = joy_button
 	event.pressed = pressed
@@ -215,7 +230,7 @@ func _emit_joypad_button(pressed: bool) -> void:
 
 
 func _screen_to_global_position(screen_position: Vector2) -> Vector2:
-	var viewport := get_viewport()
+	var viewport: Viewport = get_viewport()
 	if viewport == null:
 		return screen_position
 	return viewport.get_canvas_transform().affine_inverse() * screen_position

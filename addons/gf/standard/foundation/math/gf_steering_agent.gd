@@ -104,7 +104,7 @@ func set_from_node_3d(node: Node3D, linear_velocity: Vector3 = Vector3.ZERO) -> 
 ## [br]
 ## @return 新代理状态。
 func duplicate_agent() -> GFSteeringAgent:
-	var agent := GFSteeringAgent.new(position, velocity)
+	var agent: GFSteeringAgent = GFSteeringAgent.new(position, velocity)
 	agent.orientation = orientation
 	agent.angular_velocity = angular_velocity
 	agent.radius = radius

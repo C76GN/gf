@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFTileRuleSet" path="addons/gf/standard/foundation/math/gf_tile_rule_set.gd" module="standard" extends="Resource" classDigest="65ea12ebcec5fc829066ee86c7f6e4289d9ba56f6e8ef8e6d7ed431ed6e0cefe">
+<class name="GFTileRuleSet" path="addons/gf/standard/foundation/math/gf_tile_rule_set.gd" module="standard" extends="Resource" classDigest="b110879c91576808772aafdaf839346e3603fd9cf1ba2640eece702b84312115">
 	<description>GFTileRuleSet: 通用瓦片邻域规则表。
 使用邻域值序列匹配结果，可用于自动铺砖、地形变体、网格装饰或任意
 基于相邻格子状态的选择逻辑。规则只处理 Variant 值，不绑定 TileSet 语义。</description>
@@ -65,13 +65,13 @@
 			</tags>
 		</member>
 		<member kind="method" name="resolve">
-			<signature>func resolve(neighbor_values: Array, cell: Vector2i = Vector2i.ZERO, seed: int = 0) -&gt; Variant:</signature>
+			<signature>func resolve(neighbor_values: Array, cell: Vector2i = Vector2i.ZERO, selection_seed: int = 0) -&gt; Variant:</signature>
 			<description>根据邻域值解析结果。</description>
 			<tags>
 				<tag name="api">public</tag>
 				<tag name="param">neighbor_values: 邻域值序列。</tag>
 				<tag name="param">cell: 可选格坐标，用于确定性加权选择。</tag>
-				<tag name="param">seed: 可选种子；为 0 时使用 deterministic_seed。</tag>
+				<tag name="param">selection_seed: 可选选择种子；为 0 时使用 deterministic_seed。</tag>
 				<tag name="return">匹配结果；没有匹配时返回 default_result。</tag>
 				<tag name="schema">neighbor_values: Array ordered neighbor values used as a rule key.</tag>
 				<tag name="schema">return: Variant matched result or default_result.</tag>

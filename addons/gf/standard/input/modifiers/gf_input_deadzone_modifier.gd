@@ -47,14 +47,14 @@ extends GFInputModifier
 ## [br]
 ## @return 应用死区后的二维输入值。
 func modify(value: Vector2, _event: InputEvent = null, _action: GFInputAction = null) -> Vector2:
-	var length := value.length()
+	var length: float = value.length()
 	if length <= lower_threshold:
 		return Vector2.ZERO
 	if not rescale_after_deadzone:
 		return value
 
-	var range := maxf(upper_threshold - lower_threshold, 0.0001)
-	var scaled_length := clampf((minf(length, upper_threshold) - lower_threshold) / range, 0.0, 1.0)
+	var threshold_span: float = maxf(upper_threshold - lower_threshold, 0.0001)
+	var scaled_length: float = clampf((minf(length, upper_threshold) - lower_threshold) / threshold_span, 0.0, 1.0)
 	return value.normalized() * scaled_length
 
 
@@ -70,12 +70,12 @@ func modify(value: Vector2, _event: InputEvent = null, _action: GFInputAction = 
 ## [br]
 ## @return 应用死区后的三维输入值。
 func modify_3d(value: Vector3, _event: InputEvent = null, _action: GFInputAction = null) -> Vector3:
-	var length := value.length()
+	var length: float = value.length()
 	if length <= lower_threshold:
 		return Vector3.ZERO
 	if not rescale_after_deadzone:
 		return value
 
-	var range := maxf(upper_threshold - lower_threshold, 0.0001)
-	var scaled_length := clampf((minf(length, upper_threshold) - lower_threshold) / range, 0.0, 1.0)
+	var threshold_span: float = maxf(upper_threshold - lower_threshold, 0.0001)
+	var scaled_length: float = clampf((minf(length, upper_threshold) - lower_threshold) / threshold_span, 0.0, 1.0)
 	return value.normalized() * scaled_length

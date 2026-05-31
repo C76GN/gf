@@ -75,12 +75,12 @@ var _mount_token: int = 0
 
 func _ready() -> void:
 	if mount_on_ready:
-		mount()
+		var _mount_result_78: Variant = mount()
 
 
 func _exit_tree() -> void:
 	if unmount_on_exit:
-		unmount()
+		var _unmount_result_83: Variant = unmount()
 
 
 # --- 公共方法 ---
@@ -102,7 +102,7 @@ func set_audio_utility(utility: GFAudioUtility) -> void:
 func mount() -> bool:
 	if bank_id == &"" or bank == null:
 		return false
-	var utility := _get_audio_utility()
+	var utility: GFAudioUtility = _get_audio_utility()
 	if utility == null:
 		return false
 
@@ -111,7 +111,7 @@ func mount() -> bool:
 		if _mount_token <= 0:
 			return false
 	else:
-		utility.unmount_audio_bank(bank_id, _mount_token)
+		var _unmount_audio_bank_result_114: Variant = utility.unmount_audio_bank(bank_id, _mount_token)
 		_mount_token = utility.mount_audio_bank(bank_id, bank, restore_previous_bank)
 		if _mount_token <= 0:
 			_mounted = false
@@ -129,7 +129,7 @@ func mount() -> bool:
 func unmount() -> bool:
 	if not _mounted or bank_id == &"":
 		return false
-	var utility := _get_audio_utility()
+	var utility: GFAudioUtility = _get_audio_utility()
 	if utility == null:
 		return false
 
@@ -155,7 +155,14 @@ func is_mounted() -> bool:
 func _get_audio_utility() -> GFAudioUtility:
 	if audio_utility != null:
 		return audio_utility
-	var architecture := GFAutoload.get_architecture_or_null()
+	var architecture: GFArchitecture = GFAutoload.get_architecture_or_null()
 	if architecture == null:
 		return null
-	return architecture.get_utility(GFAudioUtility) as GFAudioUtility
+	return _variant_to_audio_utility(architecture.get_utility(GFAudioUtility))
+
+
+func _variant_to_audio_utility(value: Variant) -> GFAudioUtility:
+	if value is GFAudioUtility:
+		var utility: GFAudioUtility = value
+		return utility
+	return null

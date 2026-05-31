@@ -11,7 +11,7 @@ func before_each() -> void:
 
 
 func test_effect_samples_weight_and_alpha() -> void:
-	var effect := GFScreenTransitionEffect.new()
+	var effect: GFScreenTransitionEffect = GFScreenTransitionEffect.new()
 	effect.duration_seconds = 2.0
 	effect.from_alpha = 0.25
 	effect.to_alpha = 0.75
@@ -22,12 +22,10 @@ func test_effect_samples_weight_and_alpha() -> void:
 
 
 func test_fade_out_advances_and_invokes_callback() -> void:
-	var state := {
-		"finished": false,
-	}
+	var state: TransitionState = TransitionState.new()
 
 	assert_eq(_transition.fade_out(1.0, Color.RED, func() -> void:
-		state["finished"] = true
+		state.finished = true
 	), OK, "淡出转场应能启动。")
 	assert_true(_transition.is_transition_active(), "启动后应存在活动转场。")
 
@@ -37,37 +35,43 @@ func test_fade_out_advances_and_invokes_callback() -> void:
 
 	assert_true(_transition.complete_transition(), "活动转场应能被立即完成。")
 	assert_false(_transition.is_transition_active(), "完成后不应继续保持活动状态。")
-	assert_true(bool(state["finished"]), "完成转场应调用完成回调。")
+	assert_true(state.finished, "完成转场应调用完成回调。")
 	assert_almost_eq(_transition.get_overlay_alpha(), 1.0, 0.001, "完成淡出后覆盖层应保持不透明。")
 
 
 func test_cancel_transition_does_not_call_finished_callback() -> void:
-	var state := {
-		"finished": false,
-	}
+	var state: TransitionState = TransitionState.new()
 
 	assert_eq(_transition.fade_in(1.0, Color.BLACK, func() -> void:
-		state["finished"] = true
+		state.finished = true
 	), OK, "淡入转场应能启动。")
 
 	assert_true(_transition.cancel_transition(), "活动转场应能取消。")
 	assert_false(_transition.is_transition_active(), "取消后不应继续保持活动状态。")
-	assert_false(bool(state["finished"]), "取消转场不应调用完成回调。")
+	assert_false(state.finished, "取消转场不应调用完成回调。")
 
 
 func test_manual_overlay_alpha_and_hide() -> void:
 	_transition.set_overlay_alpha(0.4, Color.BLUE)
 
-	var snapshot := _transition.get_debug_snapshot()
-	assert_true(bool(snapshot["overlay_visible"]), "手动设置透明度后覆盖层应可见。")
-	assert_almost_eq(float(snapshot["overlay_alpha"]), 0.4, 0.001, "快照应记录覆盖层透明度。")
+	var snapshot: Dictionary = _transition.get_debug_snapshot()
+	assert_true(GFVariantData.get_option_bool(snapshot, "overlay_visible"), "手动设置透明度后覆盖层应可见。")
+	assert_almost_eq(GFVariantData.get_option_float(snapshot, "overlay_alpha"), 0.4, 0.001, "快照应记录覆盖层透明度。")
 
 	_transition.hide_overlay()
 	snapshot = _transition.get_debug_snapshot()
-	assert_false(bool(snapshot["overlay_visible"]), "hide_overlay 应隐藏覆盖层。")
+	assert_false(GFVariantData.get_option_bool(snapshot, "overlay_visible"), "hide_overlay 应隐藏覆盖层。")
 
 
 func after_each() -> void:
 	if _transition != null:
 		_transition.dispose()
 	await get_tree().process_frame
+
+
+# --- 辅助类 ---
+
+class TransitionState:
+	extends RefCounted
+
+	var finished: bool = false

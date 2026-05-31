@@ -141,8 +141,8 @@ func set_full_state(state: Dictionary) -> void:
 ## @return 一个已完成种子初始化的独立 RandomNumberGenerator 实例。
 func get_branched_rng(string_seed: String) -> RandomNumberGenerator:
 	_ensure_rng()
-	var branched := RandomNumberGenerator.new()
-	var branch_index: int = int(_branch_counters.get(string_seed, 0))
+	var branched: RandomNumberGenerator = RandomNumberGenerator.new()
+	var branch_index: int = GFVariantData.get_option_int(_branch_counters, string_seed)
 	_branch_counters[string_seed] = branch_index + 1
 
 	var branch_seed: int = _stable_hash("%d:%d:%s:%d" % [
@@ -159,7 +159,7 @@ func get_branched_rng(string_seed: String) -> RandomNumberGenerator:
 
 func _stable_hash(text: String) -> int:
 	var hash_value: int = _FNV_32_OFFSET
-	var bytes := text.to_utf8_buffer()
+	var bytes: PackedByteArray = text.to_utf8_buffer()
 	for value: int in bytes:
 		hash_value = ((hash_value ^ value) * _FNV_32_PRIME) & _UINT_32_MASK
 	return hash_value
@@ -168,7 +168,7 @@ func _stable_hash(text: String) -> int:
 func _encode_branch_counters(source: Dictionary) -> Dictionary:
 	var result: Dictionary = {}
 	for key: Variant in source.keys():
-		result[str(key)] = _int_to_state_text(int(source[key]))
+		result[str(key)] = _int_to_state_text(GFVariantData.to_int(source[key]))
 	return result
 
 
@@ -177,7 +177,7 @@ func _decode_branch_counters(value: Variant) -> Dictionary:
 		return {}
 
 	var result: Dictionary = {}
-	var dictionary := value as Dictionary
+	var dictionary: Dictionary = value
 	for key: Variant in dictionary.keys():
 		result[str(key)] = _state_value_to_int(dictionary[key], 0)
 	return result
@@ -187,7 +187,7 @@ func _get_state_value(state: Dictionary, key: StringName, fallback: Variant) -> 
 	if state.has(key):
 		return state[key]
 
-	var string_key := String(key)
+	var string_key: String = String(key)
 	if state.has(string_key):
 		return state[string_key]
 	return fallback
@@ -196,7 +196,7 @@ func _get_state_value(state: Dictionary, key: StringName, fallback: Variant) -> 
 func _state_value_to_int(value: Variant, fallback: int) -> int:
 	if value == null:
 		return fallback
-	return int(value)
+	return GFVariantData.to_int(value)
 
 
 func _int_to_state_text(value: int) -> String:

@@ -144,12 +144,12 @@ func release(item: RefCounted) -> bool:
 	if item == null:
 		return false
 
-	var item_id := item.get_instance_id()
+	var item_id: int = item.get_instance_id()
 	if not _active_ids.has(item_id):
 		push_warning("[GFRefCountedPool] release 收到未由当前池借出的对象，已忽略。")
 		return false
 
-	_active_ids.erase(item_id)
+	var _erase_result_152: Variant = _active_ids.erase(item_id)
 	_prepare_item_for_reuse(item)
 	if max_available > 0 and _available.size() >= max_available:
 		return true
@@ -166,11 +166,11 @@ func release(item: RefCounted) -> bool:
 ## [br]
 ## @return 实际新增到可用池的数量。
 func prewarm(count: int) -> int:
-	var created := 0
+	var created: int = 0
 	for _index: int in range(maxi(count, 0)):
 		if max_available > 0 and _available.size() >= max_available:
 			break
-		var item := _create_item()
+		var item: RefCounted = _create_item()
 		if item == null:
 			break
 		_prepare_item_for_reuse(item)
@@ -233,7 +233,8 @@ func _create_item() -> RefCounted:
 	var value: Variant = factory.call()
 	if value is RefCounted:
 		_created_count += 1
-		return value as RefCounted
+		var item: RefCounted = value
+		return item
 
 	push_error("[GFRefCountedPool] factory 必须返回 RefCounted。")
 	return null

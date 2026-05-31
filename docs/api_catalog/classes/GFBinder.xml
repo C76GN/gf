@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFBinder" path="addons/gf/kernel/core/gf_binder.gd" module="kernel" extends="RefCounted" classDigest="5093552064bb0c060578c32412cf6920e54af2cd2765628e0b8fe5c8573ee683">
+<class name="GFBinder" path="addons/gf/kernel/core/gf_binder.gd" module="kernel" extends="RefCounted" classDigest="52eca989825d3cfe7ca6c05e7cee25a836df50fc1aab9fa0b8f92cec60331cc0">
 	<description>GFBinder: 面向 Installer 的声明式装配入口。</description>
 	<tags>
 		<tag name="api">public</tag>
@@ -12,55 +12,39 @@
 	<properties />
 	<methods>
 		<member kind="method" name="bind_model">
-			<signature>func bind_model(script_cls: Script) -&gt; Variant:</signature>
-			<description>声明一个 Model 绑定。
-"type": "Variant",
-"description": "GFBindBuilder 实例。"
-}</description>
+			<signature>func bind_model(script_cls: Script) -&gt; GFBindBuilder:</signature>
+			<description>声明一个 Model 绑定。</description>
 			<tags>
 				<tag name="api">public</tag>
 				<tag name="param">script_cls: Model 脚本类型。</tag>
 				<tag name="return">绑定构建器。</tag>
-				<tag name="schema">return {</tag>
 			</tags>
 		</member>
 		<member kind="method" name="bind_system">
-			<signature>func bind_system(script_cls: Script) -&gt; Variant:</signature>
-			<description>声明一个 System 绑定。
-"type": "Variant",
-"description": "GFBindBuilder 实例。"
-}</description>
+			<signature>func bind_system(script_cls: Script) -&gt; GFBindBuilder:</signature>
+			<description>声明一个 System 绑定。</description>
 			<tags>
 				<tag name="api">public</tag>
 				<tag name="param">script_cls: System 脚本类型。</tag>
 				<tag name="return">绑定构建器。</tag>
-				<tag name="schema">return {</tag>
 			</tags>
 		</member>
 		<member kind="method" name="bind_utility">
-			<signature>func bind_utility(script_cls: Script) -&gt; Variant:</signature>
-			<description>声明一个 Utility 绑定。
-"type": "Variant",
-"description": "GFBindBuilder 实例。"
-}</description>
+			<signature>func bind_utility(script_cls: Script) -&gt; GFBindBuilder:</signature>
+			<description>声明一个 Utility 绑定。</description>
 			<tags>
 				<tag name="api">public</tag>
 				<tag name="param">script_cls: Utility 脚本类型。</tag>
 				<tag name="return">绑定构建器。</tag>
-				<tag name="schema">return {</tag>
 			</tags>
 		</member>
 		<member kind="method" name="bind_factory">
-			<signature>func bind_factory(script_cls: Script) -&gt; Variant:</signature>
-			<description>声明一个短生命周期对象工厂绑定。
-"type": "Variant",
-"description": "GFBindBuilder 实例。"
-}</description>
+			<signature>func bind_factory(script_cls: Script) -&gt; GFBindBuilder:</signature>
+			<description>声明一个短生命周期对象工厂绑定。</description>
 			<tags>
 				<tag name="api">public</tag>
 				<tag name="param">script_cls: 要创建的脚本类型。</tag>
 				<tag name="return">绑定构建器。</tag>
-				<tag name="schema">return {</tag>
 			</tags>
 		</member>
 	</methods>

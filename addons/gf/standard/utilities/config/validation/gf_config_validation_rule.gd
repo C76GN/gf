@@ -89,7 +89,7 @@ func get_rule_id() -> StringName:
 ## [br]
 ## @schema return: GFConfigValidationReport 兼容 Dictionary。
 func validate_value(value: Variant, context: Dictionary = {}) -> Dictionary:
-	var report := _make_report(context)
+	var report: Dictionary = _make_report(context)
 	if not enabled:
 		return report
 	if value == null and allow_null:
@@ -120,7 +120,7 @@ func validate_value(value: Variant, context: Dictionary = {}) -> Dictionary:
 ## [br]
 ## @schema return: GFConfigValidationReport 兼容 Dictionary。
 func validate_record(record: Dictionary, context: Dictionary = {}) -> Dictionary:
-	var report := _make_report(context)
+	var report: Dictionary = _make_report(context)
 	if not enabled:
 		return report
 	_validate_record(record, context, report)
@@ -144,7 +144,7 @@ func validate_record(record: Dictionary, context: Dictionary = {}) -> Dictionary
 ## [br]
 ## @schema return: GFConfigValidationReport 兼容 Dictionary。
 func validate_table(rows: Array[Dictionary], context: Dictionary = {}) -> Dictionary:
-	var report := _make_report(context)
+	var report: Dictionary = _make_report(context)
 	if not enabled:
 		return report
 	_validate_table(rows, context, report)
@@ -158,7 +158,7 @@ func validate_table(rows: Array[Dictionary], context: Dictionary = {}) -> Dictio
 ## [br]
 ## @return 新规则。
 func duplicate_rule() -> GFConfigValidationRule:
-	return duplicate(true) as GFConfigValidationRule
+	return _variant_to_validation_rule(duplicate(true))
 
 
 ## 导出规则摘要。
@@ -263,15 +263,15 @@ func _validate_table(_rows: Array[Dictionary], _context: Dictionary, _report: Di
 ## [br]
 ## @schema context: Dictionary，可包含 table_name、row_key、field、source、line 和 column 字段。
 func _add_issue(report: Dictionary, context: Dictionary, kind: String, message: String) -> void:
-	var issue_context := context.duplicate(true)
+	var issue_context: Dictionary = context.duplicate(true)
 	issue_context["rule_id"] = get_rule_id()
 	_CONFIG_VALIDATION_REPORT.new().add_issue(
 		report,
 		_severity_to_string(),
 		kind,
-		StringName(context.get("table_name", &"")),
-		context.get("row_key", null),
-		StringName(context.get("field", &"")),
+		GFVariantData.get_option_string_name(context, "table_name", &""),
+		GFVariantData.get_option_value(context, "row_key", null),
+		GFVariantData.get_option_string_name(context, "field", &""),
 		message,
 		issue_context
 	)
@@ -293,7 +293,9 @@ func _make_variant_key(value: Variant) -> String:
 # --- 私有/辅助方法 ---
 
 func _make_report(context: Dictionary) -> Dictionary:
-	return _CONFIG_VALIDATION_REPORT.new().make_report(StringName(context.get("table_name", &"")))
+	return _CONFIG_VALIDATION_REPORT.new().make_report(
+		GFVariantData.get_option_string_name(context, "table_name", &"")
+	)
 
 
 func _finalize_report(report: Dictionary) -> void:
@@ -302,3 +304,10 @@ func _finalize_report(report: Dictionary) -> void:
 
 func _severity_to_string() -> String:
 	return "warning" if severity == IssueSeverity.WARNING else "error"
+
+
+func _variant_to_validation_rule(value: Variant) -> GFConfigValidationRule:
+	if value is GFConfigValidationRule:
+		var rule: GFConfigValidationRule = value
+		return rule
+	return null

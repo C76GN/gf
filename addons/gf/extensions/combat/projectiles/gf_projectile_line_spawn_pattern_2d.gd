@@ -57,16 +57,16 @@ func _get_spawn_transforms(
 	if emitter == null:
 		return []
 
-	var count := _resolve_count(point_count, emit_count)
+	var count: int = _resolve_count(point_count, emit_count)
 	var result: Array[Transform2D] = []
-	var local_direction := local_end - local_start
-	var rotation := emitter.global_rotation
+	var local_direction: Vector2 = local_end - local_start
+	var rotation: float = emitter.global_rotation
 	if rotate_to_line and not local_direction.is_zero_approx():
 		rotation += local_direction.angle()
 	for index: int in range(count):
-		var factor := 0.5
+		var factor: float = 0.5
 		if count > 1:
 			factor = float(index) / float(count - 1)
-		var local_position := local_start.lerp(local_end, factor)
+		var local_position: Vector2 = local_start.lerp(local_end, factor)
 		result.append(Transform2D(rotation, emitter.to_global(local_position)))
 	return result

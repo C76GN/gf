@@ -1,5 +1,10 @@
-﻿## 测试 GFBindableProperty 的值绑定、信号触发及 unbind_all 清理功能。
+## 测试 GFBindableProperty 的值绑定、信号触发及 unbind_all 清理功能。
 extends GutTest
+
+
+# --- 常量 ---
+
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
 
 
 # --- 私有变量 ---
@@ -21,22 +26,22 @@ func after_each() -> void:
 
 ## 验证构造函数设置的初始值正确。
 func test_initial_value() -> void:
-	var prop_str := GFBindableProperty.new("hello")
-	assert_eq(prop_str.get_value(), "hello", "初始值应为构造时传入的值。")
+	var prop_str: GFBindableProperty = GFBindableProperty.new("hello")
+	assert_eq(_value_text(prop_str), "hello", "初始值应为构造时传入的值。")
 
 
 ## 验证 get_value 返回当前存储的值。
 func test_get_value() -> void:
 	_prop.set_value(7)
-	assert_eq(_prop.get_value(), 7, "get_value 应返回最新设置的值。")
+	assert_eq(_value_int(_prop), 7, "get_value 应返回最新设置的值。")
 
 
 ## 验证 value 属性与 get_value()/set_value() 保持一致。
 func test_value_property_gets_and_sets_value() -> void:
 	_prop.value = 9
 
-	assert_eq(_prop.value, 9, "value 属性应返回最新设置的值。")
-	assert_eq(_prop.get_value(), 9, "value 属性写入应同步到底层值。")
+	assert_eq(_value_int(_prop), 9, "value 属性应返回最新设置的值。")
+	assert_eq(_value_int(_prop), 9, "value 属性写入应同步到底层值。")
 
 
 # --- 测试：信号 ---
@@ -62,13 +67,13 @@ func test_signal_parameters_are_correct() -> void:
 	watch_signals(_prop)
 	_prop.set_value(99)
 	var params: Array = get_signal_parameters(_prop, "value_changed")
-	assert_eq(params[0], 3, "old_value 应为变化前的值 3。")
-	assert_eq(params[1], 99, "new_value 应为变化后的值 99。")
+	assert_eq(_variant_int(params[0]), 3, "old_value 应为变化前的值 3。")
+	assert_eq(_variant_int(params[1]), 99, "new_value 应为变化后的值 99。")
 
 
 func test_subscribe_returns_unsubscribe_callable() -> void:
-	var state := { "count": 0 }
-	var unsubscribe := _prop.subscribe(func(_old_value: Variant, _new_value: Variant) -> void:
+	var state: CounterState = CounterState.new()
+	var unsubscribe: Callable = _prop.subscribe(func(_old_value: Variant, _new_value: Variant) -> void:
 		state.count += 1
 	)
 
@@ -83,8 +88,8 @@ func test_subscribe_returns_unsubscribe_callable() -> void:
 func test_subscribe_can_emit_current_value_immediately() -> void:
 	var values: Array[int] = []
 
-	var unsubscribe := _prop.subscribe(func(_old_value: Variant, new_value: Variant) -> void:
-		values.append(int(new_value))
+	var unsubscribe: Callable = _prop.subscribe(func(_old_value: Variant, new_value: Variant) -> void:
+		values.append(_variant_int(new_value))
 	, true)
 	_prop.value = 4
 	unsubscribe.call()
@@ -93,7 +98,7 @@ func test_subscribe_can_emit_current_value_immediately() -> void:
 
 
 func test_subscribe_rejects_invalid_callback() -> void:
-	var unsubscribe := _prop.subscribe(Callable())
+	var unsubscribe: Callable = _prop.subscribe(Callable())
 
 	assert_false(unsubscribe.is_valid(), "无效 callback 不应返回有效取消函数。")
 	assert_push_error("[GFBindableProperty] subscribe 失败：callback 无效。")
@@ -101,10 +106,10 @@ func test_subscribe_rejects_invalid_callback() -> void:
 
 ## 验证 force_emit 可在引用类型原地变更后主动广播。
 func test_force_emit_broadcasts_current_value() -> void:
-	var prop := GFBindableProperty.new({ "hp": 10 })
+	var prop: GFBindableProperty = GFBindableProperty.new({ "hp": 10 })
 	watch_signals(prop)
 
-	var value := prop.get_value() as Dictionary
+	var value: Dictionary = _value_dictionary(prop)
 	value["hp"] = 5
 	prop.force_emit()
 
@@ -112,54 +117,54 @@ func test_force_emit_broadcasts_current_value() -> void:
 
 
 func test_mutate_helper_emits_after_in_place_change() -> void:
-	var prop := GFBindableProperty.new({ "hp": 10 })
+	var prop: GFBindableProperty = GFBindableProperty.new({ "hp": 10 })
 	watch_signals(prop)
 
 	assert_true(prop.mutate(func(value: Dictionary) -> void:
-		value.hp = 7
+		value["hp"] = 7
 	))
 
-	assert_eq(prop.value.hp, 7)
+	assert_eq(_GF_VARIANT_ACCESS_SCRIPT.get_option_int(_value_dictionary(prop), "hp"), 7)
 	assert_signal_emitted(prop, "value_changed")
 
 
 func test_array_mutation_helpers_emit_changes() -> void:
-	var prop := GFBindableProperty.new([])
+	var prop: GFBindableProperty = GFBindableProperty.new([])
 	watch_signals(prop)
 
 	assert_true(prop.append_to_array("a"))
 	assert_true(prop.append_array(["b", "c"]))
 	assert_true(prop.erase_from_array("b"))
-	assert_eq(prop.value, ["a", "c"])
+	assert_eq(_value_array(prop), ["a", "c"])
 	assert_signal_emit_count(prop, "value_changed", 3)
 
 
 func test_dictionary_mutation_helpers_emit_changes() -> void:
-	var prop := GFBindableProperty.new({})
+	var prop: GFBindableProperty = GFBindableProperty.new({})
 	watch_signals(prop)
 
 	assert_true(prop.set_dictionary_value("hp", 10))
 	assert_true(prop.erase_dictionary_key("hp"))
-	assert_eq(prop.value, {})
+	assert_eq(_value_dictionary(prop), {})
 	assert_signal_emit_count(prop, "value_changed", 2)
 
 
 func test_clear_collection_handles_array_and_dictionary() -> void:
-	var array_prop := GFBindableProperty.new([1])
-	var dict_prop := GFBindableProperty.new({ "a": 1 })
+	var array_prop: GFBindableProperty = GFBindableProperty.new([1])
+	var dict_prop: GFBindableProperty = GFBindableProperty.new({ "a": 1 })
 
 	assert_true(array_prop.clear_collection())
 	assert_true(dict_prop.clear_collection())
-	assert_eq(array_prop.value, [])
-	assert_eq(dict_prop.value, {})
+	assert_eq(_value_array(array_prop), [])
+	assert_eq(_value_dictionary(dict_prop), {})
 
 
 # --- 测试：解绑 ---
 
 ## 验证 unbind_all 只清理 GF 管理的节点绑定，不断开业务层直接订阅。
 func test_unbind_all_preserves_direct_subscribers() -> void:
-	var state := {"count": 0}
-	_prop.value_changed.connect(func(_o: Variant, _n: Variant) -> void: state.count += 1)
+	var state: CounterState = CounterState.new()
+	var _connect_result_167: Variant = _prop.value_changed.connect(func(_o: Variant, _n: Variant) -> void: state.count += 1)
 
 	_prop.set_value(1)
 	assert_eq(state.count, 1, "断开前，修改值应触发回调。")
@@ -171,9 +176,9 @@ func test_unbind_all_preserves_direct_subscribers() -> void:
 
 ## 验证 disconnect_all_subscribers 明确断开所有订阅。
 func test_disconnect_all_subscribers_removes_all_value_changed_connections() -> void:
-	var state := {"total": 0}
-	_prop.value_changed.connect(func(_o: Variant, _n: Variant) -> void: state.total += 1)
-	_prop.value_changed.connect(func(_o: Variant, _n: Variant) -> void: state.total += 10)
+	var state: CounterState = CounterState.new()
+	var _connect_result_180: Variant = _prop.value_changed.connect(func(_o: Variant, _n: Variant) -> void: state.total += 1)
+	var _connect_result_181: Variant = _prop.value_changed.connect(func(_o: Variant, _n: Variant) -> void: state.total += 10)
 
 	_prop.disconnect_all_subscribers()
 	_prop.set_value(42)
@@ -183,11 +188,11 @@ func test_disconnect_all_subscribers_removes_all_value_changed_connections() -> 
 
 ## 验证 disconnect_all_subscribers 后可以重新绑定。
 func test_rebind_after_disconnect_all_subscribers() -> void:
-	var state := {"count": 0}
-	_prop.value_changed.connect(func(_o: Variant, _n: Variant) -> void: state.count += 1)
+	var state: CounterState = CounterState.new()
+	var _connect_result_192: Variant = _prop.value_changed.connect(func(_o: Variant, _n: Variant) -> void: state.count += 1)
 	_prop.disconnect_all_subscribers()
 
-	_prop.value_changed.connect(func(_o: Variant, _n: Variant) -> void: state.count += 100)
+	var _connect_result_195: Variant = _prop.value_changed.connect(func(_o: Variant, _n: Variant) -> void: state.count += 100)
 	_prop.set_value(5)
 
 	assert_eq(state.count, 100, "disconnect_all_subscribers 后重新绑定的回调应正常工作。")
@@ -195,7 +200,7 @@ func test_rebind_after_disconnect_all_subscribers() -> void:
 
 ## 验证 unbind_all 会同时清理 bind_to 附加的 tree_exited 监听。
 func test_unbind_all_removes_tree_exited_helper_connections() -> void:
-	var node := Node.new()
+	var node: Node = Node.new()
 	add_child_autofree(node)
 
 	_prop.bind_to(node, func(_o: Variant, _n: Variant) -> void: pass)
@@ -206,14 +211,14 @@ func test_unbind_all_removes_tree_exited_helper_connections() -> void:
 
 
 func test_unbind_all_node_bindings_removes_bound_callbacks_only() -> void:
-	var direct_count := {"value": 0}
-	var bound_count := {"value": 0}
-	var node := Node.new()
-	var bound_callback := func(_o: Variant, _n: Variant) -> void:
+	var direct_count: CounterState = CounterState.new()
+	var bound_count: CounterState = CounterState.new()
+	var node: Node = Node.new()
+	var bound_callback: Callable = func(_o: Variant, _n: Variant) -> void:
 		bound_count.value += 1
 	add_child_autofree(node)
 
-	_prop.value_changed.connect(func(_o: Variant, _n: Variant) -> void:
+	var _connect_result_221: Variant = _prop.value_changed.connect(func(_o: Variant, _n: Variant) -> void:
 		direct_count.value += 1
 	)
 	_prop.bind_to(node, bound_callback)
@@ -227,13 +232,13 @@ func test_unbind_all_node_bindings_removes_bound_callbacks_only() -> void:
 
 ## 验证 unbind 只移除指定节点与回调，不影响其他监听者。
 func test_unbind_removes_single_node_binding_only() -> void:
-	var first_count := {"value": 0}
-	var second_count := {"value": 0}
-	var first_node := Node.new()
-	var second_node := Node.new()
-	var first_callback := func(_o: Variant, _n: Variant) -> void:
+	var first_count: CounterState = CounterState.new()
+	var second_count: CounterState = CounterState.new()
+	var first_node: Node = Node.new()
+	var second_node: Node = Node.new()
+	var first_callback: Callable = func(_o: Variant, _n: Variant) -> void:
 		first_count.value += 1
-	var second_callback := func(_o: Variant, _n: Variant) -> void:
+	var second_callback: Callable = func(_o: Variant, _n: Variant) -> void:
 		second_count.value += 1
 	add_child_autofree(first_node)
 	add_child_autofree(second_node)
@@ -250,9 +255,9 @@ func test_unbind_removes_single_node_binding_only() -> void:
 
 ## 验证节点已经失效时，手动 unbind 仍会清理 bind_to 持有的回调。
 func test_unbind_prunes_invalid_node_binding() -> void:
-	var count := {"value": 0}
-	var node := Node.new()
-	var callback := func(_old_value: Variant, _new_value: Variant) -> void:
+	var count: CounterState = CounterState.new()
+	var node: Node = Node.new()
+	var callback: Callable = func(_old_value: Variant, _new_value: Variant) -> void:
 		count.value += 1
 
 	_prop.bind_to(node, callback)
@@ -268,18 +273,18 @@ func test_unbind_prunes_invalid_node_binding() -> void:
 
 ## 验证 bind_to 能在节点销毁时自动解绑。
 func test_bind_to_auto_unbinds_on_tree_exited() -> void:
-	var state := {"count": 0}
-	var node := Node.new()
+	var state: CounterState = CounterState.new()
+	var node: Node = Node.new()
 	add_child_autofree(node)
 
-	_prop.bind_to(node, func(_o, _n): state.count += 1)
+	_prop.bind_to(node, func(_o: Variant, _n: Variant) -> void: state.count += 1)
 
 	_prop.set_value(1)
 	assert_eq(state.count, 1, "解绑前应触发一次。")
 
 	# 模拟节点退出场景树
 	remove_child(node)
-	node.emit_signal("tree_exited")
+	var _emit_signal_result_287: Variant = node.emit_signal("tree_exited")
 
 	_prop.set_value(2)
 	assert_eq(state.count, 1, "节点退出树后，不应再触发回调（已自动解绑）。")
@@ -289,10 +294,10 @@ func test_bind_to_auto_unbinds_on_tree_exited() -> void:
 
 ## 验证同一 Callable 绑定到多个节点时，一个节点退出不会误断开仍存活的绑定。
 func test_bind_to_same_callable_survives_until_last_bound_node_exits() -> void:
-	var state := {"count": 0}
-	var first_node := Node.new()
-	var second_node := Node.new()
-	var callback := func(_o: Variant, _n: Variant) -> void:
+	var state: CounterState = CounterState.new()
+	var first_node: Node = Node.new()
+	var second_node: Node = Node.new()
+	var callback: Callable = func(_o: Variant, _n: Variant) -> void:
 		state.count += 1
 	add_child_autofree(first_node)
 	add_child_autofree(second_node)
@@ -316,10 +321,10 @@ func test_bind_to_same_callable_survives_until_last_bound_node_exits() -> void:
 
 
 func test_bind_to_same_callable_prunes_all_invalid_nodes_together() -> void:
-	var state := {"count": 0}
-	var first_node := Node.new()
-	var second_node := Node.new()
-	var callback := func(_o: Variant, _n: Variant) -> void:
+	var state: CounterState = CounterState.new()
+	var first_node: Node = Node.new()
+	var second_node: Node = Node.new()
+	var callback: Callable = func(_o: Variant, _n: Variant) -> void:
 		state.count += 1
 
 	_prop.bind_to(first_node, callback)
@@ -335,11 +340,11 @@ func test_bind_to_same_callable_prunes_all_invalid_nodes_together() -> void:
 
 
 func test_reactive_effect_runs_when_any_source_changes() -> void:
-	var first := GFBindableProperty.new(1)
-	var second := GFBindableProperty.new(2)
+	var first: GFBindableProperty = GFBindableProperty.new(1)
+	var second: GFBindableProperty = GFBindableProperty.new(2)
 	var values: Array[int] = []
-	var effect := GFReactiveEffect.new([first, second], func() -> int:
-		var total := int(first.value) + int(second.value)
+	var effect: GFReactiveEffect = GFReactiveEffect.new([first, second], func() -> int:
+		var total: int = _value_int(first) + _value_int(second)
 		values.append(total)
 		return total
 	)
@@ -353,10 +358,10 @@ func test_reactive_effect_runs_when_any_source_changes() -> void:
 
 
 func test_reactive_effect_reruns_when_source_changes_during_callback() -> void:
-	var prop := GFBindableProperty.new(1)
+	var prop: GFBindableProperty = GFBindableProperty.new(1)
 	var values: Array[int] = []
-	var effect := GFReactiveEffect.new([prop], func() -> int:
-		var value := int(prop.value)
+	var effect: GFReactiveEffect = GFReactiveEffect.new([prop], func() -> int:
+		var value: int = _value_int(prop)
 		values.append(value)
 		if value == 1:
 			prop.value = 2
@@ -368,12 +373,12 @@ func test_reactive_effect_reruns_when_source_changes_during_callback() -> void:
 
 
 func test_reactive_effect_stops_with_owner_node() -> void:
-	var prop := GFBindableProperty.new(1)
-	var owner_node := Node.new()
-	var count := {"value": 0}
+	var prop: GFBindableProperty = GFBindableProperty.new(1)
+	var owner_node: Node = Node.new()
+	var count: CounterState = CounterState.new()
 	add_child(owner_node)
 
-	var effect := GFReactiveEffect.new([prop], func() -> void:
+	var effect: GFReactiveEffect = GFReactiveEffect.new([prop], func() -> void:
 		count.value += 1
 	, owner_node, false)
 
@@ -388,9 +393,9 @@ func test_reactive_effect_stops_with_owner_node() -> void:
 
 
 func test_reactive_effect_dispose_stops_sources() -> void:
-	var prop := GFBindableProperty.new(1)
-	var count := {"value": 0}
-	var effect := GFReactiveEffect.new([prop], func() -> void:
+	var prop: GFBindableProperty = GFBindableProperty.new(1)
+	var count: CounterState = CounterState.new()
+	var effect: GFReactiveEffect = GFReactiveEffect.new([prop], func() -> void:
 		count.value += 1
 	, null, false)
 
@@ -403,50 +408,50 @@ func test_reactive_effect_dispose_stops_sources() -> void:
 
 
 func test_computed_property_updates_from_sources() -> void:
-	var first := GFBindableProperty.new(2)
-	var second := GFBindableProperty.new(3)
-	var computed := GFComputedProperty.new([first, second], func() -> int:
-		return int(first.value) * int(second.value)
+	var first: GFBindableProperty = GFBindableProperty.new(2)
+	var second: GFBindableProperty = GFBindableProperty.new(3)
+	var computed: GFComputedProperty = GFComputedProperty.new([first, second], func() -> int:
+		return _value_int(first) * _value_int(second)
 	)
 
-	assert_eq(computed.value, 6, "computed 属性应立即计算初始值。")
+	assert_eq(_value_int(computed), 6, "computed 属性应立即计算初始值。")
 
 	first.value = 4
 
-	assert_eq(computed.value, 12, "来源属性变化后 computed 属性应刷新。")
+	assert_eq(_value_int(computed), 12, "来源属性变化后 computed 属性应刷新。")
 
 
 func test_computed_property_dispose_stops_auto_refresh() -> void:
-	var source := GFBindableProperty.new(1)
-	var computed := GFComputedProperty.new([source], func() -> int:
-		return int(source.value) + 1
+	var source: GFBindableProperty = GFBindableProperty.new(1)
+	var computed: GFComputedProperty = GFComputedProperty.new([source], func() -> int:
+		return _value_int(source) + 1
 	)
 
 	computed.dispose()
 	source.value = 4
 
-	assert_eq(computed.value, 2, "dispose 后 computed 属性不应继续自动刷新。")
+	assert_eq(_value_int(computed), 2, "dispose 后 computed 属性不应继续自动刷新。")
 	assert_false(computed.is_computing(), "dispose 后 computed 属性不应保持计算状态。")
 
 
 func test_computed_property_rejects_external_set() -> void:
-	var source := GFBindableProperty.new(1)
-	var computed := GFComputedProperty.new([source], func() -> int:
-		return int(source.value) + 1
+	var source: GFBindableProperty = GFBindableProperty.new(1)
+	var computed: GFComputedProperty = GFComputedProperty.new([source], func() -> int:
+		return _value_int(source) + 1
 	)
 
 	computed.value = 10
 
-	assert_eq(computed.value, 2, "外部写入 computed 属性不应改变派生值。")
+	assert_eq(_value_int(computed), 2, "外部写入 computed 属性不应改变派生值。")
 	assert_push_error("[GFComputedProperty] 当前属性由 compute 回调派生，请修改来源属性。")
 
 
 func test_computed_property_rejects_in_place_mutation_helpers() -> void:
-	var source := GFBindableProperty.new(1)
-	var computed_array := GFComputedProperty.new([source], func() -> Array:
+	var source: GFBindableProperty = GFBindableProperty.new(1)
+	var computed_array: GFComputedProperty = GFComputedProperty.new([source], func() -> Array:
 		return ["base"]
 	)
-	var computed_dict := GFComputedProperty.new([source], func() -> Dictionary:
+	var computed_dict: GFComputedProperty = GFComputedProperty.new([source], func() -> Dictionary:
 		return { "hp": 1 }
 	)
 	watch_signals(computed_array)
@@ -462,16 +467,16 @@ func test_computed_property_rejects_in_place_mutation_helpers() -> void:
 	assert_false(computed_dict.set_dictionary_value("hp", 99))
 	assert_false(computed_dict.erase_dictionary_key("hp"))
 
-	assert_eq(computed_array.value, ["base"], "computed 数组值不应被外部原地修改。")
-	assert_eq(computed_dict.value, { "hp": 1 }, "computed 字典值不应被外部原地修改。")
+	assert_eq(_value_array(computed_array), ["base"], "computed 数组值不应被外部原地修改。")
+	assert_eq(_value_dictionary(computed_dict), { "hp": 1 }, "computed 字典值不应被外部原地修改。")
 	assert_signal_not_emitted(computed_array, "value_changed", "拒绝原地修改时不应发出数组变化信号。")
 	assert_signal_not_emitted(computed_dict, "value_changed", "拒绝原地修改时不应发出字典变化信号。")
 	assert_push_error_count(7, "每次外部原地修改尝试都应报告只读错误。")
 
 
 func test_read_only_bindable_property_rejects_in_place_mutation_helpers() -> void:
-	var read_only_array := GFReadOnlyBindableProperty.new(["base"])
-	var read_only_dict := GFReadOnlyBindableProperty.new({ "hp": 1 })
+	var read_only_array: GFReadOnlyBindableProperty = GFReadOnlyBindableProperty.new(["base"])
+	var read_only_dict: GFReadOnlyBindableProperty = GFReadOnlyBindableProperty.new({ "hp": 1 })
 	watch_signals(read_only_array)
 	watch_signals(read_only_dict)
 
@@ -485,8 +490,38 @@ func test_read_only_bindable_property_rejects_in_place_mutation_helpers() -> voi
 	assert_false(read_only_dict.set_dictionary_value("hp", 99))
 	assert_false(read_only_dict.erase_dictionary_key("hp"))
 
-	assert_eq(read_only_array.value, ["base"], "只读数组视图不应被外部原地修改。")
-	assert_eq(read_only_dict.value, { "hp": 1 }, "只读字典视图不应被外部原地修改。")
+	assert_eq(_value_array(read_only_array), ["base"], "只读数组视图不应被外部原地修改。")
+	assert_eq(_value_dictionary(read_only_dict), { "hp": 1 }, "只读字典视图不应被外部原地修改。")
 	assert_signal_not_emitted(read_only_array, "value_changed", "拒绝原地修改时不应发出数组变化信号。")
 	assert_signal_not_emitted(read_only_dict, "value_changed", "拒绝原地修改时不应发出字典变化信号。")
 	assert_push_error_count(7, "每次外部原地修改尝试都应报告只读错误。")
+
+
+# --- 私有/辅助方法 ---
+
+func _value_dictionary(prop: GFBindableProperty) -> Dictionary:
+	return _GF_VARIANT_ACCESS_SCRIPT.as_dictionary(prop.get_value())
+
+
+func _value_array(prop: GFBindableProperty) -> Array:
+	return _GF_VARIANT_ACCESS_SCRIPT.as_array(prop.get_value())
+
+
+func _value_int(prop: GFBindableProperty) -> int:
+	return _variant_int(prop.get_value())
+
+
+func _value_text(prop: GFBindableProperty) -> String:
+	return _GF_VARIANT_ACCESS_SCRIPT.to_text(prop.get_value())
+
+
+func _variant_int(value: Variant) -> int:
+	return _GF_VARIANT_ACCESS_SCRIPT.to_int(value)
+
+
+# --- 内部类 ---
+
+class CounterState:
+	var count: int = 0
+	var total: int = 0
+	var value: int = 0

@@ -35,25 +35,25 @@ func update_from_tile_map(layer: TileMapLayer, target_cells: Array[Vector2i] = [
 	if layer == null:
 		return
 
-	var cells_to_update := target_cells
+	var cells_to_update: Array[Vector2i] = target_cells
 	if cells_to_update.is_empty():
 		cells_to_update = layer.get_used_cells()
 
 	for cell: Vector2i in cells_to_update:
-		var source_id := layer.get_cell_source_id(cell)
+		var source_id: int = layer.get_cell_source_id(cell)
 		if source_id == -1:
 			erase_cell(cell)
 			continue
 
-		var record := {
+		var record: Dictionary = {
 			"source_id": source_id,
 			"atlas_coords": layer.get_cell_atlas_coords(cell),
 			"alternative_tile": layer.get_cell_alternative_tile(cell),
 		}
-		var tile_data := layer.get_cell_tile_data(cell)
+		var tile_data: TileData = layer.get_cell_tile_data(cell)
 		if tile_data != null:
-			record["terrain"] = tile_data.get("terrain")
-			record["terrain_set"] = tile_data.get("terrain_set")
+			record["terrain"] = tile_data.terrain
+			record["terrain_set"] = tile_data.terrain_set
 		set_cell_data(cell, record)
 
 
@@ -76,7 +76,7 @@ func set_cell_data(cell: Vector2i, data: Dictionary) -> void:
 ## [br]
 ## @param cell: 格坐标。
 func erase_cell(cell: Vector2i) -> void:
-	cells.erase(cell)
+	var _erase_result_79: Variant = cells.erase(cell)
 
 
 ## 检查格子是否存在。
@@ -100,8 +100,8 @@ func has_cell(cell: Vector2i) -> bool:
 ## [br]
 ## @schema return: Dictionary cell record copy.
 func get_cell_data(cell: Vector2i) -> Dictionary:
-	var data := cells.get(cell) as Dictionary
-	if data == null:
+	var data: Dictionary = _get_cell_record(cell)
+	if data.is_empty():
 		return {}
 	return data.duplicate(true)
 
@@ -122,10 +122,10 @@ func get_cell_data(cell: Vector2i) -> Dictionary:
 ## [br]
 ## @schema return: Variant field value or default_value.
 func get_value(cell: Vector2i, key: StringName, default_value: Variant = null) -> Variant:
-	var data := cells.get(cell) as Dictionary
-	if data == null:
+	var data: Dictionary = _get_cell_record(cell)
+	if data.is_empty():
 		return default_value
-	return data.get(key, default_value)
+	return GFVariantData.get_option_value(data, key, default_value)
 
 
 ## 清空缓存。
@@ -170,7 +170,8 @@ func diff_cells(other: GFTileMapCache, compare_key: StringName = &"") -> Array[V
 func to_dict() -> Dictionary:
 	var result: Dictionary = {}
 	for cell: Vector2i in cells:
-		result["%d,%d" % [cell.x, cell.y]] = (cells[cell] as Dictionary).duplicate(true)
+		var record: Dictionary = _get_cell_record(cell)
+		result["%d,%d" % [cell.x, cell.y]] = record.duplicate(true)
 	return result
 
 
@@ -184,26 +185,30 @@ func to_dict() -> Dictionary:
 func from_dict(data: Dictionary) -> void:
 	cells.clear()
 	for key: Variant in data.keys():
-		var cell := _parse_cell_key(String(key))
+		var cell: Vector2i = _parse_cell_key(GFVariantData.to_text(key))
 		if cell == Vector2i(-2_147_483_648, -2_147_483_648):
 			continue
-		var record := data[key] as Dictionary
-		if record != null:
+		var record: Dictionary = GFVariantData.as_dictionary(GFVariantData.get_option_value(data, key, {}))
+		if not record.is_empty():
 			cells[cell] = record.duplicate(true)
 
 
 # --- 私有/辅助方法 ---
 
 func _cell_value_changed(cell: Vector2i, other: GFTileMapCache, compare_key: StringName) -> bool:
-	var current := cells[cell] as Dictionary
-	var previous := other.cells[cell] as Dictionary
+	var current: Dictionary = _get_cell_record(cell)
+	var previous: Dictionary = other._get_cell_record(cell)
 	if compare_key == &"":
 		return current != previous
-	return current.get(compare_key) != previous.get(compare_key)
+	return GFVariantData.get_option_value(current, compare_key) != GFVariantData.get_option_value(previous, compare_key)
+
+
+func _get_cell_record(cell: Vector2i) -> Dictionary:
+	return GFVariantData.as_dictionary(GFVariantData.get_option_value(cells, cell, {}))
 
 
 func _parse_cell_key(key: String) -> Vector2i:
-	var parts := key.split(",")
+	var parts: PackedStringArray = key.split(",")
 	if parts.size() != 2:
 		return Vector2i(-2_147_483_648, -2_147_483_648)
 	if not parts[0].is_valid_int() or not parts[1].is_valid_int():

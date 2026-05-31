@@ -73,15 +73,15 @@ func is_valid_definition() -> bool:
 ## [br]
 ## @schema record: Dictionary，用于构建索引键的配置记录。
 func make_key(record: Dictionary) -> String:
-	var parts := PackedStringArray()
+	var parts: PackedStringArray = PackedStringArray()
 	for field_name: String in field_names:
-		var key := StringName(field_name)
+		var key: StringName = StringName(field_name)
 		if not record.has(key):
 			return ""
 		var value: Variant = record[key]
 		if value == null and not allow_null_values:
 			return ""
-		parts.append("%d:%s" % [typeof(value), var_to_str(value)])
+		var _part_appended: bool = parts.append("%d:%s" % [typeof(value), var_to_str(value)])
 	return "|".join(parts)
 
 
@@ -91,7 +91,7 @@ func make_key(record: Dictionary) -> String:
 ## [br]
 ## @return 新索引声明。
 func duplicate_index() -> GFConfigTableIndexDefinition:
-	var index := GFConfigTableIndexDefinition.new()
+	var index: GFConfigTableIndexDefinition = GFConfigTableIndexDefinition.new()
 	index.index_id = index_id
 	index.field_names = field_names.duplicate()
 	index.unique = unique

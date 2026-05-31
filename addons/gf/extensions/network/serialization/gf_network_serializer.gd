@@ -67,10 +67,10 @@ func serialize_message(message: GFNetworkMessage) -> PackedByteArray:
 ## [br]
 ## @return 消息载体；失败时返回 null。
 func deserialize_message(bytes: PackedByteArray) -> GFNetworkMessage:
-	var result := deserialize_message_result(bytes)
-	if not bool(result.get("ok", false)):
+	var result: Dictionary = deserialize_message_result(bytes)
+	if not GFVariantData.get_option_bool(result, "ok"):
 		return null
-	return result.get("data") as GFNetworkMessage
+	return _get_network_message_value(GFVariantData.get_option_value(result, "data"))
 
 
 ## 解码消息并返回结果字典。
@@ -83,15 +83,15 @@ func deserialize_message(bytes: PackedByteArray) -> GFNetworkMessage:
 ## [br]
 ## @schema return: Dictionary，包含 ok、data、error；data 为 GFNetworkMessage 或空字典。
 func deserialize_message_result(bytes: PackedByteArray) -> Dictionary:
-	var dictionary_result := deserialize_dictionary_result(bytes)
-	if not bool(dictionary_result.get("ok", false)):
+	var dictionary_result: Dictionary = deserialize_dictionary_result(bytes)
+	if not GFVariantData.get_option_bool(dictionary_result, "ok"):
 		return dictionary_result
 
-	var data := dictionary_result.get("data", {}) as Dictionary
-	if data == null or data.is_empty():
+	var data: Dictionary = GFVariantData.get_option_dictionary(dictionary_result, "data")
+	if data.is_empty():
 		return _make_failure("empty_message")
 
-	var message := GFNetworkMessage.new()
+	var message: GFNetworkMessage = GFNetworkMessage.new()
 	message.from_dict(data)
 	return _make_success(message)
 
@@ -134,12 +134,12 @@ func deserialize_dictionary_result(bytes: PackedByteArray) -> Dictionary:
 				parsed = GFVariantJsonCodec.json_compatible_to_variant(parsed, json_codec_options)
 			if not (parsed is Dictionary):
 				return _make_failure("json_not_dictionary")
-			return _make_success((parsed as Dictionary).duplicate(true))
+			return _make_success(GFVariantData.to_dictionary(parsed))
 		_:
 			var value: Variant = bytes_to_var(bytes)
 			if not (value is Dictionary):
 				return _make_failure("binary_not_dictionary")
-			return _make_success((value as Dictionary).duplicate(true))
+			return _make_success(GFVariantData.to_dictionary(value))
 
 
 # --- 私有/辅助方法 ---
@@ -158,3 +158,10 @@ func _make_failure(error: String) -> Dictionary:
 		"data": {},
 		"error": error,
 	}
+
+
+func _get_network_message_value(value: Variant) -> GFNetworkMessage:
+	if value is GFNetworkMessage:
+		var message: GFNetworkMessage = value
+		return message
+	return null

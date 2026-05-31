@@ -64,7 +64,7 @@ func supports_node(node: Node) -> bool:
 ## [br]
 ## @schema return: Dictionary，可包含 anchor_*、offset_*、pivot_offset、rotation、scale、mouse_filter 与 focus_mode。
 func gather(node: Node, _context: Dictionary = {}) -> Dictionary:
-	var control := node as Control
+	var control: Control = _get_control(node)
 	if control == null:
 		return {}
 
@@ -89,9 +89,18 @@ func gather(node: Node, _context: Dictionary = {}) -> Dictionary:
 ## [br]
 ## @schema return: Dictionary，包含 ok: bool 与 error: String。
 func apply(node: Node, payload: Dictionary, _context: Dictionary = {}) -> Dictionary:
-	var control := node as Control
+	var control: Control = _get_control(node)
 	if control == null:
 		return make_result(false, "Node is not Control.")
 
 	_apply_property_specs(control, payload, _PROPERTY_SPECS)
 	return make_result(true)
+
+
+# --- 私有/辅助方法 ---
+
+func _get_control(node: Node) -> Control:
+	if node is Control:
+		var control: Control = node
+		return control
+	return null

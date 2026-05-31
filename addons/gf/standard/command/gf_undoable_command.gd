@@ -72,10 +72,7 @@ func should_record(_execute_result: Variant) -> bool:
 ## [br]
 ## @schema data: Variant snapshot value; Array and Dictionary values are deep-copied.
 func set_snapshot(data: Variant) -> void:
-	if typeof(data) == TYPE_DICTIONARY or typeof(data) == TYPE_ARRAY:
-		_snapshot = data.duplicate(true) # 强制深拷贝，避免引用陷阱
-	else:
-		_snapshot = data
+	_snapshot = GFVariantData.duplicate_collection(data, true)
 
 
 ## 获取由 set_snapshot() 保存的状态快照。在 undo() 中调用以还原数据。

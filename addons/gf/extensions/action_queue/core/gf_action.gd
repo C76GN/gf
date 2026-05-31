@@ -54,7 +54,7 @@ static func parallel(actions: Array) -> GFVisualActionGroup:
 ## [br]
 ## @schema actions: Array，元素为 GFVisualAction 或实现 execute() 协议的动作对象。
 static func race(actions: Array, cancel_remaining: bool = true) -> GFVisualActionGroup:
-	var group := GFVisualActionGroup.new(
+	var group: GFVisualActionGroup = GFVisualActionGroup.new(
 		actions,
 		true,
 		GFVisualActionGroup.ParallelCompletionPolicy.FIRST_COMPLETED
@@ -80,15 +80,15 @@ static func wait(seconds: float, host_node: Node = null) -> GFWaitAction:
 ## [br]
 ## @api public
 ## [br]
-## @param callback: 要执行的回调。
+## @param action_callback: 要执行的回调。
 ## [br]
 ## @param args: 回调参数。
 ## [br]
 ## @return 回调动作。
 ## [br]
-## @schema args: Array，传给 callback.callv() 的参数列表。
-static func callback(callback: Callable, args: Array = []) -> GFCallableAction:
-	return GFCallableAction.new(callback, args)
+## @schema args: Array，传给 action_callback.callv() 的参数列表。
+static func callback(action_callback: Callable, args: Array = []) -> GFCallableAction:
+	return GFCallableAction.new(action_callback, args)
 
 
 ## 创建重复动作。
@@ -141,10 +141,12 @@ static func tween(
 	duration: float = 0.2,
 	options: Dictionary = {}
 ) -> GFConfiguredTweenAction:
-	var config := GFTweenActionConfig.new()
-	var step := config.add_property_step(property_name, target_value, duration)
+	var config: GFTweenActionConfig = GFTweenActionConfig.new()
+	var step: GFTweenActionStep = config.add_property_step(property_name, target_value, duration)
 	_apply_tween_options(config, step, options)
-	return config.create_action(target, options.get("host_node", null) as Node) as GFConfiguredTweenAction
+	return _get_configured_tween_action_value(
+		config.create_action(target, _get_node_value(GFVariantData.get_option_value(options, "host_node")))
+	)
 
 
 ## 创建通用相对属性 Tween 动作。
@@ -173,7 +175,7 @@ static func tween_by(
 	duration: float = 0.2,
 	options: Dictionary = {}
 ) -> GFConfiguredTweenAction:
-	var merged_options := options.duplicate(true)
+	var merged_options: Dictionary = options.duplicate(true)
 	merged_options["as_relative"] = true
 	return tween(target, property_name, offset, duration, merged_options)
 
@@ -502,23 +504,127 @@ static func _apply_tween_options(
 	options: Dictionary
 ) -> void:
 	if options.has("duration_scale"):
-		config.duration_scale = float(options["duration_scale"])
+		config.duration_scale = GFVariantData.get_option_float(options, "duration_scale")
 	if options.has("loop_count"):
-		config.loop_count = maxi(int(options["loop_count"]), 0)
+		config.loop_count = maxi(GFVariantData.get_option_int(options, "loop_count"), 0)
 	if options.has("ignore_time_scale"):
-		config.ignore_time_scale = bool(options["ignore_time_scale"])
+		config.ignore_time_scale = GFVariantData.get_option_bool(options, "ignore_time_scale")
 	if options.has("process_mode"):
-		config.process_mode = int(options["process_mode"])
+		config.process_mode = _to_tween_process_mode(
+			GFVariantData.get_option_value(options, "process_mode"),
+			config.process_mode
+		)
 	if options.has("pause_mode"):
-		config.pause_mode = int(options["pause_mode"])
+		config.pause_mode = _to_tween_pause_mode(
+			GFVariantData.get_option_value(options, "pause_mode"),
+			config.pause_mode
+		)
 
 	if options.has("delay"):
-		step.delay = maxf(float(options["delay"]), 0.0)
+		step.delay = maxf(GFVariantData.get_option_float(options, "delay"), 0.0)
 	if options.has("parallel"):
-		step.parallel = bool(options["parallel"])
+		step.parallel = GFVariantData.get_option_bool(options, "parallel")
 	if options.has("as_relative"):
-		step.as_relative = bool(options["as_relative"])
+		step.as_relative = GFVariantData.get_option_bool(options, "as_relative")
 	if options.has("transition_type"):
-		step.transition_type = int(options["transition_type"])
+		step.transition_type = _to_tween_transition_type(
+			GFVariantData.get_option_value(options, "transition_type"),
+			step.transition_type
+		)
 	if options.has("ease_type"):
-		step.ease_type = int(options["ease_type"])
+		step.ease_type = _to_tween_ease_type(
+			GFVariantData.get_option_value(options, "ease_type"),
+			step.ease_type
+		)
+
+
+static func _get_node_value(value: Variant) -> Node:
+	if value is Node:
+		var node: Node = value
+		return node
+	return null
+
+
+static func _get_configured_tween_action_value(value: Variant) -> GFConfiguredTweenAction:
+	if value is GFConfiguredTweenAction:
+		var action: GFConfiguredTweenAction = value
+		return action
+	return null
+
+
+static func _to_tween_process_mode(
+	value: Variant,
+	default_value: Tween.TweenProcessMode
+) -> Tween.TweenProcessMode:
+	match GFVariantData.to_int(value, default_value):
+		Tween.TWEEN_PROCESS_PHYSICS:
+			return Tween.TWEEN_PROCESS_PHYSICS
+		Tween.TWEEN_PROCESS_IDLE:
+			return Tween.TWEEN_PROCESS_IDLE
+		_:
+			return default_value
+
+
+static func _to_tween_pause_mode(
+	value: Variant,
+	default_value: Tween.TweenPauseMode
+) -> Tween.TweenPauseMode:
+	match GFVariantData.to_int(value, default_value):
+		Tween.TWEEN_PAUSE_BOUND:
+			return Tween.TWEEN_PAUSE_BOUND
+		Tween.TWEEN_PAUSE_STOP:
+			return Tween.TWEEN_PAUSE_STOP
+		Tween.TWEEN_PAUSE_PROCESS:
+			return Tween.TWEEN_PAUSE_PROCESS
+		_:
+			return default_value
+
+
+static func _to_tween_transition_type(
+	value: Variant,
+	default_value: Tween.TransitionType
+) -> Tween.TransitionType:
+	match GFVariantData.to_int(value, default_value):
+		Tween.TRANS_LINEAR:
+			return Tween.TRANS_LINEAR
+		Tween.TRANS_SINE:
+			return Tween.TRANS_SINE
+		Tween.TRANS_QUINT:
+			return Tween.TRANS_QUINT
+		Tween.TRANS_QUART:
+			return Tween.TRANS_QUART
+		Tween.TRANS_QUAD:
+			return Tween.TRANS_QUAD
+		Tween.TRANS_EXPO:
+			return Tween.TRANS_EXPO
+		Tween.TRANS_ELASTIC:
+			return Tween.TRANS_ELASTIC
+		Tween.TRANS_CUBIC:
+			return Tween.TRANS_CUBIC
+		Tween.TRANS_CIRC:
+			return Tween.TRANS_CIRC
+		Tween.TRANS_BOUNCE:
+			return Tween.TRANS_BOUNCE
+		Tween.TRANS_BACK:
+			return Tween.TRANS_BACK
+		Tween.TRANS_SPRING:
+			return Tween.TRANS_SPRING
+		_:
+			return default_value
+
+
+static func _to_tween_ease_type(
+	value: Variant,
+	default_value: Tween.EaseType
+) -> Tween.EaseType:
+	match GFVariantData.to_int(value, default_value):
+		Tween.EASE_IN:
+			return Tween.EASE_IN
+		Tween.EASE_OUT:
+			return Tween.EASE_OUT
+		Tween.EASE_IN_OUT:
+			return Tween.EASE_IN_OUT
+		Tween.EASE_OUT_IN:
+			return Tween.EASE_OUT_IN
+		_:
+			return default_value

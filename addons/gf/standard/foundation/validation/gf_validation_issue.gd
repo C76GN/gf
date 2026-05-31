@@ -26,12 +26,6 @@ enum Severity {
 	ERROR,
 }
 
-
-# --- 常量 ---
-
-const _GF_SOURCE_SPAN_SCRIPT: Script = preload("res://addons/gf/standard/foundation/validation/gf_source_span.gd")
-
-
 # --- 公共变量 ---
 
 ## 严重级别。
@@ -210,21 +204,23 @@ func configure(
 ## [br]
 ## @schema data: Dictionary validation issue fields.
 func apply_dict(data: Dictionary) -> void:
-	if data.get("source_span") is Dictionary:
-		_apply_source_span(data.get("source_span") as Dictionary, true)
-	severity = normalize_severity(data.get("severity", severity))
+	var source_span_value: Variant = GFVariantData.get_option_value(data, "source_span")
+	if source_span_value is Dictionary:
+		var source_span_data: Dictionary = GFVariantData.as_dictionary(source_span_value)
+		_apply_source_span(source_span_data, true)
+	severity = normalize_severity(GFVariantData.get_option_value(data, "severity", severity))
 	kind = _read_string_name(data, "kind", kind)
-	key = GFVariantData.duplicate_variant(data.get("key", key))
-	path = String(data.get("path", path))
+	key = GFVariantData.duplicate_variant(GFVariantData.get_option_value(data, "key", key))
+	path = GFVariantData.get_option_string(data, "path", path)
 	_apply_source_span(data)
-	subject = String(data.get("subject", subject))
-	message = String(data.get("message", message))
+	subject = GFVariantData.get_option_string(data, "subject", subject)
+	message = GFVariantData.get_option_string(data, "message", message)
 
-	var metadata_value: Variant = data.get("metadata", metadata)
-	metadata = (metadata_value as Dictionary).duplicate(true) if metadata_value is Dictionary else {}
+	var metadata_value: Variant = GFVariantData.get_option_value(data, "metadata", metadata)
+	metadata = GFVariantData.as_dictionary(metadata_value).duplicate(true)
 	extra_fields.clear()
 	for field_key: Variant in data.keys():
-		if _is_reserved_field(String(field_key)):
+		if _is_reserved_field(GFVariantData.to_text(field_key)):
 			continue
 		extra_fields[field_key] = GFVariantData.duplicate_variant(data[field_key])
 
@@ -239,11 +235,11 @@ func apply_dict(data: Dictionary) -> void:
 ## [br]
 ## @schema return: Dictionary validation issue fields.
 func to_dict(include_empty_fields: bool = false) -> Dictionary:
-	var result := {
+	var result: Dictionary = {
 		"severity": severity_to_string(severity),
 		"message": message,
 	}
-	var kind_key := get_kind_key()
+	var kind_key: String = get_kind_key()
 	if include_empty_fields or not kind_key.is_empty():
 		result["kind"] = kind_key
 	if include_empty_fields or key != null:
@@ -255,7 +251,7 @@ func to_dict(include_empty_fields: bool = false) -> Dictionary:
 		result["subject"] = subject
 
 	for field_key: Variant in extra_fields.keys():
-		if _is_reserved_field(String(field_key)):
+		if _is_reserved_field(GFVariantData.to_text(field_key)):
 			continue
 		result[field_key] = GFVariantData.duplicate_variant(extra_fields[field_key])
 
@@ -270,8 +266,8 @@ func to_dict(include_empty_fields: bool = false) -> Dictionary:
 ## [br]
 ## @return 新问题条目。
 func duplicate_issue() -> RefCounted:
-	var issue := get_script().new() as RefCounted
-	issue.call("apply_dict", to_dict(true))
+	var issue: GFValidationIssue = GFValidationIssue.new()
+	issue.apply_dict(to_dict(true))
 	return issue
 
 
@@ -285,10 +281,12 @@ func duplicate_issue() -> RefCounted:
 ## [br]
 ## @schema source_span: Variant GFSourceSpan-like object or Dictionary.
 func set_source_span(source_span: Variant) -> RefCounted:
-	if source_span is _GF_SOURCE_SPAN_SCRIPT:
-		_apply_source_span((source_span as RefCounted).call("to_dict", true) as Dictionary, true)
+	if source_span is GFSourceSpan:
+		var typed_span: GFSourceSpan = source_span
+		_apply_source_span(typed_span.to_dict(true), true)
 	elif source_span is Dictionary:
-		_apply_source_span(source_span as Dictionary, true)
+		var source_span_data: Dictionary = source_span
+		_apply_source_span(source_span_data, true)
 	return self
 
 
@@ -298,8 +296,7 @@ func set_source_span(source_span: Variant) -> RefCounted:
 ## [br]
 ## @return GFSourceSpan。
 func get_source_span() -> RefCounted:
-	var span := _GF_SOURCE_SPAN_SCRIPT.new() as RefCounted
-	span.call("configure", source_path, line, column, length, end_line, end_column, preview, _source_span_metadata)
+	var span: GFSourceSpan = _make_source_span()
 	return span
 
 
@@ -318,8 +315,8 @@ func has_source_position() -> bool:
 ## [br]
 ## @return 例如 `res://table.csv:4:2`。
 func get_location_text() -> String:
-	var span := get_source_span()
-	return String(span.call("get_location_text"))
+	var span: GFSourceSpan = _make_source_span()
+	return span.get_location_text()
 
 
 ## 获取统计用问题类别。
@@ -373,9 +370,17 @@ static func normalize_severity(value: Variant) -> Severity:
 	if value == null:
 		return Severity.ERROR
 	if typeof(value) == TYPE_INT:
-		return clampi(int(value), Severity.INFO, Severity.ERROR) as Severity
+		var int_value: int = value
+		var severity_index: int = clampi(int_value, Severity.INFO, Severity.ERROR)
+		match severity_index:
+			Severity.INFO:
+				return Severity.INFO
+			Severity.WARNING:
+				return Severity.WARNING
+			_:
+				return Severity.ERROR
 
-	var text := String(value).strip_edges().to_lower()
+	var text: String = GFVariantData.to_text(value).strip_edges().to_lower()
 	match text:
 		"info", "information", "note":
 			return Severity.INFO
@@ -416,8 +421,8 @@ static func severity_to_string(value: Variant) -> String:
 ## [br]
 ## @schema data: Dictionary validation issue fields.
 static func from_dict(data: Dictionary) -> RefCounted:
-	var issue := (load("res://addons/gf/standard/foundation/validation/gf_validation_issue.gd") as Script).new() as RefCounted
-	issue.call("apply_dict", data)
+	var issue: GFValidationIssue = GFValidationIssue.new()
+	issue.apply_dict(data)
 	return issue
 
 
@@ -426,10 +431,10 @@ static func from_dict(data: Dictionary) -> RefCounted:
 static func _read_string_name(data: Dictionary, field_name: String, default_value: StringName = &"") -> StringName:
 	if not data.has(field_name):
 		return default_value
-	var value: Variant = data.get(field_name, "")
+	var value: Variant = GFVariantData.get_option_value(data, field_name, "")
 	if value == null:
 		return default_value
-	return StringName(String(value))
+	return GFVariantData.to_string_name(value)
 
 
 func _apply_source_span(data: Dictionary, include_metadata: bool = false) -> void:
@@ -439,35 +444,53 @@ func _apply_source_span(data: Dictionary, include_metadata: bool = false) -> voi
 	length = _read_non_negative_int(data, "length", length)
 	end_line = _read_non_negative_int(data, "end_line", end_line)
 	end_column = _read_non_negative_int(data, "end_column", end_column)
-	preview = String(data.get("preview", preview))
+	preview = GFVariantData.get_option_string(data, "preview", preview)
 	if include_metadata:
-		var metadata_value: Variant = data.get("metadata", {})
-		_source_span_metadata = (metadata_value as Dictionary).duplicate(true) if metadata_value is Dictionary else {}
+		var metadata_value: Variant = GFVariantData.get_option_value(data, "metadata", {})
+		_source_span_metadata = GFVariantData.as_dictionary(metadata_value).duplicate(true)
 
 
 func _add_source_span_fields(result: Dictionary, include_empty_fields: bool) -> void:
-	var span := get_source_span()
-	var span_dict: Dictionary = span.call("to_dict", include_empty_fields, true)
+	var span: GFSourceSpan = _make_source_span()
+	var span_dict: Dictionary = span.to_dict(include_empty_fields, true)
 	for field_key: Variant in span_dict.keys():
 		if field_key == "metadata":
 			continue
 		result[field_key] = GFVariantData.duplicate_variant(span_dict[field_key])
 	if not span_dict.is_empty():
-		result["source_span"] = span.call("to_dict", include_empty_fields, false)
+		result["source_span"] = span.to_dict(include_empty_fields, false)
 
 
 static func _read_source_path(data: Dictionary, default_value: String = "") -> String:
 	if data.has("source_path"):
-		return String(data.get("source_path", ""))
+		return GFVariantData.get_option_string(data, "source_path")
 	if data.has("source"):
-		return String(data.get("source", ""))
+		return GFVariantData.get_option_string(data, "source")
 	return default_value
 
 
 static func _read_non_negative_int(data: Dictionary, field_name: String, default_value: int) -> int:
 	if not data.has(field_name):
 		return default_value
-	return maxi(int(data.get(field_name, default_value)), 0)
+	var value: Variant = GFVariantData.get_option_value(data, field_name, default_value)
+	if value is float:
+		return maxi(roundi(GFVariantData.to_float(value, float(default_value))), 0)
+	return maxi(GFVariantData.to_int(value, default_value), 0)
+
+
+func _make_source_span() -> GFSourceSpan:
+	var span: GFSourceSpan = GFSourceSpan.new()
+	var _configured_span: RefCounted = span.configure(
+		source_path,
+		line,
+		column,
+		length,
+		end_line,
+		end_column,
+		preview,
+		_source_span_metadata
+	)
+	return span
 
 
 static func _is_reserved_field(field_name: String) -> bool:

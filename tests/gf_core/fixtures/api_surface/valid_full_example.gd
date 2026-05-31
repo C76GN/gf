@@ -174,7 +174,12 @@ func register_config(config: GFAPISurfaceConfig) -> bool:
 ## @param config_id: 配置 ID。
 ## @return: 找到的配置；不存在时返回 null。
 func get_config(config_id: StringName) -> GFAPISurfaceConfig:
-	return _configs_by_id.get(config_id) as GFAPISurfaceConfig
+	if not _configs_by_id.has(config_id):
+		return null
+	var config: Variant = _configs_by_id[config_id]
+	if config is GFAPISurfaceConfig:
+		return config
+	return null
 
 
 ## 构建一个请求。
@@ -200,7 +205,7 @@ func get_config(config_id: StringName) -> GFAPISurfaceConfig:
 ##   "required": ["request_id", "config_id", "payload", "mode"]
 ## }
 func build_request(config_id: StringName, payload: Dictionary = {}) -> Dictionary:
-	var normalized_payload := _normalize_payload(payload)
+	var normalized_payload: Dictionary = _normalize_payload(payload)
 	return {
 		"request_id": _make_request_id(config_id),
 		"config_id": config_id,
@@ -220,18 +225,18 @@ func build_request(config_id: StringName, payload: Dictionary = {}) -> Dictionar
 ##   "required": ["request_id", "config_id", "payload", "mode"]
 ## }
 func execute_request(request: Dictionary, mode: ExecuteMode = ExecuteMode.QUEUED) -> GFAPISurfaceReport:
-	var validation := validate_request(request)
+	var validation: GFAPISurfaceReport = validate_request(request)
 	if not validation.accepted:
 		return validation
 
 	if mode == ExecuteMode.DRY_RUN:
-		return GFAPISurfaceReport.make_accepted(StringName(request.get("request_id", &"")))
+		return GFAPISurfaceReport.make_accepted(_get_request_id(request))
 
 	if mode == ExecuteMode.QUEUED:
 		_pending_requests.append(request)
-		return GFAPISurfaceReport.make_queued(StringName(request.get("request_id", &"")))
+		return GFAPISurfaceReport.make_queued(_get_request_id(request))
 
-	var report := _execute_now(request)
+	var report: GFAPISurfaceReport = _execute_now(request)
 	request_finished.emit(report.request_id, report)
 	return report
 
@@ -249,11 +254,11 @@ func validate_request(request: Dictionary) -> GFAPISurfaceReport:
 	if not request.has("request_id"):
 		return GFAPISurfaceReport.make_rejected(&"", "missing_request_id")
 	if not request.has("config_id"):
-		return GFAPISurfaceReport.make_rejected(StringName(request["request_id"]), "missing_config_id")
-	if not _configs_by_id.has(StringName(request["config_id"])):
-		return GFAPISurfaceReport.make_rejected(StringName(request["request_id"]), "unknown_config")
+		return GFAPISurfaceReport.make_rejected(_string_name_value(request["request_id"]), "missing_config_id")
+	if not _configs_by_id.has(_string_name_value(request["config_id"])):
+		return GFAPISurfaceReport.make_rejected(_string_name_value(request["request_id"]), "unknown_config")
 
-	return GFAPISurfaceReport.make_accepted(StringName(request["request_id"]))
+	return GFAPISurfaceReport.make_accepted(_string_name_value(request["request_id"]))
 
 
 ## 执行所有排队请求。
@@ -262,7 +267,8 @@ func validate_request(request: Dictionary) -> GFAPISurfaceReport:
 ## @return: 每个请求的执行报告。
 func flush_pending_requests() -> Array[GFAPISurfaceReport]:
 	var reports: Array[GFAPISurfaceReport] = []
-	var requests := _pending_requests.duplicate()
+	var requests: Array[Dictionary] = []
+	requests.assign(_pending_requests)
 	_pending_requests.clear()
 
 	for request: Dictionary in requests:
@@ -303,7 +309,7 @@ func run_now(request: Dictionary) -> GFAPISurfaceReport:
 ##   "additional_properties": true
 ## }
 func _normalize_payload(payload: Dictionary) -> Dictionary:
-	var normalized := payload.duplicate(true)
+	var normalized: Dictionary = payload.duplicate(true)
 	if not normalized.has("tags"):
 		normalized["tags"] = []
 	return normalized
@@ -336,7 +342,7 @@ func _before_execute(request: Dictionary) -> bool:
 ##   "required": ["request_id", "config_id"]
 ## }
 func _create_success_report(request: Dictionary) -> GFAPISurfaceReport:
-	return GFAPISurfaceReport.make_completed(StringName(request["request_id"]))
+	return GFAPISurfaceReport.make_completed(_string_name_value(request["request_id"]))
 
 
 # --- 框架内部方法 ---
@@ -384,16 +390,24 @@ func dump_diagnostics() -> Dictionary:
 ##   }
 ## }
 func restore_layer_state(state: Dictionary) -> void:
-	_pending_requests = state.get("pending_requests", [])
+	_pending_requests.clear()
+	if not state.has("pending_requests"):
+		return
+	var requests: Variant = state["pending_requests"]
+	if not requests is Array:
+		return
+	for request: Variant in requests:
+		if request is Dictionary:
+			_pending_requests.append(request)
 
 
 # --- 私有/辅助方法 ---
 
 func _execute_now(request: Dictionary) -> GFAPISurfaceReport:
 	if not _before_execute(request):
-		return GFAPISurfaceReport.make_rejected(StringName(request["request_id"]), "blocked_by_hook")
+		return GFAPISurfaceReport.make_rejected(_string_name_value(request["request_id"]), "blocked_by_hook")
 
-	var report := _create_success_report(request)
+	var report: GFAPISurfaceReport = _create_success_report(request)
 	return report
 
 
@@ -403,7 +417,26 @@ func _make_request_id(config_id: StringName) -> StringName:
 
 func _refresh_editor_diagnostics() -> void:
 	# Editor-only diagnostics intentionally stays private; it must not enter generated API docs.
-	print_verbose("[GFAPISurfaceFullExample] configs=%d pending=%d" % [config_count, _pending_requests.size()])
+	var owner_name: String = ""
+	if _owner_node != null:
+		owner_name = _owner_node.name
+	print_verbose("[GFAPISurfaceFullExample] configs=%d pending=%d owner=%s" % [config_count, _pending_requests.size(), owner_name])
+
+
+func _get_request_id(request: Dictionary) -> StringName:
+	if not request.has("request_id"):
+		return &""
+	return _string_name_value(request["request_id"])
+
+
+func _string_name_value(value: Variant) -> StringName:
+	if value is StringName:
+		var string_name_value: StringName = value
+		return string_name_value
+	if value is String:
+		var text: String = value
+		return StringName(text)
+	return &""
 
 
 # --- 信号处理函数 ---
@@ -489,44 +522,44 @@ class GFAPISurfaceReport:
 	## 创建已接受报告。
 	##
 	## @api public
-	## @param request_id: 请求 ID。
+	## @param report_request_id: 请求 ID。
 	## @return: 新报告。
-	static func make_accepted(request_id: StringName) -> GFAPISurfaceReport:
-		var report := GFAPISurfaceReport.new()
-		report.request_id = request_id
+	static func make_accepted(report_request_id: StringName) -> GFAPISurfaceReport:
+		var report: GFAPISurfaceReport = GFAPISurfaceReport.new()
+		report.request_id = report_request_id
 		report.accepted = true
 		return report
 
 	## 创建已排队报告。
 	##
 	## @api public
-	## @param request_id: 请求 ID。
+	## @param report_request_id: 请求 ID。
 	## @return: 新报告。
-	static func make_queued(request_id: StringName) -> GFAPISurfaceReport:
-		var report := make_accepted(request_id)
+	static func make_queued(report_request_id: StringName) -> GFAPISurfaceReport:
+		var report: GFAPISurfaceReport = make_accepted(report_request_id)
 		report.reason = "queued"
 		return report
 
 	## 创建已完成报告。
 	##
 	## @api public
-	## @param request_id: 请求 ID。
+	## @param report_request_id: 请求 ID。
 	## @return: 新报告。
-	static func make_completed(request_id: StringName) -> GFAPISurfaceReport:
-		var report := make_accepted(request_id)
+	static func make_completed(report_request_id: StringName) -> GFAPISurfaceReport:
+		var report: GFAPISurfaceReport = make_accepted(report_request_id)
 		report.completed = true
 		return report
 
 	## 创建拒绝报告。
 	##
 	## @api public
-	## @param request_id: 请求 ID。
-	## @param reason: 拒绝原因。
+	## @param report_request_id: 请求 ID。
+	## @param reject_reason: 拒绝原因。
 	## @return: 新报告。
-	static func make_rejected(request_id: StringName, reason: String) -> GFAPISurfaceReport:
-		var report := GFAPISurfaceReport.new()
-		report.request_id = request_id
-		report.reason = reason
+	static func make_rejected(report_request_id: StringName, reject_reason: String) -> GFAPISurfaceReport:
+		var report: GFAPISurfaceReport = GFAPISurfaceReport.new()
+		report.request_id = report_request_id
+		report.reason = reject_reason
 		return report
 
 
@@ -571,3 +604,10 @@ class _ParserState:
 
 	var _cursor: int = 0
 	var _source: String = ""
+
+	func _reset(source_text: String) -> void:
+		_cursor = 0
+		_source = source_text
+
+	func _is_at_end() -> bool:
+		return _cursor >= _source.length()

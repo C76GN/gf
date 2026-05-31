@@ -82,21 +82,21 @@ func execute() -> Variant:
 		_restore_initial_values_on_finish()
 		return null
 
-	var tween_host := _get_tween_host()
+	var tween_host: Node = _get_tween_host()
 	if tween_host == null:
 		push_warning("[GFConfiguredTweenAction] 缺少有效 Tween 宿主节点。")
 		return null
 
 	_active_tween = tween_host.create_tween()
-	_active_tween.set_ignore_time_scale(config.ignore_time_scale)
-	_active_tween.set_process_mode(config.process_mode)
-	_active_tween.set_pause_mode(config.pause_mode)
+	var _set_ignore_time_scale_result_91: Variant = _active_tween.set_ignore_time_scale(config.ignore_time_scale)
+	var _set_process_mode_result_92: Variant = _active_tween.set_process_mode(config.process_mode)
+	var _set_pause_mode_result_93: Variant = _active_tween.set_pause_mode(config.pause_mode)
 	if config.loop_count != 1:
-		_active_tween.set_loops(config.loop_count)
+		var _set_loops_result_95: Variant = _active_tween.set_loops(config.loop_count)
 
-	var appended_count := 0
+	var appended_count: int = 0
 	for step_index: int in range(config.steps.size()):
-		var step := config.steps[step_index]
+		var step: GFTweenActionStep = config.steps[step_index]
 		if step == null:
 			continue
 		if step.append_to_tween(_active_tween, target, config.duration_scale) != null:
@@ -106,7 +106,10 @@ func execute() -> Variant:
 	if appended_count <= 0:
 		_clear_active_tween()
 		return null
-	_active_tween.finished.connect(_on_active_tween_finished, CONNECT_ONE_SHOT)
+	var _finished_connected: Error = _active_tween.finished.connect(
+		_on_active_tween_finished,
+		CONNECT_ONE_SHOT as Object.ConnectFlags
+	) as Error
 	return _action_completed
 
 
@@ -145,7 +148,7 @@ func finish() -> void:
 			_restore_initial_values_on_finish()
 			_emit_completed_once()
 			return
-		_active_tween.custom_step(INF)
+		var _custom_step_result_151: Variant = _active_tween.custom_step(INF)
 	_clear_active_tween()
 	_restore_initial_values_on_finish()
 	_emit_completed_once()
@@ -157,7 +160,7 @@ func finish() -> void:
 ## [br]
 ## @return 有效宿主节点；无效时返回 null。
 func get_wait_guard_node() -> Node:
-	var tween_host := _get_tween_host()
+	var tween_host: Node = _get_tween_host()
 	return tween_host if is_instance_valid(tween_host) else null
 
 
@@ -167,7 +170,7 @@ func _get_tween_host() -> Node:
 	if is_instance_valid(host_node):
 		return host_node
 	if target is Node and is_instance_valid(target):
-		return target as Node
+		return _get_node_value(target)
 	return null
 
 
@@ -182,7 +185,7 @@ func _clear_active_tween() -> void:
 func _append_marker_callback(step: GFTweenActionStep, step_index: int) -> void:
 	if step.marker_id == &"" or not is_instance_valid(_active_tween):
 		return
-	_active_tween.tween_callback(
+	var _tween_callback_result_188: Variant = _active_tween.tween_callback(
 		Callable(self, "_on_step_marker_reached").bind(step.marker_id, step_index)
 	)
 
@@ -204,6 +207,13 @@ func _restore_initial_values_on_finish() -> void:
 	if config == null or not config.restore_initial_values_on_finish:
 		return
 	config.restore_initial_values(target, _initial_values)
+
+
+func _get_node_value(value: Variant) -> Node:
+	if value is Node:
+		var node: Node = value
+		return node
+	return null
 
 
 # --- 信号处理函数 ---

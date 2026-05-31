@@ -39,6 +39,7 @@ enum OperationType {
 
 # --- 常量 ---
 
+const _GF_ASYNC_CALL_SCRIPT = preload("res://addons/gf/kernel/core/gf_async_call.gd")
 const _MAX_SIGNAL_ARGUMENTS: int = 16
 
 
@@ -225,7 +226,7 @@ func scan(accumulator: Variant, reducer: Callable) -> GFSignalConnection:
 ## @return 当前连接对象，便于继续链式配置。
 func start_with(value: Variant) -> GFSignalConnection:
 	_serial += 1
-	_process_async(_normalize_start_args(value), _serial)
+	_start_process_async(_normalize_start_args(value), _serial)
 	return self
 
 
@@ -254,7 +255,10 @@ func start() -> GFSignalConnection:
 		push_error("[GFSignalConnection] start 失败：callback 无效。")
 		return self
 
-	_source_signal.connect(_on_signal_emitted, _connect_flags)
+	var _connected_error: Error = _source_signal.connect(
+		_on_signal_emitted,
+		_connect_flags as Object.ConnectFlags
+	) as Error
 	_is_connected = true
 	return self
 
@@ -327,7 +331,7 @@ func prune_if_invalid() -> bool:
 	if _source_signal.is_null():
 		disconnect_signal()
 		return true
-	var source_obj := _source_signal.get_object()
+	var source_obj: Object = _source_signal.get_object()
 	if not is_instance_valid(source_obj):
 		disconnect_signal()
 		return true
@@ -345,7 +349,7 @@ func _matches_configuration(
 	owner: Object,
 	default_args: Array,
 	connect_flags: int,
-	once: bool
+	once_requested: bool
 ) -> bool:
 	if _source_signal != source_signal:
 		return false
@@ -357,7 +361,7 @@ func _matches_configuration(
 		return false
 	if _connect_flags != connect_flags:
 		return false
-	return _is_once == once
+	return _is_once == once_requested
 
 
 func _on_signal_emitted(
@@ -378,7 +382,7 @@ func _on_signal_emitted(
 	arg15: Variant = null,
 	arg16: Variant = null
 ) -> void:
-	var args := _collect_args([
+	var args: Array = _collect_args([
 		arg1,
 		arg2,
 		arg3,
@@ -397,7 +401,11 @@ func _on_signal_emitted(
 		arg16,
 	])
 	_serial += 1
-	_process_async(args, _serial)
+	_start_process_async(args, _serial)
+
+
+func _start_process_async(args: Array, serial: int) -> void:
+	_GF_ASYNC_CALL_SCRIPT.run_detached(Callable(self, &"_process_async"), [args, serial])
 
 
 func _owner_matches_exact(owner: Object) -> bool:
@@ -407,57 +415,60 @@ func _owner_matches_exact(owner: Object) -> bool:
 
 
 func _process_async(args: Array, serial: int) -> void:
-	var current_args := args.duplicate()
-	var should_disconnect_after_callback := false
+	var current_args: Array = args.duplicate()
+	var should_disconnect_after_callback: bool = false
 	for operation: Dictionary in _operations:
 		if serial != _serial or prune_if_invalid():
 			return
 
-		match int(operation["type"]):
+		match _get_operation_type(operation):
 			OperationType.FILTER:
-				var predicate := operation["callable"] as Callable
-				if not bool(predicate.callv(current_args)):
+				var predicate: Callable = _get_operation_callable(operation)
+				if not GFVariantData.to_bool(predicate.callv(current_args)):
 					return
 
 			OperationType.MAP:
-				var mapper := operation["callable"] as Callable
+				var mapper: Callable = _get_operation_callable(operation)
 				var mapped: Variant = mapper.callv(current_args)
-				current_args = mapped if mapped is Array else [mapped]
+				if mapped is Array:
+					current_args = mapped
+				else:
+					current_args = [mapped]
 
 			OperationType.DELAY:
-				await _wait_seconds(float(operation["seconds"]), serial)
+				await _wait_seconds(_get_operation_seconds(operation), serial)
 
 			OperationType.DEBOUNCE:
-				await _wait_seconds(float(operation["seconds"]), serial)
+				await _wait_seconds(_get_operation_seconds(operation), serial)
 				if serial != _serial:
 					return
 
 			OperationType.THROTTLE:
-				var now_msec := Time.get_ticks_msec()
-				var last_msec := int(operation.get("last_msec", -1))
-				var wait_msec := int(float(operation["seconds"]) * 1000.0)
+				var now_msec: int = Time.get_ticks_msec()
+				var last_msec: int = _get_operation_last_msec(operation)
+				var wait_msec: int = int(_get_operation_seconds(operation) * 1000.0)
 				if last_msec >= 0 and wait_msec > 0 and now_msec - last_msec < wait_msec:
 					return
 				operation["last_msec"] = now_msec
 
 			OperationType.SKIP:
-				var skip_remaining := int(operation.get("remaining", 0))
+				var skip_remaining: int = _get_operation_remaining(operation)
 				if skip_remaining > 0:
 					operation["remaining"] = skip_remaining - 1
 					return
 
 			OperationType.TAKE:
-				var take_remaining := int(operation.get("remaining", 0))
+				var take_remaining: int = _get_operation_remaining(operation)
 				if take_remaining <= 0:
 					disconnect_signal()
 					_unregister_from_utility()
 					return
 				operation["remaining"] = take_remaining - 1
-				should_disconnect_after_callback = int(operation["remaining"]) <= 0
+				should_disconnect_after_callback = _get_operation_remaining(operation) <= 0
 
 			OperationType.SCAN:
-				var reducer := operation["callable"] as Callable
-				var reducer_args := [operation.get("accumulator")]
+				var reducer: Callable = _get_operation_callable(operation)
+				var reducer_args: Array = [_get_operation_accumulator(operation)]
 				reducer_args.append_array(current_args)
 				var accumulator: Variant = reducer.callv(reducer_args)
 				operation["accumulator"] = accumulator
@@ -466,9 +477,9 @@ func _process_async(args: Array, serial: int) -> void:
 	if serial != _serial or prune_if_invalid():
 		return
 
-	var final_args := _default_args.duplicate()
+	var final_args: Array = _default_args.duplicate()
 	final_args.append_array(current_args)
-	_callback.callv(final_args)
+	var _callback_result: Variant = _callback.callv(final_args)
 
 	if _is_once or should_disconnect_after_callback:
 		disconnect_signal()
@@ -479,19 +490,24 @@ func _wait_seconds(seconds: float, serial: int) -> void:
 	if seconds <= 0.0:
 		return
 
-	var tree := Engine.get_main_loop() as SceneTree
+	var main_loop: MainLoop = Engine.get_main_loop()
+	var tree: SceneTree = main_loop if main_loop is SceneTree else null
 	if tree != null:
 		await tree.create_timer(seconds, true, false, true).timeout
 		return
 
-	var start_msec := Time.get_ticks_msec()
-	var wait_msec := int(seconds * 1000.0)
+	var start_msec: int = Time.get_ticks_msec()
+	var wait_msec: int = int(seconds * 1000.0)
 	while serial == _serial and Time.get_ticks_msec() - start_msec < wait_msec:
-		await Engine.get_main_loop().process_frame
+		var fallback_loop: MainLoop = Engine.get_main_loop()
+		var scene_tree: SceneTree = fallback_loop if fallback_loop is SceneTree else null
+		if scene_tree == null:
+			return
+		await scene_tree.process_frame
 
 
 func _collect_args(raw_args: Array) -> Array:
-	var declared_count := _get_source_signal_argument_count()
+	var declared_count: int = _get_source_signal_argument_count()
 	if declared_count >= 0:
 		if declared_count > _MAX_SIGNAL_ARGUMENTS:
 			push_warning("[GFSignalConnection] 信号连接当前最多捕获 %d 个参数。" % _MAX_SIGNAL_ARGUMENTS)
@@ -499,34 +515,78 @@ func _collect_args(raw_args: Array) -> Array:
 
 	var args: Array = raw_args.duplicate()
 	while not args.is_empty() and args.back() == null:
-		args.pop_back()
+		var _removed_placeholder: Variant = args.pop_back()
 	return args
 
 
 func _normalize_start_args(value: Variant) -> Array:
 	if value is Callable:
-		var callable := value as Callable
+		var callable: Callable = value
 		if not callable.is_valid():
 			return []
 		var returned: Variant = callable.call()
-		return returned if returned is Array else [returned]
-	return value if value is Array else [value]
+		if returned is Array:
+			var returned_args: Array = returned
+			return returned_args
+		return [returned]
+	if value is Array:
+		var args: Array = value
+		return args
+	return [value]
+
+
+func _get_callable_value(value: Variant) -> Callable:
+	if value is Callable:
+		return value
+	return Callable()
+
+
+func _get_operation_type(operation: Dictionary) -> int:
+	return GFVariantData.get_option_int(operation, "type", -1)
+
+
+func _get_operation_callable(operation: Dictionary) -> Callable:
+	return _get_callable_value(GFVariantData.get_option_value(operation, "callable", Callable()))
+
+
+func _get_operation_seconds(operation: Dictionary) -> float:
+	return GFVariantData.get_option_float(operation, "seconds")
+
+
+func _get_operation_last_msec(operation: Dictionary) -> int:
+	return GFVariantData.get_option_int(operation, "last_msec", -1)
+
+
+func _get_operation_remaining(operation: Dictionary) -> int:
+	return GFVariantData.get_option_int(operation, "remaining")
+
+
+func _get_operation_accumulator(operation: Dictionary) -> Variant:
+	return GFVariantData.get_option_value(operation, "accumulator")
+
+
+func _get_signal_info_name(signal_info: Dictionary) -> String:
+	return GFVariantData.get_option_string(signal_info, "name")
+
+
+func _get_signal_info_args(signal_info: Dictionary) -> Array:
+	return GFVariantData.get_option_array(signal_info, "args")
 
 
 func _get_source_signal_argument_count() -> int:
 	if _source_signal.is_null():
 		return -1
 
-	var source_obj := _source_signal.get_object()
+	var source_obj: Object = _source_signal.get_object()
 	if not is_instance_valid(source_obj):
 		return -1
 
-	var signal_name := String(_source_signal.get_name())
+	var signal_name: String = String(_source_signal.get_name())
 	for signal_info: Dictionary in source_obj.get_signal_list():
-		if String(signal_info.get("name", "")) != signal_name:
+		if _get_signal_info_name(signal_info) != signal_name:
 			continue
 
-		var args: Array = signal_info.get("args", [])
+		var args: Array = _get_signal_info_args(signal_info)
 		return args.size()
 
 	return -1
@@ -535,6 +595,6 @@ func _get_source_signal_argument_count() -> int:
 func _unregister_from_utility() -> void:
 	if _utility_ref == null:
 		return
-	var utility := _utility_ref.get_ref()
+	var utility: Object = _utility_ref.get_ref()
 	if utility != null and utility.has_method("_untrack_connection"):
-		utility.call("_untrack_connection", self)
+		var _untrack_result: Variant = utility.call("_untrack_connection", self)

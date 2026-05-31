@@ -133,7 +133,7 @@ func register_rect_zone(
 	accepted_types: PackedStringArray = PackedStringArray(),
 	options: Dictionary = {}
 ) -> GFDropZone:
-	var zone := GFDropZone.from_rect(zone_id, rect, accepted_types, options)
+	var zone: GFDropZone = GFDropZone.from_rect(zone_id, rect, accepted_types, options)
 	return zone if register_zone(zone) else null
 
 
@@ -158,7 +158,7 @@ func register_control_zone(
 	accepted_types: PackedStringArray = PackedStringArray(),
 	options: Dictionary = {}
 ) -> GFDropZone:
-	var zone := GFDropZone.from_control(zone_id, control, accepted_types, options)
+	var zone: GFDropZone = GFDropZone.from_control(zone_id, control, accepted_types, options)
 	return zone if register_zone(zone) else null
 
 
@@ -172,7 +172,7 @@ func register_control_zone(
 func unregister_zone(zone_id: StringName) -> bool:
 	if not _zones.has(zone_id):
 		return false
-	_zones.erase(zone_id)
+	var _removed: bool = _zones.erase(zone_id)
 	drop_zone_unregistered.emit(zone_id)
 	return true
 
@@ -185,7 +185,7 @@ func unregister_zone(zone_id: StringName) -> bool:
 ## [br]
 ## @return 落点；不存在时返回 null。
 func get_zone(zone_id: StringName) -> GFDropZone:
-	return _zones.get(zone_id, null) as GFDropZone
+	return _variant_to_drop_zone(GFVariantData.get_option_value(_zones, zone_id))
 
 
 ## 清空落点。
@@ -227,7 +227,7 @@ func start_drag(
 		return -1
 
 	_session_serial += 1
-	var session := GFDragSession.new()
+	var session: GFDragSession = GFDragSession.new()
 	session.setup(_session_serial, drag_type, payload, position, source, metadata)
 	_sessions[session.session_id] = session
 	drag_started.emit(session.session_id, drag_type)
@@ -244,7 +244,7 @@ func start_drag(
 ## [br]
 ## @return 更新成功返回 true。
 func update_drag(session_id: int, position: Vector2) -> bool:
-	var session := get_session(session_id)
+	var session: GFDragSession = get_session(session_id)
 	if session == null:
 		return false
 	session.update_position(position)
@@ -264,23 +264,23 @@ func update_drag(session_id: int, position: Vector2) -> bool:
 ## [br]
 ## @schema return: Dictionary，包含 ok、session_id、zone_id、reason 和可选 value。
 func drop(session_id: int, position: Vector2) -> Dictionary:
-	var session := get_session(session_id)
+	var session: GFDragSession = get_session(session_id)
 	if session == null:
 		return _make_result(false, session_id, &"", &"missing_session")
 
 	session.update_position(position)
-	var zone := get_best_drop_zone(session_id, position)
+	var zone: GFDropZone = get_best_drop_zone(session_id, position)
 	if zone == null:
 		drag_drop_rejected.emit(session_id, &"no_drop_zone")
 		return _make_result(false, session_id, &"", &"no_drop_zone")
 
 	var raw_result: Variant = zone.drop(session, position)
-	var result := _normalize_drop_result(raw_result, session_id, zone.zone_id)
-	if not bool(result.get("ok", false)):
-		drag_drop_rejected.emit(session_id, StringName(result.get("reason", &"drop_rejected")))
+	var result: Dictionary = _normalize_drop_result(raw_result, session_id, zone.zone_id)
+	if not GFVariantData.get_option_bool(result, "ok"):
+		drag_drop_rejected.emit(session_id, GFVariantData.get_option_string_name(result, "reason", &"drop_rejected"))
 		return result
 
-	_sessions.erase(session_id)
+	var _removed: bool = _sessions.erase(session_id)
 	drag_dropped.emit(session_id, zone.zone_id, result)
 	return result
 
@@ -295,7 +295,7 @@ func drop(session_id: int, position: Vector2) -> Dictionary:
 func cancel_drag(session_id: int) -> bool:
 	if not _sessions.has(session_id):
 		return false
-	_sessions.erase(session_id)
+	var _removed: bool = _sessions.erase(session_id)
 	drag_cancelled.emit(session_id)
 	return true
 
@@ -308,7 +308,7 @@ func cancel_drag(session_id: int) -> bool:
 ## [br]
 ## @return 会话；不存在时返回 null。
 func get_session(session_id: int) -> GFDragSession:
-	return _sessions.get(session_id, null) as GFDragSession
+	return _variant_to_drag_session(GFVariantData.get_option_value(_sessions, session_id))
 
 
 ## 检查会话是否存在。
@@ -338,13 +338,13 @@ func get_drop_candidates(
 	position: Vector2,
 	only_accepting: bool = true
 ) -> Array[GFDropZone]:
-	var session := get_session(session_id)
+	var session: GFDragSession = get_session(session_id)
 	if session == null:
 		return []
 
 	var result: Array[GFDropZone] = []
 	for zone_variant: Variant in _zones.values():
-		var zone := zone_variant as GFDropZone
+		var zone: GFDropZone = _variant_to_drop_zone(zone_variant)
 		if zone == null:
 			continue
 		if not zone.contains(position, session):
@@ -366,7 +366,7 @@ func get_drop_candidates(
 ## [br]
 ## @return 最佳落点；没有可用落点时返回 null。
 func get_best_drop_zone(session_id: int, position: Vector2) -> GFDropZone:
-	var candidates := get_drop_candidates(session_id, position, true)
+	var candidates: Array[GFDropZone] = get_drop_candidates(session_id, position, true)
 	if candidates.is_empty():
 		return null
 	return candidates[0]
@@ -376,7 +376,8 @@ func get_best_drop_zone(session_id: int, position: Vector2) -> GFDropZone:
 ## [br]
 ## @api public
 func clear_sessions() -> void:
-	for session_id: int in _sessions.keys():
+	for session_id_variant: Variant in _sessions.keys():
+		var session_id: int = GFVariantData.to_int(session_id_variant)
 		drag_cancelled.emit(session_id)
 	_sessions.clear()
 
@@ -391,13 +392,13 @@ func clear_sessions() -> void:
 func get_debug_snapshot() -> Dictionary:
 	var sessions: Array[Dictionary] = []
 	for session_variant: Variant in _sessions.values():
-		var session := session_variant as GFDragSession
+		var session: GFDragSession = _variant_to_drag_session(session_variant)
 		if session != null:
 			sessions.append(session.to_dictionary())
 
 	var zones: Array[Dictionary] = []
 	for zone_variant: Variant in _zones.values():
-		var zone := zone_variant as GFDropZone
+		var zone: GFDropZone = _variant_to_drop_zone(zone_variant)
 		if zone != null:
 			zones.append(zone.to_dictionary())
 
@@ -419,25 +420,25 @@ func _sort_zones(left: GFDropZone, right: GFDropZone) -> bool:
 
 func _normalize_drop_result(raw_result: Variant, session_id: int, zone_id: StringName) -> Dictionary:
 	if raw_result is Dictionary:
-		var result := (raw_result as Dictionary).duplicate(true)
-		if not result.has("ok"):
-			result["ok"] = true
-		result["session_id"] = session_id
-		result["zone_id"] = zone_id
-		if not bool(result.get("ok", false)) and not result.has("reason"):
-			result["reason"] = &"drop_rejected"
-		return result
+		var result_dictionary: Dictionary = GFVariantData.to_dictionary(raw_result)
+		if not result_dictionary.has("ok"):
+			result_dictionary["ok"] = true
+		result_dictionary["session_id"] = session_id
+		result_dictionary["zone_id"] = zone_id
+		if not GFVariantData.get_option_bool(result_dictionary, "ok") and not result_dictionary.has("reason"):
+			result_dictionary["reason"] = &"drop_rejected"
+		return result_dictionary
 
-	var ok := bool(raw_result) if raw_result is bool else true
-	var result := {
+	var ok: bool = GFVariantData.to_bool(raw_result) if raw_result is bool else true
+	var normalized_result: Dictionary = {
 		"ok": ok,
 		"session_id": session_id,
 		"zone_id": zone_id,
 		"value": raw_result,
 	}
 	if not ok:
-		result["reason"] = &"drop_rejected"
-	return result
+		normalized_result["reason"] = &"drop_rejected"
+	return normalized_result
 
 
 func _make_result(ok: bool, session_id: int, zone_id: StringName, reason: StringName) -> Dictionary:
@@ -447,3 +448,17 @@ func _make_result(ok: bool, session_id: int, zone_id: StringName, reason: String
 		"zone_id": zone_id,
 		"reason": reason,
 	}
+
+
+func _variant_to_drag_session(value: Variant) -> GFDragSession:
+	if value is GFDragSession:
+		var session: GFDragSession = value
+		return session
+	return null
+
+
+func _variant_to_drop_zone(value: Variant) -> GFDropZone:
+	if value is GFDropZone:
+		var zone: GFDropZone = value
+		return zone
+	return null

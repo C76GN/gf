@@ -39,7 +39,9 @@ func _import_node(
 	if node == null or not json.has("extras"):
 		return OK
 
-	var metadata := GFAssetMetadataUtility.normalize_metadata(json.get("extras"))
+	var metadata: Dictionary = GFAssetMetadataUtility.normalize_metadata(
+		GFVariantData.get_option_value(json, "extras")
+	)
 	if metadata.is_empty():
 		return OK
 

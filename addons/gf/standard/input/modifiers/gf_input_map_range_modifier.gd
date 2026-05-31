@@ -75,15 +75,15 @@ func modify_3d(value: Vector3, _event: InputEvent = null, _action: GFInputAction
 # --- 私有/辅助方法 ---
 
 func _map_value(value: float) -> float:
-	var input_range := input_max - input_min
+	var input_range: float = input_max - input_min
 	if is_zero_approx(input_range):
 		return output_min
 
-	var t := (value - input_min) / input_range
-	var mapped := lerpf(output_min, output_max, t)
+	var t: float = (value - input_min) / input_range
+	var mapped: float = lerpf(output_min, output_max, t)
 	if not clamp_output:
 		return mapped
 
-	var min_value := minf(output_min, output_max)
-	var max_value := maxf(output_min, output_max)
+	var min_value: float = minf(output_min, output_max)
+	var max_value: float = maxf(output_min, output_max)
 	return clampf(mapped, min_value, max_value)

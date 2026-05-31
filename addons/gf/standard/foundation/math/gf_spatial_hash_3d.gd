@@ -62,18 +62,16 @@ func configure(p_cell_size: float) -> void:
 ## [br]
 ## @return 成功时返回 true。
 func insert(entity: Variant, bounds: AABB) -> bool:
-	var entity_key := _make_entity_key(entity)
+	var entity_key: String = _make_entity_key(entity)
 	if entity_key.is_empty():
 		return false
 
 	remove(entity)
-	var normalized_bounds := _normalize_aabb(bounds)
-	var cells := _get_cells_for_aabb(normalized_bounds)
+	var normalized_bounds: AABB = _normalize_aabb(bounds)
+	var cells: Array[Vector3i] = _get_cells_for_aabb(normalized_bounds)
 	_entity_records[entity_key] = _make_entity_record(entity, normalized_bounds, cells)
 	for cell_key: Vector3i in cells:
-		if not _bucket_entities.has(cell_key):
-			_bucket_entities[cell_key] = []
-		var bucket := _bucket_entities[cell_key] as Array
+		var bucket: Array = _get_or_create_bucket(cell_key)
 		if not bucket.has(entity_key):
 			bucket.append(entity_key)
 	return true
@@ -87,7 +85,7 @@ func insert(entity: Variant, bounds: AABB) -> bool:
 ## [br]
 ## @schema entity: Variant entity identity stored by value or weak Object reference.
 func remove(entity: Variant) -> void:
-	var entity_key := _make_entity_key(entity)
+	var entity_key: String = _make_entity_key(entity)
 	if entity_key.is_empty() or not _entity_records.has(entity_key):
 		return
 	_remove_by_key(entity_key)
@@ -118,11 +116,11 @@ func update(entity: Variant, bounds: AABB) -> bool:
 ## [br]
 ## @return 存在时返回 true。
 func has_entity(entity: Variant) -> bool:
-	var entity_key := _make_entity_key(entity)
+	var entity_key: String = _make_entity_key(entity)
 	if entity_key.is_empty():
 		return false
 
-	var record := _get_record(entity_key)
+	var record: Dictionary = _get_record(entity_key)
 	if record.is_empty():
 		return false
 	if not _record_is_valid(record):
@@ -152,14 +150,14 @@ func get_entity_count() -> int:
 ## @schema return: Array entity values restored from spatial hash records.
 func query_aabb(area: AABB) -> Array[Variant]:
 	prune_invalid_entities()
-	var normalized_area := _normalize_aabb(area)
-	var candidate_keys := _query_candidate_keys(normalized_area)
+	var normalized_area: AABB = _normalize_aabb(area)
+	var candidate_keys: Array[String] = _query_candidate_keys(normalized_area)
 	var result: Array[Variant] = []
 	for entity_key: String in candidate_keys:
-		var record := _get_record(entity_key)
+		var record: Dictionary = _get_record(entity_key)
 		if record.is_empty():
 			continue
-		var bounds := record["bounds"] as AABB
+		var bounds: AABB = _get_record_bounds(record)
 		if bounds.intersects(normalized_area):
 			result.append(_record_to_entity(record))
 	return result
@@ -177,20 +175,20 @@ func query_aabb(area: AABB) -> Array[Variant]:
 ## [br]
 ## @schema return: Array entity values restored from spatial hash records.
 func query_radius(center: Vector3, radius: float) -> Array[Variant]:
-	var safe_radius := maxf(radius, 0.0)
-	var query_bounds := AABB(
+	var safe_radius: float = maxf(radius, 0.0)
+	var query_bounds: AABB = AABB(
 		center - Vector3.ONE * safe_radius,
 		Vector3.ONE * safe_radius * 2.0
 	)
-	var candidates := query_aabb(query_bounds)
+	var candidates: Array[Variant] = query_aabb(query_bounds)
 	var result: Array[Variant] = []
-	var radius_sq := safe_radius * safe_radius
+	var radius_sq: float = safe_radius * safe_radius
 	for entity: Variant in candidates:
-		var record := _get_record(_make_entity_key(entity))
+		var record: Dictionary = _get_record(_make_entity_key(entity))
 		if record.is_empty():
 			continue
-		var bounds := record["bounds"] as AABB
-		var closest := Vector3(
+		var bounds: AABB = _get_record_bounds(record)
+		var closest: Vector3 = Vector3(
 			clampf(center.x, bounds.position.x, bounds.position.x + bounds.size.x),
 			clampf(center.y, bounds.position.y, bounds.position.y + bounds.size.y),
 			clampf(center.z, bounds.position.z, bounds.position.z + bounds.size.z)
@@ -223,11 +221,70 @@ func clear() -> void:
 
 # --- 私有/辅助方法 ---
 
+func _get_or_create_bucket(cell_key: Vector3i) -> Array:
+	if _bucket_entities.has(cell_key):
+		return _get_bucket(cell_key)
+
+	var bucket: Array = []
+	_bucket_entities[cell_key] = bucket
+	return bucket
+
+
+func _get_bucket(cell_key: Vector3i) -> Array:
+	var bucket_value: Variant = GFVariantData.get_option_value(_bucket_entities, cell_key, [])
+	if bucket_value is Array:
+		return GFVariantData.as_array(bucket_value)
+	return []
+
+
+func _get_record_bounds(record: Dictionary) -> AABB:
+	return _variant_to_aabb(GFVariantData.get_option_value(record, "bounds", AABB()))
+
+
+func _get_record_cells(record: Dictionary) -> Array[Vector3i]:
+	var result: Array[Vector3i] = []
+	var cells_value: Variant = GFVariantData.get_option_value(record, "cells", [])
+	if not (cells_value is Array):
+		return result
+
+	var cells: Array = GFVariantData.as_array(cells_value)
+	for cell_value: Variant in cells:
+		if cell_value is Vector3i:
+			var cell: Vector3i = cell_value
+			result.append(cell)
+	return result
+
+
+func _erase_dictionary_key(target: Dictionary, key: Variant) -> void:
+	var _removed: bool = target.erase(key)
+
+
+func _variant_to_aabb(value: Variant) -> AABB:
+	if value is AABB:
+		var result: AABB = value
+		return result
+	return AABB()
+
+
+func _variant_to_object(value: Variant) -> Object:
+	if value is Object:
+		var result: Object = value
+		return result
+	return null
+
+
+func _variant_to_weak_ref(value: Variant) -> WeakRef:
+	if value is WeakRef:
+		var result: WeakRef = value
+		return result
+	return null
+
+
 func _query_candidate_keys(area: AABB) -> Array[String]:
 	var result: Array[String] = []
 	var seen: Dictionary = {}
 	for cell_key: Vector3i in _get_cells_for_aabb(area):
-		var bucket := _bucket_entities.get(cell_key, []) as Array
+		var bucket: Array = _get_bucket(cell_key)
 		for entity_key: String in bucket:
 			if seen.has(entity_key):
 				continue
@@ -238,9 +295,9 @@ func _query_candidate_keys(area: AABB) -> Array[String]:
 
 func _get_cells_for_aabb(bounds: AABB) -> Array[Vector3i]:
 	var cells: Array[Vector3i] = []
-	var min_cell := _world_to_cell(bounds.position)
-	var max_corner := bounds.position + bounds.size
-	var max_cell := _world_to_cell(max_corner)
+	var min_cell: Vector3i = _world_to_cell(bounds.position)
+	var max_corner: Vector3 = bounds.position + bounds.size
+	var max_cell: Vector3i = _world_to_cell(max_corner)
 	for x: int in range(min_cell.x, max_cell.x + 1):
 		for y: int in range(min_cell.y, max_cell.y + 1):
 			for z: int in range(min_cell.z, max_cell.z + 1):
@@ -260,14 +317,16 @@ func _make_entity_key(entity: Variant) -> String:
 	if entity == null:
 		return ""
 	if entity is Object:
-		return "object:%d" % (entity as Object).get_instance_id()
+		var object: Object = _variant_to_object(entity)
+		return "object:%d" % object.get_instance_id()
 	return "%d:%s" % [typeof(entity), str(entity)]
 
 
 func _make_entity_record(entity: Variant, bounds: AABB, cells: Array[Vector3i]) -> Dictionary:
 	if entity is Object:
+		var object: Object = _variant_to_object(entity)
 		return {
-			"entity_ref": weakref(entity),
+			"entity_ref": weakref(object),
 			"entity": null,
 			"bounds": bounds,
 			"cells": cells,
@@ -282,48 +341,50 @@ func _make_entity_record(entity: Variant, bounds: AABB, cells: Array[Vector3i]) 
 
 
 func _record_to_entity(record: Dictionary) -> Variant:
-	var entity_ref_variant: Variant = record.get("entity_ref")
+	var entity_ref_variant: Variant = GFVariantData.get_option_value(record, "entity_ref")
 	if entity_ref_variant is WeakRef:
-		return (entity_ref_variant as WeakRef).get_ref()
-	return record.get("entity")
+		var entity_ref: WeakRef = _variant_to_weak_ref(entity_ref_variant)
+		return entity_ref.get_ref()
+	return GFVariantData.get_option_value(record, "entity")
 
 
 func _record_is_valid(record: Dictionary) -> bool:
 	if record.is_empty():
 		return false
 
-	var entity_ref_variant: Variant = record.get("entity_ref")
+	var entity_ref_variant: Variant = GFVariantData.get_option_value(record, "entity_ref")
 	if entity_ref_variant is WeakRef:
-		return (entity_ref_variant as WeakRef).get_ref() != null
+		var entity_ref: WeakRef = _variant_to_weak_ref(entity_ref_variant)
+		return entity_ref.get_ref() != null
 	return true
 
 
 func _get_record(entity_key: String) -> Dictionary:
-	var record_variant: Variant = _entity_records.get(entity_key, {})
+	var record_variant: Variant = GFVariantData.get_option_value(_entity_records, entity_key, {})
 	if record_variant is Dictionary:
-		return record_variant as Dictionary
+		return GFVariantData.as_dictionary(record_variant)
 	return {}
 
 
 func _remove_by_key(entity_key: String) -> void:
-	var record := _get_record(entity_key)
+	var record: Dictionary = _get_record(entity_key)
 	if record.is_empty():
 		return
 
-	var cells := record.get("cells", []) as Array
+	var cells: Array[Vector3i] = _get_record_cells(record)
 	for cell_key: Vector3i in cells:
 		if not _bucket_entities.has(cell_key):
 			continue
-		var bucket := _bucket_entities[cell_key] as Array
+		var bucket: Array = _get_bucket(cell_key)
 		bucket.erase(entity_key)
 		if bucket.is_empty():
-			_bucket_entities.erase(cell_key)
-	_entity_records.erase(entity_key)
+			_erase_dictionary_key(_bucket_entities, cell_key)
+	_erase_dictionary_key(_entity_records, entity_key)
 
 
 func _normalize_aabb(bounds: AABB) -> AABB:
-	var position := bounds.position
-	var size := bounds.size
+	var position: Vector3 = bounds.position
+	var size: Vector3 = bounds.size
 	if size.x < 0.0:
 		position.x += size.x
 		size.x = -size.x
@@ -337,11 +398,11 @@ func _normalize_aabb(bounds: AABB) -> AABB:
 
 
 func _rebuild() -> void:
-	var records := _entity_records.duplicate(true)
+	var records: Dictionary = _entity_records.duplicate(true)
 	_entity_records.clear()
 	_bucket_entities.clear()
 	for record_variant: Variant in records.values():
-		var record := record_variant as Dictionary
+		var record: Dictionary = GFVariantData.as_dictionary(record_variant)
 		if record.is_empty() or not _record_is_valid(record):
 			continue
-		insert(_record_to_entity(record), record["bounds"] as AABB)
+		var _inserted: bool = insert(_record_to_entity(record), _get_record_bounds(record))

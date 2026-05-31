@@ -124,12 +124,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not enabled:
 		return
 
-	var applied := false
+	var applied: bool = false
 	if mouse_orbit_enabled and event is InputEventMouseMotion and Input.is_mouse_button_pressed(mouse_button):
-		var motion := event as InputEventMouseMotion
+		var motion: InputEventMouseMotion = _get_mouse_motion_event(event)
 		applied = _apply_mouse_orbit(motion.relative)
 	elif mouse_zoom_enabled and event is InputEventMouseButton:
-		var button_event := event as InputEventMouseButton
+		var button_event: InputEventMouseButton = _get_mouse_button_event(event)
 		applied = _apply_mouse_wheel(button_event)
 
 	if applied and consume_mouse_input:
@@ -138,12 +138,12 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	if update_mode == UpdateMode.IDLE:
-		process_input(delta)
+		var _process_input_result_141: Variant = process_input(delta)
 
 
 func _physics_process(delta: float) -> void:
 	if update_mode == UpdateMode.PHYSICS:
-		process_input(delta)
+		var _process_input_result_146: Variant = process_input(delta)
 
 
 # --- 公共方法 ---
@@ -155,8 +155,8 @@ func _physics_process(delta: float) -> void:
 ## @return 环绕 Rig；不存在时返回 null。
 func get_orbit_rig() -> GFCameraOrbitRig3D:
 	if not orbit_rig_path.is_empty():
-		return get_node_or_null(orbit_rig_path) as GFCameraOrbitRig3D
-	return get_parent() as GFCameraOrbitRig3D
+		return _get_orbit_rig_value(get_node_or_null(orbit_rig_path))
+	return _get_orbit_rig_value(get_parent())
 
 
 ## 显式设置输入映射工具。
@@ -179,16 +179,16 @@ func process_input(delta: float) -> bool:
 	if not enabled or not use_input_mapping:
 		return false
 
-	var input_mapping := _get_input_mapping_utility()
+	var input_mapping: GFInputMappingUtility = _get_input_mapping_utility()
 	if input_mapping == null:
 		return false
 
-	var applied := false
-	var orbit_value := input_mapping.get_action_vector(orbit_action_id)
+	var applied: bool = false
+	var orbit_value: Vector2 = input_mapping.get_action_vector(orbit_action_id)
 	if orbit_value != Vector2.ZERO:
 		applied = apply_orbit_vector(orbit_value, orbit_degrees_per_second * maxf(delta, 0.0)) or applied
 
-	var zoom_value := _coerce_zoom_value(input_mapping.get_action_value(zoom_action_id))
+	var zoom_value: float = _coerce_zoom_value(input_mapping.get_action_value(zoom_action_id))
 	if not is_zero_approx(zoom_value):
 		applied = apply_zoom_value(zoom_value, zoom_units_per_second * maxf(delta, 0.0)) or applied
 	return applied
@@ -204,11 +204,11 @@ func process_input(delta: float) -> bool:
 ## [br]
 ## @return 成功应用时返回 true。
 func apply_orbit_vector(value: Vector2, scale: float = 1.0) -> bool:
-	var rig := get_orbit_rig()
+	var rig: GFCameraOrbitRig3D = get_orbit_rig()
 	if rig == null or value == Vector2.ZERO or is_zero_approx(scale):
 		return false
 
-	var pitch_value := value.y
+	var pitch_value: float = value.y
 	if invert_y:
 		pitch_value = -pitch_value
 	rig.apply_orbit_delta(Vector2(value.x, pitch_value) * scale)
@@ -225,7 +225,7 @@ func apply_orbit_vector(value: Vector2, scale: float = 1.0) -> bool:
 ## [br]
 ## @return 成功应用时返回 true。
 func apply_zoom_value(value: float, scale: float = 1.0) -> bool:
-	var rig := get_orbit_rig()
+	var rig: GFCameraOrbitRig3D = get_orbit_rig()
 	if rig == null or is_zero_approx(value) or is_zero_approx(scale):
 		return false
 
@@ -255,7 +255,7 @@ func get_debug_snapshot() -> Dictionary:
 # --- 私有/辅助方法 ---
 
 func _apply_mouse_orbit(relative_pixels: Vector2) -> bool:
-	var pitch_pixels := -relative_pixels.y
+	var pitch_pixels: float = -relative_pixels.y
 	if invert_y:
 		pitch_pixels = -pitch_pixels
 	return apply_orbit_vector(Vector2(relative_pixels.x, pitch_pixels), mouse_degrees_per_pixel)
@@ -275,31 +275,69 @@ func _coerce_zoom_value(value: Variant) -> float:
 	if value == null:
 		return 0.0
 	if value is bool:
-		return 1.0 if bool(value) else 0.0
+		var bool_value: bool = value
+		return 1.0 if bool_value else 0.0
 	if value is Vector2:
-		return (value as Vector2).x
+		var vector2: Vector2 = value
+		return vector2.x
 	if value is Vector3:
-		return (value as Vector3).x
-	return float(value)
+		var vector3: Vector3 = value
+		return vector3.x
+	return GFVariantData.to_float(value)
 
 
 func _get_input_mapping_utility() -> GFInputMappingUtility:
 	if input_mapping_utility != null:
 		return input_mapping_utility
 
-	var context := _get_node_context()
+	var context: GFNodeContext = _get_node_context()
 	if context == null:
 		return null
-	return context.get_utility(GFInputMappingUtility) as GFInputMappingUtility
+	return _get_input_mapping_value(context.get_utility(GFInputMappingUtility))
 
 
 func _get_node_context() -> GFNodeContext:
 	if not node_context_path.is_empty():
-		return get_node_or_null(node_context_path) as GFNodeContext
+		return _get_node_context_value(get_node_or_null(node_context_path))
 
-	var current := get_parent()
+	var current: Node = get_parent()
 	while current != null:
 		if current is GFNodeContext:
-			return current as GFNodeContext
+			return _get_node_context_value(current)
 		current = current.get_parent()
+	return null
+
+
+func _get_mouse_motion_event(value: Variant) -> InputEventMouseMotion:
+	if value is InputEventMouseMotion:
+		var event: InputEventMouseMotion = value
+		return event
+	return null
+
+
+func _get_mouse_button_event(value: Variant) -> InputEventMouseButton:
+	if value is InputEventMouseButton:
+		var event: InputEventMouseButton = value
+		return event
+	return null
+
+
+func _get_orbit_rig_value(value: Variant) -> GFCameraOrbitRig3D:
+	if value is GFCameraOrbitRig3D:
+		var rig: GFCameraOrbitRig3D = value
+		return rig
+	return null
+
+
+func _get_input_mapping_value(value: Variant) -> GFInputMappingUtility:
+	if value is GFInputMappingUtility:
+		var utility: GFInputMappingUtility = value
+		return utility
+	return null
+
+
+func _get_node_context_value(value: Variant) -> GFNodeContext:
+	if value is GFNodeContext:
+		var context: GFNodeContext = value
+		return context
 	return null

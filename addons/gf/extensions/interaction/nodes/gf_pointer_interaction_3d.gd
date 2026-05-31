@@ -80,7 +80,7 @@ signal pointer_interaction_sent(context: GFInteractionContext, receiver: Object,
 
 # --- 常量 ---
 
-const _MESSAGE_DISPATCH_SUPPORT: Script = preload("res://addons/gf/standard/common/gf_message_dispatch_support.gd")
+const _MESSAGE_DISPATCH_SUPPORT = preload("res://addons/gf/standard/common/gf_message_dispatch_support.gd")
 
 
 # --- 导出变量 ---
@@ -209,11 +209,11 @@ func bind_collision_object(collision_object: CollisionObject3D) -> void:
 	if ensure_input_ray_pickable:
 		collision_object.input_ray_pickable = true
 	if not collision_object.mouse_entered.is_connected(_on_collision_mouse_entered):
-		collision_object.mouse_entered.connect(_on_collision_mouse_entered)
+		var _mouse_entered_connected: Error = collision_object.mouse_entered.connect(_on_collision_mouse_entered) as Error
 	if not collision_object.mouse_exited.is_connected(_on_collision_mouse_exited):
-		collision_object.mouse_exited.connect(_on_collision_mouse_exited)
+		var _mouse_exited_connected: Error = collision_object.mouse_exited.connect(_on_collision_mouse_exited) as Error
 	if not collision_object.input_event.is_connected(_on_collision_input_event):
-		collision_object.input_event.connect(_on_collision_input_event)
+		var _input_event_connected: Error = collision_object.input_event.connect(_on_collision_input_event) as Error
 
 
 ## 获取当前绑定的 3D 碰撞对象。
@@ -224,7 +224,7 @@ func bind_collision_object(collision_object: CollisionObject3D) -> void:
 func get_collision_object() -> CollisionObject3D:
 	if _collision_object_ref == null:
 		return null
-	return _collision_object_ref.get_ref() as CollisionObject3D
+	return _get_collision_object_value(_collision_object_ref.get_ref())
 
 
 ## 构建指针交互上下文。
@@ -245,8 +245,8 @@ func build_context(
 	pointer_data: Dictionary = {},
 	receiver: Object = null
 ) -> GFInteractionContext:
-	var effective_receiver := receiver if receiver != null else _resolve_receiver()
-	var context_payload := payload.duplicate(true)
+	var effective_receiver: Object = receiver if receiver != null else _resolve_receiver()
+	var context_payload: Dictionary = payload.duplicate(true)
 	context_payload["pointer_event"] = pointer_event
 	context_payload["pointer_tags"] = tags.duplicate()
 	context_payload["pointer_metadata"] = metadata.duplicate(true)
@@ -276,9 +276,9 @@ func send_pointer_interaction(
 	pointer_data: Dictionary = {},
 	interaction_id_override: StringName = &""
 ) -> Dictionary:
-	var receiver := _resolve_receiver()
-	var context := build_context(pointer_event, pointer_data, receiver)
-	var effective_interaction_id := interaction_id_override if interaction_id_override != &"" else interaction_id
+	var receiver: Object = _resolve_receiver()
+	var context: GFInteractionContext = build_context(pointer_event, pointer_data, receiver)
+	var effective_interaction_id: StringName = interaction_id_override if interaction_id_override != &"" else interaction_id
 	var report: Dictionary = _MESSAGE_DISPATCH_SUPPORT._dispatch_to_receiver(
 		enabled,
 		metadata,
@@ -291,7 +291,7 @@ func send_pointer_interaction(
 		"Pointer interaction receiver is null.",
 		"Receiver does not expose receive_interaction().",
 		"Receiver returned an invalid interaction report."
-	) as Dictionary
+	)
 	pointer_interaction_sent.emit(context, receiver, report)
 	return report
 
@@ -300,14 +300,12 @@ func send_pointer_interaction(
 
 func _resolve_collision_object() -> CollisionObject3D:
 	if collision_object_path != NodePath(""):
-		var node := get_node_or_null(collision_object_path)
-		if node is CollisionObject3D:
-			return node as CollisionObject3D
-	return get_parent() as CollisionObject3D
+		return _get_collision_object_value(get_node_or_null(collision_object_path))
+	return _get_collision_object_value(get_parent())
 
 
 func _disconnect_collision_object() -> void:
-	var collision_object := get_collision_object()
+	var collision_object: CollisionObject3D = get_collision_object()
 	if collision_object == null:
 		_collision_object_ref = null
 		return
@@ -322,7 +320,7 @@ func _disconnect_collision_object() -> void:
 
 func _resolve_receiver() -> Object:
 	if receiver_path != NodePath(""):
-		var receiver := get_node_or_null(receiver_path)
+		var receiver: Node = get_node_or_null(receiver_path)
 		if receiver != null:
 			return receiver
 	return _MESSAGE_DISPATCH_SUPPORT._resolve_receiver(get_collision_object(), &"receive_interaction")
@@ -330,7 +328,7 @@ func _resolve_receiver() -> Object:
 
 func _resolve_sender() -> Object:
 	if sender_path != NodePath(""):
-		var sender := get_node_or_null(sender_path)
+		var sender: Node = get_node_or_null(sender_path)
 		if sender != null:
 			return sender
 	return self
@@ -344,7 +342,7 @@ func _make_pointer_data(
 	normal: Vector3 = Vector3.ZERO,
 	shape_idx: int = -1
 ) -> Dictionary:
-	var collision_object := get_collision_object()
+	var collision_object: CollisionObject3D = get_collision_object()
 	return {
 		"pointer_event": event_name,
 		"pointer_position": position,
@@ -364,7 +362,7 @@ func _make_mouse_button_data(
 	normal: Vector3,
 	shape_idx: int
 ) -> Dictionary:
-	var data := _make_pointer_data(event_name, camera, event, position, normal, shape_idx)
+	var data: Dictionary = _make_pointer_data(event_name, camera, event, position, normal, shape_idx)
 	data["pointer_button_index"] = event.button_index
 	data["pointer_pressed"] = event.pressed
 	data["pointer_factor"] = event.factor
@@ -372,13 +370,13 @@ func _make_mouse_button_data(
 
 
 func _emit_or_send_hover(event_name: StringName) -> void:
-	var context := build_context(event_name, _make_pointer_data(event_name))
+	var context: GFInteractionContext = build_context(event_name, _make_pointer_data(event_name))
 	if event_name == &"entered":
 		pointer_entered.emit(context)
 	else:
 		pointer_exited.emit(context)
 	if send_on_hover:
-		send_pointer_interaction(event_name, _make_pointer_data(event_name))
+		var _send_pointer_interaction_result_379: Variant = send_pointer_interaction(event_name, _make_pointer_data(event_name))
 
 
 func _emit_or_send_button_event(
@@ -390,8 +388,8 @@ func _emit_or_send_button_event(
 	shape_idx: int,
 	should_send: bool
 ) -> GFInteractionContext:
-	var data := _make_mouse_button_data(event_name, camera, event, position, normal, shape_idx)
-	var context := build_context(event_name, data)
+	var data: Dictionary = _make_mouse_button_data(event_name, camera, event, position, normal, shape_idx)
+	var context: GFInteractionContext = build_context(event_name, data)
 	match event_name:
 		&"pressed":
 			pointer_pressed.emit(context, event)
@@ -402,7 +400,7 @@ func _emit_or_send_button_event(
 		&"wheel":
 			pointer_wheel.emit(context, event)
 	if should_send:
-		send_pointer_interaction(event_name, data)
+		var _send_pointer_interaction_result_403: Variant = send_pointer_interaction(event_name, data)
 	return context
 
 
@@ -414,6 +412,20 @@ func _set_hover_cursor(active: bool) -> void:
 	if not change_cursor_on_hover:
 		return
 	Input.set_default_cursor_shape(cursor_shape if active else Input.CURSOR_ARROW)
+
+
+func _get_collision_object_value(value: Variant) -> CollisionObject3D:
+	if value is CollisionObject3D:
+		var collision_object: CollisionObject3D = value
+		return collision_object
+	return null
+
+
+func _get_mouse_button_event(value: Variant) -> InputEventMouseButton:
+	if value is InputEventMouseButton:
+		var event: InputEventMouseButton = value
+		return event
+	return null
 
 
 # --- 信号处理函数 ---
@@ -446,21 +458,21 @@ func _on_collision_input_event(
 	if not enabled or not (event is InputEventMouseButton):
 		return
 
-	var mouse_event := event as InputEventMouseButton
+	var mouse_event: InputEventMouseButton = _get_mouse_button_event(event)
 	if _is_wheel_button(mouse_event.button_index):
 		if mouse_event.pressed:
-			_emit_or_send_button_event(&"wheel", camera, mouse_event, position, normal, shape_idx, send_on_wheel)
+			var _emit_or_send_button_event_result_464: Variant = _emit_or_send_button_event(&"wheel", camera, mouse_event, position, normal, shape_idx, send_on_wheel)
 		return
 
 	if mouse_event.pressed:
 		_pressed_button = mouse_event.button_index
 		_pressed_shape_idx = shape_idx
-		_emit_or_send_button_event(&"pressed", camera, mouse_event, position, normal, shape_idx, send_on_pressed)
+		var _emit_or_send_button_event_result_470: Variant = _emit_or_send_button_event(&"pressed", camera, mouse_event, position, normal, shape_idx, send_on_pressed)
 		return
 
-	var was_matching_press := _pressed_button == mouse_event.button_index and _pressed_shape_idx == shape_idx
+	var was_matching_press: bool = _pressed_button == mouse_event.button_index and _pressed_shape_idx == shape_idx
 	_pressed_button = 0
 	_pressed_shape_idx = -1
-	_emit_or_send_button_event(&"released", camera, mouse_event, position, normal, shape_idx, send_on_released)
+	var _emit_or_send_button_event_result_476: Variant = _emit_or_send_button_event(&"released", camera, mouse_event, position, normal, shape_idx, send_on_released)
 	if was_matching_press:
-		_emit_or_send_button_event(&"clicked", camera, mouse_event, position, normal, shape_idx, send_on_clicked)
+		var _emit_or_send_button_event_result_478: Variant = _emit_or_send_button_event(&"clicked", camera, mouse_event, position, normal, shape_idx, send_on_clicked)

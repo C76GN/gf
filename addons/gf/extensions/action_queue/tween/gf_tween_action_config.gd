@@ -89,7 +89,7 @@ func add_property_step(
 	target_value: Variant,
 	duration: float = 0.2
 ) -> GFTweenActionStep:
-	var step := GFTweenActionStep.new()
+	var step: GFTweenActionStep = GFTweenActionStep.new()
 	step.property_name = property_name
 	step.target_value = target_value
 	step.duration = duration
@@ -115,7 +115,7 @@ func is_empty() -> bool:
 ## [br]
 ## @return 包含耗时步骤返回 true。
 func has_timed_steps() -> bool:
-	var effective_scale := maxf(duration_scale, 0.0)
+	var effective_scale: float = maxf(duration_scale, 0.0)
 	for step: GFTweenActionStep in steps:
 		if step != null and (step.duration * effective_scale > 0.0 or step.delay * effective_scale > 0.0):
 			return true
@@ -147,7 +147,7 @@ func capture_initial_values(target: Object) -> Dictionary:
 	for step: GFTweenActionStep in steps:
 		if step == null:
 			continue
-		var key := String(step.property_name)
+		var key: String = String(step.property_name)
 		if key.is_empty() or snapshot.has(key):
 			continue
 		if not step.get_validation_error(target).is_empty():
@@ -169,7 +169,7 @@ func restore_initial_values(target: Object, snapshot: Dictionary) -> void:
 	if not is_instance_valid(target):
 		return
 	for key: Variant in snapshot.keys():
-		var property_path := NodePath(String(key))
+		var property_path: NodePath = NodePath(GFVariantData.to_text(key))
 		if property_path.is_empty():
 			continue
 		target.set_indexed(property_path, GFVariantData.duplicate_variant(snapshot[key]))
@@ -183,15 +183,15 @@ func restore_initial_values(target: Object, snapshot: Dictionary) -> void:
 ## [br]
 ## @return 校验报告。
 func get_validation_report(target: Object) -> GFValidationReport:
-	var report := GFValidationReport.new("GFTweenActionConfig")
+	var report: GFValidationReport = GFValidationReport.new("GFTweenActionConfig")
 	for index: int in range(steps.size()):
-		var step := steps[index]
+		var step: GFTweenActionStep = steps[index]
 		if step == null:
-			report.add_warning(&"null_step", "Tween step is null.", index)
+			var _add_warning_result_190: Variant = report.add_warning(&"null_step", "Tween step is null.", index)
 			continue
-		var validation_error := step.get_validation_error(target)
+		var validation_error: String = step.get_validation_error(target)
 		if not validation_error.is_empty():
-			report.add_error(&"invalid_step", validation_error, index, String(step.property_name))
+			var _add_error_result_194: Variant = report.add_error(&"invalid_step", validation_error, index, String(step.property_name))
 	return report
 
 
@@ -201,7 +201,7 @@ func get_validation_report(target: Object) -> GFValidationReport:
 ## [br]
 ## @return 新配置。
 func duplicate_config() -> GFTweenActionConfig:
-	var config := GFTweenActionConfig.new()
+	var config: GFTweenActionConfig = GFTweenActionConfig.new()
 	config.duration_scale = duration_scale
 	config.loop_count = loop_count
 	config.ignore_time_scale = ignore_time_scale

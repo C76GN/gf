@@ -2,18 +2,13 @@
 extends GutTest
 
 
-# --- 常量 ---
-
-const GFDebugDrawUtilityBase = preload("res://addons/gf/standard/utilities/debug/gf_debug_draw_utility.gd")
-
-
 # --- 测试方法 ---
 
 func test_debug_draw_records_and_expires_items() -> void:
-	var utility := GFDebugDrawUtilityBase.new()
+	var utility: GFDebugDrawUtility = GFDebugDrawUtility.new()
 	utility.init()
 
-	var item_id := utility.draw_line_2d(Vector2.ZERO, Vector2.ONE, Color.RED, 0.1)
+	var item_id: int = utility.draw_line_2d(Vector2.ZERO, Vector2.ONE, Color.RED, 0.1)
 
 	assert_gt(item_id, 0, "绘制命令应返回稳定 id。")
 	assert_eq(utility.get_item_count(), 1, "绘制命令应进入缓冲。")
@@ -24,10 +19,10 @@ func test_debug_draw_records_and_expires_items() -> void:
 
 
 func test_debug_draw_filters_disabled_channels() -> void:
-	var utility := GFDebugDrawUtilityBase.new()
+	var utility: GFDebugDrawUtility = GFDebugDrawUtility.new()
 	utility.init()
 
-	utility.draw_circle_2d(Vector2(4.0, 5.0), 3.0, Color.GREEN, -1.0, &"physics")
+	var _item_id: int = utility.draw_circle_2d(Vector2(4.0, 5.0), 3.0, Color.GREEN, -1.0, &"physics")
 	utility.set_channel_enabled(&"physics", false)
 
 	assert_eq(utility.get_items(&"physics").size(), 0, "禁用频道默认不应返回命令。")
@@ -39,10 +34,10 @@ func test_debug_draw_filters_disabled_channels() -> void:
 
 
 func test_debug_draw_vector_2d_emits_line_commands_with_components() -> void:
-	var utility := GFDebugDrawUtilityBase.new()
+	var utility: GFDebugDrawUtility = GFDebugDrawUtility.new()
 	utility.init()
 
-	var ids := utility.draw_vector_2d(
+	var ids: Array[int] = utility.draw_vector_2d(
 		Vector2(10.0, 20.0),
 		Vector2(6.0, 8.0),
 		Color.CYAN,
@@ -56,20 +51,20 @@ func test_debug_draw_vector_2d_emits_line_commands_with_components() -> void:
 			"arrowhead": false,
 		}
 	)
-	var items := utility.get_items(&"motion")
+	var items: Array[Dictionary] = utility.get_items(&"motion")
 
 	assert_eq(ids.size(), 3, "主向量加 XY 分量应产生三条线。")
 	assert_eq(items.size(), 3, "向量绘制仍应进入普通命令缓冲。")
-	assert_eq(int(items[0]["type"]), GFDebugDrawUtilityBase.PrimitiveType.LINE_2D, "向量主线应复用 2D 线段图元。")
-	assert_eq(items[0]["from"], Vector2(10.0, 20.0), "未居中时主线从 origin 开始。")
-	assert_eq(items[0]["to"], Vector2(13.0, 24.0), "clamp 后向量长度应被限制。")
+	assert_eq(GFVariantData.get_option_int(items[0], "type"), GFDebugDrawUtility.PrimitiveType.LINE_2D, "向量主线应复用 2D 线段图元。")
+	assert_eq(GFVariantData.get_option_vector2(items[0], "from"), Vector2(10.0, 20.0), "未居中时主线从 origin 开始。")
+	assert_eq(GFVariantData.get_option_vector2(items[0], "to"), Vector2(13.0, 24.0), "clamp 后向量长度应被限制。")
 
 
 func test_debug_draw_vector_3d_supports_centered_components() -> void:
-	var utility := GFDebugDrawUtilityBase.new()
+	var utility: GFDebugDrawUtility = GFDebugDrawUtility.new()
 	utility.init()
 
-	var ids := utility.draw_vector_3d(
+	var ids: Array[int] = utility.draw_vector_3d(
 		Vector3(10.0, 0.0, 0.0),
 		Vector3(2.0, 4.0, 6.0),
 		Color.WHITE,
@@ -81,9 +76,9 @@ func test_debug_draw_vector_3d_supports_centered_components() -> void:
 			"draw_components": true,
 		}
 	)
-	var items := utility.get_items(&"physics")
+	var items: Array[Dictionary] = utility.get_items(&"physics")
 
 	assert_eq(ids.size(), 4, "3D 主向量加 XYZ 分量应产生四条线。")
-	assert_eq(int(items[0]["type"]), GFDebugDrawUtilityBase.PrimitiveType.LINE_3D, "3D 向量主线应复用 3D 线段图元。")
-	assert_eq(items[0]["from"], Vector3(9.0, -2.0, -3.0), "居中向量起点应从中心减半向量。")
-	assert_eq(items[0]["to"], Vector3(11.0, 2.0, 3.0), "居中向量终点应为中心加半向量。")
+	assert_eq(GFVariantData.get_option_int(items[0], "type"), GFDebugDrawUtility.PrimitiveType.LINE_3D, "3D 向量主线应复用 3D 线段图元。")
+	assert_eq(GFVariantData.get_option_vector3(items[0], "from"), Vector3(9.0, -2.0, -3.0), "居中向量起点应从中心减半向量。")
+	assert_eq(GFVariantData.get_option_vector3(items[0], "to"), Vector3(11.0, 2.0, 3.0), "居中向量终点应为中心加半向量。")

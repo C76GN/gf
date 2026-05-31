@@ -52,7 +52,7 @@ func get_data_provider() -> Object:
 	if data != null:
 		return data
 
-	var target := get_target_node()
+	var target: Node = get_target_node()
 	if target == null:
 		return null
 	if provider_property == &"":
@@ -60,9 +60,10 @@ func get_data_provider() -> Object:
 	if not _has_object_property(target, provider_property):
 		return null
 
-	var value: Variant = target.get(provider_property)
+	var value: Variant = GFObjectPropertyTools.read_property(target, NodePath(String(provider_property)))
 	if value is Object:
-		return value as Object
+		var object_value: Object = value
+		return object_value
 	return null
 
 
@@ -74,12 +75,12 @@ func get_data_provider() -> Object:
 ## [br]
 ## @schema return: Dictionary，包含 valid、reason、source_key、provider_location、provider_property、provider_class、provider_script、gather_method、apply_method、has_gather_method、has_apply_method 等字段。
 func describe_data_provider() -> Dictionary:
-	var provider_location := "direct_data" if data != null else "target"
-	var provider := data as Object
-	var reason := ""
+	var provider_location: String = "direct_data" if data != null else "target"
+	var provider: Object = data
+	var reason: String = ""
 
 	if provider == null:
-		var target := get_target_node()
+		var target: Node = get_target_node()
 		if target == null:
 			reason = "missing_target"
 		elif provider_property == &"":
@@ -88,22 +89,22 @@ func describe_data_provider() -> Dictionary:
 			reason = "missing_property"
 		else:
 			provider_location = "target_property"
-			var value: Variant = target.get(provider_property)
+			var value: Variant = GFObjectPropertyTools.read_property(target, NodePath(String(provider_property)))
 			if value == null:
 				reason = "null_property"
 			elif value is Object:
-				provider = value as Object
+				provider = _variant_to_object(value)
 			else:
 				reason = "property_not_object"
 
-	var gather_method_name := String(gather_method)
-	var apply_method_name := String(apply_method)
-	var has_gather_method := (
+	var gather_method_name: String = String(gather_method)
+	var apply_method_name: String = String(apply_method)
+	var has_gather_method: bool = (
 		provider != null
 		and gather_method != &""
 		and provider.has_method(gather_method_name)
 	)
-	var has_apply_method := (
+	var has_apply_method: bool = (
 		provider != null
 		and apply_method != &""
 		and provider.has_method(apply_method_name)
@@ -115,7 +116,7 @@ func describe_data_provider() -> Dictionary:
 	elif reason.is_empty() and load_enabled and not has_apply_method:
 		reason = "missing_apply_method"
 
-	var valid := (
+	var valid: bool = (
 		provider != null
 		and (not save_enabled or has_gather_method)
 		and (not load_enabled or has_apply_method)
@@ -147,7 +148,7 @@ func describe_data_provider() -> Dictionary:
 ## [br]
 ## @schema return: Dictionary，包含父类描述字段，并追加 kind 与 data_provider 诊断字段。
 func describe_source(scope: Node = null) -> Dictionary:
-	var descriptor := super.describe_source(scope)
+	var descriptor: Dictionary = super.describe_source(scope)
 	descriptor["kind"] = "data"
 	descriptor["data_provider"] = describe_data_provider()
 	return descriptor
@@ -172,7 +173,7 @@ func _gather_save_data(
 	context: Dictionary = {},
 	_serializer_registry: GFNodeSerializerRegistry = null
 ) -> Variant:
-	var provider := get_data_provider()
+	var provider: Object = get_data_provider()
 	if provider == null:
 		_record_source_error(context, "Data provider is missing.")
 		return {}
@@ -190,7 +191,7 @@ func _gather_save_data(
 		})
 		return {}
 
-	var dictionary := payload as Dictionary
+	var dictionary: Dictionary = GFVariantData.as_dictionary(payload)
 	return dictionary.duplicate(true) if duplicate_payload else dictionary
 
 
@@ -200,7 +201,7 @@ func _gather_save_data(
 ## [br]
 ## @param payload: 保存载荷。
 ## [br]
-## @param context: 调用上下文字典。
+## @param _context: 调用上下文字典。
 ## [br]
 ## @param _serializer_registry: 未使用；保留以匹配 GFSaveSource 协议。
 ## [br]
@@ -208,25 +209,25 @@ func _gather_save_data(
 ## [br]
 ## @schema payload: Variant，要求为 Dictionary。
 ## [br]
-## @schema context: Dictionary，可包含 pipeline_context、pipeline_shared、include_pipeline_trace 等流程字段。
+## @schema _context: Dictionary，可包含 pipeline_context、pipeline_shared、include_pipeline_trace 等流程字段。
 ## [br]
 ## @schema return: Dictionary，包含 ok: bool 与 error: String。
 func _apply_save_data(
 	payload: Variant,
-	context: Dictionary = {},
+	_context: Dictionary = {},
 	_serializer_registry: GFNodeSerializerRegistry = null
 ) -> Dictionary:
 	if not (payload is Dictionary):
 		return make_result(false, "Data source payload must be a Dictionary.")
 
-	var provider := get_data_provider()
+	var provider: Object = get_data_provider()
 	if provider == null:
 		return make_result(false, "Data provider is missing.")
 	if apply_method == &"" or not provider.has_method(String(apply_method)):
 		return make_result(false, "Data provider apply method is missing: %s" % String(apply_method))
 
-	var dictionary := payload as Dictionary
-	var input := dictionary.duplicate(true) if duplicate_payload else dictionary
+	var dictionary: Dictionary = GFVariantData.as_dictionary(payload)
+	var input: Dictionary = dictionary.duplicate(true) if duplicate_payload else dictionary
 	var result: Variant = provider.call(String(apply_method), input)
 	return _normalize_apply_result(result)
 
@@ -235,39 +236,53 @@ func _apply_save_data(
 
 func _normalize_apply_result(result: Variant) -> Dictionary:
 	if result is Dictionary:
-		var dictionary := result as Dictionary
-		if dictionary.has("ok") and not bool(dictionary.get("ok", false)):
-			return make_result(false, String(dictionary.get("error", "Data provider apply failed.")))
-	if result is bool and not bool(result):
+		var dictionary: Dictionary = GFVariantData.as_dictionary(result)
+		if dictionary.has("ok") and not GFVariantData.get_option_bool(dictionary, "ok", false):
+			return make_result(false, GFVariantData.get_option_string(dictionary, "error", "Data provider apply failed."))
+	if result is bool and not GFVariantData.to_bool(result, false):
 		return make_result(false, "Data provider apply failed.")
 	return make_result(true)
 
 
 func _record_source_error(context: Dictionary, message: String, payload: Dictionary = {}) -> void:
-	var source_payload := payload.duplicate(true)
+	var source_payload: Dictionary = payload.duplicate(true)
 	source_payload["source_key"] = get_source_key()
 	source_payload["provider_property"] = provider_property
-	var pipeline_context := context.get("pipeline_context") as GFSavePipelineContext
+	var pipeline_context: GFSavePipelineContext = _variant_to_pipeline_context(GFVariantData.get_option_value(context, "pipeline_context"))
 	if pipeline_context != null:
 		pipeline_context.add_error(message, source_payload)
 
 
 func _has_object_property(object: Object, property_name: StringName) -> bool:
-	if object == null:
-		return false
-
-	var property_text := String(property_name)
-	for property_info: Dictionary in object.get_property_list():
-		if String(property_info.get("name", "")) == property_text:
-			return true
-	return false
+	return GFObjectPropertyTools.has_property(object, property_name)
 
 
 func _get_object_script_path(object: Object) -> String:
 	if object == null:
 		return ""
 
-	var script := object.get_script() as Script
+	var script: Script = _variant_to_script(object.get_script())
 	if script == null:
 		return ""
 	return script.resource_path
+
+
+func _variant_to_object(value: Variant) -> Object:
+	if value is Object:
+		var object_value: Object = value
+		return object_value
+	return null
+
+
+func _variant_to_pipeline_context(value: Variant) -> GFSavePipelineContext:
+	if value is GFSavePipelineContext:
+		var pipeline_context: GFSavePipelineContext = value
+		return pipeline_context
+	return null
+
+
+func _variant_to_script(value: Variant) -> Script:
+	if value is Script:
+		var script: Script = value
+		return script
+	return null

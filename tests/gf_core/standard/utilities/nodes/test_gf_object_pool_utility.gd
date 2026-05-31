@@ -10,29 +10,6 @@ var _scene: PackedScene
 var _test_architecture: GFArchitecture = null
 
 
-# --- 辅助类型 ---
-
-class HookedNode extends Node:
-	var acquire_count: int = 0
-	var release_count: int = 0
-
-	func on_gf_pool_acquire() -> void:
-		acquire_count += 1
-
-	func on_gf_pool_release() -> void:
-		release_count += 1
-
-
-class PooledEventController extends GFController:
-	var payloads: Array = []
-
-	func _ready() -> void:
-		register_simple_event(&"pooled_controller_event", _on_pooled_controller_event)
-
-	func _on_pooled_controller_event(payload: Variant) -> void:
-		payloads.append(payload)
-
-
 # --- Godot 生命周期方法 ---
 
 func before_each() -> void:
@@ -57,64 +34,7 @@ func after_each() -> void:
 		_parent.queue_free()
 	_parent = null
 	_scene = null
-
-
-# --- 私有/辅助方法 ---
-
-## 创建一个最简 PackedScene（仅包含一个根 Node），用于测试。
-func _make_node_scene() -> PackedScene:
-	var node := Node.new()
-	var scene := PackedScene.new()
-	scene.pack(node)
-	node.free()
-	return scene
-
-
-## 创建一个 Control PackedScene，用于验证可见性和 process_mode 回收状态。
-func _make_control_scene() -> PackedScene:
-	var control := Control.new()
-	var scene := PackedScene.new()
-	scene.pack(control)
-	control.free()
-	return scene
-
-
-## 创建一个带子节点的 Control PackedScene。
-func _make_nested_control_scene() -> PackedScene:
-	var root := Control.new()
-	var child := Control.new()
-	child.name = "Child"
-	root.add_child(child)
-	child.owner = root
-	var scene := PackedScene.new()
-	scene.pack(root)
-	root.free()
-	return scene
-
-
-## 创建一个带对象池 hook 的 PackedScene。
-func _make_hooked_scene() -> PackedScene:
-	var node := HookedNode.new()
-	var scene := PackedScene.new()
-	scene.pack(node)
-	node.free()
-	return scene
-
-
-## 创建一个会在 _ready 注册轻量事件的 GFController PackedScene。
-func _make_pooled_controller_scene() -> PackedScene:
-	var node := PooledEventController.new()
-	var scene := PackedScene.new()
-	scene.pack(node)
-	node.free()
-	return scene
-
-
-func _setup_test_architecture() -> GFArchitecture:
-	_test_architecture = GFArchitecture.new()
-	Gf._architecture = _test_architecture
-	return _test_architecture
-
+	await get_tree().process_frame
 
 # --- 测试：acquire ---
 
@@ -147,8 +67,8 @@ func test_release_marks_node_inactive() -> void:
 
 ## 验证 release 后 CanvasItem 会被隐藏并暂停处理，acquire 时恢复。
 func test_release_disables_visible_node_and_acquire_restores_it() -> void:
-	var control_scene := _make_control_scene()
-	var node := _pool.acquire(control_scene, _parent) as Control
+	var control_scene: PackedScene = _make_control_scene()
+	var node: Control = _acquire_control(control_scene)
 
 	assert_true(node.visible, "acquire 后 Control 应保持可见。")
 	assert_eq(node.process_mode, Node.PROCESS_MODE_INHERIT, "acquire 后应保持原 process_mode。")
@@ -158,7 +78,7 @@ func test_release_disables_visible_node_and_acquire_restores_it() -> void:
 	assert_false(node.visible, "release 后 Control 应被隐藏。")
 	assert_eq(node.process_mode, Node.PROCESS_MODE_DISABLED, "release 后节点应停止处理。")
 
-	var reused := _pool.acquire(control_scene, _parent) as Control
+	var reused: Control = _acquire_control(control_scene)
 
 	assert_eq(reused, node, "再次 acquire 应复用同一 Control。")
 	assert_true(reused.visible, "复用后 Control 应恢复可见。")
@@ -166,10 +86,10 @@ func test_release_disables_visible_node_and_acquire_restores_it() -> void:
 
 
 func test_can_disable_descendant_active_state_management() -> void:
-	var nested_scene := _make_nested_control_scene()
+	var nested_scene: PackedScene = _make_nested_control_scene()
 	_pool.manage_descendant_active_state = false
-	var root := _pool.acquire(nested_scene, _parent) as Control
-	var child := root.get_node("Child") as Control
+	var root: Control = _acquire_control(nested_scene)
+	var child: Control = _child_control(root, "Child")
 
 	_pool.release(root, nested_scene)
 
@@ -190,8 +110,8 @@ func test_acquire_after_release_reuses_node() -> void:
 
 ## 验证节点可通过 on_gf_pool_acquire/release hook 清理和重置自身状态。
 func test_acquire_release_calls_node_hooks() -> void:
-	var hooked_scene := _make_hooked_scene()
-	var node := _pool.acquire(hooked_scene, _parent) as HookedNode
+	var hooked_scene: PackedScene = _make_hooked_scene()
+	var node: HookedNode = _acquire_hooked_node(hooked_scene)
 
 	assert_eq(node.acquire_count, 1, "首次 acquire 应调用 on_gf_pool_acquire。")
 	assert_eq(node.release_count, 0, "未 release 前不应调用 release hook。")
@@ -199,15 +119,15 @@ func test_acquire_release_calls_node_hooks() -> void:
 	_pool.release(node, hooked_scene)
 	assert_eq(node.release_count, 1, "release 应调用 on_gf_pool_release。")
 
-	var reused := _pool.acquire(hooked_scene, _parent) as HookedNode
+	var reused: HookedNode = _acquire_hooked_node(hooked_scene)
 	assert_eq(reused, node, "hook 测试应复用同一节点。")
 	assert_eq(reused.acquire_count, 2, "复用 acquire 应再次调用 on_gf_pool_acquire。")
 
 
 func test_pooled_controller_events_pause_on_release_and_resume_on_acquire() -> void:
-	var architecture := _setup_test_architecture()
-	var controller_scene := _make_pooled_controller_scene()
-	var controller := _pool.acquire(controller_scene, _parent) as PooledEventController
+	var architecture: GFArchitecture = _setup_test_architecture()
+	var controller_scene: PackedScene = _make_pooled_controller_scene()
+	var controller: PooledEventController = _acquire_pooled_controller(controller_scene)
 
 	architecture.send_simple_event(&"pooled_controller_event", "active")
 	assert_eq(controller.payloads, ["active"], "Controller 激活时应接收事件。")
@@ -216,7 +136,7 @@ func test_pooled_controller_events_pause_on_release_and_resume_on_acquire() -> v
 	architecture.send_simple_event(&"pooled_controller_event", "pooled")
 	assert_eq(controller.payloads, ["active"], "Controller 回收到对象池后不应继续接收事件。")
 
-	var reused := _pool.acquire(controller_scene, _parent) as PooledEventController
+	var reused: PooledEventController = _acquire_pooled_controller(controller_scene)
 	architecture.send_simple_event(&"pooled_controller_event", "reused")
 
 	assert_eq(reused, controller, "Controller 应被对象池复用。")
@@ -224,14 +144,14 @@ func test_pooled_controller_events_pause_on_release_and_resume_on_acquire() -> v
 
 
 func test_prewarmed_controller_events_stay_paused_until_acquire() -> void:
-	var architecture := _setup_test_architecture()
-	var controller_scene := _make_pooled_controller_scene()
+	var architecture: GFArchitecture = _setup_test_architecture()
+	var controller_scene: PackedScene = _make_pooled_controller_scene()
 
 	_pool.prewarm(controller_scene, _parent, 1)
 	assert_eq(_pool.get_available_count(controller_scene), 1, "prewarm 后应有一个可用 Controller。")
 	architecture.send_simple_event(&"pooled_controller_event", "prewarmed")
 
-	var acquired := _pool.acquire(controller_scene, _parent) as PooledEventController
+	var acquired: PooledEventController = _acquire_pooled_controller(controller_scene)
 	assert_eq(acquired.payloads, [], "预热但未取出的 Controller 不应接收事件。")
 	architecture.send_simple_event(&"pooled_controller_event", "active")
 
@@ -245,7 +165,7 @@ func test_repeated_acquire_release_does_not_leak() -> void:
 
 	var count_before: int = _parent.get_child_count()
 
-	_pool.acquire(_scene, _parent)
+	var _acquire_result_168: Variant = _pool.acquire(_scene, _parent)
 
 	assert_eq(count_before, 0, "release 后节点应被移到对象池根节点，脱离原父节点。")
 	assert_eq(_parent.get_child_count(), 1, "复用节点时应重新挂回请求的父节点。")
@@ -282,10 +202,11 @@ func test_prewarm_async_batches_nodes() -> void:
 
 
 func test_prewarm_async_stops_after_dispose() -> void:
+	@warning_ignore("missing_await")
 	_pool.prewarm_async(_scene, _parent, 5, 1)
 	await get_tree().process_frame
 	_pool.dispose()
-	var count_after_dispose := _parent.get_child_count()
+	var count_after_dispose: int = _parent.get_child_count()
 
 	await get_tree().process_frame
 	await get_tree().process_frame
@@ -309,9 +230,9 @@ func test_release_reparents_to_pool_root_and_survives_original_parent_free() -> 
 
 	_parent.queue_free()
 	await get_tree().process_frame
-	var new_parent := Node.new()
+	var new_parent: Node = Node.new()
 	add_child(new_parent)
-	var reused := _pool.acquire(_scene, new_parent)
+	var reused: Node = _pool.acquire(_scene, new_parent)
 
 	assert_eq(reused, node, "原父节点释放后，对象池仍应能复用已回收节点。")
 	assert_eq(reused.get_parent(), new_parent, "复用时节点应挂到新的父节点。")
@@ -350,7 +271,7 @@ func test_dispose_detaches_active_and_pooled_nodes_immediately() -> void:
 	var active_node: Node = _pool.acquire(_scene, _parent)
 	var pooled_node: Node = _pool.acquire(_scene, _parent)
 	_pool.release(pooled_node, _scene)
-	var pool_root := pooled_node.get_parent()
+	var pool_root: Node = pooled_node.get_parent()
 
 	_pool.dispose()
 
@@ -386,12 +307,13 @@ func test_available_count_changes_with_acquire_release() -> void:
 
 func test_active_count_and_debug_snapshot_report_pool_state() -> void:
 	var node: Node = _pool.acquire(_scene, _parent)
-	var snapshot := _pool.get_debug_snapshot()
-	var key := "PackedScene:%d" % _scene.get_instance_id()
+	var snapshot: Dictionary = _pool.get_debug_snapshot()
+	var key: String = _pool_debug_key(_scene)
+	var pool_entry: Dictionary = GFVariantData.get_option_dictionary(snapshot, key)
 
 	assert_eq(_pool.get_active_count(_scene), 1, "acquire 后 active 数应为 1。")
-	assert_eq(int((snapshot[key] as Dictionary).get("active")), 1, "诊断快照应包含 active 数。")
-	assert_eq(int((snapshot[key] as Dictionary).get("available")), 0, "诊断快照应包含 available 数。")
+	assert_eq(GFVariantData.get_option_int(pool_entry, "active"), 1, "诊断快照应包含 active 数。")
+	assert_eq(GFVariantData.get_option_int(pool_entry, "available"), 0, "诊断快照应包含 available 数。")
 
 	_pool.release(node, _scene)
 
@@ -409,7 +331,7 @@ func test_active_nodes_tolerates_stale_freed_node_when_auto_prune_disabled() -> 
 func test_disposed_pool_rejects_new_operations() -> void:
 	_pool.dispose()
 
-	var node := _pool.acquire(_scene, _parent)
+	var node: Node = _pool.acquire(_scene, _parent)
 
 	assert_null(node, "dispose 后 acquire 应返回 null。")
 	assert_push_warning("[GFObjectPoolUtility] 对象池已销毁，忽略 acquire。")
@@ -420,16 +342,16 @@ func test_double_release_is_ignored() -> void:
 	var node: Node = _pool.acquire(_scene, _parent)
 
 	_pool.release(node, _scene) # 第一下归还
-	var count1 := _pool.get_available_count(_scene)
+	var count1: int = _pool.get_available_count(_scene)
 
 	_pool.release(node, _scene) # 第二下归还应当被忽略
-	var count2 := _pool.get_available_count(_scene)
+	var count2: int = _pool.get_available_count(_scene)
 
 	assert_eq(count1, count2, "对同一个早已处于池中的节点重复 release，不应当增加可用节点计数。")
 
 ## 验证当对象池中含有被外部错误 queue_free 退出的游离旧节点时，acquire 不会崩溃。
 func test_release_wrong_scene_returns_to_original_pool() -> void:
-	var other_scene := _make_node_scene()
+	var other_scene: PackedScene = _make_node_scene()
 	var node: Node = _pool.acquire(_scene, _parent)
 
 	_pool.release(node, other_scene)
@@ -448,10 +370,127 @@ func test_acquire_invalid_freed_instance_is_safe() -> void:
 
 	# 如果没有安全类型推断和防崩溃处理，下面这行就会报错
 	var new_node: Node = _pool.acquire(_scene, _parent)
-	var snapshot := _pool.get_debug_snapshot()
-	var key := "PackedScene:%d" % _scene.get_instance_id()
+	var snapshot: Dictionary = _pool.get_debug_snapshot()
+	var key: String = _pool_debug_key(_scene)
+	var pool_entry: Dictionary = GFVariantData.get_option_dictionary(snapshot, key)
 
 	assert_not_null(new_node, "池内存在非法实例时，acquire 应该平稳度过并返回一个新的有效实例。")
 	assert_true(is_instance_valid(new_node), "新获得的 node 应该是有效的新实例。")
 	assert_ne(new_node, node, "新实例不能是那个被强制 free 的原实例。")
-	assert_eq(int((snapshot[key] as Dictionary).get("total")), 1, "清理无效实例后，全量池中不应继续保留死对象引用。")
+	assert_eq(GFVariantData.get_option_int(pool_entry, "total"), 1, "清理无效实例后，全量池中不应继续保留死对象引用。")
+
+
+# --- 私有/辅助方法 ---
+
+## 创建一个最简 PackedScene（仅包含一个根 Node），用于测试。
+func _make_node_scene() -> PackedScene:
+	var node: Node = Node.new()
+	var scene: PackedScene = PackedScene.new()
+	var _pack_error: Error = scene.pack(node)
+	node.free()
+	return scene
+
+
+## 创建一个 Control PackedScene，用于验证可见性和 process_mode 回收状态。
+func _make_control_scene() -> PackedScene:
+	var control: Control = Control.new()
+	var scene: PackedScene = PackedScene.new()
+	var _pack_error: Error = scene.pack(control)
+	control.free()
+	return scene
+
+
+## 创建一个带子节点的 Control PackedScene。
+func _make_nested_control_scene() -> PackedScene:
+	var root: Control = Control.new()
+	var child: Control = Control.new()
+	child.name = "Child"
+	root.add_child(child)
+	child.owner = root
+	var scene: PackedScene = PackedScene.new()
+	var _pack_error: Error = scene.pack(root)
+	root.free()
+	return scene
+
+
+## 创建一个带对象池 hook 的 PackedScene。
+func _make_hooked_scene() -> PackedScene:
+	var node: HookedNode = HookedNode.new()
+	var scene: PackedScene = PackedScene.new()
+	var _pack_error: Error = scene.pack(node)
+	node.free()
+	return scene
+
+
+## 创建一个会在 _ready 注册轻量事件的 GFController PackedScene。
+func _make_pooled_controller_scene() -> PackedScene:
+	var node: PooledEventController = PooledEventController.new()
+	var scene: PackedScene = PackedScene.new()
+	var _pack_error: Error = scene.pack(node)
+	node.free()
+	return scene
+
+
+func _setup_test_architecture() -> GFArchitecture:
+	_test_architecture = GFArchitecture.new()
+	Gf._architecture = _test_architecture
+	return _test_architecture
+
+
+func _acquire_control(scene: PackedScene) -> Control:
+	var node: Node = _pool.acquire(scene, _parent)
+	if node is Control:
+		var control: Control = node
+		return control
+	return null
+
+
+func _child_control(root: Node, child_path: NodePath) -> Control:
+	var node: Node = root.get_node(child_path)
+	if node is Control:
+		var control: Control = node
+		return control
+	return null
+
+
+func _acquire_hooked_node(scene: PackedScene) -> HookedNode:
+	var node: Node = _pool.acquire(scene, _parent)
+	if node is HookedNode:
+		var hooked_node: HookedNode = node
+		return hooked_node
+	return null
+
+
+func _acquire_pooled_controller(scene: PackedScene) -> PooledEventController:
+	var node: Node = _pool.acquire(scene, _parent)
+	if node is PooledEventController:
+		var controller: PooledEventController = node
+		return controller
+	return null
+
+
+func _pool_debug_key(scene: PackedScene) -> String:
+	return "PackedScene:%d" % scene.get_instance_id()
+
+
+# --- 内部类 ---
+
+class HookedNode extends Node:
+	var acquire_count: int = 0
+	var release_count: int = 0
+
+	func on_gf_pool_acquire() -> void:
+		acquire_count += 1
+
+	func on_gf_pool_release() -> void:
+		release_count += 1
+
+
+class PooledEventController extends GFController:
+	var payloads: Array[Variant] = []
+
+	func _ready() -> void:
+		register_simple_event(&"pooled_controller_event", _on_pooled_controller_event)
+
+	func _on_pooled_controller_event(payload: Variant) -> void:
+		payloads.append(payload)

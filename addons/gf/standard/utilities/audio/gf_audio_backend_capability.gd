@@ -112,7 +112,7 @@ func has_capability(capability_id: StringName) -> bool:
 ## [br]
 ## @return: 新能力声明。
 func duplicate_capability() -> GFAudioBackendCapability:
-	var capability := GFAudioBackendCapability.new()
+	var capability: GFAudioBackendCapability = GFAudioBackendCapability.new()
 	capability.supports_bgm = supports_bgm
 	capability.supports_sfx = supports_sfx
 	capability.supports_ambient = supports_ambient

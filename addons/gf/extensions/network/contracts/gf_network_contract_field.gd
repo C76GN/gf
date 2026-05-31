@@ -53,7 +53,7 @@ enum ValueType {
 
 # --- 常量 ---
 
-const _GF_VALIDATION_REPORT_DICTIONARY := preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
+const _GF_VALIDATION_REPORT_DICTIONARY = preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
 
 
 # --- 导出变量 ---
@@ -186,7 +186,7 @@ func validate_value(value: Variant) -> Dictionary:
 			return _finalize_report([_make_issue("error", "null_not_allowed", "Network contract field does not allow null.")])
 		return _finalize_report([])
 
-	var issue := _get_value_type_issue(value)
+	var issue: Dictionary = _get_value_type_issue(value)
 	if issue.is_empty():
 		return _finalize_report([])
 	return _finalize_report([issue])
@@ -258,7 +258,7 @@ func _get_value_type_issue(value: Variant) -> Dictionary:
 		ValueType.OBJECT:
 			if not (value is Object):
 				return _make_type_issue("Object")
-			if class_name_hint != &"" and not _object_matches_class_hint(value as Object):
+			if class_name_hint != &"" and not _object_matches_class_hint(_get_object_value(value)):
 				return _make_issue("error", "class_name_mismatch", "Network contract field object class does not match.")
 		_:
 			pass
@@ -269,11 +269,11 @@ func _object_matches_class_hint(value: Object) -> bool:
 	if value == null or class_name_hint == &"":
 		return true
 
-	var hint := String(class_name_hint)
+	var hint: String = String(class_name_hint)
 	if value.is_class(hint):
 		return true
 
-	var script := value.get_script() as Script
+	var script: Script = _get_script_value(value.get_script())
 	while script != null:
 		if String(script.get_global_name()) == hint or script.resource_path == hint:
 			return true
@@ -286,7 +286,7 @@ func _make_type_issue(expected_type: String) -> Dictionary:
 
 
 func _make_issue(severity: String, kind: String, message: String) -> Dictionary:
-	var issue := {
+	var issue: Dictionary = {
 		"severity": severity,
 		"kind": kind,
 		"field_name": field_name,
@@ -298,7 +298,7 @@ func _make_issue(severity: String, kind: String, message: String) -> Dictionary:
 
 
 func _finalize_report(issues: Array[Dictionary]) -> Dictionary:
-	var report := {
+	var report: Dictionary = {
 		"subject": "Network contract field",
 		"field_name": field_name,
 		"issues": issues,
@@ -320,19 +320,39 @@ func _get_validation_next_actions() -> Dictionary:
 
 func _duplicate_value(value: Variant) -> Variant:
 	if value is Dictionary:
-		return (value as Dictionary).duplicate(true)
+		return GFVariantData.as_dictionary(value).duplicate(true)
 	if value is Array:
-		return (value as Array).duplicate(true)
+		return GFVariantData.as_array(value).duplicate(true)
 	if value is PackedStringArray:
-		return (value as PackedStringArray).duplicate()
+		var string_array: PackedStringArray = value
+		return string_array.duplicate()
 	if value is PackedByteArray:
-		return (value as PackedByteArray).duplicate()
+		var byte_array: PackedByteArray = value
+		return byte_array.duplicate()
 	if value is PackedFloat32Array:
-		return (value as PackedFloat32Array).duplicate()
+		var float32_array: PackedFloat32Array = value
+		return float32_array.duplicate()
 	if value is PackedFloat64Array:
-		return (value as PackedFloat64Array).duplicate()
+		var float64_array: PackedFloat64Array = value
+		return float64_array.duplicate()
 	if value is PackedInt32Array:
-		return (value as PackedInt32Array).duplicate()
+		var int32_array: PackedInt32Array = value
+		return int32_array.duplicate()
 	if value is PackedInt64Array:
-		return (value as PackedInt64Array).duplicate()
+		var int64_array: PackedInt64Array = value
+		return int64_array.duplicate()
 	return value
+
+
+func _get_object_value(value: Variant) -> Object:
+	if value is Object:
+		var object_value: Object = value
+		return object_value
+	return null
+
+
+func _get_script_value(value: Variant) -> Script:
+	if value is Script:
+		var script: Script = value
+		return script
+	return null

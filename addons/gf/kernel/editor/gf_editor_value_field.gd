@@ -36,6 +36,11 @@ signal value_changed(value: Variant)
 signal value_parse_failed(text: String, error_message: String)
 
 
+# --- 常量 ---
+
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
+
+
 # --- 私有变量 ---
 
 var _property_info: Dictionary = {}
@@ -117,7 +122,7 @@ func _rebuild_editor() -> void:
 		_editor.queue_free()
 		_editor = null
 
-	_editor = _create_editor_for_type(int(_property_info.get("type", TYPE_STRING)))
+	_editor = _create_editor_for_type(_get_property_type())
 	add_child(_editor)
 	_editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_apply_editable_state(_editor)
@@ -127,26 +132,26 @@ func _rebuild_editor() -> void:
 func _create_editor_for_type(value_type: int) -> Control:
 	match value_type:
 		TYPE_BOOL:
-			var checkbox := CheckBox.new()
-			checkbox.toggled.connect(_on_bool_toggled)
+			var checkbox: CheckBox = CheckBox.new()
+			var _connect_result_136: Variant = checkbox.toggled.connect(_on_bool_toggled)
 			return checkbox
 		TYPE_INT:
-			var spin := SpinBox.new()
+			var spin: SpinBox = SpinBox.new()
 			spin.rounded = true
-			spin.value_changed.connect(_on_number_changed)
+			var _connect_result_141: Variant = spin.value_changed.connect(_on_number_changed)
 			return spin
 		TYPE_FLOAT:
-			var spin := SpinBox.new()
+			var spin: SpinBox = SpinBox.new()
 			spin.step = 0.01
-			spin.value_changed.connect(_on_number_changed)
+			var _connect_result_146: Variant = spin.value_changed.connect(_on_number_changed)
 			return spin
 		TYPE_COLOR:
-			var color_picker := ColorPickerButton.new()
-			color_picker.color_changed.connect(_on_color_changed)
+			var color_picker: ColorPickerButton = ColorPickerButton.new()
+			var _connect_result_150: Variant = color_picker.color_changed.connect(_on_color_changed)
 			return color_picker
 		_:
-			var line_edit := LineEdit.new()
-			line_edit.text_changed.connect(_on_text_changed)
+			var line_edit: LineEdit = LineEdit.new()
+			var _connect_result_154: Variant = line_edit.text_changed.connect(_on_text_changed)
 			return line_edit
 
 
@@ -155,17 +160,24 @@ func _sync_editor_from_value() -> void:
 		return
 
 	_is_updating = true
-	var value_type := int(_property_info.get("type", TYPE_STRING))
+	var value_type: int = _get_property_type()
 	match value_type:
 		TYPE_BOOL:
-			(_editor as CheckBox).button_pressed = bool(_value)
+			var checkbox: CheckBox = _get_checkbox_editor()
+			if checkbox != null:
+				checkbox.button_pressed = _GF_VARIANT_ACCESS_SCRIPT.to_bool(_value)
 		TYPE_INT, TYPE_FLOAT:
-			(_editor as SpinBox).value = float(_value)
+			var spin: SpinBox = _get_spin_editor()
+			if spin != null:
+				spin.value = _GF_VARIANT_ACCESS_SCRIPT.to_float(_value)
 		TYPE_COLOR:
-			var color_value: Color = _value as Color if _value is Color else Color.WHITE
-			(_editor as ColorPickerButton).color = color_value
+			var color_picker: ColorPickerButton = _get_color_picker_editor()
+			if color_picker != null:
+				color_picker.color = _variant_to_color(_value, Color.WHITE)
 		_:
-			(_editor as LineEdit).text = _stringify_value(_value)
+			var line_edit: LineEdit = _get_line_edit_editor()
+			if line_edit != null:
+				line_edit.text = _stringify_value(_value)
 	_is_updating = false
 
 
@@ -173,36 +185,88 @@ func _read_editor_value() -> Variant:
 	if _editor == null:
 		return _value
 
-	var value_type := int(_property_info.get("type", TYPE_STRING))
+	var value_type: int = _get_property_type()
 	match value_type:
 		TYPE_BOOL:
-			return (_editor as CheckBox).button_pressed
+			var checkbox: CheckBox = _get_checkbox_editor()
+			return checkbox.button_pressed if checkbox != null else _value
 		TYPE_INT:
-			return int((_editor as SpinBox).value)
+			var spin: SpinBox = _get_spin_editor()
+			return int(spin.value) if spin != null else _value
 		TYPE_FLOAT:
-			return float((_editor as SpinBox).value)
+			var spin: SpinBox = _get_spin_editor()
+			return float(spin.value) if spin != null else _value
 		TYPE_STRING_NAME:
-			return StringName((_editor as LineEdit).text)
+			var line_edit: LineEdit = _get_line_edit_editor()
+			return StringName(line_edit.text) if line_edit != null else _value
 		TYPE_COLOR:
-			return (_editor as ColorPickerButton).color
+			var color_picker: ColorPickerButton = _get_color_picker_editor()
+			return color_picker.color if color_picker != null else _value
 		TYPE_ARRAY, TYPE_DICTIONARY:
-			var parse_result := _try_parse_json_value((_editor as LineEdit).text, value_type)
-			if not bool(parse_result.get("ok", false)):
+			var line_edit: LineEdit = _get_line_edit_editor()
+			if line_edit == null:
 				return _value
-			return parse_result.get("value")
+			var parse_result: Dictionary = _try_parse_json_value(line_edit.text, value_type)
+			if not _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(parse_result, "ok", false):
+				return _value
+			return _GF_VARIANT_ACCESS_SCRIPT.get_option_value(parse_result, "value")
 		_:
-			return (_editor as LineEdit).text
+			var line_edit: LineEdit = _get_line_edit_editor()
+			return line_edit.text if line_edit != null else _value
 
 
 func _apply_editable_state(control: Control) -> void:
 	if control is BaseButton:
-		(control as BaseButton).disabled = not _editable
+		var button: BaseButton = control
+		button.disabled = not _editable
 	elif control is LineEdit:
-		(control as LineEdit).editable = _editable
+		var line_edit: LineEdit = control
+		line_edit.editable = _editable
 	elif control is SpinBox:
-		(control as SpinBox).editable = _editable
+		var spin: SpinBox = control
+		spin.editable = _editable
 	elif control is ColorPickerButton:
-		(control as ColorPickerButton).disabled = not _editable
+		var color_picker: ColorPickerButton = control
+		color_picker.disabled = not _editable
+
+
+func _get_property_type() -> int:
+	return _GF_VARIANT_ACCESS_SCRIPT.get_option_int(_property_info, "type", TYPE_STRING)
+
+
+func _get_checkbox_editor() -> CheckBox:
+	if _editor is CheckBox:
+		var checkbox: CheckBox = _editor
+		return checkbox
+	return null
+
+
+func _get_spin_editor() -> SpinBox:
+	if _editor is SpinBox:
+		var spin: SpinBox = _editor
+		return spin
+	return null
+
+
+func _get_color_picker_editor() -> ColorPickerButton:
+	if _editor is ColorPickerButton:
+		var color_picker: ColorPickerButton = _editor
+		return color_picker
+	return null
+
+
+func _get_line_edit_editor() -> LineEdit:
+	if _editor is LineEdit:
+		var line_edit: LineEdit = _editor
+		return line_edit
+	return null
+
+
+func _variant_to_color(value: Variant, fallback: Color) -> Color:
+	if value is Color:
+		var color: Color = value
+		return color
+	return fallback
 
 
 func _stringify_value(value: Variant) -> String:
@@ -214,7 +278,7 @@ func _stringify_value(value: Variant) -> String:
 
 
 func _try_parse_json_value(text: String, expected_type: int = TYPE_NIL) -> Dictionary:
-	var json := JSON.new()
+	var json: JSON = JSON.new()
 	if json.parse(text) != OK:
 		return {
 			"ok": false,
@@ -262,13 +326,19 @@ func _on_color_changed(color: Color) -> void:
 
 
 func _on_text_changed(_text: String) -> void:
-	var value_type := int(_property_info.get("type", TYPE_STRING))
+	var value_type: int = _get_property_type()
 	if value_type == TYPE_ARRAY or value_type == TYPE_DICTIONARY:
-		var parse_result := _try_parse_json_value((_editor as LineEdit).text, value_type)
-		if not bool(parse_result.get("ok", false)):
-			value_parse_failed.emit((_editor as LineEdit).text, String(parse_result.get("error", "")))
+		var line_edit: LineEdit = _get_line_edit_editor()
+		if line_edit == null:
 			return
-		_emit_value_changed(parse_result.get("value"))
+		var parse_result: Dictionary = _try_parse_json_value(line_edit.text, value_type)
+		if not _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(parse_result, "ok", false):
+			value_parse_failed.emit(
+				line_edit.text,
+				_GF_VARIANT_ACCESS_SCRIPT.get_option_string(parse_result, "error", "")
+			)
+			return
+		_emit_value_changed(_GF_VARIANT_ACCESS_SCRIPT.get_option_value(parse_result, "value"))
 		return
 
 	_emit_value_changed(_read_editor_value())

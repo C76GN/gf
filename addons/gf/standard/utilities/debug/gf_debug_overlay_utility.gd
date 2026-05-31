@@ -87,7 +87,7 @@ func init() -> void:
 	_overlay_gui._watch_snapshot_provider = Callable(self, "get_watch_snapshot")
 	_overlay_gui._panel_snapshot_provider = Callable(self, "get_panel_snapshot")
 	
-	var tree := Engine.get_main_loop() as SceneTree
+	var tree: SceneTree = _get_main_scene_tree()
 	if tree != null:
 		tree.root.call_deferred("add_child", _overlay_gui)
 
@@ -103,7 +103,7 @@ func dispose() -> void:
 		_overlay_gui._architecture_provider = Callable()
 		_overlay_gui._watch_snapshot_provider = Callable()
 		_overlay_gui._panel_snapshot_provider = Callable()
-		var parent := _overlay_gui.get_parent()
+		var parent: Node = _overlay_gui.get_parent()
 		if parent != null:
 			parent.remove_child(_overlay_gui)
 		_overlay_gui.queue_free()
@@ -226,7 +226,7 @@ func push_watch_value(id: StringName, value: Variant, options: Dictionary = {}) 
 ## [br]
 ## @param id: 要移除的观察值标识。
 func remove_watch(id: StringName) -> void:
-	_watches.erase(id)
+	_erase_dictionary_key(_watches, id)
 
 
 ## 清空所有运行时观察值。
@@ -260,12 +260,12 @@ func has_watch(id: StringName) -> bool:
 func get_watch_snapshot(include_hidden: bool = false) -> Array[Dictionary]:
 	var entries: Array[Dictionary] = []
 	for id: StringName in _watches:
-		var source_entry: Dictionary = _watches[id]
-		var is_visible: bool = source_entry.get("visible", true)
+		var source_entry: Dictionary = GFVariantData.get_option_dictionary(_watches, id)
+		var is_visible: bool = GFVariantData.get_option_bool(source_entry, "visible", true)
 		if not include_hidden and not is_visible:
 			continue
 
-		var entry := source_entry.duplicate()
+		var entry: Dictionary = source_entry.duplicate()
 		entry["id"] = id
 		entries.append(entry)
 
@@ -273,13 +273,13 @@ func get_watch_snapshot(include_hidden: bool = false) -> Array[Dictionary]:
 
 	var snapshot: Array[Dictionary] = []
 	for entry: Dictionary in entries:
-		var evaluated := _evaluate_watch_entry(entry)
+		var evaluated: Dictionary = _evaluate_watch_entry(entry)
 		snapshot.append({
-			"id": entry.get("id", &""),
-			"label": String(entry.get("label", String(entry.get("id", &"")))),
-			"group": String(entry.get("group", "Runtime")),
-			"value": evaluated.get("value", null),
-			"valid": evaluated.get("valid", true),
+			"id": GFVariantData.get_option_string_name(entry, "id", &""),
+			"label": GFVariantData.get_option_string(entry, "label", GFVariantData.get_option_string(entry, "id", "")),
+			"group": GFVariantData.get_option_string(entry, "group", "Runtime"),
+			"value": GFVariantData.get_option_value(evaluated, "value", null),
+			"valid": GFVariantData.get_option_bool(evaluated, "valid", true),
 		})
 
 	if include_diagnostics_monitors:
@@ -335,7 +335,7 @@ func push_panel_text(panel_id: StringName, content: String, options: Dictionary 
 ## [br]
 ## @param panel_id: 面板唯一标识。
 func remove_panel(panel_id: StringName) -> void:
-	_panels.erase(panel_id)
+	_erase_dictionary_key(_panels, panel_id)
 
 
 ## 清空 Overlay 面板注册表。
@@ -369,11 +369,11 @@ func has_panel(panel_id: StringName) -> bool:
 func get_panel_snapshot(include_hidden: bool = false) -> Array[Dictionary]:
 	var entries: Array[Dictionary] = []
 	for panel_id: StringName in _panels:
-		var source_entry: Dictionary = _panels[panel_id]
-		if not include_hidden and not bool(source_entry.get("visible", true)):
+		var source_entry: Dictionary = GFVariantData.get_option_dictionary(_panels, panel_id)
+		if not include_hidden and not GFVariantData.get_option_bool(source_entry, "visible", true):
 			continue
 
-		var entry := source_entry.duplicate()
+		var entry: Dictionary = source_entry.duplicate()
 		entry["id"] = panel_id
 		entries.append(entry)
 
@@ -404,17 +404,18 @@ func get_panel_snapshot(include_hidden: bool = false) -> Array[Dictionary]:
 ## [br]
 ## @schema options: Dictionary，支持 label、group、visible、max_samples、timestamp_seconds、metadata 和 sample_metadata。
 func record_metric_sample(metric_id: StringName, value: float, options: Dictionary = {}) -> bool:
-	var series := get_or_create_metric_series(metric_id, options)
+	var series: GFMetricSeries = get_or_create_metric_series(metric_id, options)
 	if series == null:
 		return false
 
 	var sample_metadata: Dictionary = {}
-	var sample_metadata_value: Variant = options.get("sample_metadata", {})
+	var sample_metadata_value: Variant = GFVariantData.get_option_value(options, "sample_metadata", {})
 	if sample_metadata_value is Dictionary:
-		sample_metadata = (sample_metadata_value as Dictionary).duplicate(true)
+		var source_metadata: Dictionary = sample_metadata_value
+		sample_metadata = source_metadata.duplicate(true)
 	series.add_sample(
 		value,
-		float(options.get("timestamp_seconds", -1.0)),
+		GFVariantData.get_option_float(options, "timestamp_seconds", -1.0),
 		sample_metadata
 	)
 	return true
@@ -435,11 +436,11 @@ func get_or_create_metric_series(metric_id: StringName, options: Dictionary = {}
 	if metric_id == &"":
 		return null
 
-	var series := _metric_series.get(metric_id) as GFMetricSeries
+	var series: GFMetricSeries = _get_metric_series_or_null(metric_id)
 	if series == null:
 		series = GFMetricSeries.new()
 		_metric_series[metric_id] = series
-	series.configure(metric_id, options)
+	series = series.configure(metric_id, options)
 	return series
 
 
@@ -465,7 +466,7 @@ func register_metric_series(series: GFMetricSeries) -> bool:
 ## [br]
 ## @param metric_id: 指标唯一标识。
 func remove_metric_series(metric_id: StringName) -> void:
-	_metric_series.erase(metric_id)
+	_erase_dictionary_key(_metric_series, metric_id)
 
 
 ## 清空全部指标序列。
@@ -498,13 +499,13 @@ func has_metric_series(metric_id: StringName) -> bool:
 func get_metric_series_snapshot(include_hidden: bool = false) -> Array[Dictionary]:
 	var snapshot: Array[Dictionary] = []
 	for metric_id: StringName in _metric_series:
-		var series := _metric_series[metric_id] as GFMetricSeries
+		var series: GFMetricSeries = _get_metric_series_or_null(metric_id)
 		if series == null:
 			continue
 		if not include_hidden and not series.visible:
 			continue
 
-		var entry := series.to_dict(false)
+		var entry: Dictionary = series.to_dict(false)
 		entry["sparkline"] = series.make_sparkline(metric_series_width)
 		snapshot.append(entry)
 
@@ -520,7 +521,7 @@ func get_metric_series_snapshot(include_hidden: bool = false) -> Array[Dictionar
 ## [br]
 ## @schema return: Dictionary，包含 debug_only、watch_count、panel_count、metric_series_count、include_diagnostics_monitors、include_recent_logs、include_metric_series_panel、recent_log_count、metric_series_width、diagnostics_monitor_preset 和 gui 分区。
 func get_debug_snapshot() -> Dictionary:
-	var gui_created := is_instance_valid(_overlay_gui)
+	var gui_created: bool = is_instance_valid(_overlay_gui)
 	return {
 		"debug_only": debug_only,
 		"watch_count": _watches.size(),
@@ -548,10 +549,61 @@ func get_debug_snapshot() -> Dictionary:
 
 # --- 私有/辅助方法 ---
 
+func _get_main_scene_tree() -> SceneTree:
+	var main_loop: MainLoop = Engine.get_main_loop()
+	if main_loop is SceneTree:
+		var tree: SceneTree = main_loop
+		return tree
+	return null
+
+
+func _get_log_utility() -> GFLogUtility:
+	var utility: Variant = get_utility(GFLogUtility)
+	if utility is GFLogUtility:
+		var log_utility: GFLogUtility = utility
+		return log_utility
+	return null
+
+
+func _get_diagnostics_utility() -> GFDiagnosticsUtility:
+	var utility: Variant = get_utility(GFDiagnosticsUtility)
+	if utility is GFDiagnosticsUtility:
+		var diagnostics: GFDiagnosticsUtility = utility
+		return diagnostics
+	return null
+
+
+func _get_metric_series_or_null(metric_id: StringName) -> GFMetricSeries:
+	var value: Variant = GFVariantData.get_option_value(_metric_series, metric_id)
+	if value is GFMetricSeries:
+		var series: GFMetricSeries = value
+		return series
+	return null
+
+
+func _get_dictionary_callable(source: Dictionary, key: Variant) -> Callable:
+	var value: Variant = GFVariantData.get_option_value(source, key, Callable())
+	if value is Callable:
+		return value
+	return Callable()
+
+
+func _erase_dictionary_key(source: Dictionary, key: Variant) -> void:
+	var erased: bool = source.erase(key)
+	if erased:
+		return
+
+
+func _append_packed_string(target: PackedStringArray, value: String) -> void:
+	var appended: bool = target.append(value)
+	if appended:
+		return
+
+
 func _upsert_watch_entry(id: StringName, mode: StringName, payload: Variant, options: Dictionary) -> void:
 	var entry: Dictionary = {}
 	if _watches.has(id):
-		entry = (_watches[id] as Dictionary).duplicate()
+		entry = GFVariantData.get_option_dictionary(_watches, id).duplicate()
 	else:
 		entry = {
 			"label": String(id),
@@ -564,39 +616,41 @@ func _upsert_watch_entry(id: StringName, mode: StringName, payload: Variant, opt
 	entry["mode"] = mode
 	if mode == &"provider":
 		entry["provider"] = payload
-		entry.erase("value")
+		_erase_dictionary_key(entry, "value")
 	else:
 		entry["value"] = payload
-		entry.erase("provider")
+		_erase_dictionary_key(entry, "provider")
 
 	_apply_watch_options(entry, id, options)
 	_watches[id] = entry
 
 
 func _apply_watch_options(entry: Dictionary, id: StringName, options: Dictionary) -> void:
-	if not entry.has("label") or String(entry["label"]).is_empty():
+	if not entry.has("label") or GFVariantData.get_option_string(entry, "label", "").is_empty():
 		entry["label"] = String(id)
-	if not entry.has("group") or String(entry["group"]).is_empty():
+	if not entry.has("group") or GFVariantData.get_option_string(entry, "group", "").is_empty():
 		entry["group"] = "Runtime"
 	if not entry.has("visible"):
 		entry["visible"] = true
 
 	if options.has("label"):
-		var label := str(options["label"])
+		var label: String = str(options["label"])
 		if not label.is_empty():
 			entry["label"] = label
 	if options.has("group"):
-		var group := str(options["group"])
+		var group: String = str(options["group"])
 		if not group.is_empty():
 			entry["group"] = group
-	if options.has("visible") and options["visible"] is bool:
-		entry["visible"] = options["visible"]
+	if options.has("visible"):
+		var visible_value: Variant = options["visible"]
+		if visible_value is bool:
+			entry["visible"] = visible_value
 
 
 func _evaluate_watch_entry(entry: Dictionary) -> Dictionary:
-	var mode: StringName = entry.get("mode", &"value")
+	var mode: StringName = GFVariantData.get_option_string_name(entry, "mode", &"value")
 	if mode == &"provider":
-		var provider: Callable = entry.get("provider", Callable())
+		var provider: Callable = _get_dictionary_callable(entry, "provider")
 		if not provider.is_valid():
 			return {
 				"value": "<invalid watch provider>",
@@ -608,23 +662,23 @@ func _evaluate_watch_entry(entry: Dictionary) -> Dictionary:
 		}
 
 	return {
-		"value": entry.get("value", null),
+		"value": GFVariantData.get_option_value(entry, "value", null),
 		"valid": true,
 	}
 
 
 func _sort_watch_entries(left: Dictionary, right: Dictionary) -> bool:
-	var left_order: int = left.get("order", 0)
-	var right_order: int = right.get("order", 0)
+	var left_order: int = GFVariantData.get_option_int(left, "order", 0)
+	var right_order: int = GFVariantData.get_option_int(right, "order", 0)
 	if left_order != right_order:
 		return left_order < right_order
-	return String(left.get("id", &"")) < String(right.get("id", &""))
+	return GFVariantData.get_option_string(left, "id", "") < GFVariantData.get_option_string(right, "id", "")
 
 
 func _upsert_panel_entry(panel_id: StringName, mode: StringName, payload: Variant, options: Dictionary) -> void:
 	var entry: Dictionary = {}
 	if _panels.has(panel_id):
-		entry = (_panels[panel_id] as Dictionary).duplicate()
+		entry = GFVariantData.get_option_dictionary(_panels, panel_id).duplicate()
 	else:
 		entry = {
 			"label": String(panel_id),
@@ -637,40 +691,42 @@ func _upsert_panel_entry(panel_id: StringName, mode: StringName, payload: Varian
 	entry["mode"] = mode
 	if mode == &"provider":
 		entry["provider"] = payload
-		entry.erase("content")
+		_erase_dictionary_key(entry, "content")
 	else:
-		entry["content"] = String(payload)
-		entry.erase("provider")
+		entry["content"] = str(payload)
+		_erase_dictionary_key(entry, "provider")
 
 	_apply_panel_options(entry, panel_id, options)
 	_panels[panel_id] = entry
 
 
 func _apply_panel_options(entry: Dictionary, panel_id: StringName, options: Dictionary) -> void:
-	if not entry.has("label") or String(entry["label"]).is_empty():
+	if not entry.has("label") or GFVariantData.get_option_string(entry, "label", "").is_empty():
 		entry["label"] = String(panel_id)
-	if not entry.has("group") or String(entry["group"]).is_empty():
+	if not entry.has("group") or GFVariantData.get_option_string(entry, "group", "").is_empty():
 		entry["group"] = "Runtime"
 	if not entry.has("visible"):
 		entry["visible"] = true
 
 	if options.has("label"):
-		var label := str(options["label"])
+		var label: String = str(options["label"])
 		if not label.is_empty():
 			entry["label"] = label
 	if options.has("group"):
-		var group := str(options["group"])
+		var group: String = str(options["group"])
 		if not group.is_empty():
 			entry["group"] = group
-	if options.has("visible") and options["visible"] is bool:
-		entry["visible"] = options["visible"]
+	if options.has("visible"):
+		var visible_value: Variant = options["visible"]
+		if visible_value is bool:
+			entry["visible"] = visible_value
 
 
 func _evaluate_panel_entry(entry: Dictionary) -> Dictionary:
-	var value: Variant = entry.get("content", "")
-	var valid := true
-	if StringName(entry.get("mode", &"text")) == &"provider":
-		var provider: Callable = entry.get("provider", Callable())
+	var value: Variant = GFVariantData.get_option_value(entry, "content", "")
+	var valid: bool = true
+	if GFVariantData.get_option_string_name(entry, "mode", &"text") == &"provider":
+		var provider: Callable = _get_dictionary_callable(entry, "provider")
 		if provider.is_valid():
 			value = provider.call()
 		else:
@@ -678,32 +734,32 @@ func _evaluate_panel_entry(entry: Dictionary) -> Dictionary:
 			valid = false
 
 	return {
-		"id": entry.get("id", &""),
-		"label": String(entry.get("label", String(entry.get("id", &"")))),
-		"group": String(entry.get("group", "Runtime")),
+		"id": GFVariantData.get_option_string_name(entry, "id", &""),
+		"label": GFVariantData.get_option_string(entry, "label", GFVariantData.get_option_string(entry, "id", "")),
+		"group": GFVariantData.get_option_string(entry, "group", "Runtime"),
 		"content": _format_panel_content(value),
 		"valid": valid,
 	}
 
 
 func _sort_panel_entries(left: Dictionary, right: Dictionary) -> bool:
-	var left_order: int = left.get("order", 0)
-	var right_order: int = right.get("order", 0)
+	var left_order: int = GFVariantData.get_option_int(left, "order", 0)
+	var right_order: int = GFVariantData.get_option_int(right, "order", 0)
 	if left_order != right_order:
 		return left_order < right_order
-	return String(left.get("id", &"")) < String(right.get("id", &""))
+	return GFVariantData.get_option_string(left, "id", "") < GFVariantData.get_option_string(right, "id", "")
 
 
 func _sort_metric_series_entries(left: Dictionary, right: Dictionary) -> bool:
-	var left_group := String(left.get("group", "Runtime"))
-	var right_group := String(right.get("group", "Runtime"))
+	var left_group: String = GFVariantData.get_option_string(left, "group", "Runtime")
+	var right_group: String = GFVariantData.get_option_string(right, "group", "Runtime")
 	if left_group != right_group:
 		return left_group < right_group
-	var left_label := String(left.get("label", String(left.get("id", &""))))
-	var right_label := String(right.get("label", String(right.get("id", &""))))
+	var left_label: String = GFVariantData.get_option_string(left, "label", GFVariantData.get_option_string(left, "id", ""))
+	var right_label: String = GFVariantData.get_option_string(right, "label", GFVariantData.get_option_string(right, "id", ""))
 	if left_label != right_label:
 		return left_label < right_label
-	return String(left.get("id", &"")) < String(right.get("id", &""))
+	return GFVariantData.get_option_string(left, "id", "") < GFVariantData.get_option_string(right, "id", "")
 
 
 func _format_panel_content(value: Variant) -> String:
@@ -713,19 +769,19 @@ func _format_panel_content(value: Variant) -> String:
 
 
 func _append_metric_series_panel(snapshot: Array[Dictionary], include_hidden: bool) -> void:
-	var metrics := get_metric_series_snapshot(include_hidden)
+	var metrics: Array[Dictionary] = get_metric_series_snapshot(include_hidden)
 	if metrics.is_empty():
 		return
 
-	var lines := PackedStringArray()
+	var lines: PackedStringArray = PackedStringArray()
 	for metric: Dictionary in metrics:
-		lines.append("%s: latest=%s avg=%s min=%s max=%s %s" % [
-			String(metric.get("label", String(metric.get("id", "")))),
-			_format_metric_number(float(metric.get("latest_value", 0.0))),
-			_format_metric_number(float(metric.get("average_value", 0.0))),
-			_format_metric_number(float(metric.get("min_value", 0.0))),
-			_format_metric_number(float(metric.get("max_value", 0.0))),
-			String(metric.get("sparkline", "")),
+		_append_packed_string(lines, "%s: latest=%s avg=%s min=%s max=%s %s" % [
+			GFVariantData.get_option_string(metric, "label", GFVariantData.get_option_string(metric, "id", "")),
+			_format_metric_number(GFVariantData.get_option_float(metric, "latest_value", 0.0)),
+			_format_metric_number(GFVariantData.get_option_float(metric, "average_value", 0.0)),
+			_format_metric_number(GFVariantData.get_option_float(metric, "min_value", 0.0)),
+			_format_metric_number(GFVariantData.get_option_float(metric, "max_value", 0.0)),
+			GFVariantData.get_option_string(metric, "sparkline", ""),
 		])
 
 	snapshot.append({
@@ -742,18 +798,18 @@ func _format_metric_number(value: float) -> String:
 
 
 func _append_recent_log_panel(snapshot: Array[Dictionary], include_hidden: bool) -> void:
-	var log_utility := get_utility(GFLogUtility) as GFLogUtility
+	var log_utility: GFLogUtility = _get_log_utility()
 	if log_utility == null:
 		return
 	if not include_hidden and recent_log_count <= 0:
 		return
 
-	var lines := PackedStringArray()
+	var lines: PackedStringArray = PackedStringArray()
 	for entry: Dictionary in log_utility.get_recent_entries(recent_log_count):
-		lines.append("[%s][%s] %s" % [
-			String(entry.get("level_name", "")),
-			String(entry.get("tag", "")),
-			String(entry.get("message", "")),
+		_append_packed_string(lines, "[%s][%s] %s" % [
+			GFVariantData.get_option_string(entry, "level_name", ""),
+			GFVariantData.get_option_string(entry, "tag", ""),
+			GFVariantData.get_option_string(entry, "message", ""),
 		])
 	if lines.is_empty():
 		return
@@ -768,7 +824,7 @@ func _append_recent_log_panel(snapshot: Array[Dictionary], include_hidden: bool)
 
 
 func _append_diagnostics_watch_snapshot(snapshot: Array[Dictionary], include_hidden: bool) -> void:
-	var diagnostics := get_utility(GFDiagnosticsUtility) as GFDiagnosticsUtility
+	var diagnostics: GFDiagnosticsUtility = _get_diagnostics_utility()
 	if diagnostics == null:
 		return
 
@@ -777,24 +833,24 @@ func _append_diagnostics_watch_snapshot(snapshot: Array[Dictionary], include_hid
 		monitor_snapshot = diagnostics.collect_monitor_preset(diagnostics_monitor_preset, include_hidden)
 	else:
 		monitor_snapshot = diagnostics.collect_monitor_snapshot(PackedStringArray(), include_hidden)
-	var monitors := monitor_snapshot.get("monitors", {}) as Dictionary
+	var monitors: Dictionary = GFVariantData.get_option_dictionary(monitor_snapshot, "monitors")
 	if monitors == null or monitors.is_empty():
 		return
 
-	var ids := PackedStringArray()
+	var ids: PackedStringArray = PackedStringArray()
 	for monitor_id: Variant in monitors.keys():
-		ids.append(String(monitor_id))
+		_append_packed_string(ids, str(monitor_id))
 	ids.sort()
 	for id_text: String in ids:
-		var monitor := monitors[StringName(id_text)] as Dictionary
-		if monitor == null:
+		var monitor: Dictionary = GFVariantData.get_option_dictionary(monitors, StringName(id_text))
+		if monitor.is_empty():
 			continue
 		snapshot.append({
 			"id": StringName(id_text),
-			"label": String(monitor.get("label", id_text)),
-			"group": String(monitor.get("group", "Diagnostics")),
-			"value": monitor.get("value", null),
-			"valid": bool(monitor.get("valid", false)),
+			"label": GFVariantData.get_option_string(monitor, "label", id_text),
+			"group": GFVariantData.get_option_string(monitor, "group", "Diagnostics"),
+			"value": GFVariantData.get_option_value(monitor, "value", null),
+			"valid": GFVariantData.get_option_bool(monitor, "valid", false),
 		})
 
 
@@ -809,13 +865,18 @@ class _GFDebugGUI extends CanvasLayer:
 	var _watch_snapshot_provider: Callable
 	var _panel_snapshot_provider: Callable
 	var _refresh_elapsed: float = 0.25
+
+	func _append_packed_string(target: PackedStringArray, value: String) -> void:
+		var appended: bool = target.append(value)
+		if appended:
+			return
 	
 	func _init() -> void:
 		layer = 120 # 确保在所有 UI 之上
 		visible = false
 		process_mode = Node.PROCESS_MODE_ALWAYS # 即使主游戏暂停也能工作
 		
-		var margin := MarginContainer.new()
+		var margin: MarginContainer = MarginContainer.new()
 		margin.add_theme_constant_override("margin_left", 10)
 		margin.add_theme_constant_override("margin_top", 10)
 		margin.add_theme_constant_override("margin_right", 10)
@@ -824,7 +885,7 @@ class _GFDebugGUI extends CanvasLayer:
 		margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(margin)
 		
-		var panel := PanelContainer.new()
+		var panel: PanelContainer = PanelContainer.new()
 		panel.self_modulate = Color(0, 0, 0, 0.6)
 		panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
@@ -834,7 +895,7 @@ class _GFDebugGUI extends CanvasLayer:
 		_container = VBoxContainer.new()
 		panel.add_child(_container)
 		
-		var header := Label.new()
+		var header: Label = Label.new()
 		header.text = "[ GF Debug Overlay ]"
 		header.modulate = Color(0.4, 0.8, 1.0)
 		_container.add_child(header)
@@ -849,8 +910,11 @@ class _GFDebugGUI extends CanvasLayer:
 
 
 	func _input(event: InputEvent) -> void:
-		if event is InputEventKey and event.pressed and not event.echo:
-			if event.keycode == _toggle_key:
+		if event is InputEventKey:
+			var key_event: InputEventKey = event
+			if not key_event.pressed or key_event.echo:
+				return
+			if key_event.keycode == _toggle_key:
 				visible = not visible
 				if visible:
 					_refresh_elapsed = _refresh_interval_seconds
@@ -872,7 +936,7 @@ class _GFDebugGUI extends CanvasLayer:
 
 
 	func _refresh_now() -> void:
-		var text := _build_debug_text()
+		var text: String = _build_debug_text()
 		if _label.text != text:
 			_label.text = text
 
@@ -882,17 +946,19 @@ class _GFDebugGUI extends CanvasLayer:
 
 
 	func _build_debug_text() -> String:
-		var watch_text := _build_watch_text()
-		var panel_text := _build_panel_text()
+		var watch_text: String = _build_watch_text()
+		var panel_text: String = _build_panel_text()
 		var arch: Object = null
 		if _architecture_provider.is_valid():
-			arch = _architecture_provider.call()
+			var architecture_result: Variant = _architecture_provider.call()
+			if architecture_result is Object:
+				arch = architecture_result
 		if arch == null:
 			if watch_text.is_empty() and panel_text.is_empty():
 				return "Wait: Architecture is null."
 			return _join_non_empty(PackedStringArray([watch_text, panel_text]))
 
-		var model_text := _build_model_text(arch)
+		var model_text: String = _build_model_text(arch)
 		if watch_text.is_empty() and model_text.is_empty() and panel_text.is_empty():
 			return "No GFModels registered."
 		return _join_non_empty(PackedStringArray([watch_text, model_text, panel_text]))
@@ -913,33 +979,38 @@ class _GFDebugGUI extends CanvasLayer:
 		var group_order: PackedStringArray = []
 		var groups: Dictionary = {}
 		for watch_variant: Variant in snapshot:
-			var watch := watch_variant as Dictionary
-			if watch == null:
+			if not (watch_variant is Dictionary):
 				continue
+			var watch: Dictionary = watch_variant
 
-			var group := String(watch.get("group", "Runtime"))
+			var group: String = GFVariantData.get_option_string(watch, "group", "Runtime")
 			if group.is_empty():
 				group = "Runtime"
 			if not groups.has(group):
-				groups[group] = []
-				group_order.append(group)
-			groups[group].append(watch)
+				var empty_group: Array[Dictionary] = []
+				groups[group] = empty_group
+				_append_packed_string(group_order, group)
+			var group_items: Array = GFVariantData.get_option_array(groups, group)
+			group_items.append(watch)
+			groups[group] = group_items
 
-		var text := ""
+		var text: String = ""
 		for group: String in group_order:
 			if not text.is_empty():
 				text += "\n"
 			text += "[color=yellow]=== Watches: %s ===[/color]\n" % _escape_bbcode(group)
 
-			var watches: Array = groups[group]
+			var watches: Array = GFVariantData.get_option_array(groups, group)
 			for watch_variant: Variant in watches:
-				var watch := watch_variant as Dictionary
-				var label := String(watch.get("label", String(watch.get("id", "watch"))))
+				var watch: Dictionary = GFVariantData.as_dictionary(watch_variant)
+				if watch.is_empty():
+					continue
+				var label: String = GFVariantData.get_option_string(watch, "label", GFVariantData.get_option_string(watch, "id", "watch"))
 				if label.is_empty():
-					label = String(watch.get("id", "watch"))
-				var is_valid: bool = watch.get("valid", true)
-				var value: Variant = watch.get("value", null)
-				var value_text := str(value)
+					label = GFVariantData.get_option_string(watch, "id", "watch")
+				var is_valid: bool = GFVariantData.get_option_bool(watch, "valid", true)
+				var value: Variant = GFVariantData.get_option_value(watch, "value", null)
+				var value_text: String = str(value)
 				if not is_valid:
 					value_text = "<invalid>"
 				text += "  [color=lightblue]%s[/color]: %s\n" % [
@@ -962,17 +1033,17 @@ class _GFDebugGUI extends CanvasLayer:
 		if snapshot.is_empty():
 			return ""
 
-		var text := ""
+		var text: String = ""
 		for panel_variant: Variant in snapshot:
-			var panel := panel_variant as Dictionary
-			if panel == null:
+			if not (panel_variant is Dictionary):
 				continue
+			var panel: Dictionary = panel_variant
 			if not text.is_empty():
 				text += "\n"
-			var label := String(panel.get("label", String(panel.get("id", "panel"))))
-			var group := String(panel.get("group", "Runtime"))
-			var content := String(panel.get("content", ""))
-			if not bool(panel.get("valid", true)):
+			var label: String = GFVariantData.get_option_string(panel, "label", GFVariantData.get_option_string(panel, "id", "panel"))
+			var group: String = GFVariantData.get_option_string(panel, "group", "Runtime")
+			var content: String = GFVariantData.get_option_string(panel, "content", "")
+			if not GFVariantData.get_option_bool(panel, "valid", true):
 				content = "<invalid>"
 			text += "[color=yellow]=== Panel: %s / %s ===[/color]\n%s\n" % [
 				_escape_bbcode(group),
@@ -983,16 +1054,22 @@ class _GFDebugGUI extends CanvasLayer:
 
 
 	func _build_model_text(arch: Object) -> String:
-		var models := arch.get("_models") as Dictionary
-		if models == null or models.is_empty():
+		var models_value: Variant = GFObjectPropertyTools.read_property(arch, NodePath("_models"))
+		if not (models_value is Dictionary):
+			return ""
+		var models: Dictionary = models_value
+		if models.is_empty():
 			return ""
 			
-		var text := ""
+		var text: String = ""
 		for script_cls: Script in models:
-			var model: Object = models[script_cls]
-			var class_title := ""
+			var model_value: Variant = models[script_cls]
+			if not (model_value is Object):
+				continue
+			var model: Object = model_value
+			var class_title: String = ""
 			
-			var global_name := script_cls.get_global_name()
+			var global_name: StringName = script_cls.get_global_name()
 			if global_name != &"":
 				class_title = String(global_name)
 			else:
@@ -1004,13 +1081,13 @@ class _GFDebugGUI extends CanvasLayer:
 				
 			text += "[color=yellow]=== %s ===[/color]\n" % _escape_bbcode(class_title)
 			
-			var prop_list := model.get_property_list()
+			var prop_list: Array[Dictionary] = model.get_property_list()
 			for prop: Dictionary in prop_list:
 				var usage: int = prop.usage
 				# 过滤 Godot 内置变量，只显示脚本中声明的用户变量
 				if (usage & PROPERTY_USAGE_SCRIPT_VARIABLE) != 0:
 					var var_name: String = prop.name
-					var var_val: Variant = model.get(var_name)
+					var var_val: Variant = GFObjectPropertyTools.read_property(model, NodePath(var_name))
 					text += "  [color=lightblue]%s[/color]: %s\n" % [
 						_escape_bbcode(var_name),
 						_escape_bbcode(str(var_val)),
@@ -1022,21 +1099,21 @@ class _GFDebugGUI extends CanvasLayer:
 
 
 	func _join_non_empty(parts: PackedStringArray) -> String:
-		var non_empty := PackedStringArray()
+		var non_empty: PackedStringArray = PackedStringArray()
 		for part: String in parts:
 			if not part.is_empty():
-				non_empty.append(part)
+				_append_packed_string(non_empty, part)
 		return "\n".join(non_empty)
 
 
 	func _escape_bbcode(text: String) -> String:
-		var escaped := PackedStringArray()
+		var escaped: PackedStringArray = PackedStringArray()
 		for index: int in range(text.length()):
-			var character := text.substr(index, 1)
+			var character: String = text.substr(index, 1)
 			if character == "[":
-				escaped.append("[lb]")
+				_append_packed_string(escaped, "[lb]")
 			elif character == "]":
-				escaped.append("[rb]")
+				_append_packed_string(escaped, "[rb]")
 			else:
-				escaped.append(character)
+				_append_packed_string(escaped, character)
 		return "".join(escaped)

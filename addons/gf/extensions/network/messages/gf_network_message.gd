@@ -92,10 +92,9 @@ func to_dict() -> Dictionary:
 ## [br]
 ## @schema data: Dictionary，包含 type、sequence、tick、sender_id、channel_id、payload。
 func from_dict(data: Dictionary) -> void:
-	message_type = StringName(data.get("type", &""))
-	sequence = int(data.get("sequence", 0))
-	tick = int(data.get("tick", 0))
-	sender_id = int(data.get("sender_id", -1))
-	channel_id = StringName(data.get("channel_id", &""))
-	var payload_variant: Variant = data.get("payload", {})
-	payload = (payload_variant as Dictionary).duplicate(true) if payload_variant is Dictionary else {}
+	message_type = GFVariantData.get_option_string_name(data, "type")
+	sequence = GFVariantData.get_option_int(data, "sequence")
+	tick = GFVariantData.get_option_int(data, "tick")
+	sender_id = GFVariantData.get_option_int(data, "sender_id", -1)
+	channel_id = GFVariantData.get_option_string_name(data, "channel_id")
+	payload = GFVariantData.get_option_dictionary(data, "payload")

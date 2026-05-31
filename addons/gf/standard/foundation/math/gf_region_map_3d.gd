@@ -40,7 +40,7 @@ var _dirty_regions: Dictionary = {}
 ## [br]
 ## @return 区域键。
 func get_region_key_for_cell(cell: Vector3i) -> Vector3i:
-	var safe_size := _get_safe_region_size()
+	var safe_size: Vector3i = _get_safe_region_size()
 	return Vector3i(
 		floori(float(cell.x) / float(safe_size.x)),
 		floori(float(cell.y) / float(safe_size.y)),
@@ -58,18 +58,18 @@ func get_region_key_for_cell(cell: Vector3i) -> Vector3i:
 ## [br]
 ## @return 区域键列表。
 func get_region_keys_for_cell_bounds(min_cell: Vector3i, max_cell: Vector3i) -> Array[Vector3i]:
-	var safe_min := Vector3i(
+	var safe_min: Vector3i = Vector3i(
 		mini(min_cell.x, max_cell.x),
 		mini(min_cell.y, max_cell.y),
 		mini(min_cell.z, max_cell.z)
 	)
-	var safe_max := Vector3i(
+	var safe_max: Vector3i = Vector3i(
 		maxi(min_cell.x, max_cell.x),
 		maxi(min_cell.y, max_cell.y),
 		maxi(min_cell.z, max_cell.z)
 	)
-	var min_region := get_region_key_for_cell(safe_min)
-	var max_region := get_region_key_for_cell(safe_max)
+	var min_region: Vector3i = get_region_key_for_cell(safe_min)
+	var max_region: Vector3i = get_region_key_for_cell(safe_max)
 	var result: Array[Vector3i] = []
 
 	for x: int in range(min_region.x, max_region.x + 1):
@@ -90,8 +90,8 @@ func get_region_keys_for_cell_bounds(min_cell: Vector3i, max_cell: Vector3i) -> 
 ## [br]
 ## @schema value: Variant cell value stored in the region map.
 func set_cell(cell: Vector3i, value: Variant) -> void:
-	var region_key := get_region_key_for_cell(cell)
-	var region := _get_or_create_region(region_key)
+	var region_key: Vector3i = get_region_key_for_cell(cell)
+	var region: Dictionary = _get_or_create_region(region_key)
 	region[cell] = _copy_value(value)
 	_mark_dirty(region_key)
 
@@ -110,12 +110,12 @@ func set_cell(cell: Vector3i, value: Variant) -> void:
 ## [br]
 ## @schema return: Variant cell value or default_value.
 func get_cell(cell: Vector3i, default_value: Variant = null) -> Variant:
-	var region_key := get_region_key_for_cell(cell)
-	var region_variant := _regions.get(region_key)
+	var region_key: Vector3i = get_region_key_for_cell(cell)
+	var region_variant: Variant = GFVariantData.get_option_value(_regions, region_key)
 	if not region_variant is Dictionary:
 		return _copy_value(default_value)
 
-	var region := region_variant as Dictionary
+	var region: Dictionary = GFVariantData.as_dictionary(region_variant)
 	if not region.has(cell):
 		return _copy_value(default_value)
 
@@ -130,18 +130,18 @@ func get_cell(cell: Vector3i, default_value: Variant = null) -> Variant:
 ## [br]
 ## @return 移除成功返回 true。
 func erase_cell(cell: Vector3i) -> bool:
-	var region_key := get_region_key_for_cell(cell)
-	var region_variant := _regions.get(region_key)
+	var region_key: Vector3i = get_region_key_for_cell(cell)
+	var region_variant: Variant = GFVariantData.get_option_value(_regions, region_key)
 	if not region_variant is Dictionary:
 		return false
 
-	var region := region_variant as Dictionary
+	var region: Dictionary = GFVariantData.as_dictionary(region_variant)
 	if not region.has(cell):
 		return false
 
-	region.erase(cell)
+	var _cell_erased: bool = region.erase(cell)
 	if region.is_empty():
-		_regions.erase(region_key)
+		var _region_erased: bool = _regions.erase(region_key)
 	_mark_dirty(region_key)
 	return true
 
@@ -154,11 +154,12 @@ func erase_cell(cell: Vector3i) -> bool:
 ## [br]
 ## @return 存在返回 true。
 func has_cell(cell: Vector3i) -> bool:
-	var region_variant := _regions.get(get_region_key_for_cell(cell))
+	var region_variant: Variant = GFVariantData.get_option_value(_regions, get_region_key_for_cell(cell))
 	if not region_variant is Dictionary:
 		return false
 
-	return (region_variant as Dictionary).has(cell)
+	var region: Dictionary = GFVariantData.as_dictionary(region_variant)
+	return region.has(cell)
 
 
 ## 获取区域内全部格子坐标。
@@ -170,11 +171,11 @@ func has_cell(cell: Vector3i) -> bool:
 ## @return 格坐标列表。
 func get_region_cells(region_key: Vector3i) -> Array[Vector3i]:
 	var result: Array[Vector3i] = []
-	var region_variant := _regions.get(region_key)
+	var region_variant: Variant = GFVariantData.get_option_value(_regions, region_key)
 	if not region_variant is Dictionary:
 		return result
 
-	var region := region_variant as Dictionary
+	var region: Dictionary = GFVariantData.as_dictionary(region_variant)
 	for cell: Vector3i in region.keys():
 		result.append(cell)
 
@@ -191,11 +192,11 @@ func get_region_cells(region_key: Vector3i) -> Array[Vector3i]:
 ## [br]
 ## @schema return: Dictionary mapping Vector3i cells to stored cell values.
 func get_region_snapshot(region_key: Vector3i) -> Dictionary:
-	var region_variant := _regions.get(region_key)
+	var region_variant: Variant = GFVariantData.get_option_value(_regions, region_key)
 	if not region_variant is Dictionary:
 		return {}
 
-	var region := region_variant as Dictionary
+	var region: Dictionary = GFVariantData.as_dictionary(region_variant)
 	return region.duplicate(true) if duplicate_values else region.duplicate(false)
 
 
@@ -234,7 +235,7 @@ func clear_dirty(region_key: Variant = null) -> void:
 	if region_key == null:
 		_dirty_regions.clear()
 	elif region_key is Vector3i:
-		_dirty_regions.erase(region_key)
+		var _erased: bool = _dirty_regions.erase(region_key)
 
 
 ## 清空全部区域数据。
@@ -266,7 +267,7 @@ func get_debug_snapshot() -> Dictionary:
 func _get_or_create_region(region_key: Vector3i) -> Dictionary:
 	if not _regions.has(region_key):
 		_regions[region_key] = {}
-	return _regions[region_key] as Dictionary
+	return GFVariantData.as_dictionary(GFVariantData.get_option_value(_regions, region_key))
 
 
 func _mark_dirty(region_key: Vector3i) -> void:
@@ -276,11 +277,7 @@ func _mark_dirty(region_key: Vector3i) -> void:
 func _copy_value(value: Variant) -> Variant:
 	if not duplicate_values:
 		return value
-	if value is Dictionary:
-		return (value as Dictionary).duplicate(true)
-	if value is Array:
-		return (value as Array).duplicate(true)
-	return value
+	return GFVariantData.duplicate_collection(value, true)
 
 
 func _get_safe_region_size() -> Vector3i:
@@ -292,7 +289,9 @@ func _get_safe_region_size() -> Vector3i:
 
 
 func _get_cell_count() -> int:
-	var count := 0
-	for region: Dictionary in _regions.values():
-		count += region.size()
+	var count: int = 0
+	for region_variant: Variant in _regions.values():
+		if region_variant is Dictionary:
+			var region: Dictionary = GFVariantData.as_dictionary(region_variant)
+			count += region.size()
 	return count

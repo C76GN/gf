@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFNodeStateMachine" path="addons/gf/standard/state_machine/node/gf_node_state_machine.gd" module="standard" extends="Node" classDigest="698290bb481fba228795d18d10ff2dce06956a8a1d441e33d2dfc40629e224c1">
+<class name="GFNodeStateMachine" path="addons/gf/standard/state_machine/node/gf_node_state_machine.gd" module="standard" extends="Node" classDigest="693d85b3441157b86c87e4f47a3887c83f370e373a4c40de31c8e84af1479863">
 	<description>GFNodeStateMachine: 基于场景树的多状态组状态机。
 支持直接子 GFNodeState 组成内部状态组，也支持多个 GFNodeStateGroup 并行工作。</description>
 	<tags>
@@ -401,11 +401,11 @@
 			</tags>
 		</member>
 		<member kind="method" name="register_event_owned">
-			<signature>func register_event_owned(owner: Object, event_type: Script, callback: Callable, priority: int = 0) -&gt; void:</signature>
+			<signature>func register_event_owned(listener_owner: Object, event_type: Script, callback: Callable, priority: int = 0) -&gt; void:</signature>
 			<description>注册带拥有者的类型事件监听器。</description>
 			<tags>
 				<tag name="api">public</tag>
-				<tag name="param">owner: 监听器拥有者。</tag>
+				<tag name="param">listener_owner: 监听器拥有者。</tag>
 				<tag name="param">event_type: 要监听的脚本类型。</tag>
 				<tag name="param">callback: 回调函数。</tag>
 				<tag name="param">priority: 回调优先级，数值越大越先执行，默认为 0。</tag>
@@ -421,11 +421,11 @@
 			</tags>
 		</member>
 		<member kind="method" name="register_assignable_event_owned">
-			<signature>func register_assignable_event_owned( owner: Object, base_event_type: Script, callback: Callable, priority: int = 0 ) -&gt; void:</signature>
+			<signature>func register_assignable_event_owned( listener_owner: Object, base_event_type: Script, callback: Callable, priority: int = 0 ) -&gt; void:</signature>
 			<description>注册带拥有者的可赋值类型事件监听器。</description>
 			<tags>
 				<tag name="api">public</tag>
-				<tag name="param">owner: 监听器拥有者。</tag>
+				<tag name="param">listener_owner: 监听器拥有者。</tag>
 				<tag name="param">base_event_type: 要监听的基类脚本类型。</tag>
 				<tag name="param">callback: 回调函数。</tag>
 				<tag name="param">priority: 回调优先级，数值越大越先执行，默认为 0。</tag>
@@ -441,11 +441,11 @@
 			</tags>
 		</member>
 		<member kind="method" name="register_simple_event_owned">
-			<signature>func register_simple_event_owned(owner: Object, event_id: StringName, callback: Callable) -&gt; void:</signature>
+			<signature>func register_simple_event_owned(listener_owner: Object, event_id: StringName, callback: Callable) -&gt; void:</signature>
 			<description>注册带拥有者的轻量级 StringName 事件监听器。</description>
 			<tags>
 				<tag name="api">public</tag>
-				<tag name="param">owner: 监听器拥有者。</tag>
+				<tag name="param">listener_owner: 监听器拥有者。</tag>
 				<tag name="param">event_id: StringName 事件标识符。</tag>
 				<tag name="param">callback: 回调函数，签名为 func(payload: Variant)。</tag>
 			</tags>
@@ -460,11 +460,11 @@
 			</tags>
 		</member>
 		<member kind="method" name="unregister_owner_events">
-			<signature>func unregister_owner_events(owner: Object) -&gt; void:</signature>
+			<signature>func unregister_owner_events(listener_owner: Object) -&gt; void:</signature>
 			<description>注销指定拥有者通过状态机事件代理注册过的全部监听器。</description>
 			<tags>
 				<tag name="api">public</tag>
-				<tag name="param">owner: 要清理监听器的拥有者。</tag>
+				<tag name="param">listener_owner: 要清理监听器的拥有者。</tag>
 			</tags>
 		</member>
 		<member kind="method" name="reload_from_children">

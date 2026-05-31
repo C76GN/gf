@@ -4,70 +4,72 @@ extends GutTest
 var _debug: GFDebugOverlayUtility
 
 
-class DebugTestModel extends GFModel:
-	var health: int = 100
-	var player_name: String = "TestPlayer"
-
-
 func before_each() -> void:
-	var arch := GFArchitecture.new()
+	var arch: GFArchitecture = GFArchitecture.new()
 	Gf._architecture = arch
 	_debug = GFDebugOverlayUtility.new()
 	_debug.debug_only = false
-	Gf.register_utility(_debug)
+	await Gf.register_utility(_debug)
 	await Gf.set_architecture(arch)
 	await get_tree().process_frame
 
 
+func after_each() -> void:
+	var arch: GFArchitecture = Gf.get_architecture()
+	if arch != null:
+		arch.dispose()
+		await Gf.set_architecture(GFArchitecture.new())
+	await get_tree().process_frame
+
+
 func test_overlay_is_debug_only_by_default() -> void:
-	var overlay := GFDebugOverlayUtility.new()
+	var overlay: GFDebugOverlayUtility = GFDebugOverlayUtility.new()
 	assert_true(overlay.debug_only, "Overlay 默认应只在 debug 构建创建 GUI。")
 
 
 func test_overlay_creation_and_toggle() -> void:
 	var snapshot: Dictionary = _debug.get_debug_snapshot()
-	var gui := snapshot["gui"] as Dictionary
+	var gui: Dictionary = _gui_snapshot(snapshot)
 
-	assert_true(bool(gui["created"]), "Overlay UI 应该被创建。")
-	assert_false(bool(gui["visible"]), "默认应该隐藏。")
-	
-	# 模拟按键
-	var event := InputEventKey.new()
+	assert_true(GFVariantData.get_option_bool(gui, "created"), "Overlay UI 应该被创建。")
+	assert_false(GFVariantData.get_option_bool(gui, "visible"), "默认应该隐藏。")
+
+	var event: InputEventKey = InputEventKey.new()
 	event.keycode = KEY_QUOTELEFT
 	event.pressed = true
 	get_tree().root.push_input(event)
-	
+
 	snapshot = _debug.get_debug_snapshot()
-	gui = snapshot["gui"] as Dictionary
-	assert_true(bool(gui["visible"]), "按键触发后应该显示。")
+	gui = _gui_snapshot(snapshot)
+	assert_true(GFVariantData.get_option_bool(gui, "visible"), "按键触发后应该显示。")
 
 
 func test_dispose_detaches_overlay_callbacks_before_queue_free() -> void:
 	_debug.set_overlay_visible(true)
 	var before_snapshot: Dictionary = _debug.get_debug_snapshot()
-	var before_gui := before_snapshot["gui"] as Dictionary
+	var before_gui: Dictionary = _gui_snapshot(before_snapshot)
 
-	assert_true(bool(before_gui["visible"]), "dispose 前 overlay 应可被公开 API 显示。")
-	assert_true(bool(before_gui["architecture_provider_valid"]), "dispose 前架构回调应有效。")
-	assert_true(bool(before_gui["watch_snapshot_provider_valid"]), "dispose 前 watch 回调应有效。")
-	assert_true(bool(before_gui["panel_snapshot_provider_valid"]), "dispose 前 panel 回调应有效。")
+	assert_true(GFVariantData.get_option_bool(before_gui, "visible"), "dispose 前 overlay 应可被公开 API 显示。")
+	assert_true(GFVariantData.get_option_bool(before_gui, "architecture_provider_valid"), "dispose 前架构回调应有效。")
+	assert_true(GFVariantData.get_option_bool(before_gui, "watch_snapshot_provider_valid"), "dispose 前 watch 回调应有效。")
+	assert_true(GFVariantData.get_option_bool(before_gui, "panel_snapshot_provider_valid"), "dispose 前 panel 回调应有效。")
 
 	_debug.dispose()
 
 	var after_snapshot: Dictionary = _debug.get_debug_snapshot()
-	var after_gui := after_snapshot["gui"] as Dictionary
+	var after_gui: Dictionary = _gui_snapshot(after_snapshot)
 
-	assert_false(bool(after_gui["created"]), "dispose 应释放 overlay GUI。")
-	assert_eq(int(after_snapshot["watch_count"]), 0, "dispose 应清空 watch 注册表。")
-	assert_eq(int(after_snapshot["panel_count"]), 0, "dispose 应清空 panel 注册表。")
+	assert_false(GFVariantData.get_option_bool(after_gui, "created"), "dispose 应释放 overlay GUI。")
+	assert_eq(GFVariantData.get_option_int(after_snapshot, "watch_count"), 0, "dispose 应清空 watch 注册表。")
+	assert_eq(GFVariantData.get_option_int(after_snapshot, "panel_count"), 0, "dispose 应清空 panel 注册表。")
 
 
 func test_process_model() -> void:
-	Gf.register_model(DebugTestModel.new())
+	await Gf.register_model(DebugTestModel.new())
 	_debug.set_overlay_visible(true)
 	_debug.refresh_overlay()
 
-	var label_text := _get_overlay_text()
+	var label_text: String = _get_overlay_text()
 	assert_true("health" in label_text, "Overlay 应输出 Model 中的变量名。")
 	assert_true("100" in label_text, "Overlay 应输出变量的值。")
 	assert_true("TestPlayer" in label_text, "Overlay 应输出字符串变量的值。")
@@ -82,7 +84,7 @@ func test_push_watch_value_is_rendered_without_models() -> void:
 
 	_debug.refresh_overlay()
 
-	var label_text := _get_overlay_text()
+	var label_text: String = _get_overlay_text()
 	assert_true("Watches: Runtime" in label_text, "Overlay 应输出 watch 分组。")
 	assert_true("FPS" in label_text, "Overlay 应输出 watch 标签。")
 	assert_true("60" in label_text, "Overlay 应输出 watch 值。")
@@ -98,25 +100,26 @@ func test_watch_text_escapes_bbcode_control_characters() -> void:
 
 	_debug.refresh_overlay()
 
-	var label_text := _get_overlay_text()
+	var label_text: String = _get_overlay_text()
 	assert_true("[lb]Group[rb]" in label_text, "Overlay 应转义 watch 分组中的 BBCode 控制字符。")
 	assert_true("[lb]Label[rb]" in label_text, "Overlay 应转义 watch 标签中的 BBCode 控制字符。")
 	assert_true("[lb]b[rb]42[lb]/b[rb]" in label_text, "Overlay 应转义 watch 值中的 BBCode 控制字符。")
 
 
 func test_watch_value_provider_updates_snapshot() -> void:
-	var state := { "value": 1 }
+	var state: IntState = IntState.new()
+	state.value = 1
 	assert_true(_debug.watch_value(&"counter", func() -> int:
-		return int(state["value"])
+		return state.value
 	), "有效 provider 应该能注册。")
 
-	var snapshot := _debug.get_watch_snapshot()
+	var snapshot: Array[Dictionary] = _debug.get_watch_snapshot()
 	assert_eq(snapshot.size(), 1, "应该返回一个 watch 快照。")
-	assert_eq(snapshot[0]["value"], 1, "快照应读取 provider 的当前值。")
+	assert_eq(GFVariantData.get_option_int(snapshot[0], "value"), 1, "快照应读取 provider 的当前值。")
 
-	state["value"] = 2
+	state.value = 2
 	snapshot = _debug.get_watch_snapshot()
-	assert_eq(snapshot[0]["value"], 2, "provider watch 应在读取快照时更新。")
+	assert_eq(GFVariantData.get_option_int(snapshot[0], "value"), 2, "provider watch 应在读取快照时更新。")
 
 
 func test_watch_visibility_and_removal() -> void:
@@ -140,7 +143,7 @@ func test_invalid_watch_registration_is_rejected() -> void:
 
 
 func test_panel_provider_is_rendered() -> void:
-	var provider := func() -> Dictionary:
+	var provider: Callable = func() -> Dictionary:
 		return {
 			"ready": true,
 		}
@@ -149,14 +152,14 @@ func test_panel_provider_is_rendered() -> void:
 		"group": "Runtime",
 	}), "有效 panel provider 应可注册。")
 
-	var snapshot := _debug.get_panel_snapshot()
+	var snapshot: Array[Dictionary] = _debug.get_panel_snapshot()
 	assert_eq(snapshot.size(), 1, "应返回一个 panel 快照。")
-	assert_true(String(snapshot[0]["content"]).contains("ready"), "Dictionary panel 内容应格式化为文本。")
+	assert_true(GFVariantData.get_option_string(snapshot[0], "content").contains("ready"), "Dictionary panel 内容应格式化为文本。")
 
 	_debug.set_overlay_visible(true)
 	_debug.refresh_overlay()
 
-	var label_text := _get_overlay_text()
+	var label_text: String = _get_overlay_text()
 	assert_true("Panel: Runtime / State" in label_text, "Overlay 应输出 panel 标题。")
 	assert_true("ready" in label_text, "Overlay 应输出 panel 内容。")
 
@@ -180,15 +183,22 @@ func test_invalid_panel_registration_is_rejected() -> void:
 	assert_false(_debug.has_panel(&"invalid_panel"), "被拒绝的 panel 不应进入注册表。")
 
 
-func after_each() -> void:
-	var arch: GFArchitecture = Gf.get_architecture()
-	if arch != null:
-		arch.dispose()
-		await Gf.set_architecture(GFArchitecture.new())
-	await get_tree().process_frame
-
-
 func _get_overlay_text() -> String:
 	var snapshot: Dictionary = _debug.get_debug_snapshot()
-	var gui := snapshot["gui"] as Dictionary
-	return String(gui.get("text", ""))
+	var gui: Dictionary = _gui_snapshot(snapshot)
+	return GFVariantData.get_option_string(gui, "text")
+
+
+func _gui_snapshot(snapshot: Dictionary) -> Dictionary:
+	return GFVariantData.as_dictionary(GFVariantData.get_option_value(snapshot, "gui"))
+
+
+class DebugTestModel extends GFModel:
+	var health: int = 100
+	var player_name: String = "TestPlayer"
+
+
+class IntState:
+	extends RefCounted
+
+	var value: int = 0

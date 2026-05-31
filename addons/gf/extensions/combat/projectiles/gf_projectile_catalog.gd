@@ -14,7 +14,7 @@ extends Resource
 
 # --- 常量 ---
 
-const _GF_PROJECTILE_CATALOG_ENTRY_SCRIPT: Script = preload("res://addons/gf/extensions/combat/projectiles/gf_projectile_catalog_entry.gd")
+const _GF_PROJECTILE_CATALOG_ENTRY_SCRIPT = preload("res://addons/gf/extensions/combat/projectiles/gf_projectile_catalog_entry.gd")
 
 
 # --- 导出变量 ---
@@ -38,10 +38,10 @@ func set_scene(projectile_id: StringName, scene: PackedScene) -> void:
 	if projectile_id == &"":
 		return
 	if scene == null:
-		remove_scene(projectile_id)
+		var _remove_scene_result_41: Variant = remove_scene(projectile_id)
 		return
 
-	var entry := _get_entry(projectile_id)
+	var entry: GFProjectileCatalogEntry = _get_entry(projectile_id)
 	if entry == null:
 		entry = GFProjectileCatalogEntry.new()
 		entry.projectile_id = projectile_id
@@ -57,7 +57,7 @@ func set_scene(projectile_id: StringName, scene: PackedScene) -> void:
 ## [br]
 ## @return 找到时返回 PackedScene，否则返回 null。
 func get_scene(projectile_id: StringName) -> PackedScene:
-	var entry := _get_entry(projectile_id)
+	var entry: GFProjectileCatalogEntry = _get_entry(projectile_id)
 	if entry == null:
 		return null
 	return entry.scene
@@ -72,7 +72,7 @@ func get_scene(projectile_id: StringName) -> PackedScene:
 ## @return 移除成功返回 true。
 func remove_scene(projectile_id: StringName) -> bool:
 	for index: int in range(entries.size() - 1, -1, -1):
-		var entry := entries[index]
+		var entry: GFProjectileCatalogEntry = entries[index]
 		if entry != null and entry.projectile_id == projectile_id:
 			entries.remove_at(index)
 			return true
@@ -96,10 +96,10 @@ func has_scene(projectile_id: StringName) -> bool:
 ## [br]
 ## @return 按字典序排序的 ID 数组。
 func get_projectile_ids() -> PackedStringArray:
-	var ids := PackedStringArray()
+	var ids: PackedStringArray = PackedStringArray()
 	for entry: GFProjectileCatalogEntry in entries:
 		if entry != null and entry.is_valid_entry():
-			ids.append(String(entry.projectile_id))
+			var _append_result_102: Variant = ids.append(String(entry.projectile_id))
 	ids.sort()
 	return ids
 
@@ -110,9 +110,9 @@ func get_projectile_ids() -> PackedStringArray:
 ## [br]
 ## @return 被清理的条目数量。
 func prune_invalid_entries() -> int:
-	var removed_count := 0
+	var removed_count: int = 0
 	for index: int in range(entries.size() - 1, -1, -1):
-		var entry := entries[index]
+		var entry: GFProjectileCatalogEntry = entries[index]
 		if entry == null or not entry.is_valid_entry():
 			entries.remove_at(index)
 			removed_count += 1

@@ -1,29 +1,26 @@
 extends GutTest
 
 
-# --- 常量 ---
-
-const GF_CONFIG_ACCESS_GENERATOR_BASE := preload("res://addons/gf/kernel/editor/gf_config_access_generator.gd")
-
-
 # --- 测试用例 ---
 
 func test_build_source_generates_config_accessors() -> void:
-	var schema := ConfigSchemaStub.new(&"item_data")
-	var generator: Variant = GF_CONFIG_ACCESS_GENERATOR_BASE.new()
+	var schema: ConfigSchemaStub = ConfigSchemaStub.new(&"item_data")
+	var generator: GFConfigAccessGenerator = GFConfigAccessGenerator.new()
 
 	var source: String = generator.build_source([schema])
 
 	assert_true(source.contains("class_name GFConfigAccess"), "应生成默认访问器类。")
 	assert_true(source.contains("const ITEM_DATA: StringName = &\"item_data\""), "应生成表名常量。")
 	assert_true(source.contains("static func get_item_data_record(id: Variant, provider: Variant = null) -> Variant:"), "应生成记录读取方法。")
-	assert_true(source.contains("return resolved_provider.get_record(ITEM_DATA, id)"), "记录读取方法应委托给 provider。")
+	assert_true(source.contains("return _get_provider_record(provider, ITEM_DATA, id)"), "记录读取方法应委托给 provider helper。")
+	assert_true(source.contains("return provider_object.call(\"get_record\", table_name, id)"), "provider helper 应使用安全反射调用。")
+	assert_false(source.contains("return resolved_provider.get_record(ITEM_DATA, id)"), "生成访问器不应对 Variant provider 直接调方法。")
 	assert_true(source.contains("static func get_item_data_table(provider: Variant = null) -> Variant:"), "应生成整表读取方法。")
 
 
 func test_build_source_sanitizes_invalid_table_names() -> void:
-	var schema := ConfigSchemaStub.new(&"123 item-data")
-	var generator: Variant = GF_CONFIG_ACCESS_GENERATOR_BASE.new()
+	var schema: ConfigSchemaStub = ConfigSchemaStub.new(&"123 item-data")
+	var generator: GFConfigAccessGenerator = GFConfigAccessGenerator.new()
 
 	var source: String = generator.build_source([schema], "MyConfigAccess", "null")
 
@@ -34,7 +31,7 @@ func test_build_source_sanitizes_invalid_table_names() -> void:
 
 
 func test_build_source_accepts_dictionary_schemas() -> void:
-	var generator: Variant = GF_CONFIG_ACCESS_GENERATOR_BASE.new()
+	var generator: GFConfigAccessGenerator = GFConfigAccessGenerator.new()
 
 	var source: String = generator.build_source([{ "table_name": "enemy_data" }])
 
@@ -42,8 +39,8 @@ func test_build_source_accepts_dictionary_schemas() -> void:
 
 
 func test_build_source_reads_schema_properties_without_calling_methods() -> void:
-	var schema := MethodTrapConfigSchemaStub.new(&"item_data")
-	var generator: Variant = GF_CONFIG_ACCESS_GENERATOR_BASE.new()
+	var schema: MethodTrapConfigSchemaStub = MethodTrapConfigSchemaStub.new(&"item_data")
+	var generator: GFConfigAccessGenerator = GFConfigAccessGenerator.new()
 
 	var source: String = generator.build_source([schema])
 
@@ -52,8 +49,8 @@ func test_build_source_reads_schema_properties_without_calling_methods() -> void
 
 
 func test_build_source_accepts_object_table_key_property() -> void:
-	var schema := TableKeyConfigSchemaStub.new(&"enemy_data")
-	var generator: Variant = GF_CONFIG_ACCESS_GENERATOR_BASE.new()
+	var schema: TableKeyConfigSchemaStub = TableKeyConfigSchemaStub.new(&"enemy_data")
+	var generator: GFConfigAccessGenerator = GFConfigAccessGenerator.new()
 
 	var source: String = generator.build_source([schema])
 
@@ -61,9 +58,9 @@ func test_build_source_accepts_object_table_key_property() -> void:
 
 
 func test_build_source_supports_gdscript_generation_options() -> void:
-	var schema := ConfigSchemaStub.new(&"item_data")
+	var schema: ConfigSchemaStub = ConfigSchemaStub.new(&"item_data")
 	schema.metadata = { "comment": "道具配置表。" }
-	var generator: Variant = GF_CONFIG_ACCESS_GENERATOR_BASE.new()
+	var generator: GFConfigAccessGenerator = GFConfigAccessGenerator.new()
 
 	var source: String = generator.build_source([schema], "MyConfigAccess", "null", {
 		"method_name_style": "camel",

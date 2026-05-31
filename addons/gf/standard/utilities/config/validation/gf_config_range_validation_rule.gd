@@ -54,7 +54,7 @@ extends GFConfigValidationRule
 ## [br]
 ## @schema return: Dictionary，包含基础规则字段和数值范围设置。
 func describe() -> Dictionary:
-	var result := super.describe()
+	var result: Dictionary = super.describe()
 	result["has_minimum"] = has_minimum
 	result["minimum"] = minimum
 	result["inclusive_minimum"] = inclusive_minimum
@@ -95,7 +95,7 @@ func _validate_value(value: Variant, context: Dictionary, report: Dictionary) ->
 		_add_issue(report, context, "range_invalid_type", "范围校验只支持 int 或 float。")
 		return
 
-	var number := float(value)
+	var number: float = GFVariantData.to_float(value)
 	if is_nan(number) or is_inf(number):
 		_add_issue(report, context, "range_invalid_number", "数值必须是有限数字。")
 		return

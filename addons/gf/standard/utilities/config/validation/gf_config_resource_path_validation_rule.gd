@@ -49,7 +49,7 @@ extends GFConfigValidationRule
 ## [br]
 ## @schema return: Dictionary，包含基础规则字段和资源路径校验设置。
 func describe() -> Dictionary:
-	var result := super.describe()
+	var result: Dictionary = super.describe()
 	result["allow_empty"] = allow_empty
 	result["require_resource_prefix"] = require_resource_prefix
 	result["allowed_extensions"] = allowed_extensions.duplicate()
@@ -89,7 +89,7 @@ func _validate_value(value: Variant, context: Dictionary, report: Dictionary) ->
 		_add_issue(report, context, "resource_path_invalid_type", "资源路径校验只支持 String 或 StringName。")
 		return
 
-	var path := String(value).strip_edges()
+	var path: String = GFVariantData.to_text(value).strip_edges()
 	if path.is_empty() and allow_empty:
 		return
 	if require_resource_prefix and not path.begins_with("res://"):
@@ -108,9 +108,9 @@ func _extension_allowed(path: String) -> bool:
 	if allowed_extensions.is_empty():
 		return true
 
-	var extension := path.get_extension().to_lower()
+	var extension: String = path.get_extension().to_lower()
 	for allowed_extension: String in allowed_extensions:
-		var normalized := allowed_extension.strip_edges().trim_prefix(".").to_lower()
+		var normalized: String = allowed_extension.strip_edges().trim_prefix(".").to_lower()
 		if normalized == extension:
 			return true
 	return false

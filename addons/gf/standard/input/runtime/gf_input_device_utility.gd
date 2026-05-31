@@ -51,6 +51,11 @@ signal active_device_changed(player_index: int, assignment: GFInputDeviceAssignm
 signal player_join_requested(player_index: int, assignment: GFInputDeviceAssignment, event: InputEvent)
 
 
+# --- 常量 ---
+
+const _INPUT_EVENT_TOOLS = preload("res://addons/gf/standard/input/common/gf_input_event_tools.gd")
+
+
 # --- 公共变量 ---
 
 ## 允许的最大本地玩家数。
@@ -117,7 +122,7 @@ var _player_deadzones: Dictionary = {}
 func init() -> void:
 	refresh_connected_devices()
 	if not Input.joy_connection_changed.is_connected(_on_joy_connection_changed):
-		Input.joy_connection_changed.connect(_on_joy_connection_changed)
+		var _connection_result: int = Input.joy_connection_changed.connect(_on_joy_connection_changed)
 
 
 ## 清理设备映射并取消手柄连接变化订阅。
@@ -180,7 +185,7 @@ func create_assignment(
 	device_type: GFInputDeviceAssignment.DeviceType,
 	device_id: int
 ) -> GFInputDeviceAssignment:
-	var assignment := GFInputDeviceAssignment.new()
+	var assignment: GFInputDeviceAssignment = GFInputDeviceAssignment.new()
 	assignment.player_index = player_index
 	assignment.device_type = device_type
 	assignment.device_id = device_id
@@ -199,10 +204,10 @@ func set_assignment(assignment: GFInputDeviceAssignment) -> void:
 		push_warning("[GFInputDeviceUtility] 忽略越界玩家设备映射：%d" % assignment.player_index)
 		return
 
-	var next_assignment := assignment.duplicate_assignment()
-	var replaced := false
+	var next_assignment: GFInputDeviceAssignment = assignment.duplicate_assignment()
+	var replaced: bool = false
 	for index: int in range(_assignments.size() - 1, -1, -1):
-		var current := _assignments[index]
+		var current: GFInputDeviceAssignment = _assignments[index]
 		if current.player_index == next_assignment.player_index:
 			_assignments[index] = next_assignment
 			replaced = true
@@ -276,11 +281,11 @@ func get_player_for_device(
 ## [br]
 ## @return 玩家索引；无法匹配时返回 -1。
 func get_player_for_event(event: InputEvent) -> int:
-	var device_type := _get_event_device_type(event)
+	var device_type: int = _get_event_device_type(event)
 	if device_type == -1:
 		return -1
 
-	var device_id := _get_event_device_id(event, device_type)
+	var device_id: int = _get_event_device_id(event, device_type)
 	return get_player_for_device(device_type, device_id)
 
 
@@ -295,12 +300,12 @@ func handle_input_event(event: InputEvent) -> int:
 	if event == null:
 		return -1
 
-	var device_type := _get_event_device_type(event)
+	var device_type: int = _get_event_device_type(event)
 	if device_type == -1:
 		return -1
 
-	var device_id := _get_event_device_id(event, device_type)
-	var player_index := get_player_for_device(device_type, device_id)
+	var device_id: int = _get_event_device_id(event, device_type)
+	var player_index: int = get_player_for_device(device_type, device_id)
 	if (
 		player_index == -1
 		and device_type == GFInputDeviceAssignment.DeviceType.JOYPAD
@@ -328,12 +333,12 @@ func handle_join_input_event(event: InputEvent) -> int:
 	if not _is_event_active_enough_for_active_player(event):
 		return -1
 
-	var device_type := _get_event_device_type(event)
+	var device_type: int = _get_event_device_type(event)
 	if device_type == -1:
 		return -1
 
-	var device_id := _get_event_device_id(event, device_type)
-	var player_index := get_player_for_device(device_type, device_id)
+	var device_id: int = _get_event_device_id(event, device_type)
+	var player_index: int = get_player_for_device(device_type, device_id)
 	if player_index == -1 and auto_assign_devices_on_join:
 		player_index = assign_device_to_next_player(device_type, device_id)
 
@@ -341,11 +346,11 @@ func handle_join_input_event(event: InputEvent) -> int:
 		return -1
 
 	_set_active_player(player_index, event)
-	var assignment := get_assignment(player_index)
+	var assignment: GFInputDeviceAssignment = get_assignment(player_index)
 	player_join_requested.emit(
 		player_index,
 		assignment.duplicate_assignment() if assignment != null else null,
-		event.duplicate(true) as InputEvent
+		_INPUT_EVENT_TOOLS.duplicate_input_event(event)
 	)
 	return player_index
 
@@ -404,11 +409,11 @@ func assign_device_to_next_player(
 	device_type: GFInputDeviceAssignment.DeviceType,
 	device_id: int
 ) -> int:
-	var existing_player := get_player_for_device(device_type, device_id)
+	var existing_player: int = get_player_for_device(device_type, device_id)
 	if existing_player != -1:
 		return existing_player
 
-	var player_index := _find_first_empty_player_index()
+	var player_index: int = _find_first_empty_player_index()
 	if player_index == -1:
 		return -1
 
@@ -438,7 +443,7 @@ func set_player_deadzone(player_index: int, deadzone: float) -> void:
 	if player_index < 0:
 		return
 	if deadzone < 0.0:
-		_player_deadzones.erase(player_index)
+		var _deadzone_removed: bool = _player_deadzones.erase(player_index)
 	else:
 		_player_deadzones[player_index] = clampf(deadzone, 0.0, 1.0)
 
@@ -453,7 +458,18 @@ func set_player_deadzone(player_index: int, deadzone: float) -> void:
 ## [br]
 ## @api public
 func get_player_deadzone(player_index: int, fallback: float = -1.0) -> float:
-	return float(_player_deadzones.get(player_index, fallback))
+	var raw_deadzone: Variant = fallback
+	if _player_deadzones.has(player_index):
+		raw_deadzone = _player_deadzones[player_index]
+	if raw_deadzone is float:
+		return raw_deadzone
+	if raw_deadzone is int:
+		var int_deadzone: int = raw_deadzone
+		return float(int_deadzone)
+	if raw_deadzone is bool:
+		var bool_deadzone: bool = raw_deadzone
+		return float(bool_deadzone)
+	return fallback
 
 
 ## 获取玩家设备显示名。
@@ -464,7 +480,7 @@ func get_player_deadzone(player_index: int, fallback: float = -1.0) -> float:
 ## [br]
 ## @return 显示名。
 func get_device_name(player_index: int) -> String:
-	var assignment := get_assignment(player_index)
+	var assignment: GFInputDeviceAssignment = get_assignment(player_index)
 	if assignment == null:
 		return ""
 
@@ -489,7 +505,7 @@ func get_device_name(player_index: int) -> String:
 ## [br]
 ## @return 活跃设备映射副本；不存在时返回 null。
 func get_active_assignment() -> GFInputDeviceAssignment:
-	var assignment := get_assignment(active_player_index)
+	var assignment: GFInputDeviceAssignment = get_assignment(active_player_index)
 	return assignment.duplicate_assignment() if assignment != null else null
 
 
@@ -521,7 +537,7 @@ func start_vibration_for_player(
 	strong_magnitude: float,
 	duration_seconds: float = 0.0
 ) -> bool:
-	var assignment := get_assignment(player_index)
+	var assignment: GFInputDeviceAssignment = get_assignment(player_index)
 	if assignment == null or assignment.device_type != GFInputDeviceAssignment.DeviceType.JOYPAD:
 		return false
 	if assignment.device_id < 0:
@@ -544,7 +560,7 @@ func start_vibration_for_player(
 ## [br]
 ## @return 成功转发到手柄设备时返回 true。
 func stop_vibration_for_player(player_index: int) -> bool:
-	var assignment := get_assignment(player_index)
+	var assignment: GFInputDeviceAssignment = get_assignment(player_index)
 	if assignment == null or assignment.device_type != GFInputDeviceAssignment.DeviceType.JOYPAD:
 		return false
 	if assignment.device_id < 0:
@@ -577,7 +593,7 @@ func clear_assignments() -> void:
 # --- 私有/辅助方法 ---
 
 func _is_touch_platform() -> bool:
-	var os_name := OS.get_name()
+	var os_name: String = OS.get_name()
 	return os_name == "Android" or os_name == "iOS"
 
 
@@ -614,22 +630,32 @@ func _find_first_empty_player_index() -> int:
 
 
 func _is_event_active_enough_for_assignment(event: InputEvent) -> bool:
-	if event is InputEventJoypadMotion:
-		return absf((event as InputEventJoypadMotion).axis_value) >= auto_assign_axis_threshold
+	var joy_motion: InputEventJoypadMotion = _INPUT_EVENT_TOOLS.get_joypad_motion_event(event)
+	if joy_motion != null:
+		return absf(joy_motion.axis_value) >= auto_assign_axis_threshold
 	return _is_event_active_enough_for_active_player(event)
 
 
 func _is_event_active_enough_for_active_player(event: InputEvent) -> bool:
-	if event is InputEventKey:
-		return (event as InputEventKey).pressed
-	if event is InputEventMouseButton:
-		return (event as InputEventMouseButton).pressed
-	if event is InputEventScreenTouch:
-		return (event as InputEventScreenTouch).pressed
-	if event is InputEventJoypadButton:
-		return (event as InputEventJoypadButton).pressed
-	if event is InputEventJoypadMotion:
-		return absf((event as InputEventJoypadMotion).axis_value) >= active_player_axis_threshold
+	var key_event: InputEventKey = _INPUT_EVENT_TOOLS.get_key_event(event)
+	if key_event != null:
+		return key_event.pressed
+
+	var mouse_button: InputEventMouseButton = _INPUT_EVENT_TOOLS.get_mouse_button_event(event)
+	if mouse_button != null:
+		return mouse_button.pressed
+
+	var screen_touch: InputEventScreenTouch = _INPUT_EVENT_TOOLS.get_screen_touch_event(event)
+	if screen_touch != null:
+		return screen_touch.pressed
+
+	var joy_button: InputEventJoypadButton = _INPUT_EVENT_TOOLS.get_joypad_button_event(event)
+	if joy_button != null:
+		return joy_button.pressed
+
+	var joy_motion: InputEventJoypadMotion = _INPUT_EVENT_TOOLS.get_joypad_motion_event(event)
+	if joy_motion != null:
+		return absf(joy_motion.axis_value) >= active_player_axis_threshold
 	return true
 
 
@@ -637,17 +663,16 @@ func _event_matches_template(template: InputEvent, event: InputEvent) -> bool:
 	if template == null or event == null:
 		return false
 
-	if template is InputEventAction and event is InputEventAction:
-		return (
-			(template as InputEventAction).action == (event as InputEventAction).action
-			and (event as InputEventAction).pressed
-		)
+	var template_action: InputEventAction = _INPUT_EVENT_TOOLS.get_action_event(template)
+	var event_action: InputEventAction = _INPUT_EVENT_TOOLS.get_action_event(event)
+	if template_action != null and event_action != null:
+		return template_action.action == event_action.action and event_action.pressed
 
 	return _is_event_active_enough_for_active_player(event) and template.is_match(event, true)
 
 
 func _make_join_key_event(key: Key) -> InputEventKey:
-	var event := InputEventKey.new()
+	var event: InputEventKey = InputEventKey.new()
 	event.keycode = key
 	event.physical_keycode = key
 	event.pressed = true
@@ -655,7 +680,7 @@ func _make_join_key_event(key: Key) -> InputEventKey:
 
 
 func _make_join_joy_button_event(button: JoyButton) -> InputEventJoypadButton:
-	var event := InputEventJoypadButton.new()
+	var event: InputEventJoypadButton = InputEventJoypadButton.new()
 	event.button_index = button
 	event.pressed = true
 	event.pressure = 1.0
@@ -667,10 +692,10 @@ func _set_active_player(player_index: int, event: InputEvent = null) -> void:
 		return
 	active_player_index = player_index
 	active_player_changed.emit(active_player_index)
-	var assignment := get_assignment(active_player_index)
+	var assignment: GFInputDeviceAssignment = get_assignment(active_player_index)
 	var event_copy: InputEvent = null
 	if event != null:
-		event_copy = event.duplicate(true) as InputEvent
+		event_copy = _INPUT_EVENT_TOOLS.duplicate_input_event(event)
 	active_device_changed.emit(
 		active_player_index,
 		assignment.duplicate_assignment() if assignment != null else null,
@@ -690,9 +715,9 @@ func _on_joy_connection_changed(device: int, connected: bool) -> void:
 	if connected:
 		return
 
-	var changed := false
+	var changed: bool = false
 	for index: int in range(_assignments.size() - 1, -1, -1):
-		var assignment := _assignments[index]
+		var assignment: GFInputDeviceAssignment = _assignments[index]
 		if (
 			assignment.device_type == GFInputDeviceAssignment.DeviceType.JOYPAD
 			and assignment.device_id == device

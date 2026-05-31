@@ -2,85 +2,79 @@
 extends GutTest
 
 
-# --- 常量 ---
-
-const GFTagExpressionBase = preload("res://addons/gf/standard/foundation/tags/gf_tag_expression.gd")
-const GFTagQueryBase = preload("res://addons/gf/standard/foundation/tags/gf_tag_query.gd")
-const GFTagSetBase = preload("res://addons/gf/standard/foundation/tags/gf_tag_set.gd")
-
-
-# --- 测试方法 ---
-
 func test_any_expression_matches_nested_queries() -> void:
-	var tags := GFTagSetBase.new()
-	tags.set_tags([&"team.enemy", &"state.burning"])
-	var burning_enemy := GFTagExpressionBase.from_query(_make_query([&"team.enemy", &"state.burning"]))
-	var boss := GFTagExpressionBase.from_query(_make_query([&"rank.boss"]))
-	var expression := GFTagExpressionBase.new().configure_any([burning_enemy, boss])
+	var tags: GFTagSet = GFTagSet.new()
+	var _tags_set: GFTagSet = tags.set_tags([&"team.enemy", &"state.burning"])
+	var burning_enemy: GFTagExpression = GFTagExpression.from_query(_make_query([&"team.enemy", &"state.burning"]))
+	var boss: GFTagExpression = GFTagExpression.from_query(_make_query([&"rank.boss"]))
+	var children: Array[GFTagExpression] = [burning_enemy, boss]
+	var expression: GFTagExpression = GFTagExpression.new().configure_any(children)
 
-	var report := expression.get_match_report(tags)
+	var report: Dictionary = expression.get_match_report(tags)
 
-	assert_true(bool(report["ok"]), "任意子表达式满足时 ANY 表达式应通过。")
-	assert_eq(report["matched_indices"], [0], "报告应记录命中的子表达式索引。")
-	assert_eq(report["failed_indices"], [1], "报告应记录未命中的子表达式索引。")
+	assert_true(GFVariantData.get_option_bool(report, "ok"), "任意子表达式满足时 ANY 表达式应通过。")
+	assert_eq(GFVariantData.get_option_array(report, "matched_indices"), [0], "报告应记录命中的子表达式索引。")
+	assert_eq(GFVariantData.get_option_array(report, "failed_indices"), [1], "报告应记录未命中的子表达式索引。")
 
 
 func test_all_expression_reports_failed_child() -> void:
-	var tags := GFTagSetBase.new()
-	tags.set_tags([&"team.enemy"])
-	var enemy := GFTagExpressionBase.from_query(_make_query([&"team.enemy"]))
-	var visible := GFTagExpressionBase.from_query(_make_query([&"state.visible"]))
-	var expression := GFTagExpressionBase.new().configure_all([enemy, visible])
+	var tags: GFTagSet = GFTagSet.new()
+	var _tags_set: GFTagSet = tags.set_tags([&"team.enemy"])
+	var enemy: GFTagExpression = GFTagExpression.from_query(_make_query([&"team.enemy"]))
+	var visible: GFTagExpression = GFTagExpression.from_query(_make_query([&"state.visible"]))
+	var children: Array[GFTagExpression] = [enemy, visible]
+	var expression: GFTagExpression = GFTagExpression.new().configure_all(children)
 
-	var report := expression.get_match_report(tags)
+	var report: Dictionary = expression.get_match_report(tags)
 
-	assert_false(bool(report["ok"]), "ALL 中任意子表达式失败时整体应失败。")
-	assert_eq(report["matched_indices"], [0], "报告应保留已满足子表达式。")
-	assert_eq(report["failed_indices"], [1], "报告应指出失败子表达式。")
-	assert_eq(report["reason"], "child_failed", "失败原因应说明子表达式未满足。")
+	assert_false(GFVariantData.get_option_bool(report, "ok"), "ALL 中任意子表达式失败时整体应失败。")
+	assert_eq(GFVariantData.get_option_array(report, "matched_indices"), [0], "报告应保留已满足子表达式。")
+	assert_eq(GFVariantData.get_option_array(report, "failed_indices"), [1], "报告应指出失败子表达式。")
+	assert_eq(GFVariantData.get_option_string(report, "reason"), "child_failed", "失败原因应说明子表达式未满足。")
 
 
 func test_none_expression_blocks_matching_children() -> void:
-	var tags := GFTagSetBase.new()
-	tags.set_tags([&"state.stunned"])
-	var stunned := GFTagExpressionBase.from_query(_make_query([&"state.stunned"]))
-	var expression := GFTagExpressionBase.new().configure_none([stunned])
+	var tags: GFTagSet = GFTagSet.new()
+	var _tags_set: GFTagSet = tags.set_tags([&"state.stunned"])
+	var stunned: GFTagExpression = GFTagExpression.from_query(_make_query([&"state.stunned"]))
+	var children: Array[GFTagExpression] = [stunned]
+	var expression: GFTagExpression = GFTagExpression.new().configure_none(children)
 
-	var report := expression.get_match_report(tags)
+	var report: Dictionary = expression.get_match_report(tags)
 
-	assert_false(bool(report["ok"]), "NONE 中有子表达式满足时整体应失败。")
-	assert_eq(report["matched_indices"], [0], "报告应指出阻塞命中的子表达式。")
-	assert_eq(report["reason"], "blocked_child_matched", "失败原因应说明禁止子表达式被命中。")
+	assert_false(GFVariantData.get_option_bool(report, "ok"), "NONE 中有子表达式满足时整体应失败。")
+	assert_eq(GFVariantData.get_option_array(report, "matched_indices"), [0], "报告应指出阻塞命中的子表达式。")
+	assert_eq(GFVariantData.get_option_string(report, "reason"), "blocked_child_matched", "失败原因应说明禁止子表达式被命中。")
 
 
 func test_expression_dictionary_roundtrip_preserves_nested_logic() -> void:
-	var enemy := GFTagExpressionBase.from_query(_make_query([&"team.enemy"]))
-	var ally := GFTagExpressionBase.from_query(_make_query([&"team.ally"]))
-	var expression := GFTagExpressionBase.new().configure_any([enemy, ally])
+	var enemy: GFTagExpression = GFTagExpression.from_query(_make_query([&"team.enemy"]))
+	var ally: GFTagExpression = GFTagExpression.from_query(_make_query([&"team.ally"]))
+	var children: Array[GFTagExpression] = [enemy, ally]
+	var expression: GFTagExpression = GFTagExpression.new().configure_any(children)
 
-	var restored := GFTagExpressionBase.from_dictionary(expression.to_dictionary())
+	var restored: GFTagExpression = GFTagExpression.from_dictionary(expression.to_dictionary())
 
 	assert_true(restored.matches([&"team.ally"]), "字典往返后应保留嵌套匹配逻辑。")
 	assert_false(restored.matches([&"team.neutral"]), "字典往返后未满足条件仍应失败。")
 
 
-func test_expression_reports_cycles_as_failure() -> void:
-	var expression := GFTagExpressionBase.new()
-	expression.operator = GFTagExpressionBase.Operator.ALL
-	expression.expressions.append(expression)
+func test_expression_cycle_guard_reports_failure() -> void:
+	var expression: GFTagExpression = GFTagExpression.new()
+	expression.operator = GFTagExpression.Operator.ALL
+	var visited: Array[int] = [expression.get_instance_id()]
 
-	var report := expression.get_match_report([&"team.enemy"])
-	var child_reports := report["child_reports"] as Array
-	var child_report := child_reports[0] as Dictionary
+	var report: Dictionary = GFVariantData.as_dictionary(
+		expression.call("_get_match_report", [&"team.enemy"], visited)
+	)
 
-	assert_false(bool(report["ok"]), "循环表达式不应无限递归或通过。")
-	assert_eq(child_report["reason"], "cycle_detected", "循环应进入诊断报告。")
-	expression.expressions.clear()
+	assert_false(GFVariantData.get_option_bool(report, "ok"), "循环表达式不应无限递归或通过。")
+	assert_eq(GFVariantData.get_option_string(report, "reason"), "cycle_detected", "循环应进入诊断报告。")
 
 
 # --- 私有/辅助方法 ---
 
-func _make_query(required_all: Array[StringName]) -> GFTagQueryBase:
-	var query := GFTagQueryBase.new()
+func _make_query(required_all: Array[StringName]) -> GFTagQuery:
+	var query: GFTagQuery = GFTagQuery.new()
 	query.all_tags = required_all
 	return query

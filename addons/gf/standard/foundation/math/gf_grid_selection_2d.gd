@@ -69,7 +69,7 @@ var filter_callback: Callable = Callable()
 func select_cells(candidates: Array[Vector2i], context: Dictionary = {}) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	for cell: Vector2i in candidates:
-		var selected := _matches_cell(cell, context)
+		var selected: bool = _matches_cell(cell, context)
 		if invert:
 			selected = not selected
 		if selected:
@@ -89,7 +89,7 @@ func select_cells(candidates: Array[Vector2i], context: Dictionary = {}) -> Arra
 ## [br]
 ## @return 会被选择时返回 true。
 func matches_cell(cell: Vector2i, context: Dictionary = {}) -> bool:
-	var selected := _matches_cell(cell, context)
+	var selected: bool = _matches_cell(cell, context)
 	return not selected if invert else selected
 
 
@@ -114,7 +114,7 @@ func _matches_cell(cell: Vector2i, context: Dictionary) -> bool:
 	if use_bounds and not _is_in_bounds(cell):
 		return false
 	if filter_callback.is_valid():
-		return bool(filter_callback.call(cell, context))
+		return GFVariantData.to_bool(filter_callback.call(cell, context))
 	return true
 
 

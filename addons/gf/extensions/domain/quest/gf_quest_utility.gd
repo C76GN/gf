@@ -167,7 +167,7 @@ func start_quest(quest_id: StringName, target_event: StringName, target_count: i
 		push_warning("[GFQuestUtility] 任务已存在：%s" % quest_id)
 		return
 
-	var data := _create_quest_data(quest_id, target_event, target_count, {})
+	var data: _QuestData = _create_quest_data(quest_id, target_event, target_count, {})
 	data._status = STATUS_ACTIVE
 	_quests[quest_id] = data
 
@@ -175,7 +175,7 @@ func start_quest(quest_id: StringName, target_event: StringName, target_count: i
 
 	if target_count <= 0:
 		quest_progressed.emit(quest_id, data._current_count, data._target_count)
-		_try_complete_quest(data)
+		var _completed: bool = _try_complete_quest(data)
 		return
 
 	_attach_quest_to_event(data)
@@ -207,7 +207,7 @@ func define_quest(
 		push_warning("[GFQuestUtility] 任务已存在：%s" % quest_id)
 		return
 
-	var data := _create_quest_data(quest_id, target_event, target_count, metadata)
+	var data: _QuestData = _create_quest_data(quest_id, target_event, target_count, metadata)
 	data._status = STATUS_AVAILABLE
 	_quests[quest_id] = data
 	quest_available.emit(quest_id)
@@ -221,7 +221,7 @@ func define_quest(
 ## [br]
 ## @return: 接取成功返回 true。
 func accept_quest(quest_id: StringName) -> bool:
-	var data := _quests.get(quest_id) as _QuestData
+	var data: _QuestData = _get_quest_data(quest_id)
 	if data == null or data._status == STATUS_COMPLETED or data._status == STATUS_CANCELLED or data._status == STATUS_FAILED:
 		return false
 	if data._status == STATUS_ACTIVE:
@@ -229,16 +229,16 @@ func accept_quest(quest_id: StringName) -> bool:
 	if data._event_id == &"":
 		push_error("[GFQuestUtility] accept_quest 失败：target_event 为空。")
 		return false
-	var acceptance_result := _check_conditions(data._acceptance_conditions, data)
-	if not bool(acceptance_result.get("ok", true)):
-		quest_acceptance_blocked.emit(quest_id, String(acceptance_result.get("reason", "blocked")))
+	var acceptance_result: Dictionary = _check_conditions(data._acceptance_conditions, data)
+	if not GFVariantData.get_option_bool(acceptance_result, "ok", true):
+		quest_acceptance_blocked.emit(quest_id, GFVariantData.get_option_string(acceptance_result, "reason", "blocked"))
 		return false
 
 	data._status = STATUS_ACTIVE
 	quest_started.emit(quest_id)
 	if data._target_count <= 0:
 		quest_progressed.emit(quest_id, data._current_count, data._target_count)
-		_try_complete_quest(data)
+		var _completed: bool = _try_complete_quest(data)
 	else:
 		_attach_quest_to_event(data)
 	return true
@@ -252,7 +252,7 @@ func accept_quest(quest_id: StringName) -> bool:
 ## [br]
 ## @return: 完成成功返回 true。
 func complete_quest(quest_id: StringName) -> bool:
-	var data := _quests.get(quest_id) as _QuestData
+	var data: _QuestData = _get_quest_data(quest_id)
 	if data == null:
 		return false
 	return _try_complete_quest(data)
@@ -266,7 +266,7 @@ func complete_quest(quest_id: StringName) -> bool:
 ## [br]
 ## @return: 取消成功返回 true。
 func cancel_quest(quest_id: StringName) -> bool:
-	var data := _quests.get(quest_id) as _QuestData
+	var data: _QuestData = _get_quest_data(quest_id)
 	if data == null or data._status == STATUS_COMPLETED or data._status == STATUS_CANCELLED or data._status == STATUS_FAILED:
 		return false
 	_detach_quest_from_event(data)
@@ -285,7 +285,7 @@ func cancel_quest(quest_id: StringName) -> bool:
 ## [br]
 ## @return: 标记成功返回 true。
 func fail_quest(quest_id: StringName, reason: String = "") -> bool:
-	var data := _quests.get(quest_id) as _QuestData
+	var data: _QuestData = _get_quest_data(quest_id)
 	if data == null or data._status == STATUS_COMPLETED or data._status == STATUS_CANCELLED or data._status == STATUS_FAILED:
 		return false
 
@@ -307,7 +307,7 @@ func fail_quest(quest_id: StringName, reason: String = "") -> bool:
 func add_acceptance_condition(quest_id: StringName, condition: Callable) -> void:
 	if not condition.is_valid():
 		return
-	var data := _quests.get(quest_id) as _QuestData
+	var data: _QuestData = _get_quest_data(quest_id)
 	if data == null:
 		return
 	data._acceptance_conditions.append(condition)
@@ -319,7 +319,7 @@ func add_acceptance_condition(quest_id: StringName, condition: Callable) -> void
 ## [br]
 ## @param quest_id: 任务 ID。
 func clear_acceptance_conditions(quest_id: StringName) -> void:
-	var data := _quests.get(quest_id) as _QuestData
+	var data: _QuestData = _get_quest_data(quest_id)
 	if data != null:
 		data._acceptance_conditions.clear()
 
@@ -334,7 +334,7 @@ func clear_acceptance_conditions(quest_id: StringName) -> void:
 func add_completion_blocker(quest_id: StringName, blocker: Callable) -> void:
 	if not blocker.is_valid():
 		return
-	var data := _quests.get(quest_id) as _QuestData
+	var data: _QuestData = _get_quest_data(quest_id)
 	if data == null:
 		return
 	data._completion_blockers.append(blocker)
@@ -346,7 +346,7 @@ func add_completion_blocker(quest_id: StringName, blocker: Callable) -> void:
 ## [br]
 ## @param quest_id: 任务 ID。
 func clear_completion_blockers(quest_id: StringName) -> void:
-	var data := _quests.get(quest_id) as _QuestData
+	var data: _QuestData = _get_quest_data(quest_id)
 	if data != null:
 		data._completion_blockers.clear()
 
@@ -363,8 +363,8 @@ func clear_completion_blockers(quest_id: StringName) -> void:
 func set_quest_parent(quest_id: StringName, parent_quest_id: StringName) -> bool:
 	if quest_id == &"" or parent_quest_id == &"" or quest_id == parent_quest_id:
 		return false
-	var data := _quests.get(quest_id) as _QuestData
-	var parent := _quests.get(parent_quest_id) as _QuestData
+	var data: _QuestData = _get_quest_data(quest_id)
+	var parent: _QuestData = _get_quest_data(parent_quest_id)
 	if data == null or parent == null:
 		return false
 	if _is_descendant_quest(quest_id, parent_quest_id):
@@ -373,7 +373,7 @@ func set_quest_parent(quest_id: StringName, parent_quest_id: StringName) -> bool
 	_detach_quest_parent(data)
 	data._parent_id = parent_quest_id
 	if not parent._child_ids.has(String(quest_id)):
-		parent._child_ids.append(String(quest_id))
+		_append_packed_string(parent._child_ids, String(quest_id))
 	parent._child_ids.sort()
 	return true
 
@@ -384,7 +384,7 @@ func set_quest_parent(quest_id: StringName, parent_quest_id: StringName) -> bool
 ## [br]
 ## @param quest_id: 任务 ID。
 func clear_quest_parent(quest_id: StringName) -> void:
-	var data := _quests.get(quest_id) as _QuestData
+	var data: _QuestData = _get_quest_data(quest_id)
 	if data != null:
 		_detach_quest_parent(data)
 
@@ -397,7 +397,7 @@ func clear_quest_parent(quest_id: StringName) -> void:
 ## [br]
 ## @return: 子任务 ID 列表。
 func get_child_quests(quest_id: StringName) -> PackedStringArray:
-	var data := _quests.get(quest_id) as _QuestData
+	var data: _QuestData = _get_quest_data(quest_id)
 	return data._child_ids.duplicate() if data != null else PackedStringArray()
 
 
@@ -411,7 +411,7 @@ func get_child_quests(quest_id: StringName) -> PackedStringArray:
 ## [br]
 ## @schema return: Dictionary，包含任务报告字段、children: Array[Dictionary]、total_count、completed_count 与 aggregate_progress。
 func get_quest_tree_report(root_quest_id: StringName) -> Dictionary:
-	var root_data := _quests.get(root_quest_id) as _QuestData
+	var root_data: _QuestData = _get_quest_data(root_quest_id)
 	if root_data == null:
 		return {}
 	return _build_quest_tree_report(root_data)
@@ -425,8 +425,8 @@ func get_quest_tree_report(root_quest_id: StringName) -> Dictionary:
 ## [br]
 ## @param amount: 本次增加的进度值。
 func emit_quest_event(event_id: StringName, amount: int = 1) -> void:
-	var arch := _get_arch()
-	if arch != null and arch.has_method("send_simple_event"):
+	var arch: GFArchitecture = _get_arch()
+	if arch != null:
 		arch.send_simple_event(event_id, amount)
 	else:
 		_on_quest_event_triggered(amount, event_id)
@@ -441,8 +441,8 @@ func emit_quest_event(event_id: StringName, amount: int = 1) -> void:
 ## @return: 已完成时返回 true。
 func is_quest_completed(quest_id: StringName) -> bool:
 	if _quests.has(quest_id):
-		var q := _quests[quest_id] as _QuestData
-		return q._is_completed
+		var data: _QuestData = _get_quest_data(quest_id)
+		return data != null and data._is_completed
 
 	return false
 
@@ -456,11 +456,13 @@ func is_quest_completed(quest_id: StringName) -> bool:
 ## @return: 范围在 0.0 到 1.0 之间的进度值。
 func get_quest_progress(quest_id: StringName) -> float:
 	if _quests.has(quest_id):
-		var q := _quests[quest_id] as _QuestData
-		if q._target_count <= 0:
+		var data: _QuestData = _get_quest_data(quest_id)
+		if data == null:
+			return 0.0
+		if data._target_count <= 0:
 			return 1.0
 
-		return clampf(float(q._current_count) / float(q._target_count), 0.0, 1.0)
+		return clampf(float(data._current_count) / float(data._target_count), 0.0, 1.0)
 
 	return 0.0
 
@@ -473,7 +475,7 @@ func get_quest_progress(quest_id: StringName) -> float:
 ## [br]
 ## @return: 状态文本。
 func get_quest_status(quest_id: StringName) -> StringName:
-	var data := _quests.get(quest_id) as _QuestData
+	var data: _QuestData = _get_quest_data(quest_id)
 	return data._status if data != null else &""
 
 
@@ -485,11 +487,11 @@ func get_quest_status(quest_id: StringName) -> StringName:
 ## [br]
 ## @return: 任务 ID 列表。
 func get_quests_by_status(status: StringName) -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	for quest_id: StringName in _quests.keys():
-		var data := _quests[quest_id] as _QuestData
+		var data: _QuestData = _get_quest_data(quest_id)
 		if data != null and data._status == status:
-			result.append(String(quest_id))
+			_append_packed_string(result, String(quest_id))
 	result.sort()
 	return result
 
@@ -504,7 +506,7 @@ func get_quests_by_status(status: StringName) -> PackedStringArray:
 ## [br]
 ## @schema return: Dictionary，包含 quest_id、event_id、target_count、current_count、is_completed、status、parent_id、child_ids、metadata、acceptance_condition_count 与 completion_blocker_count。
 func get_quest_report(quest_id: StringName) -> Dictionary:
-	var data := _quests.get(quest_id) as _QuestData
+	var data: _QuestData = _get_quest_data(quest_id)
 	if data == null:
 		return {}
 	return data._to_dict()
@@ -520,7 +522,7 @@ func get_quest_report(quest_id: StringName) -> Dictionary:
 func get_debug_snapshot() -> Dictionary:
 	var reports: Dictionary = {}
 	for quest_id: StringName in _quests.keys():
-		var data := _quests[quest_id] as _QuestData
+		var data: _QuestData = _get_quest_data(quest_id)
 		if data != null:
 			reports[String(quest_id)] = data._to_dict()
 	return {
@@ -536,77 +538,80 @@ func _on_quest_event_triggered(payload: Variant, event_id: StringName) -> void:
 	if not _event_to_quests.has(event_id):
 		return
 
-	var amount := _payload_to_amount(payload)
+	var amount: int = _payload_to_amount(payload)
 	if not allow_negative_progress:
 		amount = maxi(amount, 0)
 
-	var list: Array = (_event_to_quests[event_id] as Array).duplicate()
-	for quest_id: StringName in list:
-		var q := _quests.get(quest_id) as _QuestData
-		if q == null or q._status != STATUS_ACTIVE or q._is_completed:
+	var list: Array = _get_event_quest_list(event_id).duplicate()
+	for quest_id_variant: Variant in list:
+		var quest_id: StringName = GFVariantData.to_string_name(quest_id_variant)
+		var data: _QuestData = _get_quest_data(quest_id)
+		if data == null or data._status != STATUS_ACTIVE or data._is_completed:
 			continue
 
-		q._current_count += amount
-		if q._current_count >= q._target_count:
-			q._current_count = q._target_count
-			quest_progressed.emit(quest_id, q._current_count, q._target_count)
-			_try_complete_quest(q)
+		data._current_count += amount
+		if data._current_count >= data._target_count:
+			data._current_count = data._target_count
+			quest_progressed.emit(quest_id, data._current_count, data._target_count)
+			var _completed: bool = _try_complete_quest(data)
 		else:
-			quest_progressed.emit(quest_id, q._current_count, q._target_count)
+			quest_progressed.emit(quest_id, data._current_count, data._target_count)
 
 
 func _register_event_handler(event_id: StringName) -> void:
-	var arch := _get_arch()
-	if arch == null or not arch.has_method("register_simple_event"):
+	var arch: GFArchitecture = _get_arch()
+	if arch == null:
 		return
 
 	var event_handler: Callable = Callable(self, "_on_quest_event_triggered").bind(event_id)
 	_event_handlers[event_id] = event_handler
-	if arch.has_method("register_simple_event_owned"):
-		arch.register_simple_event_owned(self, event_id, event_handler)
-	else:
-		arch.register_simple_event(event_id, event_handler)
+	register_simple_event(event_id, event_handler)
 
 
 func _unregister_event_handler(event_id: StringName) -> void:
 	if not _event_handlers.has(event_id):
 		return
 
-	var arch := _get_arch()
-	if arch != null and arch.has_method("unregister_simple_event"):
-		var event_handler := _event_handlers[event_id] as Callable
-		arch.unregister_simple_event(event_id, event_handler)
-	_event_handlers.erase(event_id)
+	var arch: GFArchitecture = _get_arch()
+	if arch != null:
+		var event_handler: Callable = _get_event_handler(event_id)
+		unregister_simple_event(event_id, event_handler)
+	_erase_dictionary_key(_event_handlers, event_id)
 
 
 func _unregister_all_event_handlers() -> void:
-	var arch := _get_arch()
-	if arch != null and arch.has_method("unregister_simple_event"):
+	var arch: GFArchitecture = _get_arch()
+	if arch != null:
 		for event_id: StringName in _event_handlers:
-			var event_handler := _event_handlers[event_id] as Callable
-			arch.unregister_simple_event(event_id, event_handler)
+			var event_handler: Callable = _get_event_handler(event_id)
+			unregister_simple_event(event_id, event_handler)
 
 	_event_handlers.clear()
 
 
-func _get_arch() -> Object:
+func _get_arch() -> GFArchitecture:
 	return _get_architecture_or_null()
 
 
 func _payload_to_amount(payload: Variant) -> int:
-	var current_payload := payload
+	var current_payload: Variant = payload
 	var depth: int = 0
-	while current_payload is Dictionary and current_payload.has("amount"):
+	while current_payload is Dictionary:
+		var payload_dictionary: Dictionary = current_payload
+		if not payload_dictionary.has("amount"):
+			break
 		depth += 1
 		if depth > 16:
 			push_error("[GFQuestUtility] payload.amount 嵌套过深，已回退为默认进度 1。")
 			return 1
-		current_payload = current_payload["amount"]
+		current_payload = payload_dictionary["amount"]
 
 	if current_payload is int:
-		return current_payload
+		var int_amount: int = current_payload
+		return int_amount
 	if current_payload is float:
-		return roundi(current_payload)
+		var float_amount: float = current_payload
+		return roundi(float_amount)
 
 	return 1
 
@@ -617,7 +622,7 @@ func _create_quest_data(
 	target_count: int,
 	metadata: Dictionary
 ) -> _QuestData:
-	var data := _QuestData.new()
+	var data: _QuestData = _QuestData.new()
 	data._quest_id = quest_id
 	data._event_id = target_event
 	data._target_count = target_count
@@ -628,11 +633,11 @@ func _create_quest_data(
 func _attach_quest_to_event(data: _QuestData) -> void:
 	if data == null or data._event_id == &"":
 		return
-	if not _event_to_quests.has(data._event_id):
-		_event_to_quests[data._event_id] = [] as Array[StringName]
+	var should_register_handler: bool = not _event_to_quests.has(data._event_id)
+	var list: Array = _ensure_event_quest_list(data._event_id)
+	if should_register_handler:
 		_register_event_handler(data._event_id)
 
-	var list: Array = _event_to_quests[data._event_id]
 	if not list.has(data._quest_id):
 		list.append(data._quest_id)
 
@@ -640,10 +645,10 @@ func _attach_quest_to_event(data: _QuestData) -> void:
 func _detach_quest_from_event(data: _QuestData) -> void:
 	if data == null or data._event_id == &"" or not _event_to_quests.has(data._event_id):
 		return
-	var list: Array = _event_to_quests[data._event_id]
+	var list: Array = _get_event_quest_list(data._event_id)
 	list.erase(data._quest_id)
 	if list.is_empty():
-		_event_to_quests.erase(data._event_id)
+		_erase_dictionary_key(_event_to_quests, data._event_id)
 		_unregister_event_handler(data._event_id)
 
 
@@ -651,9 +656,9 @@ func _try_complete_quest(data: _QuestData) -> bool:
 	if data == null or data._is_completed or data._status == STATUS_CANCELLED or data._status == STATUS_FAILED:
 		return false
 
-	var blocker_result := _check_conditions(data._completion_blockers, data)
-	if not bool(blocker_result.get("ok", true)):
-		quest_completion_blocked.emit(data._quest_id, String(blocker_result.get("reason", "blocked")))
+	var blocker_result: Dictionary = _check_conditions(data._completion_blockers, data)
+	if not GFVariantData.get_option_bool(blocker_result, "ok", true):
+		quest_completion_blocked.emit(data._quest_id, GFVariantData.get_option_string(blocker_result, "reason", "blocked"))
 		return false
 
 	_detach_quest_from_event(data)
@@ -669,10 +674,11 @@ func _check_conditions(conditions: Array[Callable], data: _QuestData) -> Diction
 			continue
 		var result: Variant = condition.call(data._quest_id, data._to_dict())
 		if result is Dictionary:
-			if not bool((result as Dictionary).get("ok", false)):
+			var result_dictionary: Dictionary = result
+			if not GFVariantData.get_option_bool(result_dictionary, "ok", false):
 				return {
 					"ok": false,
-					"reason": String((result as Dictionary).get("reason", "blocked")),
+					"reason": GFVariantData.get_option_string(result_dictionary, "reason", "blocked"),
 				}
 		elif result == false:
 			return {
@@ -688,20 +694,20 @@ func _check_conditions(conditions: Array[Callable], data: _QuestData) -> Diction
 func _detach_quest_parent(data: _QuestData) -> void:
 	if data == null or data._parent_id == &"":
 		return
-	var parent := _quests.get(data._parent_id) as _QuestData
+	var parent: _QuestData = _get_quest_data(data._parent_id)
 	if parent != null:
-		var index := parent._child_ids.find(String(data._quest_id))
+		var index: int = parent._child_ids.find(String(data._quest_id))
 		if index >= 0:
 			parent._child_ids.remove_at(index)
 	data._parent_id = &""
 
 
 func _is_descendant_quest(root_quest_id: StringName, expected_descendant_id: StringName) -> bool:
-	var root := _quests.get(root_quest_id) as _QuestData
+	var root: _QuestData = _get_quest_data(root_quest_id)
 	if root == null:
 		return false
 	for child_id_text: String in root._child_ids:
-		var child_id := StringName(child_id_text)
+		var child_id: StringName = StringName(child_id_text)
 		if child_id == expected_descendant_id or _is_descendant_quest(child_id, expected_descendant_id):
 			return true
 	return false
@@ -709,23 +715,66 @@ func _is_descendant_quest(root_quest_id: StringName, expected_descendant_id: Str
 
 func _build_quest_tree_report(data: _QuestData) -> Dictionary:
 	var children: Array[Dictionary] = []
-	var total_count := 1
-	var completed_count := 1 if data._status == STATUS_COMPLETED else 0
+	var total_count: int = 1
+	var completed_count: int = 1 if data._status == STATUS_COMPLETED else 0
 	for child_id_text: String in data._child_ids:
-		var child := _quests.get(StringName(child_id_text)) as _QuestData
+		var child: _QuestData = _get_quest_data(StringName(child_id_text))
 		if child == null:
 			continue
-		var child_report := _build_quest_tree_report(child)
+		var child_report: Dictionary = _build_quest_tree_report(child)
 		children.append(child_report)
-		total_count += int(child_report.get("total_count", 0))
-		completed_count += int(child_report.get("completed_count", 0))
+		total_count += GFVariantData.get_option_int(child_report, "total_count")
+		completed_count += GFVariantData.get_option_int(child_report, "completed_count")
 
-	var report := data._to_dict()
+	var report: Dictionary = data._to_dict()
 	report["children"] = children
 	report["total_count"] = total_count
 	report["completed_count"] = completed_count
 	report["aggregate_progress"] = float(completed_count) / float(total_count) if total_count > 0 else 0.0
 	return report
+
+
+func _get_quest_data(quest_id: StringName) -> _QuestData:
+	return _variant_to_quest_data(GFVariantData.get_option_value(_quests, quest_id))
+
+
+func _get_event_handler(event_id: StringName) -> Callable:
+	return _variant_to_callable(GFVariantData.get_option_value(_event_handlers, event_id, Callable()))
+
+
+func _get_event_quest_list(event_id: StringName) -> Array:
+	return GFVariantData.as_array(GFVariantData.get_option_value(_event_to_quests, event_id, []))
+
+
+func _ensure_event_quest_list(event_id: StringName) -> Array:
+	if _event_to_quests.has(event_id):
+		var existing_value: Variant = GFVariantData.get_option_value(_event_to_quests, event_id, [])
+		if existing_value is Array:
+			return GFVariantData.as_array(existing_value)
+
+	var list: Array[StringName] = []
+	_event_to_quests[event_id] = list
+	return list
+
+
+func _erase_dictionary_key(source: Dictionary, key: Variant) -> void:
+	var _erased: bool = source.erase(key)
+
+
+func _append_packed_string(target: PackedStringArray, value: String) -> void:
+	var _appended: bool = target.append(value)
+
+
+func _variant_to_callable(value: Variant) -> Callable:
+	if value is Callable:
+		return value
+	return Callable()
+
+
+func _variant_to_quest_data(value: Variant) -> _QuestData:
+	if value is _QuestData:
+		return value
+	return null
 
 
 # --- 内部类 ---

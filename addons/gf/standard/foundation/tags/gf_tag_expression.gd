@@ -30,11 +30,6 @@ enum Operator {
 }
 
 
-# --- 常量 ---
-
-const _SCRIPT_PATH: String = "res://addons/gf/standard/foundation/tags/gf_tag_expression.gd"
-
-
 # --- 导出变量 ---
 
 ## 当前表达式运算类型。
@@ -78,8 +73,8 @@ func is_empty() -> bool:
 ## [br]
 ## @return 表达式满足时返回 true。
 func matches(source: Variant) -> bool:
-	var report := get_match_report(source)
-	return bool(report.get("ok", false))
+	var report: Dictionary = get_match_report(source)
+	return GFVariantData.get_option_bool(report, "ok", false)
 
 
 ## 获取匹配报告。
@@ -165,7 +160,7 @@ func configure_none(child_expressions: Array[GFTagExpression]) -> GFTagExpressio
 ## [br]
 ## @return 新表达式。
 func duplicate_expression() -> GFTagExpression:
-	var copy := get_script().new() as GFTagExpression
+	var copy: GFTagExpression = _instantiate_expression()
 	copy.operator = operator
 	copy.query = query.duplicate_query() if query != null else null
 	for expression: GFTagExpression in expressions:
@@ -203,16 +198,15 @@ func to_dictionary() -> Dictionary:
 ## [br]
 ## @return 新表达式。
 static func from_dictionary(data: Dictionary) -> GFTagExpression:
-	var expression := (load(_SCRIPT_PATH) as Script).new() as GFTagExpression
-	expression.operator = _operator_from_variant(data.get("operator", Operator.QUERY))
-	var query_data := data.get("query", {})
-	if query_data is Dictionary and not (query_data as Dictionary).is_empty():
-		expression.query = GFTagQuery.from_dictionary(query_data as Dictionary)
-	var child_data := data.get("expressions", [])
-	if child_data is Array:
-		for child_variant: Variant in child_data as Array:
-			if child_variant is Dictionary:
-				expression.expressions.append(GFTagExpression.from_dictionary(child_variant as Dictionary))
+	var expression: GFTagExpression = GFTagExpression.new()
+	expression.operator = _operator_from_variant(GFVariantData.get_option_value(data, "operator", Operator.QUERY))
+	var query_data: Dictionary = GFVariantData.get_option_dictionary(data, "query")
+	if not query_data.is_empty():
+		expression.query = GFTagQuery.from_dictionary(query_data)
+	var child_data: Array = GFVariantData.get_option_array(data, "expressions")
+	for child_variant: Variant in child_data:
+		if child_variant is Dictionary:
+			expression.expressions.append(GFTagExpression.from_dictionary(GFVariantData.as_dictionary(child_variant)))
 	return expression
 
 
@@ -224,13 +218,13 @@ static func from_dictionary(data: Dictionary) -> GFTagExpression:
 ## [br]
 ## @return 新表达式。
 static func from_query(tag_query: GFTagQuery) -> GFTagExpression:
-	return ((load(_SCRIPT_PATH) as Script).new() as GFTagExpression).configure_query(tag_query)
+	return GFTagExpression.new().configure_query(tag_query)
 
 
 # --- 私有/辅助方法 ---
 
 func _get_match_report(source: Variant, visited: Array[int]) -> Dictionary:
-	var instance_id := get_instance_id()
+	var instance_id: int = get_instance_id()
 	if visited.has(instance_id):
 		return {
 			"ok": false,
@@ -268,11 +262,12 @@ func _get_match_report(source: Variant, visited: Array[int]) -> Dictionary:
 
 
 func _get_query_match_report(source: Variant) -> Dictionary:
-	var query_report := query.get_match_report(source) if query != null else { "ok": true }
+	var query_report: Dictionary = query.get_match_report(source) if query != null else { "ok": true }
+	var ok: bool = GFVariantData.get_option_bool(query_report, "ok", false)
 	return {
-		"ok": bool(query_report.get("ok", false)),
+		"ok": ok,
 		"operator": _operator_to_string(operator),
-		"reason": "" if bool(query_report.get("ok", false)) else "query_failed",
+		"reason": "" if ok else "query_failed",
 		"query_report": query_report,
 		"child_reports": [],
 		"matched_indices": [],
@@ -290,15 +285,15 @@ func _get_children_match_report(
 	var matched_indices: Array[int] = []
 	var failed_indices: Array[int] = []
 	for index: int in range(expressions.size()):
-		var child := expressions[index]
-		var child_report := _get_null_child_report() if child == null else child._get_match_report(source, visited)
+		var child: GFTagExpression = expressions[index]
+		var child_report: Dictionary = _get_null_child_report() if child == null else child._get_match_report(source, visited)
 		child_reports.append(child_report)
-		if bool(child_report.get("ok", false)):
+		if GFVariantData.get_option_bool(child_report, "ok", false):
 			matched_indices.append(index)
 		else:
 			failed_indices.append(index)
 
-	var ok := empty_value if expressions.is_empty() else (
+	var ok: bool = empty_value if expressions.is_empty() else (
 		failed_indices.is_empty() if require_all else not matched_indices.is_empty()
 	)
 	return {
@@ -317,15 +312,15 @@ func _get_none_match_report(source: Variant, visited: Array[int]) -> Dictionary:
 	var matched_indices: Array[int] = []
 	var failed_indices: Array[int] = []
 	for index: int in range(expressions.size()):
-		var child := expressions[index]
-		var child_report := _get_null_child_report() if child == null else child._get_match_report(source, visited)
+		var child: GFTagExpression = expressions[index]
+		var child_report: Dictionary = _get_null_child_report() if child == null else child._get_match_report(source, visited)
 		child_reports.append(child_report)
-		if bool(child_report.get("ok", false)):
+		if GFVariantData.get_option_bool(child_report, "ok", false):
 			matched_indices.append(index)
 		else:
 			failed_indices.append(index)
 
-	var ok := matched_indices.is_empty()
+	var ok: bool = matched_indices.is_empty()
 	return {
 		"ok": ok,
 		"operator": _operator_to_string(operator),
@@ -365,11 +360,18 @@ static func _operator_to_string(value: int) -> String:
 
 static func _operator_from_variant(value: Variant) -> Operator:
 	if value is int:
-		var numeric := int(value)
-		if numeric >= Operator.QUERY and numeric <= Operator.NONE:
-			return numeric
+		var numeric: int = GFVariantData.to_int(value, Operator.QUERY)
+		match numeric:
+			Operator.QUERY:
+				return Operator.QUERY
+			Operator.ALL:
+				return Operator.ALL
+			Operator.ANY:
+				return Operator.ANY
+			Operator.NONE:
+				return Operator.NONE
 
-	var text := String(value).to_lower()
+	var text: String = GFVariantData.to_text(value).to_lower()
 	match text:
 		"query":
 			return Operator.QUERY
@@ -381,3 +383,14 @@ static func _operator_from_variant(value: Variant) -> Operator:
 			return Operator.NONE
 		_:
 			return Operator.QUERY
+
+
+func _instantiate_expression() -> GFTagExpression:
+	var script_value: Variant = get_script()
+	if script_value is Script:
+		var script: Script = script_value
+		var instance: Variant = script.call("new")
+		if instance is GFTagExpression:
+			var expression: GFTagExpression = instance
+			return expression
+	return GFTagExpression.new()

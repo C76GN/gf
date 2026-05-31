@@ -6,7 +6,7 @@ extends RefCounted
 const _COMPLETION_MODE_FIRE_AND_FORGET: int = 2
 const _DEFAULT_SIGNAL_TIMEOUT_SECONDS: float = 30.0
 const _DEFAULT_SIGNAL_TIMEOUT_RESPECTS_TIME_SCALE: bool = true
-const _GF_ASYNC_WAIT_SUPPORT: Script = preload("res://addons/gf/standard/common/gf_async_wait_support.gd")
+const _GF_ASYNC_WAIT_SUPPORT = preload("res://addons/gf/standard/common/gf_async_wait_support.gd")
 
 
 # --- 层内方法 ---
@@ -51,9 +51,9 @@ static func can_execute(action: Object) -> bool:
 	if not is_action_valid(action):
 		return false
 	if action.has_method("can_execute"):
-		return bool(action.call("can_execute"))
+		return GFVariantData.to_bool(action.call("can_execute"))
 	if action.has_method("is_valid"):
-		return bool(action.call("is_valid"))
+		return GFVariantData.to_bool(action.call("is_valid"))
 	return true
 
 
@@ -150,8 +150,11 @@ static func should_wait_for_result(action: Object, result: Variant) -> bool:
 	if not is_action_valid(action):
 		return false
 	if action.has_method("should_wait_for_result"):
-		return bool(action.call("should_wait_for_result", result))
-	if _has_property(action, "completion_mode") and int(action.get("completion_mode")) == _COMPLETION_MODE_FIRE_AND_FORGET:
+		return GFVariantData.to_bool(action.call("should_wait_for_result", result))
+	if (
+		_has_property(action, "completion_mode")
+		and GFVariantData.to_int(GFObjectPropertyTools.read_property(action, ^"completion_mode")) == _COMPLETION_MODE_FIRE_AND_FORGET
+	):
 		return false
 	return result is Signal
 
@@ -180,8 +183,9 @@ static func await_result_safely(
 	if not should_wait_for_result(action, result):
 		return
 
+	var signal_result: Signal = result
 	await _GF_ASYNC_WAIT_SUPPORT.await_signal_safely(
-		result as Signal,
+		signal_result,
 		should_continue,
 		_get_time_utility(architecture),
 		_get_signal_timeout_seconds(action),
@@ -202,26 +206,32 @@ static func _has_property(action: Object, property_name: StringName) -> bool:
 	if not is_instance_valid(action):
 		return false
 	for property_info: Dictionary in action.get_property_list():
-		if property_info.get("name", &"") == property_name:
+		if GFVariantData.get_option_string_name(property_info, "name") == property_name:
 			return true
 	return false
 
 
 static func _get_wait_guard_node(action: Object) -> Node:
 	if is_instance_valid(action) and action.has_method("get_wait_guard_node"):
-		return action.call("get_wait_guard_node") as Node
+		return _get_node_value(action.call("get_wait_guard_node"))
 	return null
 
 
 static func _get_signal_timeout_seconds(action: Object) -> float:
 	if _has_property(action, "signal_timeout_seconds"):
-		return maxf(float(action.get("signal_timeout_seconds")), 0.0)
+		return maxf(
+			GFVariantData.to_float(GFObjectPropertyTools.read_property(action, ^"signal_timeout_seconds")),
+			0.0
+		)
 	return _DEFAULT_SIGNAL_TIMEOUT_SECONDS
 
 
 static func _get_signal_timeout_respects_time_scale(action: Object) -> bool:
 	if _has_property(action, "signal_timeout_respects_time_scale"):
-		return bool(action.get("signal_timeout_respects_time_scale"))
+		return GFVariantData.to_bool(
+			GFObjectPropertyTools.read_property(action, ^"signal_timeout_respects_time_scale"),
+			_DEFAULT_SIGNAL_TIMEOUT_RESPECTS_TIME_SCALE
+		)
 	return _DEFAULT_SIGNAL_TIMEOUT_RESPECTS_TIME_SCALE
 
 
@@ -230,4 +240,18 @@ static func _get_time_utility(architecture: GFArchitecture) -> GFTimeUtility:
 		architecture = GFAutoload.get_architecture_or_null()
 	if architecture == null:
 		return null
-	return architecture.get_utility(GFTimeUtility) as GFTimeUtility
+	return _get_time_utility_value(architecture.get_utility(GFTimeUtility))
+
+
+static func _get_node_value(value: Variant) -> Node:
+	if value is Node:
+		var node: Node = value
+		return node
+	return null
+
+
+static func _get_time_utility_value(value: Variant) -> GFTimeUtility:
+	if value is GFTimeUtility:
+		var utility: GFTimeUtility = value
+		return utility
+	return null

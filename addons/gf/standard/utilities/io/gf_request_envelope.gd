@@ -88,7 +88,7 @@ func _init(
 	p_headers: PackedStringArray = PackedStringArray(),
 	p_metadata: Dictionary = {}
 ) -> void:
-	configure(p_method, p_url, p_body, p_headers, p_metadata)
+	var _configure_result_91: Variant = configure(p_method, p_url, p_body, p_headers, p_metadata)
 
 
 # --- 公共方法 ---
@@ -148,7 +148,7 @@ func is_valid() -> bool:
 func can_attempt(now_msec: int = -1) -> bool:
 	if not is_valid() or is_exhausted():
 		return false
-	var effective_now := Time.get_ticks_msec() if now_msec < 0 else now_msec
+	var effective_now: int = Time.get_ticks_msec() if now_msec < 0 else now_msec
 	return retry_after_msec <= 0 or effective_now >= retry_after_msec
 
 
@@ -197,7 +197,7 @@ func mark_success() -> void:
 ## [br]
 ## @return 新请求描述。
 func duplicate_request() -> GFRequestEnvelope:
-	var duplicated := (get_script() as Script).new() as GFRequestEnvelope
+	var duplicated: GFRequestEnvelope = _new_envelope_instance()
 	duplicated.apply_dict(to_dict())
 	return duplicated
 
@@ -239,28 +239,30 @@ func to_dict(json_compatible: bool = false) -> Dictionary:
 ## [br]
 ## @schema data: Dictionary，包含 request_id、method、url、body、headers、idempotency_key、重试字段、last_error 和 metadata。
 func apply_dict(data: Dictionary, json_compatible: bool = false) -> void:
-	request_id = StringName(String(data.get("request_id", "")))
-	method = int(data.get("method", HTTPClient.METHOD_GET))
-	url = String(data.get("url", ""))
-	var raw_body: Variant = data.get("body", {})
-	var body_value: Variant = GFVariantJsonCodec.json_compatible_to_variant(raw_body) if json_compatible else GFVariantData.duplicate_variant(raw_body)
-	if body_value is Dictionary:
-		body = body_value as Dictionary
-	else:
-		body = {}
-	headers = _headers_from_variant(data.get("headers", []))
-	idempotency_key = String(data.get("idempotency_key", ""))
-	created_at_unix = int(data.get("created_at_unix", 0))
-	attempt_count = int(data.get("attempt_count", 0))
-	max_attempts = int(data.get("max_attempts", 3))
-	retry_after_msec = int(data.get("retry_after_msec", 0))
-	last_error = String(data.get("last_error", ""))
-	var raw_metadata: Variant = data.get("metadata", {})
-	var metadata_value: Variant = GFVariantJsonCodec.json_compatible_to_variant(raw_metadata) if json_compatible else GFVariantData.duplicate_variant(raw_metadata)
-	if metadata_value is Dictionary:
-		metadata = metadata_value as Dictionary
-	else:
-		metadata = {}
+	request_id = GFVariantData.get_option_string_name(data, "request_id")
+	method = GFVariantData.get_option_int(data, "method", HTTPClient.METHOD_GET)
+	url = GFVariantData.get_option_string(data, "url")
+	var raw_body: Variant = GFVariantData.get_option_value(data, "body", {})
+	var body_value: Variant = (
+		GFVariantJsonCodec.json_compatible_to_variant(raw_body)
+		if json_compatible
+		else GFVariantData.duplicate_variant(raw_body)
+	)
+	body = GFVariantData.as_dictionary(body_value)
+	headers = _headers_from_variant(GFVariantData.get_option_value(data, "headers", []))
+	idempotency_key = GFVariantData.get_option_string(data, "idempotency_key")
+	created_at_unix = GFVariantData.get_option_int(data, "created_at_unix")
+	attempt_count = GFVariantData.get_option_int(data, "attempt_count")
+	max_attempts = GFVariantData.get_option_int(data, "max_attempts", 3)
+	retry_after_msec = GFVariantData.get_option_int(data, "retry_after_msec")
+	last_error = GFVariantData.get_option_string(data, "last_error")
+	var raw_metadata: Variant = GFVariantData.get_option_value(data, "metadata", {})
+	var metadata_value: Variant = (
+		GFVariantJsonCodec.json_compatible_to_variant(raw_metadata)
+		if json_compatible
+		else GFVariantData.duplicate_variant(raw_metadata)
+	)
+	metadata = GFVariantData.as_dictionary(metadata_value)
 
 
 ## 获取方法名称。
@@ -303,12 +305,35 @@ func get_method_name() -> String:
 ## [br]
 ## @schema data: Dictionary，包含 request_id、method、url、body、headers、idempotency_key、重试字段、last_error 和 metadata。
 static func from_dict(data: Dictionary, json_compatible: bool = false) -> GFRequestEnvelope:
-	var envelope := GFRequestEnvelope.new()
+	var envelope: GFRequestEnvelope = GFRequestEnvelope.new()
 	envelope.apply_dict(data, json_compatible)
 	return envelope
 
 
 # --- 私有/辅助方法 ---
+
+func _new_envelope_instance() -> GFRequestEnvelope:
+	var envelope_script: Script = _variant_to_script(get_script())
+	if envelope_script != null:
+		var envelope: GFRequestEnvelope = _variant_to_envelope(envelope_script.call("new"))
+		if envelope != null:
+			return envelope
+	return GFRequestEnvelope.new()
+
+
+func _variant_to_script(value: Variant) -> Script:
+	if value is Script:
+		var script: Script = value
+		return script
+	return null
+
+
+func _variant_to_envelope(value: Variant) -> GFRequestEnvelope:
+	if value is GFRequestEnvelope:
+		var envelope: GFRequestEnvelope = value
+		return envelope
+	return null
+
 
 func _headers_to_array() -> Array[String]:
 	var result: Array[String] = []
@@ -318,10 +343,12 @@ func _headers_to_array() -> Array[String]:
 
 
 func _headers_from_variant(value: Variant) -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	if value is PackedStringArray:
-		return (value as PackedStringArray).duplicate()
+		var packed_headers: PackedStringArray = value
+		return packed_headers.duplicate()
 	if value is Array:
-		for header: Variant in value as Array:
-			result.append(String(header))
+		var header_values: Array = value
+		for header: Variant in header_values:
+			var _append_result_353: Variant = result.append(GFVariantData.to_text(header))
 	return result

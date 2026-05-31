@@ -62,14 +62,14 @@ func register_rule(neighbor_values: Array, result: Variant, weight: float = 1.0)
 	if neighbor_values.is_empty():
 		return
 
-	var node := _rules
+	var node: Dictionary = _rules
 	for value: Variant in neighbor_values:
-		var branches := _get_branches(node)
+		var branches: Dictionary = _get_branches(node)
 		if not branches.has(value):
 			branches[value] = _make_node()
-		node = branches[value] as Dictionary
+		node = GFVariantData.as_dictionary(GFVariantData.get_option_value(branches, value))
 
-	var results := _get_results(node)
+	var results: Array = _get_results(node)
 	results.append({
 		"value": result,
 		"weight": maxf(weight, 0.0),
@@ -104,28 +104,28 @@ func get_rule_count() -> int:
 ## [br]
 ## @param cell: 可选格坐标，用于确定性加权选择。
 ## [br]
-## @param seed: 可选种子；为 0 时使用 deterministic_seed。
+## @param selection_seed: 可选选择种子；为 0 时使用 deterministic_seed。
 ## [br]
 ## @return 匹配结果；没有匹配时返回 default_result。
 ## [br]
 ## @schema return: Variant matched result or default_result.
-func resolve(neighbor_values: Array, cell: Vector2i = Vector2i.ZERO, seed: int = 0) -> Variant:
+func resolve(neighbor_values: Array, cell: Vector2i = Vector2i.ZERO, selection_seed: int = 0) -> Variant:
 	if neighbor_values.is_empty():
 		return default_result
 
-	var node := _rules
+	var node: Dictionary = _rules
 	for value: Variant in neighbor_values:
-		var branches := _get_branches(node)
+		var branches: Dictionary = _get_branches(node)
 		if not branches.has(value):
 			value = fallback_neighbor_value
 		if not branches.has(value):
 			return default_result
-		node = branches[value] as Dictionary
+		node = GFVariantData.as_dictionary(GFVariantData.get_option_value(branches, value))
 
-	var results := _get_results(node)
+	var results: Array = _get_results(node)
 	if results.is_empty():
 		return default_result
-	return _pick_result(results, cell, seed)
+	return _pick_result(results, cell, selection_seed)
 
 
 ## 检查邻域值是否存在明确规则。
@@ -138,12 +138,12 @@ func resolve(neighbor_values: Array, cell: Vector2i = Vector2i.ZERO, seed: int =
 ## [br]
 ## @return 存在规则时返回 true。
 func has_rule(neighbor_values: Array) -> bool:
-	var node := _rules
+	var node: Dictionary = _rules
 	for value: Variant in neighbor_values:
-		var branches := _get_branches(node)
+		var branches: Dictionary = _get_branches(node)
 		if not branches.has(value):
 			return false
-		node = branches[value] as Dictionary
+		node = GFVariantData.as_dictionary(GFVariantData.get_option_value(branches, value))
 	return not _get_results(node).is_empty()
 
 
@@ -157,30 +157,56 @@ func _make_node() -> Dictionary:
 
 
 func _get_branches(node: Dictionary) -> Dictionary:
-	return node.get("branches", {}) as Dictionary
+	var branches_value: Variant = GFVariantData.get_option_value(node, "branches")
+	if branches_value is Dictionary:
+		return GFVariantData.as_dictionary(branches_value)
+	var branches: Dictionary = {}
+	node["branches"] = branches
+	return branches
 
 
 func _get_results(node: Dictionary) -> Array:
-	return node.get("results", []) as Array
+	var results_value: Variant = GFVariantData.get_option_value(node, "results")
+	if results_value is Array:
+		return GFVariantData.as_array(results_value)
+	var results: Array = []
+	node["results"] = results
+	return results
 
 
-func _pick_result(results: Array, cell: Vector2i, seed: int) -> Variant:
+func _pick_result(results: Array, cell: Vector2i, selection_seed: int) -> Variant:
 	if results.size() == 1:
-		return (results[0] as Dictionary).get("value")
+		return _read_result_value(results, 0)
 
-	var total_weight := 0.0
-	for result_entry: Dictionary in results:
-		total_weight += float(result_entry.get("weight", 0.0))
+	var total_weight: float = 0.0
+	for result_variant: Variant in results:
+		total_weight += _get_result_weight(result_variant)
 	if total_weight <= 0.0:
-		return (results[0] as Dictionary).get("value")
+		return _read_result_value(results, 0)
 
-	var rng := RandomNumberGenerator.new()
-	var effective_seed := deterministic_seed if seed == 0 else seed
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	var effective_seed: int = deterministic_seed if selection_seed == 0 else selection_seed
 	rng.seed = hash("%s:%s:%s" % [cell, effective_seed, results.size()])
-	var target := rng.randf_range(0.0, total_weight)
-	var cursor := 0.0
-	for result_entry: Dictionary in results:
-		cursor += float(result_entry.get("weight", 0.0))
+	var target: float = rng.randf_range(0.0, total_weight)
+	var cursor: float = 0.0
+	for result_variant: Variant in results:
+		cursor += _get_result_weight(result_variant)
 		if target <= cursor:
-			return result_entry.get("value")
-	return (results[results.size() - 1] as Dictionary).get("value")
+			return _read_result_entry_value(result_variant)
+	return _read_result_value(results, results.size() - 1)
+
+
+func _read_result_value(results: Array, index: int) -> Variant:
+	if index < 0 or index >= results.size():
+		return default_result
+	return _read_result_entry_value(results[index])
+
+
+func _read_result_entry_value(result_entry: Variant) -> Variant:
+	var data: Dictionary = GFVariantData.as_dictionary(result_entry)
+	return GFVariantData.get_option_value(data, "value")
+
+
+func _get_result_weight(result_entry: Variant) -> float:
+	var data: Dictionary = GFVariantData.as_dictionary(result_entry)
+	return GFVariantData.get_option_float(data, "weight", 0.0)

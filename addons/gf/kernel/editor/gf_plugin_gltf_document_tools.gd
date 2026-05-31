@@ -46,15 +46,31 @@ func cleanup() -> void:
 # --- 私有/辅助方法 ---
 
 func _register_document_extension(script_path: String) -> void:
-	var extension_script := load(script_path) as Script
+	var extension_script: Script = _load_script(script_path)
 	if extension_script == null or not extension_script.can_instantiate():
 		push_error("[GF Framework] glTF 文档扩展脚本加载失败：%s" % script_path)
 		return
 
-	var document_extension := extension_script.new() as GLTFDocumentExtension
+	var document_extension: GLTFDocumentExtension = _instantiate_document_extension(extension_script)
 	if document_extension == null:
 		push_error("[GF Framework] glTF 文档扩展实例化失败：%s" % script_path)
 		return
 
 	GLTFDocument.register_gltf_document_extension(document_extension)
 	_document_extensions.append(document_extension)
+
+
+func _load_script(script_path: String) -> Script:
+	var resource: Resource = load(script_path)
+	if resource is Script:
+		var script: Script = resource
+		return script
+	return null
+
+
+func _instantiate_document_extension(script: Script) -> GLTFDocumentExtension:
+	var instance: Variant = script.call("new")
+	if instance is GLTFDocumentExtension:
+		var document_extension: GLTFDocumentExtension = instance
+		return document_extension
+	return null

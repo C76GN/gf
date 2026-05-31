@@ -63,7 +63,7 @@ signal enabled_changed(enabled: bool)
 
 # --- 常量 ---
 
-const _MESSAGE_DISPATCH_SUPPORT: Script = preload("res://addons/gf/standard/common/gf_message_dispatch_support.gd")
+const _MESSAGE_DISPATCH_SUPPORT = preload("res://addons/gf/standard/common/gf_message_dispatch_support.gd")
 const _GENERATED_COLLISION_SHAPE_NODE_NAME: StringName = &"GFGeneratedCollisionShape2D"
 
 
@@ -122,7 +122,7 @@ const _GENERATED_COLLISION_SHAPE_NODE_NAME: StringName = &"GFGeneratedCollisionS
 	set(value):
 		_collision_shape_config = value
 		if is_inside_tree() and auto_apply_collision_shape_config:
-			_apply_collision_shape_config(_collision_shape_config)
+			var _apply_collision_shape_config_result_125: Variant = _apply_collision_shape_config(_collision_shape_config)
 
 ## 可选碰撞形状配置列表。非空时可自动生成或更新多个 CollisionShape2D 子节点。
 ## [br]
@@ -133,7 +133,7 @@ const _GENERATED_COLLISION_SHAPE_NODE_NAME: StringName = &"GFGeneratedCollisionS
 	set(value):
 		_collision_shape_configs = value
 		if is_inside_tree() and auto_apply_collision_shape_config:
-			_apply_collision_shape_configs(_collision_shape_configs)
+			var _apply_collision_shape_configs_result_136: Variant = _apply_collision_shape_configs(_collision_shape_configs)
 
 ## 是否在进入场景树或配置变化时自动应用碰撞形状配置。
 ## [br]
@@ -152,9 +152,9 @@ var _collision_shape_configs: Array[GFHitCollisionShapeConfig2D] = []
 func _ready() -> void:
 	if auto_apply_collision_shape_config:
 		if _collision_shape_configs.is_empty():
-			apply_collision_shape_config()
+			var _apply_collision_shape_config_result_155: Variant = apply_collision_shape_config()
 		else:
-			apply_collision_shape_configs()
+			var _apply_collision_shape_configs_result_157: Variant = apply_collision_shape_configs()
 
 
 # --- 公共方法 ---
@@ -191,7 +191,7 @@ func apply_collision_shape_configs(configs: Array[GFHitCollisionShapeConfig2D] =
 ## [br]
 ## @return 存在则返回 CollisionShape2D，否则返回 null。
 func get_generated_collision_shape() -> CollisionShape2D:
-	return get_node_or_null(String(_GENERATED_COLLISION_SHAPE_NODE_NAME)) as CollisionShape2D
+	return _get_collision_shape_2d_value(get_node_or_null(String(_GENERATED_COLLISION_SHAPE_NODE_NAME)))
 
 
 ## 获取框架管理的 CollisionShape2D 子节点列表。
@@ -202,7 +202,7 @@ func get_generated_collision_shape() -> CollisionShape2D:
 func get_generated_collision_shapes() -> Array[CollisionShape2D]:
 	var result: Array[CollisionShape2D] = []
 	for child: Node in get_children():
-		var collision_shape := child as CollisionShape2D
+		var collision_shape: CollisionShape2D = _get_collision_shape_2d_value(child)
 		if collision_shape != null and String(collision_shape.name).begins_with(String(_GENERATED_COLLISION_SHAPE_NODE_NAME)):
 			result.append(collision_shape)
 	return result
@@ -243,8 +243,8 @@ func build_hit_context(
 	hit_id_override: StringName = &""
 ) -> GFCombatHitContext:
 	var context_payload: Variant = payload.duplicate(true) if payload_override == null else GFVariantData.duplicate_variant(payload_override)
-	var effective_hit_id := hit_id_override if hit_id_override != &"" else hit_id
-	var context := GFCombatHitContext.new(_resolve_sender(), target, context_payload, effective_hit_id)
+	var effective_hit_id: StringName = hit_id_override if hit_id_override != &"" else hit_id
+	var context: GFCombatHitContext = GFCombatHitContext.new(_resolve_sender(), target, context_payload, effective_hit_id)
 	context.magnitude = magnitude
 	context.tags = tags.duplicate()
 	context.position_2d = global_position
@@ -272,8 +272,8 @@ func send_to(
 	payload_override: Variant = null,
 	hit_id_override: StringName = &""
 ) -> Dictionary:
-	var context := build_hit_context(receiver, payload_override, hit_id_override)
-	var report: Dictionary = _MESSAGE_DISPATCH_SUPPORT._dispatch_to_receiver(
+	var context: GFCombatHitContext = build_hit_context(receiver, payload_override, hit_id_override)
+	var report_value: Variant = _MESSAGE_DISPATCH_SUPPORT._dispatch_to_receiver(
 		enabled,
 		metadata,
 		receiver,
@@ -285,7 +285,8 @@ func send_to(
 		"Hit receiver is null.",
 		"Receiver does not expose receive_hit().",
 		"Receiver returned an invalid hit report."
-	) as Dictionary
+	)
+	var report: Dictionary = GFVariantData.as_dictionary(report_value)
 	_emit_send_result(context, receiver, report)
 	return report
 
@@ -310,7 +311,7 @@ func send_to_path(
 	payload_override: Variant = null,
 	hit_id_override: StringName = &""
 ) -> Dictionary:
-	var receiver := get_node_or_null(receiver_path)
+	var receiver: Node = get_node_or_null(receiver_path)
 	return send_to(receiver, payload_override, hit_id_override)
 
 
@@ -337,9 +338,9 @@ func broadcast_overlaps(
 	var candidates: Array = []
 	candidates.append_array(get_overlapping_areas())
 	candidates.append_array(get_overlapping_bodies())
-	var dispatch_host := _resolve_collision_dispatch_host()
+	var dispatch_host: Object = _resolve_collision_dispatch_host()
 	var reports: Array[Dictionary] = []
-	reports.assign(_MESSAGE_DISPATCH_SUPPORT._send_to_collision_candidates(
+	var report_values: Array = GFVariantData.to_array(_MESSAGE_DISPATCH_SUPPORT._send_to_collision_candidates(
 		dispatch_host,
 		candidates,
 		max_count,
@@ -348,6 +349,7 @@ func broadcast_overlaps(
 		&"receive_hit",
 		Callable(self, "_emit_collision_dispatch_result") if dispatch_host != self else Callable()
 	))
+	reports.assign(report_values)
 	return reports
 
 
@@ -355,7 +357,7 @@ func broadcast_overlaps(
 
 func _emit_send_result(context: GFCombatHitContext, receiver: Object, report: Dictionary) -> void:
 	hit_sent.emit(context, receiver, report)
-	if bool(report.get("ok", false)):
+	if GFVariantData.get_option_bool(report, "ok", false):
 		hit_accepted.emit(context, receiver, report)
 	else:
 		hit_rejected.emit(context, receiver, report)
@@ -372,14 +374,14 @@ func _emit_collision_dispatch_result(
 
 func _resolve_sender() -> Object:
 	if sender_path != NodePath(""):
-		var sender := get_node_or_null(sender_path)
+		var sender: Node = get_node_or_null(sender_path)
 		if sender != null:
 			return sender
 	return self
 
 
 func _resolve_collision_dispatch_host() -> Object:
-	var sender := _resolve_sender()
+	var sender: Object = _resolve_sender()
 	if sender != self and sender.has_method(&"send_to"):
 		return sender
 	return self
@@ -389,7 +391,7 @@ func _apply_collision_shape_config(config: GFHitCollisionShapeConfig2D) -> Colli
 	var configs: Array[GFHitCollisionShapeConfig2D] = []
 	if config != null:
 		configs.append(config)
-	var generated_shapes := _apply_collision_shape_configs(configs)
+	var generated_shapes: Array[CollisionShape2D] = _apply_collision_shape_configs(configs)
 	if generated_shapes.is_empty():
 		return null
 	return generated_shapes[0]
@@ -397,12 +399,12 @@ func _apply_collision_shape_config(config: GFHitCollisionShapeConfig2D) -> Colli
 
 func _apply_collision_shape_configs(configs: Array[GFHitCollisionShapeConfig2D]) -> Array[CollisionShape2D]:
 	var generated_shapes: Array[CollisionShape2D] = []
-	var generated_index := 0
+	var generated_index: int = 0
 	for config: GFHitCollisionShapeConfig2D in configs:
 		if config == null or config.shape == null:
 			continue
 
-		var collision_shape := _get_or_create_collision_shape(generated_index)
+		var collision_shape: CollisionShape2D = _get_or_create_collision_shape(generated_index)
 		if config.apply_to(collision_shape):
 			generated_shapes.append(collision_shape)
 			generated_index += 1
@@ -412,7 +414,7 @@ func _apply_collision_shape_configs(configs: Array[GFHitCollisionShapeConfig2D])
 
 
 func _get_or_create_collision_shape(index: int = 0) -> CollisionShape2D:
-	var collision_shape := get_node_or_null(_get_generated_collision_shape_name(index)) as CollisionShape2D
+	var collision_shape: CollisionShape2D = _get_collision_shape_2d_value(get_node_or_null(_get_generated_collision_shape_name(index)))
 	if collision_shape != null:
 		return collision_shape
 
@@ -423,9 +425,9 @@ func _get_or_create_collision_shape(index: int = 0) -> CollisionShape2D:
 
 
 func _clear_generated_collision_shapes_from_index(start_index: int) -> void:
-	var index := start_index
+	var index: int = start_index
 	while true:
-		var collision_shape := get_node_or_null(_get_generated_collision_shape_name(index)) as CollisionShape2D
+		var collision_shape: CollisionShape2D = _get_collision_shape_2d_value(get_node_or_null(_get_generated_collision_shape_name(index)))
 		if collision_shape == null:
 			return
 		remove_child(collision_shape)
@@ -437,3 +439,10 @@ func _get_generated_collision_shape_name(index: int) -> String:
 	if index <= 0:
 		return String(_GENERATED_COLLISION_SHAPE_NODE_NAME)
 	return "%s%d" % [String(_GENERATED_COLLISION_SHAPE_NODE_NAME), index + 1]
+
+
+func _get_collision_shape_2d_value(value: Variant) -> CollisionShape2D:
+	if value is CollisionShape2D:
+		var collision_shape: CollisionShape2D = value
+		return collision_shape
+	return null

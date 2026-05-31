@@ -125,7 +125,7 @@ func get_delta() -> Vector2:
 func get_source() -> Object:
 	if _source_ref == null:
 		return null
-	var source := _source_ref.get_ref()
+	var source: Object = _get_object(_source_ref.get_ref())
 	return source if is_instance_valid(source) else null
 
 
@@ -137,7 +137,7 @@ func get_source() -> Object:
 ## [br]
 ## @schema return: Dictionary，包含 session_id、drag_type、start_position、current_position、previous_position、delta、has_source 和 metadata。
 func to_dictionary() -> Dictionary:
-	var source := get_source()
+	var source: Object = get_source()
 	return {
 		"session_id": session_id,
 		"drag_type": drag_type,
@@ -148,3 +148,12 @@ func to_dictionary() -> Dictionary:
 		"has_source": source != null,
 		"metadata": metadata.duplicate(true),
 	}
+
+
+# --- 私有/辅助方法 ---
+
+func _get_object(value: Variant) -> Object:
+	if value is Object:
+		var object: Object = value
+		return object
+	return null

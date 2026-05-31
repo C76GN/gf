@@ -11,12 +11,6 @@
 class_name GFSourceSpan
 extends RefCounted
 
-
-# --- 常量 ---
-
-const _SCRIPT_PATH: String = "res://addons/gf/standard/foundation/validation/gf_source_span.gd"
-
-
 # --- 公共变量 ---
 
 ## 源文件或资源路径。
@@ -147,10 +141,10 @@ func apply_dict(data: Dictionary) -> void:
 	length = _read_non_negative_int(data, "length", length)
 	end_line = _read_non_negative_int(data, "end_line", end_line)
 	end_column = _read_non_negative_int(data, "end_column", end_column)
-	preview = String(data.get("preview", preview))
+	preview = GFVariantData.get_option_string(data, "preview", preview)
 
-	var metadata_value: Variant = data.get("metadata", metadata)
-	metadata = (metadata_value as Dictionary).duplicate(true) if metadata_value is Dictionary else {}
+	var metadata_value: Variant = GFVariantData.get_option_value(data, "metadata", metadata)
+	metadata = GFVariantData.as_dictionary(metadata_value).duplicate(true)
 
 
 ## 转换为字典。
@@ -193,8 +187,8 @@ func to_dict(include_empty_fields: bool = false, include_legacy_source_alias: bo
 ## [br]
 ## @return 新定位范围。
 func duplicate_span() -> RefCounted:
-	var span := get_script().new() as RefCounted
-	span.call("apply_dict", to_dict(true))
+	var span: GFSourceSpan = _new_span()
+	span.apply_dict(to_dict(true))
 	return span
 
 
@@ -257,7 +251,7 @@ func get_effective_end_column() -> int:
 ## [br]
 ## @return 例如 `res://table.csv:4:2`。
 func get_location_text() -> String:
-	var label := source_path
+	var label: String = source_path
 	if label.is_empty():
 		label = "source"
 	if line > 0 and column > 0:
@@ -287,7 +281,7 @@ func merge_into_dictionary(
 	include_empty_fields: bool = false,
 	include_legacy_source_alias: bool = false
 ) -> Dictionary:
-	var span_dict := to_dict(include_empty_fields, include_legacy_source_alias)
+	var span_dict: Dictionary = to_dict(include_empty_fields, include_legacy_source_alias)
 	for field_key: Variant in span_dict.keys():
 		target[field_key] = GFVariantData.duplicate_variant(span_dict[field_key])
 	return target
@@ -303,8 +297,8 @@ func merge_into_dictionary(
 ## [br]
 ## @schema data: Dictionary source span fields.
 static func from_dict(data: Dictionary) -> RefCounted:
-	var span := _new_span()
-	span.call("apply_dict", data)
+	var span: GFSourceSpan = _new_span()
+	span.apply_dict(data)
 	return span
 
 
@@ -319,16 +313,18 @@ static func from_dict(data: Dictionary) -> RefCounted:
 ## @schema issue: Variant GFValidationIssue-like object or Dictionary.
 static func from_issue(issue: Variant) -> RefCounted:
 	if issue is Dictionary:
-		var data := issue as Dictionary
-		if data.get("source_span") is Dictionary:
-			var nested_span := from_dict(data.get("source_span") as Dictionary)
-			nested_span.call("apply_dict", data)
+		var data: Dictionary = issue
+		var source_span_value: Variant = GFVariantData.get_option_value(data, "source_span")
+		if source_span_value is Dictionary:
+			var nested_span: GFSourceSpan = _new_span()
+			var nested_data: Dictionary = GFVariantData.as_dictionary(source_span_value)
+			nested_span.apply_dict(nested_data)
+			nested_span.apply_dict(data)
 			return nested_span
 		return from_dict(data)
-	if issue is Object and (issue as Object).has_method("get_source_span"):
-		var source_span: Variant = (issue as Object).call("get_source_span")
-		if source_span is Object and (source_span as Object).has_method("duplicate_span"):
-			return (source_span as Object).call("duplicate_span") as RefCounted
+	if issue is GFValidationIssue:
+		var validation_issue: GFValidationIssue = issue
+		return validation_issue.get_source_span()
 	return _new_span()
 
 
@@ -351,26 +347,29 @@ static func make(
 	p_column: int = 0,
 	p_length: int = 0
 ) -> RefCounted:
-	var span := _new_span()
-	span.call("configure", p_source_path, p_line, p_column, p_length)
+	var span: GFSourceSpan = _new_span()
+	var _configured_span: RefCounted = span.configure(p_source_path, p_line, p_column, p_length)
 	return span
 
 
 # --- 私有/辅助方法 ---
 
-static func _new_span() -> RefCounted:
-	return (load(_SCRIPT_PATH) as Script).new() as RefCounted
+static func _new_span() -> GFSourceSpan:
+	return GFSourceSpan.new()
 
 
 static func _read_source_path(data: Dictionary, default_value: String = "") -> String:
 	if data.has("source_path"):
-		return String(data.get("source_path", ""))
+		return GFVariantData.get_option_string(data, "source_path")
 	if data.has("source"):
-		return String(data.get("source", ""))
+		return GFVariantData.get_option_string(data, "source")
 	return default_value
 
 
 static func _read_non_negative_int(data: Dictionary, field_name: String, default_value: int) -> int:
 	if not data.has(field_name):
 		return default_value
-	return maxi(int(data.get(field_name, default_value)), 0)
+	var value: Variant = GFVariantData.get_option_value(data, field_name, default_value)
+	if value is float:
+		return maxi(roundi(GFVariantData.to_float(value, float(default_value))), 0)
+	return maxi(GFVariantData.to_int(value, default_value), 0)

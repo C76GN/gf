@@ -48,13 +48,13 @@ func calculate(_parameter: GFFormulaParameter = null) -> Variant:
 ## [br]
 ## @return float 结果。
 func calculate_float(parameter: GFFormulaParameter = null, fallback: float = 0.0) -> float:
-	var result := calculate(parameter)
+	var result: Variant = calculate(parameter)
 	if typeof(result) == TYPE_INT or typeof(result) == TYPE_FLOAT:
-		return float(result)
+		return GFVariantData.to_float(result)
 	if typeof(result) == TYPE_BOOL:
 		return 1.0 if result else 0.0
 	if typeof(result) == TYPE_STRING or typeof(result) == TYPE_STRING_NAME:
-		var text := String(result).strip_edges()
+		var text: String = GFVariantData.to_text(result).strip_edges()
 		if text.is_valid_float():
 			return text.to_float()
 		return fallback
@@ -71,7 +71,7 @@ func calculate_float(parameter: GFFormulaParameter = null, fallback: float = 0.0
 ## [br]
 ## @return int 结果。
 func calculate_int(parameter: GFFormulaParameter = null, fallback: int = 0) -> int:
-	return int(round(calculate_float(parameter, float(fallback))))
+	return GFVariantData.to_int(round(calculate_float(parameter, float(fallback))))
 
 
 ## 以 bool 形式执行公式。
@@ -84,13 +84,13 @@ func calculate_int(parameter: GFFormulaParameter = null, fallback: int = 0) -> i
 ## [br]
 ## @return bool 结果。
 func calculate_bool(parameter: GFFormulaParameter = null, fallback: bool = false) -> bool:
-	var result := calculate(parameter)
+	var result: Variant = calculate(parameter)
 	if typeof(result) == TYPE_BOOL:
-		return bool(result)
+		return GFVariantData.to_bool(result)
 	if typeof(result) == TYPE_INT or typeof(result) == TYPE_FLOAT:
-		return float(result) != 0.0
+		return GFVariantData.to_float(result) != 0.0
 	if typeof(result) == TYPE_STRING or typeof(result) == TYPE_STRING_NAME:
-		var text := String(result).to_lower()
+		var text: String = GFVariantData.to_text(result).to_lower()
 		if text == "true" or text == "yes" or text == "1":
 			return true
 		if text == "false" or text == "no" or text == "0":

@@ -80,7 +80,7 @@ func make_result(context: Dictionary = {}) -> GFModalResult:
 ## [br]
 ## @return 新动作声明。
 func duplicate_action() -> GFModalAction:
-	var action := GFModalAction.new()
+	var action: GFModalAction = GFModalAction.new()
 	action.action_id = action_id
 	action.label = label
 	action.result_status = result_status

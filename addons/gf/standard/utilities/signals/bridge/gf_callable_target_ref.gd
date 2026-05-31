@@ -64,7 +64,7 @@ func resolve_target(root: Node) -> Object:
 ## [br]
 ## @return 有效 Callable；无法解析时返回空 Callable。
 func get_callable(root: Node) -> Callable:
-	var target := resolve_target(root)
+	var target: Object = resolve_target(root)
 	if target == null or method_name == &"":
 		return Callable()
 	if not target.has_method(method_name):
@@ -97,7 +97,7 @@ func is_valid_for(root: Node) -> bool:
 ## [br]
 ## @schema return: Dictionary，包含 ok、reason 和 value。
 func call_with_args(root: Node, args: Array = []) -> Dictionary:
-	var callable := get_callable(root)
+	var callable: Callable = get_callable(root)
 	if not callable.is_valid():
 		return {
 			"ok": false,
@@ -105,7 +105,7 @@ func call_with_args(root: Node, args: Array = []) -> Dictionary:
 			"value": null,
 		}
 
-	var call_args := args.duplicate()
+	var call_args: Array = args.duplicate()
 	call_args.append_array(default_args)
 	return {
 		"ok": true,

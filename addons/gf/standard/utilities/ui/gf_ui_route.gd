@@ -84,11 +84,14 @@ func is_valid_route() -> bool:
 ## [br]
 ## @schema return: Dictionary，合并后的面板打开 options，至少包含 metadata.route_id，可能包含 metadata.route_params。
 func build_options(params: Dictionary = {}, option_overrides: Dictionary = {}) -> Dictionary:
-	var options := default_options.duplicate(true)
-	GFVariantData.merge_dictionary(options, option_overrides)
+	var options: Dictionary = default_options.duplicate(true)
+	var _merge_dictionary_result_88: Variant = GFVariantData.merge_dictionary(options, option_overrides)
 
-	var merged_metadata := GFVariantData.duplicate_metadata(metadata)
-	GFVariantData.merge_metadata(merged_metadata, GFVariantData.get_option_dictionary(options, "metadata"))
+	var merged_metadata: Dictionary = GFVariantData.duplicate_metadata(metadata)
+	var _merge_metadata_result_91: Variant = GFVariantData.merge_metadata(
+		merged_metadata,
+		GFVariantData.get_option_dictionary(options, "metadata")
+	)
 	merged_metadata["route_id"] = get_route_id()
 	if not params.is_empty():
 		merged_metadata["route_params"] = params.duplicate(true)

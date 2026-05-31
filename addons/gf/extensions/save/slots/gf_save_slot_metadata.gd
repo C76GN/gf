@@ -83,7 +83,7 @@ extends Resource
 ## [br]
 ## @schema return: Dictionary，可包含 slot_id、display_name、description、schema_id、schema_version、app_version、created_at_unix、updated_at_unix、elapsed_seconds、tags 与 custom_metadata。
 func to_dict(include_empty: bool = true) -> Dictionary:
-	var result := {
+	var result: Dictionary = {
 		"slot_id": slot_id,
 		"display_name": display_name,
 		"description": description,
@@ -101,7 +101,7 @@ func to_dict(include_empty: bool = true) -> Dictionary:
 
 	for key: Variant in result.keys():
 		if _is_empty_metadata_value(result[key]):
-			result.erase(key)
+			var _erased: bool = result.erase(key)
 	return result
 
 
@@ -125,28 +125,27 @@ func to_patch_dict() -> Dictionary:
 ## @schema data: Dictionary，可包含 slot_id、display_name、description、schema_id、schema_version、app_version、created_at_unix、updated_at_unix、elapsed_seconds、tags 与 custom_metadata。
 func apply_dict(data: Dictionary) -> void:
 	if data.has("slot_id"):
-		slot_id = StringName(data["slot_id"])
+		slot_id = GFVariantData.to_string_name(data["slot_id"])
 	if data.has("display_name"):
-		display_name = String(data["display_name"])
+		display_name = GFVariantData.to_text(data["display_name"])
 	if data.has("description"):
-		description = String(data["description"])
+		description = GFVariantData.to_text(data["description"])
 	if data.has("schema_id"):
-		schema_id = StringName(data["schema_id"])
+		schema_id = GFVariantData.to_string_name(data["schema_id"])
 	if data.has("schema_version"):
-		schema_version = maxi(int(data["schema_version"]), 1)
+		schema_version = maxi(GFVariantData.to_int(data["schema_version"]), 1)
 	if data.has("app_version"):
-		app_version = String(data["app_version"])
+		app_version = GFVariantData.to_text(data["app_version"])
 	if data.has("created_at_unix"):
-		created_at_unix = int(data["created_at_unix"])
+		created_at_unix = GFVariantData.to_int(data["created_at_unix"])
 	if data.has("updated_at_unix"):
-		updated_at_unix = int(data["updated_at_unix"])
+		updated_at_unix = GFVariantData.to_int(data["updated_at_unix"])
 	if data.has("elapsed_seconds"):
-		elapsed_seconds = maxf(float(data["elapsed_seconds"]), 0.0)
+		elapsed_seconds = maxf(GFVariantData.to_float(data["elapsed_seconds"]), 0.0)
 	if data.has("tags"):
-		tags = _to_string_array(data["tags"])
+		tags = PackedStringArray(GFVariantData.to_string_array(data["tags"]))
 	if data.has("custom_metadata"):
-		var custom := data["custom_metadata"] as Dictionary
-		custom_metadata = custom.duplicate(true) if custom != null else {}
+		custom_metadata = GFVariantData.get_option_dictionary(data, "custom_metadata")
 
 
 ## 创建深拷贝。
@@ -179,19 +178,19 @@ func get_display_name(fallback: String = "") -> String:
 ## [br]
 ## @schema return: Dictionary，包含 ok、healthy、issues、issue_count、warning_count、error_count、summary 与 next_actions 等校验报告字段。
 func validate_metadata() -> Dictionary:
-	var report := {
+	var report: Dictionary = {
 		"issues": [],
 	}
 	if slot_id == &"":
-		GFValidationReportDictionary.append_issue(report, "warning", &"empty_slot_id", "Slot id is empty.", {
+		var _append_issue_result_185: Variant = GFValidationReportDictionary.append_issue(report, "warning", &"empty_slot_id", "Slot id is empty.", {
 			"path": "slot_id",
 		})
 	if schema_version <= 0:
-		GFValidationReportDictionary.append_issue(report, "error", &"invalid_schema_version", "Schema version must be positive.", {
+		var _append_issue_result_189: Variant = GFValidationReportDictionary.append_issue(report, "error", &"invalid_schema_version", "Schema version must be positive.", {
 			"path": "schema_version",
 		})
 	if elapsed_seconds < 0.0:
-		GFValidationReportDictionary.append_issue(report, "error", &"invalid_elapsed_seconds", "Elapsed seconds cannot be negative.", {
+		var _append_issue_result_193: Variant = GFValidationReportDictionary.append_issue(report, "error", &"invalid_elapsed_seconds", "Elapsed seconds cannot be negative.", {
 			"path": "elapsed_seconds",
 		})
 	return GFValidationReportDictionary.finalize_report(report, "Save slot metadata", {
@@ -212,7 +211,7 @@ func validate_metadata() -> Dictionary:
 ## [br]
 ## @schema data: Dictionary，字段同 to_dict() 返回值。
 static func from_dict(data: Dictionary) -> GFSaveSlotMetadata:
-	var metadata := GFSaveSlotMetadata.new()
+	var metadata: GFSaveSlotMetadata = GFSaveSlotMetadata.new()
 	metadata.apply_dict(data)
 	return metadata
 
@@ -235,11 +234,11 @@ static func from_values(
 	p_display_name: String = "",
 	p_custom_metadata: Dictionary = {}
 ) -> GFSaveSlotMetadata:
-	var metadata := GFSaveSlotMetadata.new()
+	var metadata: GFSaveSlotMetadata = GFSaveSlotMetadata.new()
 	metadata.slot_id = p_slot_id
 	metadata.display_name = p_display_name
 	metadata.custom_metadata = p_custom_metadata.duplicate(true)
-	var now := int(Time.get_unix_time_from_system())
+	var now: int = int(Time.get_unix_time_from_system())
 	metadata.created_at_unix = now
 	metadata.updated_at_unix = now
 	return metadata
@@ -251,25 +250,18 @@ func _is_empty_metadata_value(value: Variant) -> bool:
 	if value == null:
 		return true
 	if value is String or value is StringName:
-		return String(value).is_empty()
-	if value is Array or value is PackedStringArray:
-		return value.is_empty()
-	if value is Dictionary:
-		return (value as Dictionary).is_empty()
-	if value is int or value is float:
-		return float(value) == 0.0
-	return false
-
-
-func _to_string_array(value: Variant) -> PackedStringArray:
-	if value is PackedStringArray:
-		return value
-
-	var result := PackedStringArray()
+		return GFVariantData.to_text(value).is_empty()
 	if value is Array:
-		for item: Variant in value:
-			result.append(String(item))
-	return result
+		var array: Array = value
+		return array.is_empty()
+	if value is PackedStringArray:
+		var string_array: PackedStringArray = value
+		return string_array.is_empty()
+	if value is Dictionary:
+		return GFVariantData.as_dictionary(value).is_empty()
+	if value is int or value is float:
+		return GFVariantData.to_float(value) == 0.0
+	return false
 
 
 func _get_validation_next_actions() -> Dictionary:

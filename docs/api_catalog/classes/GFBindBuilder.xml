@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFBindBuilder" path="addons/gf/kernel/core/gf_bind_builder.gd" module="kernel" extends="RefCounted" classDigest="e7ebc32caed2aff74489da4d5123202bf4a1a500c3070f1f971c447efc7da8b3">
+<class name="GFBindBuilder" path="addons/gf/kernel/core/gf_bind_builder.gd" module="kernel" extends="RefCounted" classDigest="04cf52cbfb428fa90b3f9342289a89ae5bfb7a80bfac1a4772317144be24375b">
 	<description>GFBindBuilder: 声明式装配链，用于把脚本绑定为模块或短生命周期工厂。</description>
 	<tags>
 		<tag name="api">public</tag>
@@ -12,42 +12,30 @@
 	<properties />
 	<methods>
 		<member kind="method" name="from_factory">
-			<signature>func from_factory(factory: Callable) -&gt; Variant:</signature>
-			<description>使用 Callable 作为绑定来源。
-"type": "Variant",
-"description": "当前 GFBindBuilder 实例。"
-}</description>
+			<signature>func from_factory(factory: Callable) -&gt; GFBindBuilder:</signature>
+			<description>使用 Callable 作为绑定来源。</description>
 			<tags>
 				<tag name="api">public</tag>
 				<tag name="param">factory: 返回 Object 实例的工厂。</tag>
 				<tag name="return">当前 Builder，便于继续声明生命周期。</tag>
-				<tag name="schema">return {</tag>
 			</tags>
 		</member>
 		<member kind="method" name="from_instance">
-			<signature>func from_instance(instance: Object) -&gt; Variant:</signature>
-			<description>使用已有实例作为绑定来源。
-"type": "Variant",
-"description": "当前 GFBindBuilder 实例。"
-}</description>
+			<signature>func from_instance(instance: Object) -&gt; GFBindBuilder:</signature>
+			<description>使用已有实例作为绑定来源。</description>
 			<tags>
 				<tag name="api">public</tag>
 				<tag name="param">instance: 要注册或暴露的实例。</tag>
 				<tag name="return">当前 Builder，便于继续声明生命周期。</tag>
-				<tag name="schema">return {</tag>
 			</tags>
 		</member>
 		<member kind="method" name="with_alias">
-			<signature>func with_alias(alias_cls: Script) -&gt; Variant:</signature>
-			<description>额外登记一个查询别名。仅对 Model/System/Utility 有效。
-"type": "Variant",
-"description": "当前 GFBindBuilder 实例。"
-}</description>
+			<signature>func with_alias(alias_cls: Script) -&gt; GFBindBuilder:</signature>
+			<description>额外登记一个查询别名。仅对 Model/System/Utility 有效。</description>
 			<tags>
 				<tag name="api">public</tag>
 				<tag name="param">alias_cls: 调用 get_* 时使用的抽象脚本类型。</tag>
 				<tag name="return">当前 Builder，便于继续声明生命周期。</tag>
-				<tag name="schema">return {</tag>
 			</tags>
 		</member>
 		<member kind="method" name="as_singleton">

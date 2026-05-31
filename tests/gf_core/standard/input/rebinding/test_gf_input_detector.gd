@@ -2,14 +2,9 @@
 extends GutTest
 
 
-# --- 常量 ---
-
-const GFInputDetectorBase = preload("res://addons/gf/standard/input/rebinding/gf_input_detector.gd")
-
-
 # --- 私有变量 ---
 
-var _detector: GFInputDetectorBase
+var _detector: GFInputDetector
 var _received_event: InputEvent
 
 
@@ -17,9 +12,9 @@ var _received_event: InputEvent
 
 func before_each() -> void:
 	_received_event = null
-	_detector = GFInputDetectorBase.new()
+	_detector = GFInputDetector.new()
 	get_tree().root.add_child(_detector)
-	_detector.input_detected.connect(func(input_event: InputEvent) -> void:
+	var _connect_result_17: Variant = _detector.input_detected.connect(func(input_event: InputEvent) -> void:
 		_received_event = input_event
 	)
 
@@ -78,14 +73,14 @@ func test_detection_state_reports_accepting_phase() -> void:
 
 	_detector.begin_detection()
 
-	assert_eq(_detector.get_detection_state(), GFInputDetectorBase.DetectionState.DETECTING, "检测器应立即进入接收阶段。")
+	assert_eq(_detector.get_detection_state(), GFInputDetector.DetectionState.DETECTING, "检测器应立即进入接收阶段。")
 	assert_true(_detector.is_accepting_input(), "接收阶段应允许候选输入。")
 
 
 # --- 私有/辅助方法 ---
 
 func _make_key_event(key: Key, pressed: bool) -> InputEventKey:
-	var event := InputEventKey.new()
+	var event: InputEventKey = InputEventKey.new()
 	event.keycode = key
 	event.physical_keycode = key
 	event.pressed = pressed
@@ -93,7 +88,7 @@ func _make_key_event(key: Key, pressed: bool) -> InputEventKey:
 
 
 func _make_joy_motion_event(axis: JoyAxis, axis_value: float) -> InputEventJoypadMotion:
-	var event := InputEventJoypadMotion.new()
+	var event: InputEventJoypadMotion = InputEventJoypadMotion.new()
 	event.axis = axis
 	event.axis_value = axis_value
 	return event

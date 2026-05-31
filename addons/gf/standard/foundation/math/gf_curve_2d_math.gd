@@ -30,7 +30,7 @@ const CIRCLE_BEZIER_KAPPA: float = 0.5522847498307936
 ## [br]
 ## @return 折线长度；少于两个点时返回 0。
 static func get_polyline_length(points: PackedVector2Array) -> float:
-	var length := 0.0
+	var length: float = 0.0
 	for index: int in range(1, points.size()):
 		length += points[index - 1].distance_to(points[index])
 	return length
@@ -57,27 +57,27 @@ static func sample_polyline(
 	if points.size() == 1:
 		return points[0]
 
-	var clamped_ratio := clampf(ratio, 0.0, 1.0)
+	var clamped_ratio: float = clampf(ratio, 0.0, 1.0)
 	if clamped_ratio <= 0.0:
 		return points[0]
 	if clamped_ratio >= 1.0:
 		return points[points.size() - 1]
 
-	var length := total_length if total_length >= 0.0 else get_polyline_length(points)
+	var length: float = total_length if total_length >= 0.0 else get_polyline_length(points)
 	if length <= 0.0:
 		return points[points.size() - 1]
 
-	var target_distance := length * clamped_ratio
-	var travelled := 0.0
+	var target_distance: float = length * clamped_ratio
+	var travelled: float = 0.0
 	for index: int in range(1, points.size()):
-		var from_point := points[index - 1]
-		var to_point := points[index]
-		var segment_length := from_point.distance_to(to_point)
+		var from_point: Vector2 = points[index - 1]
+		var to_point: Vector2 = points[index]
+		var segment_length: float = from_point.distance_to(to_point)
 		if segment_length <= 0.0:
 			continue
 
 		if travelled + segment_length >= target_distance:
-			var segment_ratio := (target_distance - travelled) / segment_length
+			var segment_ratio: float = (target_distance - travelled) / segment_length
 			return from_point.lerp(to_point, segment_ratio)
 		travelled += segment_length
 
@@ -101,7 +101,7 @@ static func sample_curve(curve: Curve2D, ratio: float, cubic: bool = false) -> V
 	if curve.point_count == 1:
 		return curve.get_point_position(0)
 
-	var length := curve.get_baked_length()
+	var length: float = curve.get_baked_length()
 	if length <= 0.0:
 		return curve.get_point_position(curve.point_count - 1)
 
@@ -127,16 +127,16 @@ static func simplify_polyline_by_distance(
 	if points.size() <= 2 or min_distance <= 0.0:
 		return points.duplicate()
 
-	var simplified := PackedVector2Array()
-	simplified.append(points[0])
-	var min_distance_squared := min_distance * min_distance
+	var simplified: PackedVector2Array = PackedVector2Array()
+	var _first_point_appended: bool = simplified.append(points[0])
+	var min_distance_squared: float = min_distance * min_distance
 	for index: int in range(1, points.size()):
 		if points[index].distance_squared_to(simplified[simplified.size() - 1]) >= min_distance_squared:
-			simplified.append(points[index])
+			var _point_appended: bool = simplified.append(points[index])
 
-	var last_point := points[points.size() - 1]
+	var last_point: Vector2 = points[points.size() - 1]
 	if keep_last and simplified[simplified.size() - 1] != last_point:
-		simplified.append(last_point)
+		var _last_point_appended: bool = simplified.append(last_point)
 	return simplified
 
 
@@ -184,9 +184,9 @@ static func set_rect_curve(
 	offset: Vector2 = Vector2.ZERO,
 	rotation: float = 0.0
 ) -> Curve2D:
-	var target_curve := curve if curve != null else Curve2D.new()
-	var half_size := Vector2(absf(size.x), absf(size.y)) * 0.5
-	var clamped_radius := Vector2(
+	var target_curve: Curve2D = curve if curve != null else Curve2D.new()
+	var half_size: Vector2 = Vector2(absf(size.x), absf(size.y)) * 0.5
+	var clamped_radius: Vector2 = Vector2(
 		clampf(absf(radius.x), 0.0, half_size.x),
 		clampf(absf(radius.y), 0.0, half_size.y)
 	)
@@ -242,8 +242,8 @@ static func set_ellipse_curve(
 	offset: Vector2 = Vector2.ZERO,
 	rotation: float = 0.0
 ) -> Curve2D:
-	var target_curve := curve if curve != null else Curve2D.new()
-	var radius := Vector2(absf(size.x), absf(size.y)) * 0.5
+	var target_curve: Curve2D = curve if curve != null else Curve2D.new()
+	var radius: Vector2 = Vector2(absf(size.x), absf(size.y)) * 0.5
 
 	target_curve.set_block_signals(true)
 	target_curve.clear_points()
@@ -259,10 +259,10 @@ static func set_ellipse_curve(
 # --- 私有/辅助方法 ---
 
 static func _add_corner_points(curve: Curve2D, half_size: Vector2, offset: Vector2, rotation: float) -> void:
-	var top_left := Vector2(-half_size.x, -half_size.y)
-	var top_right := Vector2(half_size.x, -half_size.y)
-	var bottom_right := Vector2(half_size.x, half_size.y)
-	var bottom_left := Vector2(-half_size.x, half_size.y)
+	var top_left: Vector2 = Vector2(-half_size.x, -half_size.y)
+	var top_right: Vector2 = Vector2(half_size.x, -half_size.y)
+	var bottom_right: Vector2 = Vector2(half_size.x, half_size.y)
+	var bottom_left: Vector2 = Vector2(-half_size.x, half_size.y)
 	curve.add_point(_transform_point(top_left, offset, rotation))
 	curve.add_point(_transform_point(top_right, offset, rotation))
 	curve.add_point(_transform_point(bottom_right, offset, rotation))
@@ -277,14 +277,14 @@ static func _add_rounded_rect_points(
 	offset: Vector2,
 	rotation: float
 ) -> void:
-	var left := -half_size.x
-	var right := half_size.x
-	var top := -half_size.y
-	var bottom := half_size.y
-	var rx := radius.x
-	var ry := radius.y
-	var ox := rx * CIRCLE_BEZIER_KAPPA
-	var oy := ry * CIRCLE_BEZIER_KAPPA
+	var left: float = -half_size.x
+	var right: float = half_size.x
+	var top: float = -half_size.y
+	var bottom: float = half_size.y
+	var rx: float = radius.x
+	var ry: float = radius.y
+	var ox: float = rx * CIRCLE_BEZIER_KAPPA
+	var oy: float = ry * CIRCLE_BEZIER_KAPPA
 
 	_add_transformed_point(curve, Vector2(right - rx, top), Vector2.ZERO, Vector2(ox, 0.0), offset, rotation)
 	_add_transformed_point(curve, Vector2(right, top + ry), Vector2(0.0, -oy), Vector2.ZERO, offset, rotation)
@@ -303,8 +303,8 @@ static func _add_ellipse_points(
 	offset: Vector2,
 	rotation: float
 ) -> void:
-	var ox := radius.x * CIRCLE_BEZIER_KAPPA
-	var oy := radius.y * CIRCLE_BEZIER_KAPPA
+	var ox: float = radius.x * CIRCLE_BEZIER_KAPPA
+	var oy: float = radius.y * CIRCLE_BEZIER_KAPPA
 	_add_transformed_point(curve, Vector2(radius.x, 0.0), Vector2.ZERO, Vector2(0.0, oy), offset, rotation)
 	_add_transformed_point(curve, Vector2.ZERO + Vector2(0.0, radius.y), Vector2(ox, 0.0), Vector2(-ox, 0.0), offset, rotation)
 	_add_transformed_point(curve, Vector2(-radius.x, 0.0), Vector2(0.0, oy), Vector2(0.0, -oy), offset, rotation)

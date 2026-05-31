@@ -79,8 +79,12 @@ extends Resource
 ## [br]
 ## @schema source_metadata: Dictionary，包含可选 groups_key / tags_key 条目，值可为字符串或字符串数组。
 func allows_metadata(source_metadata: Dictionary) -> bool:
-	var groups := _to_packed_string_array(source_metadata.get(groups_key, PackedStringArray()))
-	var tags := _to_packed_string_array(source_metadata.get(tags_key, PackedStringArray()))
+	var groups: PackedStringArray = _to_packed_string_array(
+		GFVariantData.get_option_value(source_metadata, groups_key, PackedStringArray())
+	)
+	var tags: PackedStringArray = _to_packed_string_array(
+		GFVariantData.get_option_value(source_metadata, tags_key, PackedStringArray())
+	)
 	if groups.is_empty() and tags.is_empty():
 		return default_include
 	if _intersects(groups, exclude_groups) or _intersects(tags, exclude_tags):
@@ -103,7 +107,7 @@ func filter_schema(schema: GFConfigTableSchema) -> GFConfigTableSchema:
 	if schema == null:
 		return null
 
-	var result := schema.duplicate_schema()
+	var result: GFConfigTableSchema = schema.duplicate_schema()
 	result.columns = _filter_columns(result.columns)
 	result.indexes = _filter_indexes(result.indexes, result.get_column_names())
 	result.references = _filter_references(result.references, result.get_column_names())
@@ -124,21 +128,22 @@ func filter_schema(schema: GFConfigTableSchema) -> GFConfigTableSchema:
 func filter_records(table_data: Variant) -> Variant:
 	if table_data is Array:
 		var rows: Array[Dictionary] = []
-		for row_variant: Variant in table_data as Array:
+		var table_rows: Array = table_data
+		for row_variant: Variant in table_rows:
 			if not (row_variant is Dictionary):
 				continue
-			var row := (row_variant as Dictionary).duplicate(true)
+			var row: Dictionary = GFVariantData.to_dictionary(row_variant)
 			if allows_metadata(_get_record_metadata(row)):
 				rows.append(row)
 		return rows
 	if table_data is Dictionary:
 		var result: Dictionary = {}
-		var table := table_data as Dictionary
+		var table: Dictionary = table_data
 		for key: Variant in table.keys():
 			var row_variant: Variant = table[key]
 			if not (row_variant is Dictionary):
 				continue
-			var row := (row_variant as Dictionary).duplicate(true)
+			var row: Dictionary = GFVariantData.to_dictionary(row_variant)
 			if allows_metadata(_get_record_metadata(row)):
 				result[key] = row
 		return result
@@ -151,7 +156,7 @@ func filter_records(table_data: Variant) -> Variant:
 ## [br]
 ## @return 新 Profile。
 func duplicate_profile() -> GFConfigBuildProfile:
-	return duplicate(true) as GFConfigBuildProfile
+	return _variant_to_build_profile(duplicate(true))
 
 
 ## 导出 Profile 摘要。
@@ -206,13 +211,13 @@ func _filter_references(
 	column_names: PackedStringArray
 ) -> Array[GFConfigTableReference]:
 	var result: Array[GFConfigTableReference] = []
-	for reference: GFConfigTableReference in references:
-		if reference == null:
+	for reference_definition: GFConfigTableReference in references:
+		if reference_definition == null:
 			continue
-		if not reference.metadata.is_empty() and not allows_metadata(reference.metadata):
+		if not reference_definition.metadata.is_empty() and not allows_metadata(reference_definition.metadata):
 			continue
-		if _all_fields_exist(reference.source_fields, column_names):
-			result.append(reference)
+		if _all_fields_exist(reference_definition.source_fields, column_names):
+			result.append(reference_definition)
 	return result
 
 
@@ -224,8 +229,8 @@ func _all_fields_exist(fields: PackedStringArray, column_names: PackedStringArra
 
 
 func _get_record_metadata(record: Dictionary) -> Dictionary:
-	var value: Variant = record.get(record_metadata_field, {})
-	return (value as Dictionary) if value is Dictionary else {}
+	var value: Variant = GFVariantData.get_option_value(record, record_metadata_field, {})
+	return GFVariantData.as_dictionary(value)
 
 
 func _intersects(left: PackedStringArray, right: PackedStringArray) -> bool:
@@ -236,12 +241,20 @@ func _intersects(left: PackedStringArray, right: PackedStringArray) -> bool:
 
 
 func _to_packed_string_array(value: Variant) -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	if value is PackedStringArray:
-		return (value as PackedStringArray).duplicate()
+		var packed: PackedStringArray = value
+		return packed.duplicate()
 	if value is Array:
 		for item: Variant in value:
-			result.append(String(item))
+			var _array_item_appended: bool = result.append(GFVariantData.to_text(item))
 	elif typeof(value) == TYPE_STRING or typeof(value) == TYPE_STRING_NAME:
-		result.append(String(value))
+		var _text_item_appended: bool = result.append(GFVariantData.to_text(value))
 	return result
+
+
+func _variant_to_build_profile(value: Variant) -> GFConfigBuildProfile:
+	if value is GFConfigBuildProfile:
+		var profile: GFConfigBuildProfile = value
+		return profile
+	return null

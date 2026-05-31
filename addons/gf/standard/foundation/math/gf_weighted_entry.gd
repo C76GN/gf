@@ -74,7 +74,7 @@ func is_selectable() -> bool:
 ## [br]
 ## @return 新条目实例。
 func duplicate_entry(deep: bool = true) -> GFWeightedEntry:
-	var entry := GFWeightedEntry.new()
+	var entry: GFWeightedEntry = GFWeightedEntry.new()
 	entry.value = GFVariantData.duplicate_variant(value, deep, true)
 	entry.weight = weight
 	entry.metadata = metadata.duplicate(deep)
@@ -106,9 +106,9 @@ func to_dict() -> Dictionary:
 ## [br]
 ## @return 新条目实例。
 static func from_dict(data: Dictionary) -> GFWeightedEntry:
-	var entry := GFWeightedEntry.new()
-	entry.value = data.get("value", null)
-	entry.weight = float(data.get("weight", 1.0))
-	var raw_metadata: Variant = data.get("metadata", {})
-	entry.metadata = raw_metadata.duplicate(true) if typeof(raw_metadata) == TYPE_DICTIONARY else {}
+	var entry: GFWeightedEntry = GFWeightedEntry.new()
+	entry.value = GFVariantData.get_option_value(data, "value")
+	entry.weight = GFVariantData.get_option_float(data, "weight", 1.0)
+	var raw_metadata: Variant = GFVariantData.get_option_value(data, "metadata", {})
+	entry.metadata = GFVariantData.as_dictionary(raw_metadata)
 	return entry

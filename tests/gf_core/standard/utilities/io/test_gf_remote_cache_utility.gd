@@ -2,38 +2,6 @@
 extends GutTest
 
 
-const GFRemoteCacheUtilityBase = preload("res://addons/gf/standard/utilities/io/gf_remote_cache_utility.gd")
-
-
-# --- 辅助子类 ---
-
-class FakeRemoteCacheUtility:
-	extends GFRemoteCacheUtilityBase
-
-	var responses: Array[Dictionary] = []
-	var request_count: int = 0
-
-	func _start_http_request(_request_data: Dictionary) -> Error:
-		request_count += 1
-		var response := {
-			"success": true,
-			"response_code": 200,
-			"content": "",
-			"error": "",
-		}
-		if not responses.is_empty():
-			response = responses.pop_front()
-
-		call_deferred(
-			"_complete_active_request",
-			bool(response.get("success", true)),
-			int(response.get("response_code", 200)),
-			String(response.get("content", "")),
-			String(response.get("error", ""))
-		)
-		return OK
-
-
 # --- 私有变量 ---
 
 var _cache: FakeRemoteCacheUtility
@@ -76,14 +44,14 @@ func test_fetch_text_writes_and_reuses_cache() -> void:
 
 	assert_eq(results.size(), 2, "第二次请求应直接命中缓存。")
 	assert_eq(_cache.request_count, 1, "缓存命中不应再次启动 HTTP 请求。")
-	assert_false(bool(results[0]["from_cache"]), "首次请求不应来自缓存。")
-	assert_true(bool(results[1]["from_cache"]), "第二次请求应来自缓存。")
-	assert_eq(results[1]["content"], "payload", "缓存内容应保持一致。")
+	assert_false(GFVariantData.get_option_bool(results[0], "from_cache"), "首次请求不应来自缓存。")
+	assert_true(GFVariantData.get_option_bool(results[1], "from_cache"), "第二次请求应来自缓存。")
+	assert_eq(GFVariantData.get_option_string(results[1], "content"), "payload", "缓存内容应保持一致。")
 
 
 func test_fetch_text_overwrites_cache_without_sidecar_files() -> void:
-	var cache_key := "stable-cache-key"
-	var url := "https://example.test/text"
+	var cache_key: String = "stable-cache-key"
+	var url: String = "https://example.test/text"
 	_cache.cache_key_builder = func(_url: String, _headers: PackedStringArray, _format: StringName) -> String:
 		return cache_key
 	_cache.responses.append({
@@ -102,8 +70,10 @@ func test_fetch_text_overwrites_cache_without_sidecar_files() -> void:
 	_cache.fetch_text(url, Callable(), -1, true)
 	await get_tree().process_frame
 
-	var cache_file_name := "%s.cache" % cache_key.md5_text()
-	var cache_file_names := _list_file_names(String(_cache.get_debug_snapshot()["cache_dir_path"]))
+	var cache_file_name: String = "%s.cache" % cache_key.md5_text()
+	var cache_file_names: PackedStringArray = _list_file_names(
+		GFVariantData.get_option_string(_cache.get_debug_snapshot(), "cache_dir_path")
+	)
 
 	assert_eq(_cache.get_cached_text(url), "second", "缓存提交后应读取最新内容。")
 	assert_true(cache_file_names.has(cache_file_name), "最终缓存文件应存在。")
@@ -125,8 +95,9 @@ func test_fetch_json_parses_data() -> void:
 	await get_tree().process_frame
 
 	assert_eq(results.size(), 1, "JSON 请求应返回一次结果。")
-	assert_true(bool(results[0]["success"]), "合法 JSON 应返回成功。")
-	assert_eq(int((results[0]["data"] as Dictionary)["value"]), 3, "JSON 内容应被解析到 data。")
+	assert_true(GFVariantData.get_option_bool(results[0], "success"), "合法 JSON 应返回成功。")
+	var data: Dictionary = GFVariantData.get_option_dictionary(results[0], "data")
+	assert_eq(GFVariantData.get_option_int(data, "value"), 3, "JSON 内容应被解析到 data。")
 
 
 func test_invalid_json_response_is_not_written_to_cache() -> void:
@@ -153,9 +124,10 @@ func test_invalid_json_response_is_not_written_to_cache() -> void:
 	await get_tree().process_frame
 
 	assert_eq(_cache.request_count, 2, "无效 JSON 不应写入缓存并阻止后续刷新。")
-	assert_false(bool(results[0]["success"]), "无效 JSON 应返回失败。")
-	assert_true(bool(results[1]["success"]), "后续合法 JSON 应可成功返回。")
-	assert_eq(int((results[1]["data"] as Dictionary)["value"]), 4, "合法 JSON 应被解析。")
+	assert_false(GFVariantData.get_option_bool(results[0], "success"), "无效 JSON 应返回失败。")
+	assert_true(GFVariantData.get_option_bool(results[1], "success"), "后续合法 JSON 应可成功返回。")
+	var data: Dictionary = GFVariantData.get_option_dictionary(results[1], "data")
+	assert_eq(GFVariantData.get_option_int(data, "value"), 4, "合法 JSON 应被解析。")
 
 
 func test_cache_key_separates_text_and_json_for_same_url() -> void:
@@ -181,8 +153,9 @@ func test_cache_key_separates_text_and_json_for_same_url() -> void:
 	await get_tree().process_frame
 
 	assert_eq(_cache.request_count, 2, "同 URL 的 text/json 缓存不应串用。")
-	assert_eq(results[0]["content"], "plain", "文本缓存应保留原始文本。")
-	assert_eq(int((results[1]["data"] as Dictionary)["value"]), 5, "JSON 请求应读取独立响应。")
+	assert_eq(GFVariantData.get_option_string(results[0], "content"), "plain", "文本缓存应保留原始文本。")
+	var data: Dictionary = GFVariantData.get_option_dictionary(results[1], "data")
+	assert_eq(GFVariantData.get_option_int(data, "value"), 5, "JSON 请求应读取独立响应。")
 
 
 func test_failed_refresh_uses_stale_cache() -> void:
@@ -208,10 +181,10 @@ func test_failed_refresh_uses_stale_cache() -> void:
 	await get_tree().process_frame
 
 	assert_eq(results.size(), 2, "刷新失败也应返回回调结果。")
-	assert_true(bool(results[1]["success"]), "存在陈旧缓存时刷新失败应回退成功。")
-	assert_true(bool(results[1]["from_cache"]), "刷新失败回退结果应来自缓存。")
-	assert_true(bool(results[1]["stale"]), "刷新失败回退结果应标记为陈旧缓存。")
-	assert_eq(results[1]["content"], "old", "刷新失败应返回此前缓存内容。")
+	assert_true(GFVariantData.get_option_bool(results[1], "success"), "存在陈旧缓存时刷新失败应回退成功。")
+	assert_true(GFVariantData.get_option_bool(results[1], "from_cache"), "刷新失败回退结果应来自缓存。")
+	assert_true(GFVariantData.get_option_bool(results[1], "stale"), "刷新失败回退结果应标记为陈旧缓存。")
+	assert_eq(GFVariantData.get_option_string(results[1], "content"), "old", "刷新失败应返回此前缓存内容。")
 
 
 func test_same_cache_key_requests_are_coalesced() -> void:
@@ -232,7 +205,7 @@ func test_same_cache_key_requests_are_coalesced() -> void:
 
 	assert_eq(_cache.request_count, 1, "相同缓存 key 的并发请求应合并为一次 HTTP。")
 	assert_eq(results.size(), 2, "合并请求仍应回调所有调用方。")
-	assert_eq(results[0]["content"], "shared", "合并请求应共享同一结果。")
+	assert_eq(GFVariantData.get_option_string(results[0], "content"), "shared", "合并请求应共享同一结果。")
 
 
 func test_pending_request_limit_rejects_excess_requests() -> void:
@@ -252,8 +225,8 @@ func test_pending_request_limit_rejects_excess_requests() -> void:
 	)
 
 	assert_eq(results.size(), 1, "超过 pending 上限的请求应立即回调失败。")
-	assert_false(bool(results[0]["success"]), "超过 pending 上限的请求应失败。")
-	assert_eq(results[0]["error"], "Pending request limit exceeded", "失败原因应明确。")
+	assert_false(GFVariantData.get_option_bool(results[0], "success"), "超过 pending 上限的请求应失败。")
+	assert_eq(GFVariantData.get_option_string(results[0], "error"), "Pending request limit exceeded", "失败原因应明确。")
 	await get_tree().process_frame
 	await get_tree().process_frame
 
@@ -269,26 +242,55 @@ func test_cancel_drops_pending_request_without_callback() -> void:
 	_cache.fetch_text("https://example.test/pending", func(result: Dictionary) -> void:
 		results.append(result)
 	)
-	var cancelled := _cache.cancel("https://example.test/pending")
+	var cancelled: int = _cache.cancel("https://example.test/pending")
 	await get_tree().process_frame
 	await get_tree().process_frame
 
 	assert_eq(cancelled, 1, "取消 pending 请求应返回取消数量。")
 	assert_eq(results.size(), 1, "被取消的 pending 请求不应触发回调。")
-	assert_eq(results[0]["content"], "a", "未取消的 active 请求应正常完成。")
+	assert_eq(GFVariantData.get_option_string(results[0], "content"), "a", "未取消的 active 请求应正常完成。")
 
 
 func _list_file_names(dir_path: String) -> PackedStringArray:
-	var result := PackedStringArray()
-	var dir := DirAccess.open(dir_path)
+	var result: PackedStringArray = PackedStringArray()
+	var dir: DirAccess = DirAccess.open(dir_path)
 	if dir == null:
 		return result
 
-	dir.list_dir_begin()
-	var file_name := dir.get_next()
+	var _list_dir_begin_result_260: Variant = dir.list_dir_begin()
+	var file_name: String = dir.get_next()
 	while not file_name.is_empty():
 		if not dir.current_is_dir():
-			result.append(file_name)
+			var _append_result_264: Variant = result.append(file_name)
 		file_name = dir.get_next()
 	dir.list_dir_end()
 	return result
+
+
+# --- 辅助子类 ---
+
+class FakeRemoteCacheUtility:
+	extends GFRemoteCacheUtility
+
+	var responses: Array[Dictionary] = []
+	var request_count: int = 0
+
+	func _start_http_request(_request_data: Dictionary) -> Error:
+		request_count += 1
+		var response: Dictionary = {
+			"success": true,
+			"response_code": 200,
+			"content": "",
+			"error": "",
+		}
+		if not responses.is_empty():
+			response = responses.pop_front()
+
+		call_deferred(
+			"_complete_active_request",
+			GFVariantData.get_option_bool(response, "success", true),
+			GFVariantData.get_option_int(response, "response_code", 200),
+			GFVariantData.get_option_string(response, "content"),
+			GFVariantData.get_option_string(response, "error")
+		)
+		return OK

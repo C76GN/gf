@@ -178,21 +178,20 @@ func to_dict() -> Dictionary:
 ## [br]
 ## @schema data: Dictionary，可包含 project_name、project_version、framework_version、build_id、commit_hash、branch、tag、commit_count、is_dirty、build_time_utc、engine_version、platform_name、is_debug_build 和 metadata 字段。
 func apply_dict(data: Dictionary) -> void:
-	project_name = String(data.get("project_name", project_name))
-	project_version = String(data.get("project_version", project_version))
-	framework_version = String(data.get("framework_version", framework_version))
-	build_id = String(data.get("build_id", build_id))
-	commit_hash = String(data.get("commit_hash", commit_hash))
-	branch = String(data.get("branch", branch))
-	tag = String(data.get("tag", tag))
-	commit_count = int(data.get("commit_count", commit_count))
-	is_dirty = bool(data.get("is_dirty", is_dirty))
-	build_time_utc = String(data.get("build_time_utc", build_time_utc))
-	engine_version = String(data.get("engine_version", engine_version))
-	platform_name = String(data.get("platform_name", platform_name))
-	is_debug_build = bool(data.get("is_debug_build", is_debug_build))
-	var metadata_data := data.get("metadata", {}) as Dictionary
-	metadata = metadata_data.duplicate(true) if metadata_data != null else {}
+	project_name = GFVariantData.get_option_string(data, "project_name", project_name)
+	project_version = GFVariantData.get_option_string(data, "project_version", project_version)
+	framework_version = GFVariantData.get_option_string(data, "framework_version", framework_version)
+	build_id = GFVariantData.get_option_string(data, "build_id", build_id)
+	commit_hash = GFVariantData.get_option_string(data, "commit_hash", commit_hash)
+	branch = GFVariantData.get_option_string(data, "branch", branch)
+	tag = GFVariantData.get_option_string(data, "tag", tag)
+	commit_count = GFVariantData.get_option_int(data, "commit_count", commit_count)
+	is_dirty = GFVariantData.get_option_bool(data, "is_dirty", is_dirty)
+	build_time_utc = GFVariantData.get_option_string(data, "build_time_utc", build_time_utc)
+	engine_version = GFVariantData.get_option_string(data, "engine_version", engine_version)
+	platform_name = GFVariantData.get_option_string(data, "platform_name", platform_name)
+	is_debug_build = GFVariantData.get_option_bool(data, "is_debug_build", is_debug_build)
+	metadata = GFVariantData.get_option_dictionary(data, "metadata")
 
 
 ## 创建当前运行环境的构建信息。
@@ -201,7 +200,7 @@ func apply_dict(data: Dictionary) -> void:
 ## [br]
 ## @return: 构建信息快照。
 static func collect() -> GFBuildInfo:
-	var info := GFBuildInfo.new()
+	var info: GFBuildInfo = GFBuildInfo.new()
 	info.project_name = _get_project_setting_text(PROJECT_NAME_SETTING)
 	info.project_version = _get_project_setting_text(PROJECT_VERSION_SETTING)
 	info.framework_version = _read_framework_version()
@@ -209,14 +208,14 @@ static func collect() -> GFBuildInfo:
 	info.commit_hash = _get_project_setting_text(COMMIT_HASH_SETTING)
 	info.branch = _get_project_setting_text(BRANCH_SETTING)
 	info.tag = _get_project_setting_text(TAG_SETTING)
-	info.commit_count = int(ProjectSettings.get_setting(COMMIT_COUNT_SETTING, 0))
-	info.is_dirty = bool(ProjectSettings.get_setting(IS_DIRTY_SETTING, false))
+	info.commit_count = GFVariantData.to_int(ProjectSettings.get_setting(COMMIT_COUNT_SETTING, 0))
+	info.is_dirty = GFVariantData.to_bool(ProjectSettings.get_setting(IS_DIRTY_SETTING, false))
 	info.build_time_utc = _get_project_setting_text(TIME_UTC_SETTING)
 	info.engine_version = _format_engine_version(Engine.get_version_info())
 	info.platform_name = OS.get_name()
 	info.is_debug_build = OS.is_debug_build()
 	var metadata_value: Variant = ProjectSettings.get_setting(METADATA_SETTING, {})
-	info.metadata = (metadata_value as Dictionary).duplicate(true) if metadata_value is Dictionary else {}
+	info.metadata = GFVariantData.to_dictionary(metadata_value)
 	return info
 
 
@@ -230,7 +229,7 @@ static func collect() -> GFBuildInfo:
 ## [br]
 ## @schema data: Dictionary，可包含 GFBuildInfo.to_dict() 输出的字段。
 static func from_dict(data: Dictionary) -> GFBuildInfo:
-	var info := GFBuildInfo.new()
+	var info: GFBuildInfo = GFBuildInfo.new()
 	info.apply_dict(data)
 	return info
 
@@ -245,12 +244,12 @@ static func from_dict(data: Dictionary) -> GFBuildInfo:
 ## [br]
 ## @schema return: Dictionary，包含 commit_hash、branch、tag、commit_count、is_dirty 和 build_time_utc 字段。
 static func collect_git_metadata(work_dir: String = "res://") -> Dictionary:
-	var native_dir := _to_native_path(work_dir)
-	var short_hash := _run_git(native_dir, ["rev-parse", "--short=12", "HEAD"])
-	var branch_name := _run_git(native_dir, ["rev-parse", "--abbrev-ref", "HEAD"])
-	var tag_name := _run_git(native_dir, ["describe", "--tags", "--abbrev=0"])
-	var count_text := _run_git(native_dir, ["rev-list", "--count", "HEAD"])
-	var dirty_text := _run_git(native_dir, ["status", "--porcelain"])
+	var native_dir: String = _to_native_path(work_dir)
+	var short_hash: String = _run_git(native_dir, ["rev-parse", "--short=12", "HEAD"])
+	var branch_name: String = _run_git(native_dir, ["rev-parse", "--abbrev-ref", "HEAD"])
+	var tag_name: String = _run_git(native_dir, ["describe", "--tags", "--abbrev=0"])
+	var count_text: String = _run_git(native_dir, ["rev-list", "--count", "HEAD"])
+	var dirty_text: String = _run_git(native_dir, ["status", "--porcelain"])
 	return {
 		"commit_hash": short_hash,
 		"branch": branch_name,
@@ -281,17 +280,17 @@ static func write_git_metadata_to_project_settings(
 	extra_metadata: Dictionary = {},
 	save_settings: bool = false
 ) -> Dictionary:
-	var git_data := collect_git_metadata(work_dir)
-	ProjectSettings.set_setting(COMMIT_HASH_SETTING, git_data.get("commit_hash", ""))
-	ProjectSettings.set_setting(BRANCH_SETTING, git_data.get("branch", ""))
-	ProjectSettings.set_setting(TAG_SETTING, git_data.get("tag", ""))
-	ProjectSettings.set_setting(COMMIT_COUNT_SETTING, int(git_data.get("commit_count", 0)))
-	ProjectSettings.set_setting(IS_DIRTY_SETTING, bool(git_data.get("is_dirty", false)))
-	ProjectSettings.set_setting(TIME_UTC_SETTING, git_data.get("build_time_utc", ""))
+	var git_data: Dictionary = collect_git_metadata(work_dir)
+	ProjectSettings.set_setting(COMMIT_HASH_SETTING, GFVariantData.get_option_string(git_data, "commit_hash"))
+	ProjectSettings.set_setting(BRANCH_SETTING, GFVariantData.get_option_string(git_data, "branch"))
+	ProjectSettings.set_setting(TAG_SETTING, GFVariantData.get_option_string(git_data, "tag"))
+	ProjectSettings.set_setting(COMMIT_COUNT_SETTING, GFVariantData.get_option_int(git_data, "commit_count"))
+	ProjectSettings.set_setting(IS_DIRTY_SETTING, GFVariantData.get_option_bool(git_data, "is_dirty"))
+	ProjectSettings.set_setting(TIME_UTC_SETTING, GFVariantData.get_option_string(git_data, "build_time_utc"))
 	if not extra_metadata.is_empty():
 		ProjectSettings.set_setting(METADATA_SETTING, extra_metadata.duplicate(true))
 	if save_settings:
-		ProjectSettings.save()
+		var _save_result: int = ProjectSettings.save()
 	return git_data
 
 
@@ -309,27 +308,27 @@ func duplicate_info() -> GFBuildInfo:
 static func _get_project_setting_text(path: String) -> String:
 	if not ProjectSettings.has_setting(path):
 		return ""
-	return String(ProjectSettings.get_setting(path, ""))
+	return GFVariantData.to_text(ProjectSettings.get_setting(path, ""))
 
 
 static func _read_framework_version() -> String:
-	var config := ConfigFile.new()
-	var error := config.load(_FRAMEWORK_PLUGIN_CONFIG_PATH)
+	var config: ConfigFile = ConfigFile.new()
+	var error: int = config.load(_FRAMEWORK_PLUGIN_CONFIG_PATH)
 	if error != OK:
 		return ""
-	return String(config.get_value("plugin", "version", ""))
+	return GFVariantData.to_text(config.get_value("plugin", "version", ""))
 
 
 static func _format_engine_version(version_info: Dictionary) -> String:
-	var version_text := String(version_info.get("string", ""))
+	var version_text: String = GFVariantData.get_option_string(version_info, "string")
 	if not version_text.is_empty():
 		return version_text
 
-	var major := String(version_info.get("major", ""))
-	var minor := String(version_info.get("minor", ""))
-	var patch := String(version_info.get("patch", ""))
-	var status := String(version_info.get("status", ""))
-	var result := ".".join(PackedStringArray([major, minor, patch]))
+	var major: String = GFVariantData.get_option_string(version_info, "major")
+	var minor: String = GFVariantData.get_option_string(version_info, "minor")
+	var patch: String = GFVariantData.get_option_string(version_info, "patch")
+	var status: String = GFVariantData.get_option_string(version_info, "status")
+	var result: String = ".".join(PackedStringArray([major, minor, patch]))
 	if not status.is_empty():
 		result += ".%s" % status
 	return result
@@ -343,10 +342,10 @@ static func _to_native_path(path: String) -> String:
 
 static func _run_git(native_dir: String, args: Array) -> String:
 	var output: Array = []
-	var git_args := PackedStringArray(["-C", native_dir])
+	var git_args: PackedStringArray = PackedStringArray(["-C", native_dir])
 	for arg: Variant in args:
-		git_args.append(String(arg))
-	var exit_code := OS.execute("git", git_args, output, true, false)
+		var _argument_appended: bool = git_args.append(GFVariantData.to_text(arg))
+	var exit_code: int = OS.execute("git", git_args, output, true, false)
 	if exit_code != OK or output.is_empty():
 		return ""
-	return String(output[0]).strip_edges()
+	return GFVariantData.to_text(output[0]).strip_edges()

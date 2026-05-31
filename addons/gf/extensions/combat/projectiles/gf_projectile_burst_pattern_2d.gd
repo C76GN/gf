@@ -67,18 +67,18 @@ func _get_spawn_transforms(
 	if emitter == null:
 		return []
 
-	var count := _resolve_count(projectile_count, emit_count)
+	var count: int = _resolve_count(projectile_count, emit_count)
 	var result: Array[Transform2D] = []
-	var base_angle := emitter.global_rotation if include_emitter_rotation else 0.0
-	var center_angle := base_angle + deg_to_rad(center_angle_degrees)
-	var spread := deg_to_rad(spread_degrees)
+	var base_angle: float = emitter.global_rotation if include_emitter_rotation else 0.0
+	var center_angle: float = base_angle + deg_to_rad(center_angle_degrees)
+	var spread: float = deg_to_rad(spread_degrees)
 	for index: int in range(count):
-		var factor := 0.5
+		var factor: float = 0.5
 		if count > 1:
 			factor = float(index) / float(count - 1)
-		var angle := center_angle + ((factor - 0.5) * spread)
-		var direction := Vector2.RIGHT.rotated(angle)
-		var position := emitter.global_position + direction * maxf(radius, 0.0)
-		var rotation := angle if rotate_to_direction else emitter.global_rotation
+		var angle: float = center_angle + ((factor - 0.5) * spread)
+		var direction: Vector2 = Vector2.RIGHT.rotated(angle)
+		var position: Vector2 = emitter.global_position + direction * maxf(radius, 0.0)
+		var rotation: float = angle if rotate_to_direction else emitter.global_rotation
 		result.append(Transform2D(rotation, position))
 	return result

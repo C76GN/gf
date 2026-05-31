@@ -113,13 +113,13 @@ static func infer_from_records(
 	table_data: Variant,
 	options: Dictionary = {}
 ) -> GFConfigTableSchema:
-	var schema := GFConfigTableSchema.new()
+	var schema: GFConfigTableSchema = GFConfigTableSchema.new()
 	schema.table_name = inferred_table_name
-	schema.id_field = StringName(options.get("id_field", &"id"))
-	schema.allow_extra_fields = bool(options.get("allow_extra_fields", true))
-	schema.coerce_values = bool(options.get("coerce_values", false))
+	schema.id_field = GFVariantData.get_option_string_name(options, "id_field", &"id")
+	schema.allow_extra_fields = GFVariantData.get_option_bool(options, "allow_extra_fields", true)
+	schema.coerce_values = GFVariantData.get_option_bool(options, "coerce_values", false)
 
-	var rows := _normalize_inference_rows(table_data)
+	var rows: Array[Dictionary] = _normalize_inference_rows(table_data)
 	if rows.is_empty():
 		return schema
 
@@ -127,25 +127,24 @@ static func infer_from_records(
 	var field_values: Dictionary = {}
 	for row: Dictionary in rows:
 		for key: Variant in row.keys():
-			var field_name := StringName(key)
-			field_presence[field_name] = int(field_presence.get(field_name, 0)) + 1
-			if not field_values.has(field_name):
-				field_values[field_name] = []
-			(field_values[field_name] as Array).append(row[key])
+			var field_name: StringName = GFVariantData.to_string_name(key)
+			field_presence[field_name] = GFVariantData.get_option_int(field_presence, field_name, 0) + 1
+			_append_field_value(field_values, field_name, row[key])
 
-	var field_names := PackedStringArray()
+	var field_names: PackedStringArray = PackedStringArray()
 	for field_name: StringName in field_values.keys():
-		field_names.append(String(field_name))
+		_append_packed_string(field_names, String(field_name))
 	field_names.sort()
 
-	var require_if_present_all := bool(options.get("required_if_present_in_all_rows", false))
+	var require_if_present_all: bool = GFVariantData.get_option_bool(options, "required_if_present_in_all_rows", false)
 	for field_text: String in field_names:
-		var field_name := StringName(field_text)
-		var column := GFConfigTableColumn.new()
+		var field_name: StringName = StringName(field_text)
+		var column: GFConfigTableColumn = GFConfigTableColumn.new()
+		var values: Array = _get_field_values(field_values, field_name)
 		column.field_name = field_name
-		column.value_type = _infer_column_value_type(field_values[field_name] as Array)
-		column.required = require_if_present_all and int(field_presence.get(field_name, 0)) == rows.size()
-		column.allow_null = _values_allow_null(field_values[field_name] as Array)
+		column.value_type = _infer_column_value_type(values)
+		column.required = require_if_present_all and GFVariantData.get_option_int(field_presence, field_name, 0) == rows.size()
+		column.allow_null = _values_allow_null(values)
 		schema.columns.append(column)
 
 	return schema
@@ -218,9 +217,9 @@ func has_index(index_id: StringName) -> bool:
 ## [br]
 ## @return 找到时返回引用声明，否则返回 null。
 func get_reference(reference_id: StringName) -> GFConfigTableReference:
-	for reference: GFConfigTableReference in references:
-		if reference != null and reference.get_reference_id() == reference_id:
-			return reference
+	for reference_definition: GFConfigTableReference in references:
+		if reference_definition != null and reference_definition.get_reference_id() == reference_id:
+			return reference_definition
 	return null
 
 
@@ -241,10 +240,10 @@ func has_reference(reference_id: StringName) -> bool:
 ## [br]
 ## @return 字段名列表。
 func get_column_names() -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	for column: GFConfigTableColumn in columns:
 		if column != null and column.get_field_key() != &"":
-			result.append(str(column.get_field_key()))
+			_append_packed_string(result, str(column.get_field_key()))
 	result.sort()
 	return result
 
@@ -299,8 +298,8 @@ func validate_record(record: Dictionary, row_key: Variant = null, options: Dicti
 			_add_issue(report, "error", "null_column", row_key, &"", "字段声明为空。", _make_record_context(row_key, options))
 			continue
 
-		var field_key := column.get_field_key()
-		var field_context := _make_field_context(row_key, field_key, options)
+		var field_key: StringName = column.get_field_key()
+		var field_context: Dictionary = _make_field_context(row_key, field_key, options)
 		if field_key == &"":
 			_add_issue(report, "error", "empty_field", row_key, &"", "字段名为空。", field_context)
 			continue
@@ -321,7 +320,7 @@ func validate_record(record: Dictionary, row_key: Variant = null, options: Dicti
 
 	if not allow_extra_fields:
 		for field_variant: Variant in working_record.keys():
-			var field_name := StringName(field_variant)
+			var field_name: StringName = GFVariantData.to_string_name(field_variant)
 			if not declared_fields.has(field_name):
 				_add_issue(report, "error", "extra_field", row_key, field_name, "存在未声明字段：%s。" % str(field_name), _make_field_context(row_key, field_name, options))
 
@@ -348,9 +347,9 @@ func validate_record(record: Dictionary, row_key: Variant = null, options: Dicti
 func validate_table(table_data: Variant, options: Dictionary = {}) -> Dictionary:
 	var report: Dictionary = _make_report(0)
 	if table_data is Array:
-		_validate_array_table(table_data as Array, report, options)
+		_validate_array_table(GFVariantData.as_array(table_data), report, options)
 	elif table_data is Dictionary:
-		_validate_dictionary_table(table_data as Dictionary, report, options)
+		_validate_dictionary_table(GFVariantData.as_dictionary(table_data), report, options)
 	else:
 		_add_issue(report, "error", "invalid_table", null, &"", "表数据必须是 Array 或 Dictionary。", _make_record_context(null, options))
 
@@ -375,7 +374,7 @@ func coerce_record(record: Dictionary) -> Dictionary:
 		if column == null or column.get_field_key() == &"":
 			continue
 
-		var field_key := column.get_field_key()
+		var field_key: StringName = column.get_field_key()
 		if result.has(field_key):
 			result[field_key] = column.coerce_value(result[field_key])
 		elif column.default_value != null:
@@ -417,8 +416,8 @@ func duplicate_schema() -> GFConfigTableSchema:
 	schema.require_unique_id = require_unique_id
 	for index: GFConfigTableIndexDefinition in indexes:
 		schema.indexes.append(index.duplicate_index() if index != null else null)
-	for reference: GFConfigTableReference in references:
-		schema.references.append(reference.duplicate_reference() if reference != null else null)
+	for reference_definition: GFConfigTableReference in references:
+		schema.references.append(reference_definition.duplicate_reference() if reference_definition != null else null)
 	for rule: GFConfigValidationRule in record_validation_rules:
 		schema.record_validation_rules.append(rule.duplicate_rule() if rule != null else null)
 	for rule: GFConfigValidationRule in table_validation_rules:
@@ -446,11 +445,11 @@ func describe() -> Dictionary:
 		if index != null:
 			index_descriptions.append(index.describe())
 	var reference_descriptions: Array[Dictionary] = []
-	for reference: GFConfigTableReference in references:
-		if reference != null:
-			reference_descriptions.append(reference.describe())
-	var record_rule_descriptions := _describe_validation_rules(record_validation_rules)
-	var table_rule_descriptions := _describe_validation_rules(table_validation_rules)
+	for reference_definition: GFConfigTableReference in references:
+		if reference_definition != null:
+			reference_descriptions.append(reference_definition.describe())
+	var record_rule_descriptions: Array[Dictionary] = _describe_validation_rules(record_validation_rules)
+	var table_rule_descriptions: Array[Dictionary] = _describe_validation_rules(table_validation_rules)
 	return {
 		"table_name": table_name,
 		"id_field": id_field,
@@ -469,6 +468,20 @@ func describe() -> Dictionary:
 
 # --- 私有/辅助方法 ---
 
+func _get_record_row_key(record: Dictionary, default_value: Variant) -> Variant:
+	if id_field == &"":
+		return default_value
+	return GFVariantData.get_option_value(record, id_field, default_value)
+
+
+func _get_row_entry_record(row_entry: Dictionary) -> Dictionary:
+	return GFVariantData.as_dictionary(GFVariantData.get_option_value(row_entry, "record", {}))
+
+
+func _get_row_entry_key(row_entry: Dictionary) -> Variant:
+	return GFVariantData.get_option_value(row_entry, "row_key")
+
+
 func _validate_array_table(rows: Array, report: Dictionary, options: Dictionary) -> void:
 	report["row_count"] = rows.size()
 	var seen_ids: Dictionary = {}
@@ -479,9 +492,9 @@ func _validate_array_table(rows: Array, report: Dictionary, options: Dictionary)
 			_add_issue(report, "error", "invalid_row", index, &"", "行数据必须是 Dictionary。", _make_record_context(index, _make_row_options(options, index)))
 			continue
 
-		var record := row as Dictionary
-		var row_key: Variant = record.get(id_field, index) if id_field != &"" else index
-		var row_options := _make_row_options(options, index)
+		var record: Dictionary = GFVariantData.as_dictionary(row)
+		var row_key: Variant = _get_record_row_key(record, index)
+		var row_options: Dictionary = _make_row_options(options, index)
 		valid_rows.append({
 			"row_key": row_key,
 			"row_index": index,
@@ -503,8 +516,8 @@ func _validate_dictionary_table(table: Dictionary, report: Dictionary, options: 
 			_add_issue(report, "error", "invalid_row", key, &"", "行数据必须是 Dictionary。", _make_record_context(key, options))
 			continue
 
-		var record := row as Dictionary
-		var row_key: Variant = record.get(id_field, key) if id_field != &"" else key
+		var record: Dictionary = GFVariantData.as_dictionary(row)
+		var row_key: Variant = _get_record_row_key(record, key)
 		valid_rows.append({
 			"row_key": row_key,
 			"record": record,
@@ -523,12 +536,12 @@ func _validate_column_definitions(report: Dictionary, options: Dictionary) -> vo
 	var seen_fields: Dictionary = {}
 	for index: int in range(columns.size()):
 		var column: GFConfigTableColumn = columns[index]
-		var context := _make_definition_context(options, index)
+		var context: Dictionary = _make_definition_context(options, index)
 		if column == null:
 			_add_issue(report, "error", "null_column", null, &"", "字段声明为空。", context)
 			continue
 
-		var field_key := column.get_field_key()
+		var field_key: StringName = column.get_field_key()
 		context["field"] = field_key
 		if field_key == &"":
 			_add_issue(report, "error", "empty_field", null, &"", "字段名为空。", context)
@@ -575,7 +588,7 @@ func _validate_index_definitions(report: Dictionary, options: Dictionary) -> voi
 			_add_issue(report, "error", "invalid_index", null, &"", "索引声明无效。", _make_record_context(null, options))
 			continue
 
-		var index_id := index.get_index_id()
+		var index_id: StringName = index.get_index_id()
 		if seen_index_ids.has(index_id):
 			_add_issue(
 				report,
@@ -602,15 +615,15 @@ func _validate_index_definitions(report: Dictionary, options: Dictionary) -> voi
 
 func _validate_reference_definitions(report: Dictionary, options: Dictionary) -> void:
 	var seen_reference_ids: Dictionary = {}
-	for reference: GFConfigTableReference in references:
-		if reference == null:
+	for reference_definition: GFConfigTableReference in references:
+		if reference_definition == null:
 			_add_issue(report, "error", "null_reference", null, &"", "引用声明为空。", _make_record_context(null, options))
 			continue
-		if not reference.is_valid_definition():
+		if not reference_definition.is_valid_definition():
 			_add_issue(report, "error", "invalid_reference", null, &"", "引用声明无效。", _make_record_context(null, options))
 			continue
 
-		var reference_id := reference.get_reference_id()
+		var reference_id: StringName = reference_definition.get_reference_id()
 		if seen_reference_ids.has(reference_id):
 			_add_issue(
 				report,
@@ -620,9 +633,9 @@ func _validate_reference_definitions(report: Dictionary, options: Dictionary) ->
 				&"",
 				"引用 ID 重复：%s。" % String(reference_id),
 				_make_record_context(null, options)
-			)
+		)
 		seen_reference_ids[reference_id] = true
-		for field_name: String in reference.source_fields:
+		for field_name: String in reference_definition.source_fields:
 			if not has_column(StringName(field_name)):
 				_add_issue(
 					report,
@@ -650,22 +663,22 @@ func _coerce_record_for_validation(record: Dictionary, row_key: Variant, report:
 		if column == null or column.get_field_key() == &"":
 			continue
 
-		var field_key := column.get_field_key()
-		var has_value := result.has(field_key)
+		var field_key: StringName = column.get_field_key()
+		var has_value: bool = result.has(field_key)
 		if not has_value and column.default_value == null:
 			continue
 
 		var source_value: Variant = result[field_key] if has_value else column.default_value
-		var coerce_result := column.try_coerce_value(source_value)
-		result[field_key] = coerce_result.get("value")
-		if fail_on_coerce_error and not bool(coerce_result.get("ok", false)):
+		var coerce_result: Dictionary = column.try_coerce_value(source_value)
+		result[field_key] = GFVariantData.get_option_value(coerce_result, "value")
+		if fail_on_coerce_error and not GFVariantData.get_option_bool(coerce_result, "ok", false):
 			_add_issue(
 				report,
 				"error",
 				"coerce_failed",
 				row_key,
 				field_key,
-				String(coerce_result.get("message", "字段类型转换失败：%s。" % str(field_key))),
+				GFVariantData.get_option_string(coerce_result, "message", "字段类型转换失败：%s。" % str(field_key)),
 				_make_field_context(row_key, field_key, options)
 			)
 	return result
@@ -682,11 +695,11 @@ func _validate_unique_id(
 		return
 
 	var id_value: Variant = record[id_field]
-	var id_column := get_column(id_field)
+	var id_column: GFConfigTableColumn = get_column(id_field)
 	if coerce_values and id_column != null:
 		id_value = id_column.coerce_value(id_value)
 
-	var id_key := _make_variant_key(id_value)
+	var id_key: String = _make_variant_key(id_value)
 	if seen_ids.has(id_key):
 		_add_issue(
 			report,
@@ -718,8 +731,8 @@ func _validate_index_constraints(rows: Array[Dictionary], report: Dictionary) ->
 
 		var seen_keys: Dictionary = {}
 		for row_entry: Dictionary in rows:
-			var record := row_entry["record"] as Dictionary
-			var key := index.make_key(record)
+			var record: Dictionary = _get_row_entry_record(row_entry)
+			var key: String = index.make_key(record)
 			if key.is_empty():
 				continue
 			if seen_keys.has(key):
@@ -727,12 +740,12 @@ func _validate_index_constraints(rows: Array[Dictionary], report: Dictionary) ->
 					report,
 					"error",
 					"duplicate_index_key",
-					row_entry.get("row_key"),
+					_get_row_entry_key(row_entry),
 					&"",
 					"唯一索引重复：%s。" % String(index.get_index_id())
 				)
 				continue
-			seen_keys[key] = row_entry.get("row_key")
+			seen_keys[key] = _get_row_entry_key(row_entry)
 
 
 func _make_variant_key(value: Variant) -> String:
@@ -798,19 +811,19 @@ func _finalize_report(report: Dictionary) -> void:
 
 
 func _make_row_options(options: Dictionary, row_index: int) -> Dictionary:
-	var result := options.duplicate(true)
+	var result: Dictionary = options.duplicate(true)
 	result["row_index"] = row_index
 	return result
 
 
 func _make_definition_context(options: Dictionary, column_index: int) -> Dictionary:
-	var context := _make_record_context(null, options)
+	var context: Dictionary = _make_record_context(null, options)
 	context["column_index"] = column_index
 	return context
 
 
 func _make_record_context(row_key: Variant, options: Dictionary) -> Dictionary:
-	var context := {
+	var context: Dictionary = {
 		"table_name": table_name,
 		"row_key": row_key,
 	}
@@ -820,7 +833,7 @@ func _make_record_context(row_key: Variant, options: Dictionary) -> Dictionary:
 
 
 func _make_field_context(row_key: Variant, field_name: StringName, options: Dictionary) -> Dictionary:
-	var context := {
+	var context: Dictionary = {
 		"table_name": table_name,
 		"row_key": row_key,
 		"field": field_name,
@@ -837,23 +850,39 @@ func _copy_context_fields(target: Dictionary, source: Dictionary) -> void:
 
 
 func _apply_row_location(context: Dictionary, field_name: StringName, options: Dictionary) -> void:
-	var row_index := int(options.get("row_index", -1))
-	var row_locations: Variant = options.get("row_locations", [])
+	var row_index: int = GFVariantData.get_option_int(options, "row_index", -1)
+	var row_locations: Variant = GFVariantData.get_option_value(options, "row_locations", [])
 	if row_index < 0 or not (row_locations is Array):
 		return
-	var locations := row_locations as Array
+	var locations: Array = GFVariantData.as_array(row_locations)
 	if row_index >= locations.size() or not (locations[row_index] is Dictionary):
 		return
 
-	var row_location := locations[row_index] as Dictionary
+	var row_location: Dictionary = GFVariantData.as_dictionary(locations[row_index])
 	_copy_context_fields(context, row_location)
-	var field_locations: Variant = row_location.get("fields", {})
+	var field_locations: Variant = GFVariantData.get_option_value(row_location, "fields", {})
 	if not (field_locations is Dictionary) or field_name == &"":
 		return
-	var fields := field_locations as Dictionary
-	var field_location: Variant = fields.get(field_name, fields.get(String(field_name), null))
+	var fields: Dictionary = GFVariantData.as_dictionary(field_locations)
+	var field_location: Variant = GFVariantData.get_option_value(fields, field_name)
 	if field_location is Dictionary:
-		_copy_context_fields(context, field_location as Dictionary)
+		_copy_context_fields(context, GFVariantData.as_dictionary(field_location))
+
+
+static func _append_field_value(field_values: Dictionary, field_name: StringName, value: Variant) -> void:
+	var values: Array = _get_field_values(field_values, field_name)
+	values.append(value)
+	field_values[field_name] = values
+
+
+static func _get_field_values(field_values: Dictionary, field_name: StringName) -> Array:
+	return GFVariantData.as_array(GFVariantData.get_option_value(field_values, field_name, []))
+
+
+static func _append_packed_string(target: PackedStringArray, value: String) -> void:
+	var appended: bool = target.append(value)
+	if appended:
+		return
 
 
 static func _normalize_inference_rows(table_data: Variant) -> Array[Dictionary]:
@@ -861,23 +890,23 @@ static func _normalize_inference_rows(table_data: Variant) -> Array[Dictionary]:
 	if table_data is Array:
 		for row_variant: Variant in table_data:
 			if row_variant is Dictionary:
-				rows.append((row_variant as Dictionary).duplicate(true))
+				rows.append(GFVariantData.as_dictionary(row_variant).duplicate(true))
 	elif table_data is Dictionary:
-		var table := table_data as Dictionary
+		var table: Dictionary = GFVariantData.as_dictionary(table_data)
 		for key: Variant in table.keys():
 			var row_variant: Variant = table[key]
 			if row_variant is Dictionary:
-				rows.append((row_variant as Dictionary).duplicate(true))
+				rows.append(GFVariantData.as_dictionary(row_variant).duplicate(true))
 	return rows
 
 
-static func _infer_column_value_type(values: Array) -> int:
-	var inferred_type := GFConfigTableColumn.ValueType.ANY
+static func _infer_column_value_type(values: Array) -> GFConfigTableColumn.ValueType:
+	var inferred_type: GFConfigTableColumn.ValueType = GFConfigTableColumn.ValueType.ANY
 	for value: Variant in values:
 		if value == null:
 			continue
 
-		var value_type := _value_to_column_type(value)
+		var value_type: GFConfigTableColumn.ValueType = _value_to_column_type(value)
 		if inferred_type == GFConfigTableColumn.ValueType.ANY:
 			inferred_type = value_type
 		elif inferred_type == GFConfigTableColumn.ValueType.INT and value_type == GFConfigTableColumn.ValueType.FLOAT:
@@ -889,7 +918,7 @@ static func _infer_column_value_type(values: Array) -> int:
 	return inferred_type
 
 
-static func _value_to_column_type(value: Variant) -> int:
+static func _value_to_column_type(value: Variant) -> GFConfigTableColumn.ValueType:
 	match typeof(value):
 		TYPE_BOOL:
 			return GFConfigTableColumn.ValueType.BOOL

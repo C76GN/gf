@@ -54,7 +54,7 @@ func add_entry(
 	text: String,
 	entry_metadata: Dictionary = {}
 ) -> GFTimedTextEntry:
-	var entry := GFTimedTextEntry.new()
+	var entry: GFTimedTextEntry = GFTimedTextEntry.new()
 	entry.start_time = maxf(start_time, 0.0)
 	entry.end_time = maxf(end_time, entry.start_time)
 	entry.text = text
@@ -105,7 +105,7 @@ func get_entry_at_time(time_seconds: float) -> GFTimedTextEntry:
 ## [br]
 ## @return 文本内容。
 func get_text_at_time(time_seconds: float, default_text: String = "") -> String:
-	var entry := get_entry_at_time(time_seconds)
+	var entry: GFTimedTextEntry = get_entry_at_time(time_seconds)
 	return entry.text if entry != null else default_text
 
 
@@ -132,7 +132,7 @@ func get_entries_in_range(range_start: float, range_end: float) -> Array[GFTimed
 ## [br]
 ## @return 最大结束时间。
 func get_total_duration() -> float:
-	var duration := 0.0
+	var duration: float = 0.0
 	for entry: GFTimedTextEntry in entries:
 		if entry != null:
 			duration = maxf(duration, entry.end_time)
@@ -145,7 +145,7 @@ func get_total_duration() -> float:
 ## [br]
 ## @return 新轨道。
 func duplicate_track() -> GFTimedTextTrack:
-	var track := GFTimedTextTrack.new()
+	var track: GFTimedTextTrack = GFTimedTextTrack.new()
 	track.track_id = track_id
 	track.metadata = metadata.duplicate(true)
 	for entry: GFTimedTextEntry in entries:
@@ -180,14 +180,13 @@ func to_dictionary() -> Dictionary:
 ## [br]
 ## @schema data: Dictionary serialized timed text track.
 func apply_dictionary(data: Dictionary) -> void:
-	track_id = StringName(String(data.get("track_id", track_id)))
+	track_id = GFVariantData.get_option_string_name(data, "track_id", track_id)
 	entries.clear()
-	var raw_entries := data.get("entries", []) as Array
-	if raw_entries != null:
-		for raw_entry: Variant in raw_entries:
-			if raw_entry is Dictionary:
-				var entry := GFTimedTextEntry.new()
-				entry.apply_dictionary(raw_entry as Dictionary)
-				entries.append(entry)
-	var raw_metadata := data.get("metadata", {}) as Dictionary
-	metadata = raw_metadata.duplicate(true) if raw_metadata != null else {}
+	var raw_entries: Array = GFVariantData.as_array(GFVariantData.get_option_value(data, "entries", []))
+	for raw_entry: Variant in raw_entries:
+		if raw_entry is Dictionary:
+			var entry: GFTimedTextEntry = GFTimedTextEntry.new()
+			entry.apply_dictionary(GFVariantData.as_dictionary(raw_entry))
+			entries.append(entry)
+	var raw_metadata: Dictionary = GFVariantData.as_dictionary(GFVariantData.get_option_value(data, "metadata", {}))
+	metadata = raw_metadata.duplicate(true)

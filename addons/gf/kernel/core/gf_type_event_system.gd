@@ -19,8 +19,9 @@ class_name GFTypeEventSystem
 ## [br]
 ## @api public
 const DEFAULT_MAX_DISPATCH_DEPTH: int = 64
-const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
-const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
+const _INSTANCE_GUARD = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
+const _SCRIPT_TYPE_INSPECTOR = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
 
 
 # --- 公共变量 ---
@@ -48,9 +49,9 @@ var max_trace_entries: int = 64:
 
 # --- 私有变量 ---
 
-var _type_track := EventListenerTrack.new(&"event_type")
-var _assignable_type_track := EventListenerTrack.new(&"event_type")
-var _simple_track := EventListenerTrack.new(&"event_id")
+var _type_track: EventListenerTrack = EventListenerTrack.new(&"event_type")
+var _assignable_type_track: EventListenerTrack = EventListenerTrack.new(&"event_type")
+var _simple_track: EventListenerTrack = EventListenerTrack.new(&"event_id")
 var _event_listeners: Dictionary = _type_track.listeners
 var _assignable_event_listeners: Dictionary = _assignable_type_track.listeners
 var _simple_event_listeners: Dictionary = _simple_track.listeners
@@ -119,7 +120,7 @@ func unregister(event_type: Script, on_event: Callable) -> void:
 		return
 
 	if _event_listeners.has(event_type):
-		var listeners := _event_listeners[event_type] as Array
+		var listeners: Array = _get_registry_array(_event_listeners, event_type)
 		_remove_entry_by_callable(listeners, on_event, event_type, false)
 		_erase_listener_key_if_empty(_event_listeners, event_type)
 
@@ -173,7 +174,7 @@ func unregister_assignable(base_event_type: Script, on_event: Callable) -> void:
 		return
 
 	if _assignable_event_listeners.has(base_event_type):
-		var listeners := _assignable_event_listeners[base_event_type] as Array
+		var listeners: Array = _get_registry_array(_assignable_event_listeners, base_event_type)
 		_remove_entry_by_callable(listeners, on_event, base_event_type, true)
 		_erase_listener_key_if_empty(_assignable_event_listeners, base_event_type)
 
@@ -188,16 +189,20 @@ func send(event_instance: Object) -> void:
 		push_error("[GFTypeEventSystem] 发送的事件实例为空。")
 		return
 
-	var event_type: Variant = event_instance.get_script()
-	if event_type == null:
+	var event_type_variant: Variant = event_instance.get_script()
+	if event_type_variant == null:
 		push_error("[GFTypeEventSystem] 发送的事件必须是附加了脚本的类实例。")
 		return
+	if not (event_type_variant is Script):
+		push_error("[GFTypeEventSystem] 发送的事件脚本类型无效。")
+		return
+	var event_type: Script = event_type_variant
 	if _would_exceed_dispatch_depth(_type_dispatch_depth):
-		_report_dispatch_depth_exceeded("type", _script_debug_key(event_type as Script))
+		_report_dispatch_depth_exceeded("type", _script_debug_key(event_type))
 		return
 
-	var dispatch_entries := _get_type_dispatch_entries(event_type as Script)
-	_record_dispatch_trace("type", _script_debug_key(event_type as Script), dispatch_entries.size(), _type_dispatch_depth + 1)
+	var dispatch_entries: Array[Dictionary] = _get_type_dispatch_entries(event_type)
+	_record_dispatch_trace("type", _script_debug_key(event_type), dispatch_entries.size(), _type_dispatch_depth + 1)
 	if dispatch_entries.is_empty():
 		return
 
@@ -260,7 +265,7 @@ func unregister_simple(event_id: StringName, on_event: Callable) -> void:
 		return
 
 	if _simple_event_listeners.has(event_id):
-		var listeners := _simple_event_listeners[event_id] as Array
+		var listeners: Array = _get_registry_array(_simple_event_listeners, event_id)
 		_remove_entry_by_callable(listeners, on_event)
 		_erase_listener_key_if_empty(_simple_event_listeners, event_id)
 
@@ -284,14 +289,14 @@ func send_simple(event_id: StringName, payload: Variant = null) -> void:
 	if not _simple_event_listeners.has(event_id):
 		_record_dispatch_trace("simple", String(event_id), 0, _simple_dispatch_depth + 1)
 		return
-	var listeners := _simple_event_listeners[event_id] as Array
+	var listeners: Array = _get_registry_array(_simple_event_listeners, event_id)
 	_record_dispatch_trace("simple", String(event_id), listeners.size(), _simple_dispatch_depth + 1)
 
 	_simple_dispatch_depth += 1
 	_simple_dispatch_count += 1
 	_max_simple_dispatch_depth_observed = maxi(_max_simple_dispatch_depth_observed, _simple_dispatch_depth)
-	var has_pending_owner_removes := not _simple_track.pending_owner_removes.is_empty()
-	var has_pending_removes := not _simple_track.pending_removes.is_empty()
+	var has_pending_owner_removes: bool = not _simple_track.pending_owner_removes.is_empty()
+	var has_pending_removes: bool = not _simple_track.pending_removes.is_empty()
 
 	for entry: Dictionary in listeners:
 		if _clear_requested_simple:
@@ -336,7 +341,7 @@ func unregister_owner(owner: Object) -> void:
 	if owner == null:
 		return
 
-	var owner_id := owner.get_instance_id()
+	var owner_id: int = owner.get_instance_id()
 	if _type_dispatch_depth > 0:
 		_type_track.remove_pending_adds_for_owner_id(owner_id)
 		_assignable_type_track.remove_pending_adds_for_owner_id(owner_id)
@@ -434,7 +439,7 @@ func _get_type_track(assignable: bool) -> EventListenerTrack:
 
 
 func _is_pending_owner_remove(entry: Dictionary, pending_owner_ids: Array[int]) -> bool:
-	var owner_id := _entry_owner_id(entry)
+	var owner_id: int = _entry_owner_id(entry)
 	return owner_id != 0 and pending_owner_ids.has(owner_id)
 
 
@@ -449,13 +454,13 @@ func _add_listener_entry(
 ) -> void:
 	if not registry.has(event_type):
 		registry[event_type] = []
-	var listeners := registry[event_type] as Array
+	var listeners: Array = _get_registry_array(registry, event_type)
 
 	for entry: Dictionary in listeners:
 		if _listener_entry_matches(entry, on_event, owner):
 			return
 
-	var new_entry := {
+	var new_entry: Dictionary = {
 		"callable": on_event,
 		"priority": priority,
 		"owner_ref": _make_owner_ref(owner),
@@ -464,12 +469,13 @@ func _add_listener_entry(
 	}
 	var inserted: bool = false
 	for i: int in range(listeners.size()):
-		var entry := listeners[i] as Dictionary
+		var entry: Dictionary = _GF_VARIANT_ACCESS_SCRIPT.as_dictionary(listeners[i])
+		var entry_priority: int = _GF_VARIANT_ACCESS_SCRIPT.get_option_int(entry, "priority", 0)
 		if (
-			priority > int(entry.priority)
-			or (priority == int(entry.priority) and order < int(entry.get("order", 0)))
+			priority > entry_priority
+			or (priority == entry_priority and order < _GF_VARIANT_ACCESS_SCRIPT.get_option_int(entry, "order", 0))
 		):
-			listeners.insert(i, new_entry)
+			var _insert_result_478: Variant = listeners.insert(i, new_entry)
 			inserted = true
 			break
 	if not inserted:
@@ -485,7 +491,7 @@ func _add_simple_listener_entry(
 ) -> void:
 	if not _simple_event_listeners.has(event_id):
 		_simple_event_listeners[event_id] = []
-	var listeners := _simple_event_listeners[event_id] as Array
+	var listeners: Array = _get_registry_array(_simple_event_listeners, event_id)
 
 	for entry: Dictionary in listeners:
 		if _listener_entry_matches(entry, on_event, owner):
@@ -501,13 +507,13 @@ func _add_simple_listener_entry(
 
 func _get_type_dispatch_entries(event_type: Script) -> Array[Dictionary]:
 	if _type_dispatch_cache.has(event_type):
-		return _type_dispatch_cache[event_type] as Array
+		return _get_registry_array(_type_dispatch_cache, event_type)
 
 	var result: Array[Dictionary] = []
 	if _event_listeners.has(event_type):
-		var exact_listeners := _event_listeners[event_type] as Array
+		var exact_listeners: Array = _get_registry_array(_event_listeners, event_type)
 		for entry: Dictionary in exact_listeners:
-			var dispatch_entry := entry.duplicate()
+			var dispatch_entry: Dictionary = entry.duplicate()
 			dispatch_entry["event_type"] = event_type
 			dispatch_entry["assignable"] = false
 			result.append(dispatch_entry)
@@ -515,19 +521,19 @@ func _get_type_dispatch_entries(event_type: Script) -> Array[Dictionary]:
 	for base_event_type: Script in _assignable_event_listeners.keys():
 		if not _script_extends_or_equals(event_type, base_event_type):
 			continue
-		var assignable_listeners := _assignable_event_listeners[base_event_type] as Array
+		var assignable_listeners: Array = _get_registry_array(_assignable_event_listeners, base_event_type)
 		for entry: Dictionary in assignable_listeners:
-			var dispatch_entry := entry.duplicate()
+			var dispatch_entry: Dictionary = entry.duplicate()
 			dispatch_entry["event_type"] = base_event_type
 			dispatch_entry["assignable"] = true
 			result.append(dispatch_entry)
 
 	result.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
-		var left_priority := int(left.get("priority", 0))
-		var right_priority := int(right.get("priority", 0))
+		var left_priority: int = _GF_VARIANT_ACCESS_SCRIPT.get_option_int(left, "priority", 0)
+		var right_priority: int = _GF_VARIANT_ACCESS_SCRIPT.get_option_int(right, "priority", 0)
 		if left_priority != right_priority:
 			return left_priority > right_priority
-		return int(left.get("order", 0)) < int(right.get("order", 0))
+		return _GF_VARIANT_ACCESS_SCRIPT.get_option_int(left, "order", 0) < _GF_VARIANT_ACCESS_SCRIPT.get_option_int(right, "order", 0)
 	)
 	_type_dispatch_cache[event_type] = result
 	return result
@@ -539,9 +545,9 @@ func _dispatch_type_listener_entries(event_instance: Object, listeners: Array[Di
 			break
 
 		var callback: Callable = entry.callable
-		var event_type := entry.get("event_type") as Script
-		var assignable := bool(entry.get("assignable", false))
-		var track := _get_type_track(assignable)
+		var event_type: Script = _get_script_option(entry, "event_type")
+		var assignable: bool = _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(entry, "assignable", false)
+		var track: EventListenerTrack = _get_type_track(assignable)
 		if _entry_owner_is_released(entry):
 			_append_pending_type_remove(event_type, callback, assignable)
 			continue
@@ -555,8 +561,16 @@ func _dispatch_type_listener_entries(event_instance: Object, listeners: Array[Di
 
 		callback.call(event_instance)
 
-		if _clear_requested_type or event_instance.get("is_consumed") == true:
+		if _clear_requested_type or _event_is_consumed(event_instance):
 			break
+
+
+func _event_is_consumed(event_instance: Object) -> bool:
+	if event_instance == null:
+		return false
+	if not "is_consumed" in event_instance:
+		return false
+	return _GF_VARIANT_ACCESS_SCRIPT.to_bool(event_instance.get_indexed(NodePath("is_consumed")))
 
 
 func _append_pending_type_remove(event_type: Script, callback: Callable, assignable: bool) -> void:
@@ -568,7 +582,7 @@ func _would_exceed_dispatch_depth(current_depth: int) -> bool:
 
 
 func _report_dispatch_depth_exceeded(track: String, event_key: String) -> void:
-	var key_suffix := "：%s" % event_key if not event_key.is_empty() else ""
+	var key_suffix: String = "：%s" % event_key if not event_key.is_empty() else ""
 	push_error("[GFTypeEventSystem] %s 事件派发超过最大嵌套深度 %d%s。" % [track, max_dispatch_depth, key_suffix])
 
 
@@ -592,7 +606,7 @@ func _trim_dispatch_trace() -> void:
 		_dispatch_trace.clear()
 		return
 
-	var remove_count := _dispatch_trace.size() - max_trace_entries
+	var remove_count: int = _dispatch_trace.size() - max_trace_entries
 	if remove_count <= 0:
 		return
 
@@ -606,13 +620,13 @@ func _script_extends_or_equals(script_cls: Script, base_script: Script) -> bool:
 	if script_cls == null or base_script == null:
 		return false
 
-	var ancestry := _get_script_ancestry(script_cls)
+	var ancestry: Dictionary = _get_script_ancestry(script_cls)
 	return ancestry.has(base_script)
 
 
 func _get_script_ancestry(script_cls: Script) -> Dictionary:
 	if _script_ancestry_cache.has(script_cls):
-		return _script_ancestry_cache[script_cls] as Dictionary
+		return _get_registry_dictionary(_script_ancestry_cache, script_cls)
 
 	var ancestry: Dictionary = {}
 	for script: Script in _SCRIPT_TYPE_INSPECTOR.get_inheritance_chain(script_cls):
@@ -624,21 +638,21 @@ func _get_script_ancestry(script_cls: Script) -> Dictionary:
 func _collect_listener_stats(registry: Dictionary) -> Dictionary:
 	var result: Dictionary = {}
 	for event_type: Script in registry.keys():
-		result[_script_debug_key(event_type)] = (registry[event_type] as Array).size()
+		result[_script_debug_key(event_type)] = _get_registry_array(registry, event_type).size()
 	return result
 
 
 func _collect_simple_listener_stats() -> Dictionary:
 	var result: Dictionary = {}
 	for event_id: StringName in _simple_event_listeners.keys():
-		result[String(event_id)] = (_simple_event_listeners[event_id] as Array).size()
+		result[String(event_id)] = _get_registry_array(_simple_event_listeners, event_id).size()
 	return result
 
 
 func _script_debug_key(script_cls: Script) -> String:
 	if script_cls == null:
 		return ""
-	var global_name := script_cls.get_global_name()
+	var global_name: StringName = script_cls.get_global_name()
 	if global_name != &"":
 		return String(global_name)
 	if not script_cls.resource_path.is_empty():
@@ -647,9 +661,33 @@ func _script_debug_key(script_cls: Script) -> String:
 
 
 func _event_type_from_key(key: Variant) -> Script:
-	if key is Script:
-		return key as Script
+	return _variant_to_script(key)
+
+
+func _variant_to_script(value: Variant) -> Script:
+	if value is Script:
+		return value
 	return null
+
+
+func _get_script_option(source: Dictionary, key: Variant) -> Script:
+	return _variant_to_script(_GF_VARIANT_ACCESS_SCRIPT.get_option_value(source, key))
+
+
+func _get_callable_option(source: Dictionary, key: Variant) -> Callable:
+	var value: Variant = _GF_VARIANT_ACCESS_SCRIPT.get_option_value(source, key, Callable())
+	if value is Callable:
+		var callback: Callable = value
+		return callback
+	return Callable()
+
+
+func _get_registry_dictionary(registry: Dictionary, key: Variant) -> Dictionary:
+	return _GF_VARIANT_ACCESS_SCRIPT.as_dictionary(_GF_VARIANT_ACCESS_SCRIPT.get_option_value(registry, key, {}))
+
+
+func _get_registry_array(registry: Dictionary, key: Variant) -> Array:
+	return _GF_VARIANT_ACCESS_SCRIPT.as_array(_GF_VARIANT_ACCESS_SCRIPT.get_option_value(registry, key, []))
 
 
 func _flush_type_pending() -> void:
@@ -669,11 +707,11 @@ func _flush_simple_pending() -> void:
 
 func _flush_listener_track_removes(track: EventListenerTrack, assignable: bool) -> void:
 	for pending: Dictionary in track.pending_removes:
-		var key: Variant = pending.get(track.key_field)
+		var key: Variant = _GF_VARIANT_ACCESS_SCRIPT.get_option_value(pending, track.key_field)
 		if not track.listeners.has(key):
 			continue
-		var listeners := track.listeners[key] as Array
-		_remove_entry_by_callable(listeners, pending.callable, _event_type_from_key(key), assignable)
+		var listeners: Array = _get_registry_array(track.listeners, key)
+		_remove_entry_by_callable(listeners, _get_callable_option(pending, "callable"), _event_type_from_key(key), assignable)
 		_erase_listener_key_if_empty(track.listeners, key)
 	track.pending_removes.clear()
 
@@ -686,17 +724,18 @@ func _flush_listener_track_owner_removes(track: EventListenerTrack, assignable: 
 
 func _flush_type_track_adds(track: EventListenerTrack, assignable: bool) -> void:
 	for pending: Dictionary in track.pending_adds:
-		var binding_owner := _owner_from_ref(pending.get("owner_ref"))
-		if pending.get("owner_ref") != null and binding_owner == null:
+		var owner_ref: Variant = _GF_VARIANT_ACCESS_SCRIPT.get_option_value(pending, "owner_ref")
+		var binding_owner: Object = _owner_from_ref(owner_ref)
+		if owner_ref != null and binding_owner == null:
 			continue
-		var event_type := pending.get(track.key_field) as Script
+		var event_type: Script = _get_script_option(pending, track.key_field)
 		if event_type == null:
 			continue
 		_add_listener_entry(
 			track.listeners,
 			event_type,
-			pending.callable,
-			int(pending.priority),
+			_get_callable_option(pending, "callable"),
+			_GF_VARIANT_ACCESS_SCRIPT.get_option_int(pending, "priority", 0),
 			binding_owner,
 			_pending_listener_order(pending),
 			assignable
@@ -706,13 +745,14 @@ func _flush_type_track_adds(track: EventListenerTrack, assignable: bool) -> void
 
 func _flush_simple_track_adds() -> void:
 	for pending: Dictionary in _simple_track.pending_adds:
-		var binding_owner := _owner_from_ref(pending.get("owner_ref"))
-		if pending.get("owner_ref") != null and binding_owner == null:
+		var owner_ref: Variant = _GF_VARIANT_ACCESS_SCRIPT.get_option_value(pending, "owner_ref")
+		var binding_owner: Object = _owner_from_ref(owner_ref)
+		if owner_ref != null and binding_owner == null:
 			continue
-		var event_id: StringName = pending.get(_simple_track.key_field, &"")
+		var event_id: StringName = _GF_VARIANT_ACCESS_SCRIPT.get_option_string_name(pending, _simple_track.key_field, &"")
 		_add_simple_listener_entry(
 			event_id,
-			pending.callable,
+			_get_callable_option(pending, "callable"),
 			binding_owner,
 			_pending_listener_order(pending)
 		)
@@ -733,7 +773,7 @@ func _remove_owner_from_simple_listeners(owner_id: int) -> void:
 
 func _remove_owner_from_listener_track(track: EventListenerTrack, owner_id: int, assignable: bool) -> void:
 	for key: Variant in track.listeners.keys():
-		var listeners := track.listeners[key] as Array
+		var listeners: Array = _get_registry_array(track.listeners, key)
 		_remove_entries_by_owner_id(listeners, owner_id, _event_type_from_key(key), assignable)
 		_erase_listener_key_if_empty(track.listeners, key)
 
@@ -744,9 +784,9 @@ func _remove_entry_by_callable(
 	event_type: Script = null,
 	assignable: bool = false
 ) -> void:
-	var removed := false
+	var removed: bool = false
 	for i: int in range(listeners.size() - 1, -1, -1):
-		var entry := listeners[i] as Dictionary
+		var entry: Dictionary = _GF_VARIANT_ACCESS_SCRIPT.as_dictionary(listeners[i])
 		if entry.callable == on_event:
 			listeners.remove_at(i)
 			removed = true
@@ -760,9 +800,9 @@ func _remove_entries_by_owner_id(
 	event_type: Script = null,
 	assignable: bool = false
 ) -> void:
-	var removed := false
+	var removed: bool = false
 	for i: int in range(listeners.size() - 1, -1, -1):
-		var entry := listeners[i] as Dictionary
+		var entry: Dictionary = _GF_VARIANT_ACCESS_SCRIPT.as_dictionary(listeners[i])
 		if _entry_owner_id(entry) == owner_id:
 			listeners.remove_at(i)
 			removed = true
@@ -773,20 +813,21 @@ func _remove_entries_by_owner_id(
 func _erase_listener_key_if_empty(registry: Dictionary, key: Variant) -> void:
 	if not registry.has(key):
 		return
-	var listeners := registry[key] as Array
+	var listeners: Array = _get_registry_array(registry, key)
 	if listeners != null and listeners.is_empty():
-		registry.erase(key)
+		var _erase_result_818: Variant = registry.erase(key)
 
 
 func _entry_owner_is_released(entry: Dictionary) -> bool:
-	return entry.get("owner_ref") != null and _owner_from_ref(entry.get("owner_ref")) == null
+	var owner_ref: Variant = _GF_VARIANT_ACCESS_SCRIPT.get_option_value(entry, "owner_ref")
+	return owner_ref != null and _owner_from_ref(owner_ref) == null
 
 
 func _entry_owner_id(entry: Dictionary) -> int:
-	var stored_owner_id: int = entry.get("owner_id", 0)
+	var stored_owner_id: int = _GF_VARIANT_ACCESS_SCRIPT.get_option_int(entry, "owner_id", 0)
 	if stored_owner_id != 0:
 		return stored_owner_id
-	return _owner_id_from_ref(entry.get("owner_ref"))
+	return _owner_id_from_ref(_GF_VARIANT_ACCESS_SCRIPT.get_option_value(entry, "owner_ref"))
 
 
 func _make_owner_ref(owner: Object) -> WeakRef:
@@ -802,14 +843,14 @@ func _owner_instance_id(owner: Object) -> int:
 
 
 func _owner_from_ref(owner_ref_variant: Variant) -> Object:
-	var owner_ref := owner_ref_variant as WeakRef
-	if owner_ref == null:
+	if not (owner_ref_variant is WeakRef):
 		return null
+	var owner_ref: WeakRef = owner_ref_variant
 	return _INSTANCE_GUARD._get_live_object_from_ref(owner_ref)
 
 
 func _owner_id_from_ref(owner_ref_variant: Variant) -> int:
-	var owner := _owner_from_ref(owner_ref_variant)
+	var owner: Object = _owner_from_ref(owner_ref_variant)
 	if owner == null:
 		return 0
 	return owner.get_instance_id()
@@ -818,7 +859,7 @@ func _owner_id_from_ref(owner_ref_variant: Variant) -> int:
 func _listener_entry_matches(entry: Dictionary, on_event: Callable, owner: Object) -> bool:
 	if entry.callable != on_event:
 		return false
-	var owner_id := _owner_instance_id(owner)
+	var owner_id: int = _owner_instance_id(owner)
 	if owner_id == 0:
 		return _entry_owner_id(entry) == 0
 	return _entry_owner_id(entry) == owner_id
@@ -831,7 +872,7 @@ func _next_listener_order() -> int:
 
 func _pending_listener_order(pending: Dictionary) -> int:
 	if pending.has("order"):
-		return int(pending.get("order", 0))
+		return _GF_VARIANT_ACCESS_SCRIPT.get_option_int(pending, "order", 0)
 	return _next_listener_order()
 
 
@@ -848,11 +889,11 @@ func _validate_callable_min_args(on_event: Callable, min_args: int, callback_lab
 	var methods: Array[Dictionary] = target_obj.get_method_list()
 	for m: Dictionary in methods:
 		if m["name"] == String(method_name):
-			var args := m["args"] as Array
-			var default_args := m.get("default_args", []) as Array
-			var required_arg_count := maxi(args.size() - default_args.size(), 0)
-			var provided_arg_count := min_args + on_event.get_bound_arguments_count()
-			var accepts_varargs := (int(m.get("flags", 0)) & METHOD_FLAG_VARARG) != 0
+			var args: Array = _get_registry_array(m, "args")
+			var default_args: Array = _get_registry_array(m, "default_args")
+			var required_arg_count: int = maxi(args.size() - default_args.size(), 0)
+			var provided_arg_count: int = min_args + on_event.get_bound_arguments_count()
+			var accepts_varargs: bool = (_GF_VARIANT_ACCESS_SCRIPT.get_option_int(m, "flags", 0) & METHOD_FLAG_VARARG) != 0
 			if args.size() < min_args:
 				push_error("[GFTypeEventSystem] 注册的%s %s 必须至少包含 %d 个参数用于接收%s！" % [
 					callback_label,
@@ -893,14 +934,14 @@ func _invalidate_type_dispatch_cache_for_event(event_type: Script, assignable: b
 		_invalidate_type_dispatch_cache()
 		return
 	if not assignable:
-		_type_dispatch_cache.erase(event_type)
+		var _erase_result_937: Variant = _type_dispatch_cache.erase(event_type)
 		return
 
-	var cached_event_types := _type_dispatch_cache.keys()
+	var cached_event_types: Array = _type_dispatch_cache.keys()
 	for cached_event_type_variant: Variant in cached_event_types:
-		var cached_event_type := cached_event_type_variant as Script
+		var cached_event_type: Script = _variant_to_script(cached_event_type_variant)
 		if cached_event_type != null and _script_extends_or_equals(cached_event_type, event_type):
-			_type_dispatch_cache.erase(cached_event_type)
+			var _erase_result_944: Variant = _type_dispatch_cache.erase(cached_event_type)
 
 
 func _invalidate_type_dispatch_cache() -> void:
@@ -974,7 +1015,7 @@ class EventListenerTrack:
 		owner_id: int,
 		order: int
 	) -> void:
-		var pending := {
+		var pending: Dictionary = {
 			"callable": on_event,
 			"priority": priority,
 			"owner_ref": owner_ref,
@@ -994,7 +1035,7 @@ class EventListenerTrack:
 	## [br]
 	## @param on_event: 要注销的事件回调。
 	func queue_remove(key: Variant, on_event: Callable) -> void:
-		var pending := {
+		var pending: Dictionary = {
 			"callable": on_event,
 		}
 		pending[key_field] = key
@@ -1011,8 +1052,13 @@ class EventListenerTrack:
 	## @param on_event: 要移除的事件回调。
 	func remove_pending_add(key: Variant, on_event: Callable) -> void:
 		for i: int in range(pending_adds.size() - 1, -1, -1):
-			var pending := pending_adds[i] as Dictionary
-			if pending.get(key_field) == key and pending.get("callable") == on_event:
+			var pending_variant: Variant = pending_adds[i]
+			if not (pending_variant is Dictionary):
+				continue
+			var pending: Dictionary = pending_variant
+			var pending_key: Variant = pending[key_field] if pending.has(key_field) else null
+			var pending_callable: Variant = pending["callable"] if pending.has("callable") else Callable()
+			if pending_key == key and pending_callable == on_event:
 				pending_adds.remove_at(i)
 
 	## 移除指定 owner 在同一派发周期内尚未落地的注册。
@@ -1022,8 +1068,12 @@ class EventListenerTrack:
 	## @param owner_id: 监听 owner 实例 ID。
 	func remove_pending_adds_for_owner_id(owner_id: int) -> void:
 		for i: int in range(pending_adds.size() - 1, -1, -1):
-			var pending := pending_adds[i] as Dictionary
-			if int(pending.get("owner_id", 0)) == owner_id:
+			var pending_variant: Variant = pending_adds[i]
+			if not (pending_variant is Dictionary):
+				continue
+			var pending: Dictionary = pending_variant
+			var pending_owner_id: int = _get_owner_id_from_pending(pending)
+			if pending_owner_id == owner_id:
 				pending_adds.remove_at(i)
 
 	## 查询指定监听是否已暂存注销。
@@ -1039,9 +1089,23 @@ class EventListenerTrack:
 	## @return 已暂存注销时返回 true。
 	func has_pending_remove(key: Variant, on_event: Callable) -> bool:
 		for pending: Dictionary in pending_removes:
-			if pending.get(key_field) == key and pending.get("callable") == on_event:
+			var pending_key: Variant = pending[key_field] if pending.has(key_field) else null
+			var pending_callable: Variant = pending["callable"] if pending.has("callable") else Callable()
+			if pending_key == key and pending_callable == on_event:
 				return true
 		return false
+
+	func _get_owner_id_from_pending(pending: Dictionary) -> int:
+		if not pending.has("owner_id"):
+			return 0
+		var owner_id_value: Variant = pending["owner_id"]
+		if owner_id_value is int:
+			var owner_id: int = owner_id_value
+			return owner_id
+		if owner_id_value is float:
+			var owner_id_float: float = owner_id_value
+			return int(owner_id_float)
+		return 0
 
 	## 暂存 owner 注销，重复 owner 只记录一次。
 	## [br]

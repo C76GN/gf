@@ -97,7 +97,9 @@ var _context_ref: WeakRef = null
 var _event_architecture_refs: Array[WeakRef] = []
 var _transition_serial: int = 0
 var _is_exiting_current_state: bool = false
-var _queued_exit_transition: Dictionary = {}
+var _has_queued_exit_transition: bool = false
+var _queued_exit_state_name: StringName = &""
+var _queued_exit_msg: Dictionary = {}
 
 
 # --- Godot 生命周期方法 ---
@@ -130,10 +132,10 @@ func add_state(state_name: StringName, state: GFState, parent_state_name: String
 		push_warning("[GFStateMachine] 注册状态失败，state 为空：%s" % state_name)
 		return
 
-	var normalized_parent := _normalize_parent_state_name(state_name, parent_state_name)
-	var old_state := _states.get(state_name) as GFState
-	var is_replacing_current := old_state != null and old_state == _current_state and old_state != state
-	var is_replacing_active_ancestor := (
+	var normalized_parent: StringName = _normalize_parent_state_name(state_name, parent_state_name)
+	var old_state: GFState = _get_registered_state(state_name)
+	var is_replacing_current: bool = old_state != null and old_state == _current_state and old_state != state
+	var is_replacing_active_ancestor: bool = (
 		old_state != null
 		and old_state != state
 		and _active_path.has(state_name)
@@ -172,7 +174,7 @@ func set_state_parent(state_name: StringName, parent_state_name: StringName = &"
 		push_warning("[GFStateMachine] 设置父状态失败，未找到状态：%s" % state_name)
 		return false
 
-	var normalized_parent := _normalize_parent_state_name(state_name, parent_state_name)
+	var normalized_parent: StringName = _normalize_parent_state_name(state_name, parent_state_name)
 	if normalized_parent != parent_state_name:
 		return false
 
@@ -198,7 +200,7 @@ func start(initial_state_name: StringName, msg: Dictionary = {}, emit_changed: b
 		push_warning("[GFStateMachine] 启动失败，未找到状态：%s" % initial_state_name)
 		return
 
-	_queued_exit_transition.clear()
+	_clear_queued_exit_transition()
 	_transition_to_state(initial_state_name, msg, emit_changed)
 
 
@@ -218,10 +220,7 @@ func change_state(state_name: StringName, msg: Dictionary = {}) -> void:
 
 	if _is_exiting_current_state:
 		_transition_serial += 1
-		_queued_exit_transition = {
-			"state_name": state_name,
-			"msg": msg,
-		}
+		_queue_exit_transition(state_name, msg)
 		return
 
 	_transition_to_state(state_name, msg, true)
@@ -237,7 +236,7 @@ func change_state(state_name: StringName, msg: Dictionary = {}) -> void:
 func update(delta: float, include_ancestors: bool = false) -> void:
 	if include_ancestors:
 		for state_name: StringName in _active_path:
-			var state := _states.get(state_name) as GFState
+			var state: GFState = _get_registered_state(state_name)
 			if state != null:
 				state.update(delta)
 		return
@@ -258,9 +257,9 @@ func update(delta: float, include_ancestors: bool = false) -> void:
 ## [br]
 ## @schema payload: Variant state event payload.
 func dispatch_state_event(event_id: StringName, payload: Variant = null) -> bool:
-	for index in range(_active_path.size() - 1, -1, -1):
-		var state_name := _active_path[index]
-		var state := _states.get(state_name) as GFState
+	for index: int in range(_active_path.size() - 1, -1, -1):
+		var state_name: StringName = _active_path[index]
+		var state: GFState = _get_registered_state(state_name)
 		if state != null and state.handle_state_event(event_id, payload):
 			state_event_handled.emit(event_id, state_name, payload)
 			return true
@@ -271,10 +270,10 @@ func dispatch_state_event(event_id: StringName, payload: Variant = null) -> bool
 ## [br]
 ## @api public
 func stop() -> void:
-	_exit_active_path_to(0, &"", {}, false)
+	var _exit_finished: bool = _exit_active_path_to(0, false)
 	_active_path.clear()
 	_set_current_from_active_path()
-	_queued_exit_transition.clear()
+	_clear_queued_exit_transition()
 
 
 ## 释放状态机持有的所有引用，避免 RefCounted 环状引用。
@@ -283,8 +282,8 @@ func stop() -> void:
 func dispose() -> void:
 	stop()
 
-	for state_variant: Variant in _states.values():
-		var state := state_variant as GFState
+	for state_name: StringName in _states.keys():
+		var state: GFState = _get_registered_state(state_name)
 		if state != null:
 			state.dispose()
 
@@ -303,7 +302,7 @@ func dispose() -> void:
 ## [br]
 ## @return 已注册状态实例；不存在时返回 null。
 func get_state(state_name: StringName) -> GFState:
-	return _states.get(state_name) as GFState
+	return _get_registered_state(state_name)
 
 
 ## 获取当前叶子状态实例。
@@ -346,7 +345,7 @@ func get_state_names() -> Array[StringName]:
 ## [br]
 ## @return 父状态名；没有父级或状态不存在时返回空 StringName。
 func get_parent_state_name(state_name: StringName) -> StringName:
-	return _state_parents.get(state_name, &"") as StringName
+	return _get_parent_state_name(state_name)
 
 
 ## 获取当前激活状态路径，按 root -> leaf 排列。
@@ -405,7 +404,7 @@ func get_state_snapshot() -> Dictionary:
 ## [br]
 ## @return 模型实例，若上下文或架构无效则返回 null。
 func get_model(model_type: Script) -> Object:
-	var architecture := _get_available_architecture("Model")
+	var architecture: GFArchitecture = _get_available_architecture("Model")
 	if architecture == null:
 		return null
 	return architecture.get_model(model_type)
@@ -419,7 +418,7 @@ func get_model(model_type: Script) -> Object:
 ## [br]
 ## @return 系统实例，若上下文或架构无效则返回 null。
 func get_system(system_type: Script) -> Object:
-	var architecture := _get_available_architecture("System")
+	var architecture: GFArchitecture = _get_available_architecture("System")
 	if architecture == null:
 		return null
 	return architecture.get_system(system_type)
@@ -433,7 +432,7 @@ func get_system(system_type: Script) -> Object:
 ## [br]
 ## @return 工具实例，若上下文或架构无效则返回 null。
 func get_utility(utility_type: Script) -> Object:
-	var architecture := _get_available_architecture("Utility")
+	var architecture: GFArchitecture = _get_available_architecture("Utility")
 	if architecture == null:
 		return null
 	return architecture.get_utility(utility_type)
@@ -449,7 +448,7 @@ func get_utility(utility_type: Script) -> Object:
 ## [br]
 ## @schema return: Variant command result, Signal, or null.
 func send_command(command: Object) -> Variant:
-	var architecture := _get_available_architecture("Command")
+	var architecture: GFArchitecture = _get_available_architecture("Command")
 	if architecture == null:
 		return null
 	return architecture.send_command(command)
@@ -465,7 +464,7 @@ func send_command(command: Object) -> Variant:
 ## [br]
 ## @schema return: Variant query result or null.
 func send_query(query: Object) -> Variant:
-	var architecture := _get_available_architecture("Query")
+	var architecture: GFArchitecture = _get_available_architecture("Query")
 	if architecture == null:
 		return null
 	return architecture.send_query(query)
@@ -477,7 +476,7 @@ func send_query(query: Object) -> Variant:
 ## [br]
 ## @param event_instance: 要分发的事件实例。
 func send_event(event_instance: Object) -> void:
-	var architecture := _get_available_architecture("Event")
+	var architecture: GFArchitecture = _get_available_architecture("Event")
 	if architecture != null:
 		architecture.send_event(event_instance)
 
@@ -492,7 +491,7 @@ func send_event(event_instance: Object) -> void:
 ## [br]
 ## @schema payload: Variant event payload.
 func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
-	var architecture := _get_available_architecture("Event")
+	var architecture: GFArchitecture = _get_available_architecture("Event")
 	if architecture != null:
 		architecture.send_simple_event(event_id, payload)
 
@@ -509,7 +508,7 @@ func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
 ## [br]
 ## @param priority: 回调优先级，数值越大越先执行，默认为 0。
 func register_event_owned(owner: Object, event_type: Script, callback: Callable, priority: int = 0) -> void:
-	var architecture := _get_available_architecture("Event")
+	var architecture: GFArchitecture = _get_available_architecture("Event")
 	if architecture != null:
 		architecture.register_event_owned(owner, event_type, callback, priority)
 		_remember_event_architecture(architecture)
@@ -544,7 +543,7 @@ func register_assignable_event_owned(
 	callback: Callable,
 	priority: int = 0
 ) -> void:
-	var architecture := _get_available_architecture("Event")
+	var architecture: GFArchitecture = _get_available_architecture("Event")
 	if architecture != null:
 		architecture.register_assignable_event_owned(owner, base_event_type, callback, priority)
 		_remember_event_architecture(architecture)
@@ -572,7 +571,7 @@ func unregister_assignable_event(base_event_type: Script, callback: Callable) ->
 ## [br]
 ## @param callback: 回调函数，签名为 func(payload: Variant)。
 func register_simple_event_owned(owner: Object, event_id: StringName, callback: Callable) -> void:
-	var architecture := _get_available_architecture("Event")
+	var architecture: GFArchitecture = _get_available_architecture("Event")
 	if architecture != null:
 		architecture.register_simple_event_owned(owner, event_id, callback)
 		_remember_event_architecture(architecture)
@@ -603,29 +602,29 @@ func unregister_owner_events(owner: Object) -> void:
 # --- 私有/辅助方法 ---
 
 func _transition_to_state(state_name: StringName, msg: Dictionary, emit_changed: bool) -> void:
-	var target_path := _build_state_path(state_name)
+	var target_path: Array[StringName] = _build_state_path(state_name)
 	if target_path.is_empty():
 		return
 
-	var common_count := _get_common_prefix_count(_active_path, target_path)
+	var common_count: int = _get_common_prefix_count(_active_path, target_path)
 	if _paths_equal(_active_path, target_path) and common_count > 0:
 		common_count -= 1
 
-	var block_reason := _get_transition_block_reason(target_path, common_count, msg)
+	var block_reason: StringName = _get_transition_block_reason(target_path, common_count, msg)
 	if block_reason != &"":
 		transition_blocked.emit(current_state_name, state_name, msg.duplicate(true), block_reason)
 		return
 
 	_transition_serial += 1
-	var current_serial := _transition_serial
-	var from_name := current_state_name
+	var current_serial: int = _transition_serial
+	var from_name: StringName = current_state_name
 
-	if not _exit_active_path_to(common_count, state_name, msg):
+	if not _exit_active_path_to(common_count):
 		return
 
-	for index in range(common_count, target_path.size()):
-		var entering_state_name := target_path[index]
-		var entering_state := _states.get(entering_state_name) as GFState
+	for index: int in range(common_count, target_path.size()):
+		var entering_state_name: StringName = target_path[index]
+		var entering_state: GFState = _get_registered_state(entering_state_name)
 		if entering_state == null:
 			return
 
@@ -641,21 +640,19 @@ func _transition_to_state(state_name: StringName, msg: Dictionary, emit_changed:
 
 func _exit_active_path_to(
 	common_count: int,
-	next_state_name: StringName,
-	msg: Dictionary,
 	process_queued_transition: bool = true
 ) -> bool:
 	if _active_path.size() <= common_count:
 		return true
 
 	_is_exiting_current_state = true
-	var keep_count := common_count
-	for index in range(_active_path.size() - 1, common_count - 1, -1):
-		var exiting_state_name := _active_path[index]
-		var exiting_state := _states.get(exiting_state_name) as GFState
+	var keep_count: int = common_count
+	for index: int in range(_active_path.size() - 1, common_count - 1, -1):
+		var exiting_state_name: StringName = _active_path[index]
+		var exiting_state: GFState = _get_registered_state(exiting_state_name)
 		if exiting_state != null:
 			exiting_state.exit()
-		if not _queued_exit_transition.is_empty():
+		if _has_queued_exit_transition:
 			keep_count = index
 			break
 	_is_exiting_current_state = false
@@ -663,15 +660,15 @@ func _exit_active_path_to(
 	_active_path = _copy_path_prefix(_active_path, keep_count)
 	_set_current_from_active_path()
 
-	if _queued_exit_transition.is_empty():
+	if not _has_queued_exit_transition:
 		return true
 	if not process_queued_transition:
-		_queued_exit_transition.clear()
+		_clear_queued_exit_transition()
 		return true
 
-	var queued_state_name := _queued_exit_transition.get("state_name", &"") as StringName
-	var queued_msg := _queued_exit_transition.get("msg", {}) as Dictionary
-	_queued_exit_transition.clear()
+	var queued_transition: _QueuedExitTransition = _take_queued_exit_transition(&"", {})
+	var queued_state_name: StringName = queued_transition._state_name
+	var queued_msg: Dictionary = queued_transition._msg
 	_transition_to_state(queued_state_name, queued_msg, true)
 	return false
 
@@ -681,15 +678,15 @@ func _get_transition_block_reason(
 	common_count: int,
 	msg: Dictionary
 ) -> StringName:
-	var target_state_name := target_path[target_path.size() - 1]
-	for index in range(_active_path.size() - 1, common_count - 1, -1):
-		var active_state := _states.get(_active_path[index]) as GFState
+	var target_state_name: StringName = target_path[target_path.size() - 1]
+	for index: int in range(_active_path.size() - 1, common_count - 1, -1):
+		var active_state: GFState = _get_registered_state(_active_path[index])
 		if active_state != null and not active_state.can_exit(target_state_name, msg):
 			return &"exit_guard"
 
-	var previous_state_name := current_state_name
-	for index in range(common_count, target_path.size()):
-		var target_state := _states.get(target_path[index]) as GFState
+	var previous_state_name: StringName = current_state_name
+	for index: int in range(common_count, target_path.size()):
+		var target_state: GFState = _get_registered_state(target_path[index])
 		if target_state != null and not target_state.can_enter(previous_state_name, msg):
 			return &"enter_guard"
 
@@ -713,13 +710,13 @@ func _normalize_parent_state_name(state_name: StringName, parent_state_name: Str
 
 func _set_parent_state_name(state_name: StringName, parent_state_name: StringName) -> void:
 	if parent_state_name == &"":
-		_state_parents.erase(state_name)
+		var _erased_parent: bool = _state_parents.erase(state_name)
 	else:
 		_state_parents[state_name] = parent_state_name
 
 
 func _creates_parent_cycle(state_name: StringName, parent_state_name: StringName) -> bool:
-	var current_name := parent_state_name
+	var current_name: StringName = parent_state_name
 	var visited: Dictionary = {}
 	while current_name != &"":
 		if current_name == state_name:
@@ -727,33 +724,37 @@ func _creates_parent_cycle(state_name: StringName, parent_state_name: StringName
 		if visited.has(current_name):
 			return true
 		visited[current_name] = true
-		current_name = _state_parents.get(current_name, &"") as StringName
+		current_name = _get_parent_state_name(current_name)
 	return false
 
 
 func _build_state_path(state_name: StringName) -> Array[StringName]:
-	var result: Array[StringName] = []
-	var current_name := state_name
+	var reversed_path: Array[StringName] = []
+	var current_name: StringName = state_name
 	var visited: Dictionary = {}
 	while current_name != &"":
 		if visited.has(current_name):
 			push_error("[GFStateMachine] 检测到循环状态父级，无法构建状态路径：%s" % state_name)
-			result.clear()
-			return result
+			reversed_path.clear()
+			return reversed_path
 		if not _states.has(current_name):
 			push_warning("[GFStateMachine] 状态路径包含未注册状态：%s" % current_name)
-			result.clear()
-			return result
+			reversed_path.clear()
+			return reversed_path
 
-		result.insert(0, current_name)
+		reversed_path.append(current_name)
 		visited[current_name] = true
-		current_name = _state_parents.get(current_name, &"") as StringName
+		current_name = _get_parent_state_name(current_name)
+
+	var result: Array[StringName] = []
+	for index: int in range(reversed_path.size() - 1, -1, -1):
+		result.append(reversed_path[index])
 	return result
 
 
 func _get_common_prefix_count(left: Array[StringName], right: Array[StringName]) -> int:
-	var count := mini(left.size(), right.size())
-	for index in range(count):
+	var count: int = mini(left.size(), right.size())
+	for index: int in range(count):
 		if left[index] != right[index]:
 			return index
 	return count
@@ -762,7 +763,7 @@ func _get_common_prefix_count(left: Array[StringName], right: Array[StringName])
 func _paths_equal(left: Array[StringName], right: Array[StringName]) -> bool:
 	if left.size() != right.size():
 		return false
-	for index in range(left.size()):
+	for index: int in range(left.size()):
 		if left[index] != right[index]:
 			return false
 	return true
@@ -777,8 +778,8 @@ func _copy_path(path: Array[StringName]) -> Array[StringName]:
 
 func _copy_path_prefix(path: Array[StringName], count: int) -> Array[StringName]:
 	var result: Array[StringName] = []
-	var safe_count := clampi(count, 0, path.size())
-	for index in range(safe_count):
+	var safe_count: int = clampi(count, 0, path.size())
+	for index: int in range(safe_count):
 		result.append(path[index])
 	return result
 
@@ -790,7 +791,7 @@ func _set_current_from_active_path() -> void:
 		return
 
 	current_state_name = _active_path[_active_path.size() - 1]
-	_current_state = _states.get(current_state_name) as GFState
+	_current_state = _get_registered_state(current_state_name)
 
 
 func _remember_event_architecture(architecture: GFArchitecture) -> void:
@@ -808,7 +809,7 @@ func _get_tracked_event_architectures() -> Array[GFArchitecture]:
 	var result: Array[GFArchitecture] = []
 	var live_refs: Array[WeakRef] = []
 	for architecture_ref: WeakRef in _event_architecture_refs:
-		var architecture := architecture_ref.get_ref() as GFArchitecture
+		var architecture: GFArchitecture = _variant_to_architecture(architecture_ref.get_ref())
 		if architecture != null and is_instance_valid(architecture):
 			result.append(architecture)
 			live_refs.append(architecture_ref)
@@ -824,17 +825,17 @@ func _get_context() -> Object:
 
 
 func _get_available_architecture(dependency_name: String) -> GFArchitecture:
-	var context := _get_context()
+	var context: Object = _get_context()
 	if _context_ref != null and not is_instance_valid(context):
 		push_error("[GFStateMachine] 上下文无效，无法获取 %s。" % dependency_name)
 		return null
 
 	if context != null:
-		var context_architecture := _get_context_architecture(context)
+		var context_architecture: GFArchitecture = _get_context_architecture(context)
 		if context_architecture != null:
 			return context_architecture
 
-	var global_architecture := GFAutoload.get_architecture_or_null()
+	var global_architecture: GFArchitecture = GFAutoload.get_architecture_or_null()
 	if global_architecture == null:
 		push_error("[GFStateMachine] 架构尚未初始化，无法获取 %s。" % dependency_name)
 		return null
@@ -843,10 +844,69 @@ func _get_available_architecture(dependency_name: String) -> GFArchitecture:
 
 
 func _get_context_architecture(context: Object) -> GFArchitecture:
-	if context.has_method("get_architecture_or_null"):
-		return context.call("get_architecture_or_null") as GFArchitecture
-	if context.has_method("_get_architecture_or_null"):
-		return context.call("_get_architecture_or_null") as GFArchitecture
-	if context.has_method("get_architecture"):
-		return context.call("get_architecture") as GFArchitecture
+	var method_names: Array[StringName] = [
+		&"get_architecture_or_null",
+		&"_get_architecture_or_null",
+		&"get_architecture",
+	]
+	for method_name: StringName in method_names:
+		var architecture: GFArchitecture = _call_context_architecture_method(context, method_name)
+		if architecture != null:
+			return architecture
 	return null
+
+
+func _get_registered_state(state_name: StringName) -> GFState:
+	var state_value: Variant = GFVariantData.get_option_value(_states, state_name)
+	if state_value is GFState:
+		return state_value
+	return null
+
+
+func _get_parent_state_name(state_name: StringName) -> StringName:
+	return GFVariantData.get_option_string_name(_state_parents, state_name)
+
+
+func _queue_exit_transition(state_name: StringName, msg: Dictionary) -> void:
+	_has_queued_exit_transition = true
+	_queued_exit_state_name = state_name
+	_queued_exit_msg = msg
+
+
+func _clear_queued_exit_transition() -> void:
+	_has_queued_exit_transition = false
+	_queued_exit_state_name = &""
+	_queued_exit_msg = {}
+
+
+func _take_queued_exit_transition(default_state_name: StringName, default_msg: Dictionary) -> _QueuedExitTransition:
+	if not _has_queued_exit_transition:
+		return _QueuedExitTransition.new(default_state_name, default_msg)
+
+	var result: _QueuedExitTransition = _QueuedExitTransition.new(_queued_exit_state_name, _queued_exit_msg)
+	_clear_queued_exit_transition()
+	return result
+
+
+func _call_context_architecture_method(context: Object, method_name: StringName) -> GFArchitecture:
+	if not context.has_method(method_name):
+		return null
+	var architecture_value: Variant = context.call(method_name)
+	return _variant_to_architecture(architecture_value)
+
+
+func _variant_to_architecture(value: Variant) -> GFArchitecture:
+	if value is GFArchitecture:
+		return value
+	return null
+
+
+# --- 内部类 ---
+
+class _QueuedExitTransition:
+	var _state_name: StringName = &""
+	var _msg: Dictionary = {}
+
+	func _init(p_state_name: StringName = &"", p_msg: Dictionary = {}) -> void:
+		_state_name = p_state_name
+		_msg = p_msg

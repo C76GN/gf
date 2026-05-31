@@ -116,12 +116,12 @@ var _suspend_orbit_signal: bool = false
 ## [br]
 ## @return 当前焦点的全局位置。
 func get_focus_position() -> Vector3:
-	var target := get_target_node()
-	var focus_transform := global_transform
+	var target: Node3D = get_target_node()
+	var focus_transform: Transform3D = global_transform
 	if target != null:
 		focus_transform = target.global_transform
 
-	var effective_offset := focus_transform.basis * offset if offset_follows_rotation else offset
+	var effective_offset: Vector3 = focus_transform.basis * offset if offset_follows_rotation else offset
 	return focus_transform.origin + effective_offset
 
 
@@ -131,10 +131,10 @@ func get_focus_position() -> Vector3:
 ## [br]
 ## @return 环绕方向。
 func get_orbit_direction() -> Vector3:
-	var yaw := deg_to_rad(yaw_degrees)
-	var pitch := deg_to_rad(pitch_degrees)
-	var horizontal := cos(pitch)
-	var direction := Vector3(
+	var yaw: float = deg_to_rad(yaw_degrees)
+	var pitch: float = deg_to_rad(pitch_degrees)
+	var horizontal: float = cos(pitch)
+	var direction: Vector3 = Vector3(
 		sin(yaw) * horizontal,
 		sin(pitch),
 		cos(yaw) * horizontal
@@ -150,12 +150,12 @@ func get_orbit_direction() -> Vector3:
 ## [br]
 ## @return 期望全局 Transform。
 func get_camera_transform() -> Transform3D:
-	var focus := get_focus_position()
-	var position := focus + get_orbit_direction() * distance
-	var transform := Transform3D(global_transform.basis, position)
-	if look_at_focus and not position.is_equal_approx(focus):
-		transform = transform.looking_at(focus, _get_safe_orbit_up_axis())
-	return transform
+	var focus: Vector3 = get_focus_position()
+	var camera_position: Vector3 = focus + get_orbit_direction() * distance
+	var camera_transform: Transform3D = Transform3D(global_transform.basis, camera_position)
+	if look_at_focus and not camera_position.is_equal_approx(focus):
+		camera_transform = camera_transform.looking_at(focus, _get_safe_orbit_up_axis())
+	return camera_transform
 
 
 ## 设置环绕参数。
@@ -168,9 +168,9 @@ func get_camera_transform() -> Transform3D:
 ## [br]
 ## @param new_distance: 与焦点的距离。
 func set_orbit(new_yaw_degrees: float, new_pitch_degrees: float, new_distance: float) -> void:
-	var previous_yaw := yaw_degrees
-	var previous_pitch := pitch_degrees
-	var previous_distance := distance
+	var previous_yaw: float = yaw_degrees
+	var previous_pitch: float = pitch_degrees
+	var previous_distance: float = distance
 	_suspend_orbit_signal = true
 	yaw_degrees = new_yaw_degrees
 	pitch_degrees = new_pitch_degrees
@@ -206,8 +206,8 @@ func apply_zoom_delta(delta_distance: float) -> void:
 ## [br]
 ## @api public
 func clamp_orbit() -> void:
-	var previous_pitch := pitch_degrees
-	var previous_distance := distance
+	var previous_pitch: float = pitch_degrees
+	var previous_distance: float = distance
 	_suspend_orbit_signal = true
 	pitch_degrees = clampf(pitch_degrees, min_pitch_degrees, max_pitch_degrees)
 	distance = clampf(distance, min_distance, max_distance)

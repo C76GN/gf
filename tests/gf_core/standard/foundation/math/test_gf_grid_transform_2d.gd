@@ -4,13 +4,13 @@ extends GutTest
 
 # --- 常量 ---
 
-const GF_GRID_TRANSFORM_2D := preload("res://addons/gf/standard/foundation/math/gf_grid_transform_2d.gd")
+const GF_GRID_TRANSFORM_2D = preload("res://addons/gf/standard/foundation/math/gf_grid_transform_2d.gd")
 
 
 # --- 测试 ---
 
 func test_transformed_size_swaps_axes_for_rotations_and_diagonals() -> void:
-	var size := Vector2i(3, 2)
+	var size: Vector2i = Vector2i(3, 2)
 
 	assert_eq(
 		GF_GRID_TRANSFORM_2D.get_transformed_size(size, GF_GRID_TRANSFORM_2D.Transform.ROTATE_90),
@@ -30,9 +30,9 @@ func test_transformed_size_swaps_axes_for_rotations_and_diagonals() -> void:
 
 
 func test_transform_local_cell_handles_all_rectangular_symmetries() -> void:
-	var size := Vector2i(3, 2)
-	var top_left := Vector2i.ZERO
-	var bottom_right := Vector2i(2, 1)
+	var size: Vector2i = Vector2i(3, 2)
+	var top_left: Vector2i = Vector2i.ZERO
+	var bottom_right: Vector2i = Vector2i(2, 1)
 
 	assert_eq(
 		GF_GRID_TRANSFORM_2D.transform_local_cell(
@@ -73,9 +73,9 @@ func test_transform_local_cell_handles_all_rectangular_symmetries() -> void:
 
 
 func test_transform_cell_applies_source_rect_and_target_origin() -> void:
-	var source_rect := Rect2i(Vector2i(10, 20), Vector2i(3, 2))
-	var target_origin := Vector2i(100, 200)
-	var cell := Vector2i(10, 20)
+	var source_rect: Rect2i = Rect2i(Vector2i(10, 20), Vector2i(3, 2))
+	var target_origin: Vector2i = Vector2i(100, 200)
+	var cell: Vector2i = Vector2i(10, 20)
 
 	assert_eq(
 		GF_GRID_TRANSFORM_2D.transform_cell(
@@ -104,7 +104,7 @@ func test_transform_cells_preserves_input_order() -> void:
 
 
 func test_transform_local_point_uses_continuous_rect_size() -> void:
-	var size := Vector2(3.0, 2.0)
+	var size: Vector2 = Vector2(3.0, 2.0)
 
 	assert_eq(
 		GF_GRID_TRANSFORM_2D.transform_local_point(
@@ -127,11 +127,11 @@ func test_transform_local_point_uses_continuous_rect_size() -> void:
 
 
 func test_inverse_transform_restores_local_cell_when_using_transformed_size() -> void:
-	var source_size := Vector2i(4, 2)
-	var original := Vector2i(3, 1)
-	var transform := GF_GRID_TRANSFORM_2D.Transform.ROTATE_90
-	var transformed := GF_GRID_TRANSFORM_2D.transform_local_cell(original, source_size, transform)
-	var restored := GF_GRID_TRANSFORM_2D.transform_local_cell(
+	var source_size: Vector2i = Vector2i(4, 2)
+	var original: Vector2i = Vector2i(3, 1)
+	var transform: int = GF_GRID_TRANSFORM_2D.Transform.ROTATE_90
+	var transformed: Vector2i = GF_GRID_TRANSFORM_2D.transform_local_cell(original, source_size, transform)
+	var restored: Vector2i = GF_GRID_TRANSFORM_2D.transform_local_cell(
 		transformed,
 		GF_GRID_TRANSFORM_2D.get_transformed_size(source_size, transform),
 		GF_GRID_TRANSFORM_2D.get_inverse_transform(transform)

@@ -14,11 +14,11 @@ class TrackingQuestUtility extends GFQuestUtility:
 
 
 func before_each() -> void:
-	var arch := GFArchitecture.new()
+	var arch: GFArchitecture = GFArchitecture.new()
 	Gf._architecture = arch
 
 	_quest = TrackingQuestUtility.new()
-	Gf.register_utility(_quest)
+	await Gf.register_utility(_quest)
 	await Gf.set_architecture(arch)
 	await get_tree().process_frame
 
@@ -35,15 +35,15 @@ func test_quest_progress() -> void:
 	_quest.start_quest(&"kill_slimes", &"enemy_died", 3)
 
 	_quest.emit_quest_event(&"enemy_died", 1)
-	var q_data := _quest.get_quest_report(&"kill_slimes")
-	assert_eq(int(q_data.get("current_count", -1)), 1)
+	var q_data: Dictionary = _quest.get_quest_report(&"kill_slimes")
+	assert_eq(GFVariantData.get_option_int(q_data, "current_count", -1), 1)
 	assert_false(_quest.is_quest_completed(&"kill_slimes"))
 
 	_quest.emit_quest_event(&"enemy_died", 2)
 	q_data = _quest.get_quest_report(&"kill_slimes")
-	assert_eq(int(q_data.get("current_count", -1)), 3)
+	assert_eq(GFVariantData.get_option_int(q_data, "current_count", -1), 3)
 	assert_true(_quest.is_quest_completed(&"kill_slimes"))
-	assert_eq(int(_quest.get_debug_snapshot().get("event_count", -1)), 0, "最后一个任务完成后应注销对应事件监听。")
+	assert_eq(GFVariantData.get_option_int(_quest.get_debug_snapshot(), "event_count", -1), 0, "最后一个任务完成后应注销对应事件监听。")
 
 
 func test_quest_integration_with_simple_event() -> void:
@@ -61,8 +61,8 @@ func test_float_payload_amount_is_rounded() -> void:
 
 	Gf.send_simple_event(&"part_looted", 1.6)
 
-	var q_data := _quest.get_quest_report(&"collect_parts")
-	assert_eq(int(q_data.get("current_count", -1)), 2, "float 进度载荷应四舍五入为最接近的整数。")
+	var q_data: Dictionary = _quest.get_quest_report(&"collect_parts")
+	assert_eq(GFVariantData.get_option_int(q_data, "current_count", -1), 2, "float 进度载荷应四舍五入为最接近的整数。")
 
 
 func test_negative_payload_amount_is_ignored_by_default() -> void:
@@ -71,8 +71,8 @@ func test_negative_payload_amount_is_ignored_by_default() -> void:
 	Gf.send_simple_event(&"progress_event", 2)
 	Gf.send_simple_event(&"progress_event", -5)
 
-	var q_data := _quest.get_quest_report(&"hold_progress")
-	assert_eq(int(q_data.get("current_count", -1)), 2, "默认不应允许负数 payload 反向扣减任务进度。")
+	var q_data: Dictionary = _quest.get_quest_report(&"hold_progress")
+	assert_eq(GFVariantData.get_option_int(q_data, "current_count", -1), 2, "默认不应允许负数 payload 反向扣减任务进度。")
 
 
 func test_negative_payload_amount_can_be_enabled() -> void:
@@ -82,8 +82,8 @@ func test_negative_payload_amount_can_be_enabled() -> void:
 	Gf.send_simple_event(&"progress_event", 2)
 	Gf.send_simple_event(&"progress_event", -1)
 
-	var q_data := _quest.get_quest_report(&"decay_progress")
-	assert_eq(int(q_data.get("current_count", -1)), 1, "显式开启后应允许负数 payload 调整进度。")
+	var q_data: Dictionary = _quest.get_quest_report(&"decay_progress")
+	assert_eq(GFVariantData.get_option_int(q_data, "current_count", -1), 1, "显式开启后应允许负数 payload 调整进度。")
 
 
 func test_negative_progress_percentage_is_clamped_to_documented_range() -> void:
@@ -92,8 +92,8 @@ func test_negative_progress_percentage_is_clamped_to_documented_range() -> void:
 
 	Gf.send_simple_event(&"progress_event", -1)
 
-	var q_data := _quest.get_quest_report(&"decay_progress")
-	assert_eq(int(q_data.get("current_count", 0)), -1, "原始任务计数仍应允许负数。")
+	var q_data: Dictionary = _quest.get_quest_report(&"decay_progress")
+	assert_eq(GFVariantData.get_option_int(q_data, "current_count"), -1, "原始任务计数仍应允许负数。")
 	assert_eq(_quest.get_quest_progress(&"decay_progress"), 0.0, "公开进度百分比应保持在 0..1。")
 
 
@@ -102,7 +102,7 @@ func test_cancel_last_quest_unregisters_event_listener() -> void:
 
 	assert_true(_quest.cancel_quest(&"cleanup_listener"), "取消 active 任务应成功。")
 
-	assert_eq(int(_quest.get_debug_snapshot().get("event_count", -1)), 0, "最后一个任务取消后应注销对应事件监听。")
+	assert_eq(GFVariantData.get_option_int(_quest.get_debug_snapshot(), "event_count", -1), 0, "最后一个任务取消后应注销对应事件监听。")
 
 
 func test_start_quest_rejects_empty_ids() -> void:
@@ -118,13 +118,13 @@ func test_start_quest_rejects_empty_ids() -> void:
 func test_deep_payload_amount_falls_back_without_recursion_overflow() -> void:
 	_quest.start_quest(&"nested_payload", &"nested_event", 3)
 	var payload: Variant = { "amount": 1 }
-	for i in range(20):
+	for i: int in range(20):
 		payload = { "amount": payload }
 
 	Gf.send_simple_event(&"nested_event", payload)
-	var q_data := _quest.get_quest_report(&"nested_payload")
+	var q_data: Dictionary = _quest.get_quest_report(&"nested_payload")
 
-	assert_eq(int(q_data.get("current_count", -1)), 1, "嵌套过深的 payload 应回退为默认进度。")
+	assert_eq(GFVariantData.get_option_int(q_data, "current_count", -1), 1, "嵌套过深的 payload 应回退为默认进度。")
 	assert_push_error("[GFQuestUtility] payload.amount 嵌套过深，已回退为默认进度 1。")
 
 
@@ -144,9 +144,9 @@ func test_quest_lifecycle_blocker_and_debug_snapshot() -> void:
 	assert_eq(_quest.get_quest_status(&"gated"), GFQuestUtility.STATUS_AVAILABLE, "define_quest 应创建可接取任务。")
 	assert_signal_emitted(_quest, "quest_available", "任务进入 available 时应发出信号。")
 
-	var gate := { "allow": false }
+	var gate: Dictionary = { "allow": false }
 	_quest.add_completion_blocker(&"gated", func(_quest_id: StringName, _report: Dictionary) -> Dictionary:
-		return {"ok": bool(gate["allow"]), "reason": "locked"}
+		return {"ok": GFVariantData.get_option_bool(gate, "allow"), "reason": "locked"}
 	)
 
 	assert_true(_quest.accept_quest(&"gated"), "可接取任务应能进入 active。")
@@ -158,12 +158,12 @@ func test_quest_lifecycle_blocker_and_debug_snapshot() -> void:
 	assert_true(_quest.complete_quest(&"gated"), "阻塞解除后应允许手动完成。")
 	assert_eq(_quest.get_quest_status(&"gated"), GFQuestUtility.STATUS_COMPLETED, "完成后状态应更新。")
 	assert_true(_quest.get_quests_by_status(GFQuestUtility.STATUS_COMPLETED).has("gated"), "状态查询应包含完成任务。")
-	var snapshot := _quest.get_debug_snapshot()
-	assert_eq(snapshot["quest_count"], 1, "调试快照应统计任务数量。")
-	var quests := snapshot["quests"] as Dictionary
-	var gated_report := quests["gated"] as Dictionary
-	var metadata := gated_report["metadata"] as Dictionary
-	assert_eq(metadata["chapter"], 1, "任务报告应保留 metadata。")
+	var snapshot: Dictionary = _quest.get_debug_snapshot()
+	assert_eq(GFVariantData.get_option_int(snapshot, "quest_count"), 1, "调试快照应统计任务数量。")
+	var quests: Dictionary = GFVariantData.get_option_dictionary(snapshot, "quests")
+	var gated_report: Dictionary = GFVariantData.get_option_dictionary(quests, "gated")
+	var metadata: Dictionary = GFVariantData.get_option_dictionary(gated_report, "metadata")
+	assert_eq(GFVariantData.get_option_int(metadata, "chapter"), 1, "任务报告应保留 metadata。")
 
 
 func test_acceptance_condition_can_block_accepting_quest() -> void:
@@ -190,8 +190,10 @@ func test_fail_quest_detaches_listener_and_records_reason() -> void:
 
 	assert_true(_quest.fail_quest(&"timed", "timeout"), "active 任务应可标记失败。")
 	assert_eq(_quest.get_quest_status(&"timed"), GFQuestUtility.STATUS_FAILED, "失败后状态应更新。")
-	assert_eq(int(_quest.get_debug_snapshot().get("event_count", -1)), 0, "失败后应注销事件监听。")
-	assert_eq((_quest.get_quest_report(&"timed")["metadata"] as Dictionary)["last_failure_reason"], "timeout", "失败原因应写入 metadata。")
+	assert_eq(GFVariantData.get_option_int(_quest.get_debug_snapshot(), "event_count", -1), 0, "失败后应注销事件监听。")
+	var timed_report: Dictionary = _quest.get_quest_report(&"timed")
+	var timed_metadata: Dictionary = GFVariantData.get_option_dictionary(timed_report, "metadata")
+	assert_eq(GFVariantData.get_option_string(timed_metadata, "last_failure_reason"), "timeout", "失败原因应写入 metadata。")
 	assert_signal_emitted(_quest, "quest_failed", "失败时应发出 quest_failed 信号。")
 
 
@@ -205,20 +207,21 @@ func test_quest_parent_child_tree_report_aggregates_progress() -> void:
 	assert_eq(_quest.get_child_quests(&"root"), PackedStringArray(["child_a", "child_b"]), "子任务 ID 应稳定排序。")
 	assert_false(_quest.set_quest_parent(&"root", &"child_a"), "不应允许形成循环父子关系。")
 
-	_quest.accept_quest(&"child_a")
-	_quest.complete_quest(&"child_a")
-	var report := _quest.get_quest_tree_report(&"root")
+	var _accept_quest_result_210: Variant = _quest.accept_quest(&"child_a")
+	var _complete_quest_result_211: Variant = _quest.complete_quest(&"child_a")
+	var report: Dictionary = _quest.get_quest_tree_report(&"root")
 
-	assert_eq(report["total_count"], 3, "树报告应统计根和所有子任务。")
-	assert_eq(report["completed_count"], 1, "树报告应统计已完成任务数量。")
-	assert_almost_eq(float(report["aggregate_progress"]), 1.0 / 3.0, 0.001, "树报告应提供聚合进度。")
+	assert_eq(GFVariantData.get_option_int(report, "total_count"), 3, "树报告应统计根和所有子任务。")
+	assert_eq(GFVariantData.get_option_int(report, "completed_count"), 1, "树报告应统计已完成任务数量。")
+	assert_almost_eq(GFVariantData.get_option_float(report, "aggregate_progress"), 1.0 / 3.0, 0.001, "树报告应提供聚合进度。")
 
 
 func test_dispose_unregisters_simple_event_listener() -> void:
 	_quest.start_quest(&"cleanup_listener", &"enemy_died", 1)
 
 	var arch: GFArchitecture = Gf.get_architecture()
-	arch.unregister_utility(_quest.get_script() as Script)
+	var quest_script: Script = _quest.get_script()
+	arch.unregister_utility(quest_script)
 
 	assert_true(_quest.disposed_called, "注销 Utility 时应执行 dispose。")
 	Gf.send_simple_event(&"enemy_died", 1)

@@ -163,7 +163,7 @@ func can_enter(context: GFDialogueContext) -> bool:
 		return true
 	if context == null:
 		return false
-	return bool(context.check_condition(condition_id, condition_payload, self).get("ok", false))
+	return GFVariantData.get_option_bool(context.check_condition(condition_id, condition_payload, self), "ok", false)
 
 
 ## 获取默认后继行 ID。
@@ -183,7 +183,8 @@ func get_default_next_line_id() -> StringName:
 ## [br]
 ## @return: 行副本。
 func duplicate_line() -> GFDialogueLine:
-	return duplicate(true) as GFDialogueLine
+	var line: GFDialogueLine = _get_dialogue_line_value(duplicate(true))
+	return line if line != null else GFDialogueLine.new()
 
 
 ## 转换为字典。
@@ -215,3 +216,12 @@ func to_dictionary() -> Dictionary:
 		"tags": tags,
 		"metadata": metadata.duplicate(true),
 	}
+
+
+# --- 私有/辅助方法 ---
+
+func _get_dialogue_line_value(value: Variant) -> GFDialogueLine:
+	if value is GFDialogueLine:
+		var line: GFDialogueLine = value
+		return line
+	return null

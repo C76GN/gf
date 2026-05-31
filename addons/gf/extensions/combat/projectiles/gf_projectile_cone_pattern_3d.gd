@@ -57,17 +57,17 @@ func _get_spawn_transforms(
 	if emitter == null:
 		return []
 
-	var count := _resolve_count(projectile_count, emit_count)
+	var count: int = _resolve_count(projectile_count, emit_count)
 	var result: Array[Transform3D] = []
-	var yaw_spread := deg_to_rad(yaw_spread_degrees)
-	var pitch := deg_to_rad(pitch_degrees)
+	var yaw_spread: float = deg_to_rad(yaw_spread_degrees)
+	var pitch: float = deg_to_rad(pitch_degrees)
 	for index: int in range(count):
-		var factor := 0.5
+		var factor: float = 0.5
 		if count > 1:
 			factor = float(index) / float(count - 1)
-		var yaw := (factor - 0.5) * yaw_spread
-		var basis := emitter.global_basis * Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, pitch)
-		var direction := -basis.z.normalized()
-		var position := emitter.global_position + direction * maxf(radius, 0.0)
+		var yaw: float = (factor - 0.5) * yaw_spread
+		var basis: Basis = emitter.global_basis * Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, pitch)
+		var direction: Vector3 = -basis.z.normalized()
+		var position: Vector3 = emitter.global_position + direction * maxf(radius, 0.0)
 		result.append(Transform3D(basis, position))
 	return result

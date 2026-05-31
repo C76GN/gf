@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFShakeTrack" path="addons/gf/extensions/feedback/resources/gf_shake_track.gd" module="extensions/feedback" extends="Resource" classDigest="0803f9c9eaedbb7e11a07d7e70b7d1c6b35b3007e963abf68a8bf7dca76cb4d4">
+<class name="GFShakeTrack" path="addons/gf/extensions/feedback/resources/gf_shake_track.gd" module="extensions/feedback" extends="Resource" classDigest="1f3e8cc6f994bd3b82760b70e45eeff381f3d7fcfe41277168956d1d66faa3d5">
 	<description>GFShakeTrack: 通用反馈采样轨道。
 描述一段可组合的反馈偏移轨道，供 GFShakePreset 混合采样。
 轨道只输出通用 position、rotation_degrees 和 scale 偏移，不绑定目标节点或业务事件。</description>
@@ -111,8 +111,8 @@
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="seed" decorators="@export">
-			<signature>var seed: int = 1</signature>
+		<member kind="property" name="sample_seed" decorators="@export">
+			<signature>var sample_seed: int = 1</signature>
 			<description>确定性采样种子。</description>
 			<tags>
 				<tag name="api">public</tag>

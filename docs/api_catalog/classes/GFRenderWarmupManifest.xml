@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFRenderWarmupManifest" path="addons/gf/standard/utilities/display/gf_render_warmup_manifest.gd" module="standard" extends="Resource" classDigest="4de46a4970aa5bd8f032996c0b2d0c8e9c49782dd8db222bb43974d3cf8f6afd">
+<class name="GFRenderWarmupManifest" path="addons/gf/standard/utilities/display/gf_render_warmup_manifest.gd" module="standard" extends="Resource" classDigest="9fda985b281c49c18a02ecf79b9b4977f2f771e029ce708a3f8131d0e6eae400">
 	<description>GFRenderWarmupManifest: 通用渲染预热清单。
 只描述需要提前触碰的渲染相关资源，不绑定具体关卡、材质命名或项目加载流程。</description>
 	<tags>
@@ -37,11 +37,11 @@
 	</properties>
 	<methods>
 		<member kind="method" name="add_resource_path">
-			<signature>func add_resource_path( resource_path: String, kind: StringName = &amp;"", type_hint: String = "", entry_metadata: Dictionary = {} ) -&gt; int:</signature>
+			<signature>func add_resource_path( entry_resource_path: String, kind: StringName = &amp;"", type_hint: String = "", entry_metadata: Dictionary = {} ) -&gt; int:</signature>
 			<description>添加资源路径条目。</description>
 			<tags>
 				<tag name="api">public</tag>
-				<tag name="param">resource_path: 资源路径。</tag>
+				<tag name="param">entry_resource_path: 资源路径。</tag>
 				<tag name="param">kind: 资源类别提示。</tag>
 				<tag name="param">type_hint: ResourceLoader 类型提示。</tag>
 				<tag name="param">entry_metadata: 条目元数据。</tag>

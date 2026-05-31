@@ -125,7 +125,7 @@ func sample_weight(elapsed_seconds: float) -> float:
 	if duration_seconds <= 0.0:
 		return 1.0
 
-	var t := clampf(elapsed_seconds / duration_seconds, 0.0, 1.0)
+	var t: float = clampf(elapsed_seconds / duration_seconds, 0.0, 1.0)
 	match easing_mode:
 		EasingMode.SMOOTH_STEP:
 			return t * t * (3.0 - 2.0 * t)
@@ -158,7 +158,7 @@ func sample_alpha(weight: float) -> float:
 ## [br]
 ## @return 深拷贝后的转场效果。
 func duplicate_effect() -> GFScreenTransitionEffect:
-	var copy := GFScreenTransitionEffect.new()
+	var copy: GFScreenTransitionEffect = GFScreenTransitionEffect.new()
 	copy.duration_seconds = duration_seconds
 	copy.from_alpha = from_alpha
 	copy.to_alpha = to_alpha
@@ -166,7 +166,7 @@ func duplicate_effect() -> GFScreenTransitionEffect:
 	copy.layer = layer
 	copy.block_input = block_input
 	copy.easing_mode = easing_mode
-	copy.shader_material = shader_material.duplicate(true) as ShaderMaterial if shader_material != null else null
+	copy.shader_material = _variant_to_shader_material(shader_material.duplicate(true)) if shader_material != null else null
 	copy.progress_parameter = progress_parameter
 	copy.metadata = metadata.duplicate(true)
 	return copy
@@ -192,3 +192,12 @@ func to_dict() -> Dictionary:
 		"has_shader_material": shader_material != null,
 		"metadata": metadata.duplicate(true),
 	}
+
+
+# --- 私有/辅助方法 ---
+
+func _variant_to_shader_material(value: Variant) -> ShaderMaterial:
+	if value is ShaderMaterial:
+		var material: ShaderMaterial = value
+		return material
+	return null

@@ -141,7 +141,7 @@ func configure(p_min_value: float, p_max_value: float, p_current_value: float) -
 ## [br]
 ## @param value: 新数值。
 func set_value(value: float) -> void:
-	var previous_value := current_value
+	var previous_value: float = current_value
 	current_value = clampf(value, minf(min_value, max_value), maxf(min_value, max_value))
 	if is_equal_approx(previous_value, current_value):
 		return
@@ -169,8 +169,8 @@ func set_bounds(p_min_value: float, p_max_value: float) -> void:
 ## [br]
 ## @return 当前比例。
 func get_ratio() -> float:
-	var low := minf(min_value, max_value)
-	var high := maxf(min_value, max_value)
+	var low: float = minf(min_value, max_value)
+	var high: float = maxf(min_value, max_value)
 	if is_equal_approx(high, low):
 		return 0.0
 	return clampf((current_value - low) / (high - low), 0.0, 1.0)
@@ -225,21 +225,21 @@ func clear_modifiers() -> void:
 ## @return 应用结果。
 func apply_action(action: GFCombatAction) -> GFCombatActionResult:
 	if action == null:
-		var null_result := GFCombatActionResult.make_failure(&"null_action", null, current_value, metadata)
+		var null_result: GFCombatActionResult = GFCombatActionResult.make_failure(&"null_action", null, current_value, metadata)
 		action_rejected.emit(null_result)
 		return null_result
 
 	if not can_receive_action_kind(action.action_kind):
-		var kind_result := GFCombatActionResult.make_failure(&"unaccepted_kind", action, current_value, metadata)
+		var kind_result: GFCombatActionResult = GFCombatActionResult.make_failure(&"unaccepted_kind", action, current_value, metadata)
 		action_rejected.emit(kind_result)
 		return kind_result
 
-	var final_action := _apply_modifiers(action)
-	var validation_report := _validate_action(final_action)
-	if not bool(validation_report.get("ok", true)):
-		var rejected_metadata := _get_report_metadata(validation_report)
-		var rejected_result := GFCombatActionResult.make_failure(
-			StringName(str(validation_report.get("reason", "rejected"))),
+	var final_action: GFCombatAction = _apply_modifiers(action)
+	var validation_report: Dictionary = _validate_action(final_action)
+	if not GFVariantData.get_option_bool(validation_report, "ok", true):
+		var rejected_metadata: Dictionary = _get_report_metadata(validation_report)
+		var rejected_result: GFCombatActionResult = GFCombatActionResult.make_failure(
+			GFVariantData.get_option_string_name(validation_report, "reason", &"rejected"),
 			action,
 			current_value,
 			rejected_metadata
@@ -248,12 +248,12 @@ func apply_action(action: GFCombatAction) -> GFCombatActionResult:
 		action_rejected.emit(rejected_result)
 		return rejected_result
 
-	var previous_value := current_value
-	var next_value := _calculate_next_value(final_action)
+	var previous_value: float = current_value
+	var next_value: float = _calculate_next_value(final_action)
 	set_value(next_value)
 
-	var applied_metadata := _get_report_metadata(validation_report)
-	var applied_result := GFCombatActionResult.make_success(
+	var applied_metadata: Dictionary = _get_report_metadata(validation_report)
+	var applied_result: GFCombatActionResult = GFCombatActionResult.make_success(
 		action,
 		final_action,
 		previous_value,
@@ -267,7 +267,7 @@ func apply_action(action: GFCombatAction) -> GFCombatActionResult:
 # --- 私有/辅助方法 ---
 
 func _apply_modifiers(action: GFCombatAction) -> GFCombatAction:
-	var result := action.duplicate_action()
+	var result: GFCombatAction = action.duplicate_action()
 	for modifier: GFCombatActionModifier in modifiers:
 		if modifier == null:
 			continue
@@ -276,35 +276,37 @@ func _apply_modifiers(action: GFCombatAction) -> GFCombatAction:
 
 
 func _validate_action(action: GFCombatAction) -> Dictionary:
-	var report := {
+	var report: Dictionary = {
 		"ok": true,
 		"reason": &"accepted",
 		"metadata": metadata.duplicate(true),
 	}
 	action_validating.emit(action.duplicate_action(), report)
 	if validation_callback.is_valid():
-		_merge_validation_result(report, validation_callback.call(action.duplicate_action(), report.duplicate(true)))
+		var callback_result: Variant = validation_callback.call(action.duplicate_action(), report.duplicate(true))
+		_merge_validation_result(report, callback_result)
 	return report
 
 
 func _merge_validation_result(report: Dictionary, value: Variant) -> void:
 	if value is bool:
-		report["ok"] = bool(value)
-		if not bool(value):
+		report["ok"] = GFVariantData.to_bool(value)
+		if not GFVariantData.to_bool(value):
 			report["reason"] = &"validation_failed"
 		return
 	if not (value is Dictionary):
 		return
 
-	var value_dict := value as Dictionary
+	var value_dict: Dictionary = GFVariantData.as_dictionary(value)
 	if value_dict.has("ok"):
-		report["ok"] = bool(value_dict["ok"])
+		report["ok"] = GFVariantData.get_option_bool(value_dict, "ok")
 	if value_dict.has("reason"):
-		report["reason"] = StringName(str(value_dict["reason"]))
-	if value_dict.has("metadata") and value_dict["metadata"] is Dictionary:
-		var report_metadata := report.get("metadata", {}) as Dictionary
-		for key: Variant in (value_dict["metadata"] as Dictionary).keys():
-			report_metadata[key] = GFVariantData.duplicate_variant((value_dict["metadata"] as Dictionary)[key])
+		report["reason"] = GFVariantData.get_option_string_name(value_dict, "reason")
+	var value_metadata: Dictionary = GFVariantData.get_option_dictionary(value_dict, "metadata")
+	if not value_metadata.is_empty():
+		var report_metadata: Dictionary = GFVariantData.get_option_dictionary(report, "metadata")
+		for key: Variant in value_metadata.keys():
+			report_metadata[key] = GFVariantData.duplicate_variant(value_metadata[key])
 		report["metadata"] = report_metadata
 
 
@@ -319,13 +321,12 @@ func _calculate_next_value(action: GFCombatAction) -> float:
 
 
 func _get_report_metadata(report: Dictionary) -> Dictionary:
-	var metadata_value: Variant = report.get("metadata", {})
-	return (metadata_value as Dictionary).duplicate(true) if metadata_value is Dictionary else {}
+	return GFVariantData.get_option_dictionary(report, "metadata")
 
 
 func _emit_bound_signals() -> void:
-	var low := minf(min_value, max_value)
-	var high := maxf(min_value, max_value)
+	var low: float = minf(min_value, max_value)
+	var high: float = maxf(min_value, max_value)
 	if is_equal_approx(current_value, low):
 		minimum_reached.emit(current_value)
 	if is_equal_approx(current_value, high):

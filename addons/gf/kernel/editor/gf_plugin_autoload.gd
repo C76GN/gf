@@ -19,6 +19,7 @@ const AUTOLOAD_NAME: String = "Gf"
 ## [br]
 ## @layer kernel/editor
 const AUTOLOAD_PATH: String = "res://addons/gf/kernel/core/gf.gd"
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
 
 
 # --- 公共方法 ---
@@ -56,13 +57,13 @@ static func remove(plugin: EditorPlugin) -> void:
 # --- 私有/辅助方法 ---
 
 static func _autoload_points_to_gf() -> bool:
-	var setting_path := "autoload/%s" % AUTOLOAD_NAME
+	var setting_path: String = "autoload/%s" % AUTOLOAD_NAME
 	var raw_value: Variant = ProjectSettings.get_setting(setting_path, "")
-	var autoload_value := String(raw_value).trim_prefix("*")
+	var autoload_value: String = _GF_VARIANT_ACCESS_SCRIPT.to_text(raw_value).trim_prefix("*")
 	if autoload_value == AUTOLOAD_PATH:
 		return true
 
-	var uid := ResourceLoader.get_resource_uid(AUTOLOAD_PATH)
+	var uid: int = ResourceLoader.get_resource_uid(AUTOLOAD_PATH)
 	if uid == -1:
 		return false
 	return autoload_value == ResourceUID.id_to_text(uid)

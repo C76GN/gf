@@ -6,4 +6,4 @@ const InstallerModelFixture = preload("res://tests/gf_core/fixtures/installers/i
 
 
 func install(architecture: GFArchitecture) -> void:
-	architecture.register_model_instance(InstallerModelFixture.new())
+	await architecture.register_model_instance(InstallerModelFixture.new())

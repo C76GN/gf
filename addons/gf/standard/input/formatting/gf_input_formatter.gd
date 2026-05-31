@@ -9,6 +9,11 @@ class_name GFInputFormatter
 extends RefCounted
 
 
+# --- 常量 ---
+
+const _INPUT_EVENT_TOOLS = preload("res://addons/gf/standard/input/common/gf_input_event_tools.gd")
+
+
 # --- 私有变量 ---
 
 static var _text_providers: Array[GFInputTextProvider] = []
@@ -30,23 +35,26 @@ static var _icon_providers: Array[GFInputIconProvider] = []
 ## @return 可显示文本。
 static func input_event_as_text(input_event: InputEvent, options: Dictionary = {}) -> String:
 	if input_event == null:
-		return String(options.get("unbound_text", "Unbound"))
+		return GFVariantData.get_option_string(options, "unbound_text", "Unbound")
 
 	for provider: GFInputTextProvider in _text_providers:
 		if provider == null or not provider.supports_event(input_event, options):
 			continue
-		var provider_text := provider.get_event_text(input_event, options)
+		var provider_text: String = provider.get_event_text(input_event, options)
 		if not provider_text.is_empty():
 			return provider_text
 
-	if input_event is InputEventAction:
-		return String((input_event as InputEventAction).action)
+	var action_event: InputEventAction = _INPUT_EVENT_TOOLS.get_action_event(input_event)
+	if action_event != null:
+		return String(action_event.action)
 
-	if input_event is InputEventKey:
-		return _key_event_as_text(input_event as InputEventKey)
+	var key_event: InputEventKey = _INPUT_EVENT_TOOLS.get_key_event(input_event)
+	if key_event != null:
+		return _key_event_as_text(key_event)
 
-	if input_event is InputEventMouseButton:
-		return _mouse_button_as_text((input_event as InputEventMouseButton).button_index)
+	var mouse_button_event: InputEventMouseButton = _INPUT_EVENT_TOOLS.get_mouse_button_event(input_event)
+	if mouse_button_event != null:
+		return _mouse_button_as_text(mouse_button_event.button_index)
 
 	if input_event is InputEventJoypadButton:
 		return GFInputDeviceTextProvider.format_joypad_event(input_event, options)
@@ -73,12 +81,12 @@ static func input_event_as_text(input_event: InputEvent, options: Dictionary = {
 ## @return BBCode 文本。
 static func input_event_as_rich_text(input_event: InputEvent, options: Dictionary = {}) -> String:
 	if input_event == null:
-		return _escape_bbcode(String(options.get("unbound_text", "Unbound")))
+		return _escape_bbcode(GFVariantData.get_option_string(options, "unbound_text", "Unbound"))
 
 	for provider: GFInputIconProvider in _icon_providers:
 		if provider == null or not provider.supports_event(input_event, options):
 			continue
-		var rich_text := provider.get_event_rich_text(input_event, options)
+		var rich_text: String = provider.get_event_rich_text(input_event, options)
 		if not rich_text.is_empty():
 			return rich_text
 
@@ -103,7 +111,7 @@ static func input_event_icon(input_event: InputEvent, options: Dictionary = {}) 
 	for provider: GFInputIconProvider in _icon_providers:
 		if provider == null or not provider.supports_event(input_event, options):
 			continue
-		var icon := provider.get_event_icon(input_event, options)
+		var icon: Texture2D = provider.get_event_icon(input_event, options)
 		if icon != null:
 			return icon
 	return null
@@ -122,7 +130,7 @@ static func input_event_icon(input_event: InputEvent, options: Dictionary = {}) 
 ## @return 可显示文本。
 static func binding_as_text(binding: GFInputBinding, options: Dictionary = {}) -> String:
 	if binding == null:
-		return String(options.get("unbound_text", "Unbound"))
+		return GFVariantData.get_option_string(options, "unbound_text", "Unbound")
 	if not binding.display_name.is_empty():
 		return binding.display_name
 	return input_event_as_text(binding.input_event, options)
@@ -141,7 +149,7 @@ static func binding_as_text(binding: GFInputBinding, options: Dictionary = {}) -
 ## @return BBCode 文本。
 static func binding_as_rich_text(binding: GFInputBinding, options: Dictionary = {}) -> String:
 	if binding == null:
-		return _escape_bbcode(String(options.get("unbound_text", "Unbound")))
+		return _escape_bbcode(GFVariantData.get_option_string(options, "unbound_text", "Unbound"))
 	if not binding.display_name.is_empty():
 		return _escape_bbcode(binding.display_name)
 	return input_event_as_rich_text(binding.input_event, options)
@@ -171,14 +179,14 @@ static func mapping_as_text(
 	if mapping == null:
 		return ""
 
-	var action_id := mapping.get_action_id()
+	var action_id: StringName = mapping.get_action_id()
 	var parts: Array[String] = []
 	for index: int in range(mapping.bindings.size()):
-		var binding := mapping.bindings[index]
+		var binding: GFInputBinding = mapping.bindings[index]
 		if binding == null:
 			continue
 
-		var event := binding.input_event
+		var event: InputEvent = binding.input_event
 		if remap_config != null and remap_config.has_binding(context_id, action_id, index):
 			event = remap_config.get_bound_event_or_null(context_id, action_id, index)
 		parts.append(input_event_as_text(event, options))
@@ -210,14 +218,14 @@ static func mapping_as_rich_text(
 	if mapping == null:
 		return ""
 
-	var action_id := mapping.get_action_id()
+	var action_id: StringName = mapping.get_action_id()
 	var parts: Array[String] = []
 	for index: int in range(mapping.bindings.size()):
-		var binding := mapping.bindings[index]
+		var binding: GFInputBinding = mapping.bindings[index]
 		if binding == null:
 			continue
 
-		var event := binding.input_event
+		var event: InputEvent = binding.input_event
 		if remap_config != null and remap_config.has_binding(context_id, action_id, index):
 			event = remap_config.get_bound_event_or_null(context_id, action_id, index)
 		parts.append(input_event_as_rich_text(event, options))
@@ -324,11 +332,11 @@ static func _key_event_as_text(event: InputEventKey) -> String:
 	if event.meta_pressed:
 		parts.append("Meta")
 
-	var keycode := event.physical_keycode
+	var keycode: Key = event.physical_keycode
 	if keycode == KEY_NONE:
 		keycode = event.keycode
 
-	var key_text := OS.get_keycode_string(keycode)
+	var key_text: String = OS.get_keycode_string(keycode)
 	parts.append(key_text if not key_text.is_empty() else "Key %d" % int(keycode))
 	return " + ".join(parts)
 

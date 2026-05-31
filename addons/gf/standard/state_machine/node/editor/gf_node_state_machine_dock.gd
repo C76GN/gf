@@ -16,16 +16,15 @@ extends Control
 
 # --- 常量 ---
 
-const _GF_NODE_STATE_MACHINE_BASE := preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine.gd")
-const _GF_NODE_STATE_MACHINE_VALIDATOR := preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine_validator.gd")
-const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
-const _GF_EDITOR_WORKSPACE_UI := preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
+const _GF_NODE_STATE_MACHINE_VALIDATOR = preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine_validator.gd")
+const _INSTANCE_GUARD = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
+const _GF_EDITOR_WORKSPACE_UI = preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
 
 
 # --- 私有变量 ---
 
 var _root_ref: WeakRef = null
-var _machines: Array[Node] = []
+var _machines: Array[GFNodeStateMachine] = []
 var _last_report: Dictionary = {}
 var _machine_option: OptionButton = null
 var _require_initial_check: CheckBox = null
@@ -64,7 +63,7 @@ func set_state_machine_source(root: Node) -> void:
 ## @param root: 可选场景根节点；为空时使用 set_state_machine_source() 或当前场景。
 func refresh(root: Node = null) -> void:
 	_build_ui()
-	var source_root := root if root != null else _resolve_root()
+	var source_root: Node = root if root != null else _resolve_root()
 	_machines.clear()
 	if source_root != null:
 		_root_ref = weakref(source_root)
@@ -99,14 +98,14 @@ func _build_ui() -> void:
 	if _tree != null:
 		return
 
-	var root_box := VBoxContainer.new()
+	var root_box: VBoxContainer = VBoxContainer.new()
 	root_box.clip_contents = true
 	root_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	root_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	add_child(root_box)
 	root_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
-	var toolbar := _GF_EDITOR_WORKSPACE_UI.make_toolbar()
+	var toolbar: HBoxContainer = _GF_EDITOR_WORKSPACE_UI.make_toolbar()
 	root_box.add_child(toolbar)
 
 	toolbar.add_child(_GF_EDITOR_WORKSPACE_UI.make_button("刷新", "扫描当前场景中的 GFNodeStateMachine。", refresh))
@@ -114,19 +113,19 @@ func _build_ui() -> void:
 	_machine_option = OptionButton.new()
 	_machine_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_machine_option.tooltip_text = "选择一个已扫描到的节点状态机。"
-	_machine_option.item_selected.connect(_on_machine_selected)
+	var _machine_selected_connected: int = _machine_option.item_selected.connect(_on_machine_selected)
 	toolbar.add_child(_machine_option)
 
 	_require_initial_check = CheckBox.new()
 	_require_initial_check.text = "要求初始状态"
 	_require_initial_check.tooltip_text = "启用后会把手动启动状态机也按必须设置初始状态来检查。"
-	_require_initial_check.toggled.connect(_on_option_toggled)
+	var _option_toggled_connected: int = _require_initial_check.toggled.connect(_on_option_toggled)
 	toolbar.add_child(_require_initial_check)
 
 	_select_button = Button.new()
 	_select_button.text = "选中"
 	_select_button.tooltip_text = "在编辑器场景树中选中当前状态机。"
-	_select_button.pressed.connect(_on_select_pressed)
+	var _select_connected: int = _select_button.pressed.connect(_on_select_pressed)
 	toolbar.add_child(_select_button)
 
 	_summary_label = _GF_EDITOR_WORKSPACE_UI.make_summary_label()
@@ -146,7 +145,7 @@ func _build_ui() -> void:
 	_tree.set_column_expand(3, true)
 	_tree.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_tree.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_tree.item_selected.connect(_on_issue_selected)
+	var _issue_selected_connected: int = _tree.item_selected.connect(_on_issue_selected)
 	root_box.add_child(_tree)
 
 	_details = _GF_EDITOR_WORKSPACE_UI.make_details_output()
@@ -160,19 +159,23 @@ func _resolve_root() -> Node:
 			return root
 
 	if Engine.is_editor_hint():
-		var edited_root := EditorInterface.get_edited_scene_root()
+		var edited_root: Node = EditorInterface.get_edited_scene_root()
 		if edited_root != null:
 			return edited_root
 
-	var tree := Engine.get_main_loop() as SceneTree
+	var main_loop: MainLoop = Engine.get_main_loop()
+	if not (main_loop is SceneTree):
+		return null
+	var tree: SceneTree = main_loop
 	if tree == null:
 		return null
 	return tree.current_scene if tree.current_scene != null else tree.root
 
 
-func _collect_state_machines(node: Node, result: Array[Node]) -> void:
-	if node is _GF_NODE_STATE_MACHINE_BASE:
-		result.append(node)
+func _collect_state_machines(node: Node, result: Array[GFNodeStateMachine]) -> void:
+	if node is GFNodeStateMachine:
+		var machine: GFNodeStateMachine = node
+		result.append(machine)
 
 	for child: Node in node.get_children():
 		_collect_state_machines(child, result)
@@ -182,10 +185,10 @@ func _populate_machine_options() -> void:
 	if _machine_option == null:
 		return
 
-	var previous_index := _machine_option.selected
+	var previous_index: int = _machine_option.selected
 	_machine_option.clear()
 	for index: int in range(_machines.size()):
-		var machine := _machines[index]
+		var machine: GFNodeStateMachine = _machines[index]
 		_machine_option.add_item(_get_node_path_text(machine), index)
 		_machine_option.set_item_metadata(index, index)
 
@@ -214,7 +217,7 @@ func _render_selected_machine() -> void:
 		_tree.visible = false
 		return
 
-	var machine := _get_selected_machine()
+	var machine: GFNodeStateMachine = _get_selected_machine()
 	if machine == null:
 		_last_report = {}
 		_GF_EDITOR_WORKSPACE_UI.set_status(_summary_label, "当前选择无效。", _GF_EDITOR_WORKSPACE_UI.WARNING_TEXT_COLOR)
@@ -222,32 +225,32 @@ func _render_selected_machine() -> void:
 		_tree.visible = false
 		return
 
-	var report := _GF_NODE_STATE_MACHINE_VALIDATOR.validate_machine(machine, _get_validator_options())
+	var report: GFValidationReport = _GF_NODE_STATE_MACHINE_VALIDATOR.validate_machine(machine, _get_validator_options())
 	_last_report = report.to_dict({}, {
 		"include_metadata": true,
 		"summary_subject": _get_node_path_text(machine),
 	})
 	_summary_label.text = "%s\n下一步：%s" % [
-		String(_last_report.get("summary", "")),
-		String(_last_report.get("next_action", "")),
+		GFVariantData.get_option_string(_last_report, "summary"),
+		GFVariantData.get_option_string(_last_report, "next_action"),
 	]
 	_summary_label.modulate = _GF_EDITOR_WORKSPACE_UI.get_report_color(_last_report)
-	_render_issues(_last_report.get("issues", []) as Array)
+	_render_issues(GFVariantData.get_option_array(_last_report, "issues"))
 
 
 func _render_issues(issues: Array) -> void:
-	var root_item := _tree.create_item()
-	var visible_count := 0
+	var root_item: TreeItem = _tree.create_item()
+	var visible_count: int = 0
 	for issue_variant: Variant in issues:
-		var issue := issue_variant as Dictionary
-		if issue == null:
+		if not (issue_variant is Dictionary):
 			continue
+		var issue: Dictionary = GFVariantData.as_dictionary(issue_variant)
 
-		var item := _tree.create_item(root_item)
-		item.set_text(0, String(issue.get("severity", "")))
-		item.set_text(1, String(issue.get("kind", "")))
-		item.set_text(2, String(issue.get("path", issue.get("key", ""))))
-		item.set_text(3, String(issue.get("message", "")))
+		var item: TreeItem = _tree.create_item(root_item)
+		item.set_text(0, GFVariantData.get_option_string(issue, "severity"))
+		item.set_text(1, GFVariantData.get_option_string(issue, "kind"))
+		item.set_text(2, GFVariantData.get_option_string(issue, "path", GFVariantData.get_option_string(issue, "key")))
+		item.set_text(3, GFVariantData.get_option_string(issue, "message"))
 		item.set_metadata(0, issue.duplicate(true))
 		visible_count += 1
 
@@ -257,14 +260,14 @@ func _render_issues(issues: Array) -> void:
 	_details.visible = visible_count > 0
 
 
-func _get_selected_machine() -> Node:
+func _get_selected_machine() -> GFNodeStateMachine:
 	if _machine_option == null or _machines.is_empty():
 		return null
 
-	var index := _machine_option.selected
+	var index: int = _machine_option.selected
 	if index < 0 or index >= _machines.size():
 		return null
-	var machine := _machines[index]
+	var machine: GFNodeStateMachine = _machines[index]
 	return machine if is_instance_valid(machine) else null
 
 
@@ -301,11 +304,11 @@ func _on_select_pressed() -> void:
 	if not Engine.is_editor_hint():
 		return
 
-	var machine := _get_selected_machine()
+	var machine: GFNodeStateMachine = _get_selected_machine()
 	if machine == null:
 		return
 
-	var selection := EditorInterface.get_selection()
+	var selection: EditorSelection = EditorInterface.get_selection()
 	if selection == null:
 		return
 	selection.clear()
@@ -313,11 +316,11 @@ func _on_select_pressed() -> void:
 
 
 func _on_issue_selected() -> void:
-	var item := _tree.get_selected()
+	var item: TreeItem = _tree.get_selected()
 	if item == null:
 		return
 
-	var issue := item.get_metadata(0)
+	var issue: Variant = item.get_metadata(0)
 	if issue is Dictionary:
 		_details.visible = true
 		_details.text = _safe_json(issue)

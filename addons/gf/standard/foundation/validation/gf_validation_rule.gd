@@ -100,12 +100,12 @@ func configure(
 ) -> GFValidationRule:
 	rule_id = p_rule_id
 	callback = p_callback
-	description = String(options.get("description", description))
-	target_kind = int(options.get("target_kind", target_kind)) as TargetKind
-	enabled = bool(options.get("enabled", enabled))
-	severity = GFValidationIssue.normalize_severity(options.get("severity", severity))
-	var metadata_value: Variant = options.get("metadata", metadata)
-	metadata = (metadata_value as Dictionary).duplicate(true) if metadata_value is Dictionary else {}
+	description = GFVariantData.get_option_string(options, "description", description)
+	target_kind = _target_kind_from_int(GFVariantData.to_int(GFVariantData.get_option_value(options, "target_kind", target_kind), target_kind))
+	enabled = GFVariantData.get_option_bool(options, "enabled", enabled)
+	severity = GFValidationIssue.normalize_severity(GFVariantData.get_option_value(options, "severity", severity))
+	var metadata_value: Variant = GFVariantData.get_option_value(options, "metadata", metadata)
+	metadata = GFVariantData.as_dictionary(metadata_value).duplicate(true)
 	return self
 
 
@@ -125,7 +125,7 @@ func configure(
 func applies_to(target: Variant, context: Dictionary = {}) -> bool:
 	if not enabled:
 		return false
-	if bool(context.get("skip_rule_kind_check", false)):
+	if GFVariantData.get_option_bool(context, "skip_rule_kind_check", false):
 		return true
 	return _target_kind_matches(target, target_kind)
 
@@ -144,7 +144,7 @@ func applies_to(target: Variant, context: Dictionary = {}) -> bool:
 ## [br]
 ## @return 校验报告。
 func validate(target: Variant, context: Dictionary = {}) -> GFValidationReport:
-	var report := GFValidationReport.new(_make_subject(context), {
+	var report: GFValidationReport = GFValidationReport.new(_make_subject(context), {
 		"rule_id": String(rule_id),
 	})
 	if not applies_to(target, context):
@@ -167,7 +167,7 @@ func validate(target: Variant, context: Dictionary = {}) -> GFValidationReport:
 ## [br]
 ## @return 新规则。
 func duplicate_rule() -> GFValidationRule:
-	var rule := GFValidationRule.new()
+	var rule: GFValidationRule = GFValidationRule.new()
 	rule.rule_id = rule_id
 	rule.description = description
 	rule.target_kind = target_kind
@@ -207,27 +207,28 @@ func _apply_result(report: GFValidationReport, value: Variant) -> void:
 	if value == null:
 		return
 	if value is GFValidationReport:
-		report.merge(value)
+		var _merged_report: RefCounted = report.merge(value)
 		return
 	if value is Dictionary:
-		report.merge(value)
+		var _merged_dictionary_report: RefCounted = report.merge(value)
 		return
 	if value is Array:
-		for issue: Variant in value as Array:
-			report.add_issue(issue)
+		var issues: Array = value
+		for issue: Variant in issues:
+			_add_issue_if_valid(report, issue)
 		return
 	if value is bool:
-		if not bool(value):
-			report.add_issue(_make_issue("Validation rule failed."))
+		if not GFVariantData.to_bool(value):
+			_add_issue_if_valid(report, _make_issue("Validation rule failed."))
 		return
 	if value is String or value is StringName:
-		var message := String(value)
+		var message: String = GFVariantData.to_text(value)
 		if not message.is_empty():
-			report.add_issue(_make_issue(message))
+			_add_issue_if_valid(report, _make_issue(message))
 
 
 func _make_issue(message: String) -> GFValidationIssue:
-	var issue := GFValidationIssue.new(severity, _get_issue_kind(), message)
+	var issue: GFValidationIssue = GFValidationIssue.new(severity, _get_issue_kind(), message)
 	issue.subject = String(rule_id)
 	if not metadata.is_empty():
 		issue.metadata = metadata.duplicate(true)
@@ -239,7 +240,7 @@ func _get_issue_kind() -> StringName:
 
 
 func _make_subject(context: Dictionary) -> String:
-	var subject := String(context.get("subject", ""))
+	var subject: String = GFVariantData.get_option_string(context, "subject")
 	if not subject.is_empty():
 		return subject
 	if rule_id != &"":
@@ -263,3 +264,25 @@ func _target_kind_matches(target: Variant, kind: TargetKind) -> bool:
 			return target is Object
 		_:
 			return true
+
+
+func _add_issue_if_valid(report: GFValidationReport, issue: Variant) -> void:
+	var _added_issue: RefCounted = report.add_issue(issue)
+
+
+static func _target_kind_from_int(value: int) -> TargetKind:
+	match clampi(value, TargetKind.ANY, TargetKind.OBJECT):
+		TargetKind.NODE:
+			return TargetKind.NODE
+		TargetKind.RESOURCE:
+			return TargetKind.RESOURCE
+		TargetKind.PACKED_SCENE:
+			return TargetKind.PACKED_SCENE
+		TargetKind.DICTIONARY:
+			return TargetKind.DICTIONARY
+		TargetKind.ARRAY:
+			return TargetKind.ARRAY
+		TargetKind.OBJECT:
+			return TargetKind.OBJECT
+		_:
+			return TargetKind.ANY

@@ -58,19 +58,19 @@ func build_view_model(graph: Resource) -> Dictionary:
 			},
 		}
 
-	var validation := validate_graph_for_editor(graph)
-	var node_entries := _build_node_entries(graph)
-	var node_lookup := _build_node_lookup(node_entries)
-	var connection_entries := _build_connection_entries(graph, node_lookup)
+	var validation: Dictionary = validate_graph_for_editor(graph)
+	var node_entries: Array[Dictionary] = _build_node_entries(graph)
+	var node_lookup: Dictionary = _build_node_lookup(node_entries)
+	var connection_entries: Array[Dictionary] = _build_connection_entries(graph, node_lookup)
 	return {
-		"ok": bool(validation.get("ok", false)),
+		"ok": GFVariantData.get_option_bool(validation, "ok", false),
 		"start_node_id": _get_string_name_property(graph, &"start_node_id"),
 		"node_count": node_entries.size(),
 		"connection_count": connection_entries.size(),
 		"nodes": node_entries,
 		"node_lookup": node_lookup,
 		"connections": connection_entries,
-		"groups": _get_dictionary_array_property(graph, &"editor_groups"),
+		"groups": _dictionary_array_property(graph, &"editor_groups"),
 		"metadata": _get_dictionary_property(graph, &"editor_metadata"),
 		"validation": validation,
 	}
@@ -87,13 +87,13 @@ func build_view_model(graph: Resource) -> Dictionary:
 ## @schema return: Dictionary，包含 ok、healthy、summary、next_action、validation、catalog 和 editor。
 func build_editor_report(graph: Resource) -> Dictionary:
 	if graph == null:
-		var validation := _make_null_validation_report()
+		var null_validation: Dictionary = _make_null_validation_report()
 		return {
 			"ok": false,
 			"healthy": false,
-			"summary": String(validation.get("summary", "")),
-			"next_action": String(validation.get("next_action", "")),
-			"validation": validation,
+			"summary": GFVariantData.get_option_string(null_validation, "summary", ""),
+			"next_action": GFVariantData.get_option_string(null_validation, "next_action", ""),
+			"validation": null_validation,
 			"catalog": _make_empty_catalog(),
 			"editor": {
 				"groups": [],
@@ -103,18 +103,18 @@ func build_editor_report(graph: Resource) -> Dictionary:
 			},
 		}
 
-	var validation := validate_graph_for_editor(graph)
-	var metadata := _get_dictionary_property(graph, &"editor_metadata")
-	var metadata_schema := _get_dictionary_property(graph, &"metadata_schema")
+	var validation: Dictionary = validate_graph_for_editor(graph)
+	var metadata: Dictionary = _get_dictionary_property(graph, &"editor_metadata")
+	var metadata_schema: Dictionary = _get_dictionary_property(graph, &"metadata_schema")
 	return {
-		"ok": bool(validation.get("ok", false)),
-		"healthy": bool(validation.get("healthy", false)),
-		"summary": String(validation.get("summary", "")),
-		"next_action": String(validation.get("next_action", "")),
+		"ok": GFVariantData.get_option_bool(validation, "ok", false),
+		"healthy": GFVariantData.get_option_bool(validation, "healthy", false),
+		"summary": GFVariantData.get_option_string(validation, "summary", ""),
+		"next_action": GFVariantData.get_option_string(validation, "next_action", ""),
 		"validation": validation,
 		"catalog": build_editor_catalog(graph),
 		"editor": {
-			"groups": _get_dictionary_array_property(graph, &"editor_groups"),
+			"groups": _dictionary_array_property(graph, &"editor_groups"),
 			"metadata": metadata,
 			"metadata_schema": metadata_schema,
 			"metadata_validation": validate_metadata_for_editor(metadata, metadata_schema),
@@ -141,10 +141,10 @@ func build_editor_catalog(graph: Resource) -> Dictionary:
 		if node == null:
 			continue
 
-		var category := String(_get_string_name_property(node, &"category"))
+		var category: String = String(_get_string_name_property(node, &"category"))
 		if category.is_empty():
 			category = "Flow"
-		var entry := {
+		var entry: Dictionary = {
 			"node_id": _get_node_id_for_editor(node),
 			"display_name": _get_node_display_name_for_editor(node),
 			"category": category,
@@ -164,14 +164,14 @@ func build_editor_catalog(graph: Resource) -> Dictionary:
 		node_entries.append(entry)
 		if not categories.has(category):
 			categories[category] = []
-		(categories[category] as Array).append(entry)
+		_append_dictionary_array_field(categories, category, entry)
 
 	node_entries.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
-		var left_category := String(left.get("category", ""))
-		var right_category := String(right.get("category", ""))
+		var left_category: String = GFVariantData.get_option_string(left, "category", "")
+		var right_category: String = GFVariantData.get_option_string(right, "category", "")
 		if left_category != right_category:
 			return left_category < right_category
-		return String(left.get("display_name", "")) < String(right.get("display_name", ""))
+		return GFVariantData.get_option_string(left, "display_name", "") < GFVariantData.get_option_string(right, "display_name", "")
 	)
 	return {
 		"node_count": node_entries.size(),
@@ -193,9 +193,9 @@ func validate_graph_for_editor(graph: Resource) -> Dictionary:
 	if graph == null:
 		return _make_null_validation_report()
 
-	var nodes := _get_resource_array_property(graph, &"nodes")
-	var connections := _get_dictionary_array_property(graph, &"connections")
-	var report := {
+	var nodes: Array[Resource] = _get_resource_array_property(graph, &"nodes")
+	var connections: Array[Dictionary] = _dictionary_array_property(graph, &"connections")
+	var report: Dictionary = {
 		"ok": true,
 		"healthy": true,
 		"node_count": nodes.size(),
@@ -210,12 +210,12 @@ func validate_graph_for_editor(graph: Resource) -> Dictionary:
 	var node_ids: Dictionary = {}
 	var node_lookup: Dictionary = {}
 	for index: int in range(nodes.size()):
-		var node := nodes[index] as Resource
+		var node: Resource = _get_resource_value(nodes[index])
 		if node == null:
 			_append_validation_issue(report, "warning", "null_node", "", "Node at index %d is null." % index)
 			continue
 
-		var node_id := _get_node_id_for_editor(node)
+		var node_id: StringName = _get_node_id_for_editor(node)
 		if node_id == &"":
 			_append_validation_issue(report, "error", "empty_node_id", "", "Flow node id is empty.")
 			continue
@@ -225,16 +225,16 @@ func validate_graph_for_editor(graph: Resource) -> Dictionary:
 		node_lookup[node_id] = node
 		_validate_node_ports_for_editor(node, report)
 
-	var start_node_id := _get_string_name_property(graph, &"start_node_id")
+	var start_node_id: StringName = _get_string_name_property(graph, &"start_node_id")
 	if start_node_id != &"" and not node_ids.has(start_node_id):
 		_append_validation_issue(report, "error", "missing_start_node", String(start_node_id), "Start node does not exist.")
 
 	for node: Resource in nodes:
 		if node == null:
 			continue
-		var node_id := _get_node_id_for_editor(node)
+		var node_id: StringName = _get_node_id_for_editor(node)
 		for next_id_text: String in _get_packed_string_array_property(node, &"next_node_ids"):
-			var next_id := StringName(next_id_text)
+			var next_id: StringName = StringName(next_id_text)
 			if next_id == &"":
 				continue
 			if not node_ids.has(next_id):
@@ -242,10 +242,10 @@ func validate_graph_for_editor(graph: Resource) -> Dictionary:
 
 	_validate_connections_for_editor(graph, report, node_ids, node_lookup)
 	_validate_topology_diagnostics_for_editor(graph, report, node_ids, node_lookup)
-	var metadata_schema := _get_dictionary_property(graph, &"metadata_schema")
+	var metadata_schema: Dictionary = _get_dictionary_property(graph, &"metadata_schema")
 	if not metadata_schema.is_empty():
 		_validate_metadata_against_schema(report, _get_dictionary_property(graph, &"editor_metadata"), metadata_schema, "editor_metadata")
-	return _GF_VALIDATION_REPORT_DICTIONARY_SCRIPT.finalize_report(report, "Flow graph", {
+	return _finalize_validation_report(report, "Flow graph", {
 		"next_actions": _get_validation_next_actions(),
 		"fallback_action": "Review the first reported flow graph issue before using this graph.",
 	})
@@ -267,7 +267,7 @@ func validate_graph_for_editor(graph: Resource) -> Dictionary:
 ## [br]
 ## @schema return: GFValidationReportDictionary.finalize_report() 生成的 Dictionary，包含 ok、healthy、summary、issues、next_action 和计数字段。
 func validate_metadata_for_editor(target_metadata: Dictionary, schema: Dictionary = {}) -> Dictionary:
-	var report := {
+	var report: Dictionary = {
 		"ok": true,
 		"healthy": true,
 		"error_count": 0,
@@ -278,7 +278,7 @@ func validate_metadata_for_editor(target_metadata: Dictionary, schema: Dictionar
 		"issues": [],
 	}
 	_validate_metadata_against_schema(report, target_metadata, schema, "metadata")
-	return _GF_VALIDATION_REPORT_DICTIONARY_SCRIPT.finalize_report(report, "Flow metadata", {
+	return _finalize_validation_report(report, "Flow metadata", {
 		"next_actions": _get_metadata_validation_next_actions(),
 		"fallback_action": "Review the reported metadata issue before saving or running this graph.",
 	})
@@ -326,10 +326,13 @@ func apply_node_positions(graph: GFFlowGraph, positions: Dictionary) -> int:
 	if graph == null:
 		return 0
 
-	var changed_count := 0
+	var changed_count: int = 0
 	for key: Variant in positions.keys():
-		var position: Variant = positions[key]
-		if position is Vector2 and graph.set_node_editor_position(StringName(key), position):
+		var position_value: Variant = positions[key]
+		if not (position_value is Vector2):
+			continue
+		var position: Vector2 = position_value
+		if graph.set_node_editor_position(_get_string_name_value(key), position):
 			changed_count += 1
 	return changed_count
 
@@ -356,13 +359,13 @@ func auto_layout(graph: GFFlowGraph, options: Dictionary = {}) -> Dictionary:
 			"error": "graph_is_null",
 		}
 
-	var node_ids := PackedStringArray()
+	var node_ids: PackedStringArray = PackedStringArray()
 	for node: GFFlowNode in graph.nodes:
 		if node != null and node.node_id != &"":
-			node_ids.append(String(node.node_id))
+			_append_packed_string(node_ids, String(node.node_id))
 
-	var positions: Dictionary = _GF_GRAPH_LAYOUT_UTILITY_SCRIPT.make_layered_layout(node_ids, graph.connections, options)
-	var changed_count := apply_node_positions(graph, positions)
+	var positions: Dictionary = _make_layered_layout(node_ids, graph.connections, options)
+	var changed_count: int = apply_node_positions(graph, positions)
 	return {
 		"ok": true,
 		"positions": positions,
@@ -385,12 +388,14 @@ func build_selection_package(graph: GFFlowGraph, node_ids: PackedStringArray) ->
 	if graph == null:
 		return _make_edit_report(false, "graph_is_null")
 
-	var selected_lookup := _make_selected_lookup(node_ids)
+	var selected_lookup: Dictionary = _make_selected_lookup(node_ids)
 	var selected_nodes: Array[GFFlowNode] = []
 	for node_id_text: String in node_ids:
-		var node := graph.get_node(StringName(node_id_text))
+		var node: GFFlowNode = graph.get_node(StringName(node_id_text))
 		if node != null:
-			selected_nodes.append(node.duplicate(true) as GFFlowNode)
+			var node_copy: GFFlowNode = _get_flow_node_value(node.duplicate(true))
+			if node_copy != null:
+				selected_nodes.append(node_copy)
 
 	var selected_connections: Array[Dictionary] = []
 	for connection: Dictionary in graph.connections:
@@ -435,60 +440,60 @@ func paste_selection_package(
 	if graph == null:
 		return _make_edit_report(false, "graph_is_null")
 
-	var source_nodes := selection_package.get("nodes", []) as Array
-	if source_nodes == null:
+	var source_nodes_value: Variant = GFVariantData.get_option_value(selection_package, "nodes", [])
+	var source_nodes: Array = GFVariantData.as_array(source_nodes_value)
+	if not (source_nodes_value is Array):
 		return _make_edit_report(false, "invalid_selection_package")
 
 	var id_map: Dictionary = {}
 	var reserved_ids: Dictionary = {}
-	var added_node_ids := PackedStringArray()
+	var added_node_ids: PackedStringArray = PackedStringArray()
 	for mapping_variant: Variant in source_nodes:
-		var mapping_node := mapping_variant as GFFlowNode
+		var mapping_node: GFFlowNode = _get_flow_node_value(mapping_variant)
 		if mapping_node == null:
 			continue
-		var mapping_source_id := mapping_node.node_id
-		var mapping_next_id := _make_unique_node_id(graph, mapping_source_id, reserved_ids, bool(options.get("keep_original_ids", false)))
+		var mapping_source_id: StringName = mapping_node.node_id
+		var mapping_next_id: StringName = _make_unique_node_id(graph, mapping_source_id, reserved_ids, GFVariantData.get_option_bool(options, "keep_original_ids", false))
 		id_map[mapping_source_id] = mapping_next_id
 		reserved_ids[mapping_next_id] = true
 
 	for copy_variant: Variant in source_nodes:
-		var copy_source_node := copy_variant as GFFlowNode
+		var copy_source_node: GFFlowNode = _get_flow_node_value(copy_variant)
 		if copy_source_node == null:
 			continue
 
-		var next_node := copy_source_node.duplicate(true) as GFFlowNode
+		var next_node: GFFlowNode = _get_flow_node_value(copy_source_node.duplicate(true))
 		if next_node == null:
 			continue
 
-		var copy_source_id := next_node.node_id
-		var copy_next_id := StringName(id_map.get(copy_source_id, copy_source_id))
+		var copy_source_id: StringName = next_node.node_id
+		var copy_next_id: StringName = _get_string_name_value(GFVariantData.get_option_value(id_map, copy_source_id, copy_source_id))
 		next_node.node_id = copy_next_id
 		next_node.editor_position += offset
 		next_node.next_node_ids = _remap_node_ids(next_node.next_node_ids, id_map)
 		graph.set_node(next_node)
-		added_node_ids.append(String(copy_next_id))
+		_append_packed_string(added_node_ids, String(copy_next_id))
 
-	var source_connections := selection_package.get("connections", []) as Array
-	var added_connection_count := 0
-	var failed_connection_count := 0
-	if source_connections != null:
-		for connection_variant: Variant in source_connections:
-			var connection := connection_variant as Dictionary
-			if connection == null:
-				continue
+	var source_connections: Array = GFVariantData.get_option_array(selection_package, "connections")
+	var added_connection_count: int = 0
+	var failed_connection_count: int = 0
+	for connection_variant: Variant in source_connections:
+		var connection: Dictionary = GFVariantData.as_dictionary(connection_variant)
+		if connection.is_empty():
+			continue
 
-			var next_connection := _remap_connection(connection, id_map)
-			var added := graph.add_connection(
-				StringName(next_connection.get("from_node_id", &"")),
-				StringName(next_connection.get("from_port_id", &"")),
-				StringName(next_connection.get("to_node_id", &"")),
-				StringName(next_connection.get("to_port_id", &"")),
-				(next_connection.get("metadata", {}) as Dictionary).duplicate(true) if next_connection.get("metadata", {}) is Dictionary else {}
-			)
-			if added:
-				added_connection_count += 1
-			else:
-				failed_connection_count += 1
+		var next_connection: Dictionary = _remap_connection(connection, id_map)
+		var added: bool = graph.add_connection(
+			_get_connection_from_node_id(next_connection),
+			_get_connection_from_port_id(next_connection),
+			_get_connection_to_node_id(next_connection),
+			_get_connection_to_port_id(next_connection),
+			GFVariantData.get_option_dictionary(next_connection, "metadata")
+		)
+		if added:
+			added_connection_count += 1
+		else:
+			failed_connection_count += 1
 
 	return {
 		"ok": true,
@@ -515,13 +520,13 @@ func remove_nodes(graph: GFFlowGraph, node_ids: PackedStringArray) -> Dictionary
 	if graph == null:
 		return _make_edit_report(false, "graph_is_null")
 
-	var removed_node_ids := PackedStringArray()
+	var removed_node_ids: PackedStringArray = PackedStringArray()
 	for node_id_text: String in node_ids:
-		var node_id := StringName(node_id_text)
+		var node_id: StringName = StringName(node_id_text)
 		if not graph.has_node(node_id):
 			continue
 		graph.remove_node(node_id)
-		removed_node_ids.append(String(node_id))
+		_append_packed_string(removed_node_ids, String(node_id))
 
 	return {
 		"ok": true,
@@ -533,15 +538,94 @@ func remove_nodes(graph: GFFlowGraph, node_ids: PackedStringArray) -> Dictionary
 
 # --- 私有/辅助方法 ---
 
+func _get_string_name_value(value: Variant, default_value: StringName = &"") -> StringName:
+	if value is StringName:
+		var string_name_value: StringName = value
+		return default_value if string_name_value == &"" else string_name_value
+	if value is String:
+		var text_value: String = value
+		var trimmed_value: String = text_value.strip_edges()
+		return default_value if trimmed_value.is_empty() else StringName(trimmed_value)
+	return default_value
+
+
+func _get_color_value(value: Variant, default_value: Color = Color.TRANSPARENT) -> Color:
+	if value is Color:
+		return value
+	return default_value
+
+
+func _get_resource_value(value: Variant) -> Resource:
+	if value is Resource:
+		return value
+	return null
+
+
+func _get_flow_node_value(value: Variant) -> GFFlowNode:
+	if value is GFFlowNode:
+		return value
+	return null
+
+
+func _append_dictionary_array_field(target: Dictionary, field_name: Variant, value: Variant) -> void:
+	var values: Array = GFVariantData.as_array(GFVariantData.get_option_value(target, field_name, []))
+	values.append(value)
+	target[field_name] = values
+
+
+func _get_dictionary_ref(source: Dictionary, key: Variant) -> Dictionary:
+	return GFVariantData.as_dictionary(GFVariantData.get_option_value(source, key, {}))
+
+
+func _get_connection_from_node_id(connection: Dictionary) -> StringName:
+	return GFVariantData.get_option_string_name(connection, "from_node_id", &"")
+
+
+func _get_connection_from_port_id(connection: Dictionary) -> StringName:
+	return GFVariantData.get_option_string_name(connection, "from_port_id", &"")
+
+
+func _get_connection_to_node_id(connection: Dictionary) -> StringName:
+	return GFVariantData.get_option_string_name(connection, "to_node_id", &"")
+
+
+func _get_connection_to_port_id(connection: Dictionary) -> StringName:
+	return GFVariantData.get_option_string_name(connection, "to_port_id", &"")
+
+
+func _append_packed_string(target: PackedStringArray, value: String) -> void:
+	var appended: bool = target.append(value)
+	if appended:
+		return
+
+
+func _finalize_validation_report(report: Dictionary, subject: String, options: Dictionary) -> Dictionary:
+	return GFVariantData.as_dictionary(_GF_VALIDATION_REPORT_DICTIONARY_SCRIPT.call("finalize_report", report, subject, options))
+
+
+func _make_layered_layout(node_ids: PackedStringArray, connections: Array[Dictionary], options: Dictionary) -> Dictionary:
+	return GFVariantData.as_dictionary(_GF_GRAPH_LAYOUT_UTILITY_SCRIPT.call("make_layered_layout", node_ids, connections, options))
+
+
+func _find_reachable_nodes(start_node_id: StringName, graph: Resource, node_ids: Dictionary, node_lookup: Dictionary) -> Dictionary:
+	return GFVariantData.as_dictionary(_GF_GRAPH_MATH_SCRIPT.call(
+		"find_reachable",
+		start_node_id,
+		INF,
+		func(node_id: Variant) -> Array:
+			return _get_successor_node_ids_for_editor(graph, _get_string_name_value(node_id), node_ids, node_lookup)
+	))
+
+
 func _build_node_entries(graph: Resource) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for node: Resource in _get_resource_array_property(graph, &"nodes"):
 		if node == null:
 			continue
 
-		var input_ports := _build_port_entries(_get_resource_array_property(node, &"input_ports"))
-		var output_ports := _build_port_entries(_get_resource_array_property(node, &"output_ports"))
-		var size := _get_vector2_property(node, &"editor_size")
+		var input_ports: Array[Dictionary] = _build_port_entries(_get_resource_array_property(node, &"input_ports"))
+		var output_ports: Array[Dictionary] = _build_port_entries(_get_resource_array_property(node, &"output_ports"))
+		var size: Vector2 = _get_vector2_property(node, &"editor_size")
 		if size == Vector2.ZERO:
 			size = default_node_size
 		result.append({
@@ -564,18 +648,18 @@ func _build_node_entries(graph: Resource) -> Array[Dictionary]:
 func _build_node_lookup(node_entries: Array[Dictionary]) -> Dictionary:
 	var result: Dictionary = {}
 	for node_entry: Dictionary in node_entries:
-		result[node_entry.get("node_id", &"")] = node_entry
+		result[GFVariantData.get_option_string_name(node_entry, "node_id", &"")] = node_entry
 	return result
 
 
 func _build_port_entries(ports: Array) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for port_index: int in range(ports.size()):
-		var port := ports[port_index] as Resource
+		var port: Resource = _get_resource_value(ports[port_index])
 		if port == null:
 			continue
 
-		var description := _describe_port_for_editor(port)
+		var description: Dictionary = _describe_port_for_editor(port)
 		description["index"] = result.size()
 		description["graph_slot_index"] = result.size() + 1
 		description["source_index"] = port_index
@@ -586,29 +670,29 @@ func _build_port_entries(ports: Array) -> Array[Dictionary]:
 func _build_port_index(port_entries: Array[Dictionary]) -> Dictionary:
 	var result: Dictionary = {}
 	for port_entry: Dictionary in port_entries:
-		result[port_entry.get("port_id", &"")] = int(port_entry.get("index", -1))
+		result[GFVariantData.get_option_string_name(port_entry, "port_id", &"")] = GFVariantData.get_option_int(port_entry, "index", -1)
 	return result
 
 
 func _build_connection_entries(graph: Resource, node_lookup: Dictionary) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
-	for connection: Dictionary in _get_dictionary_array_property(graph, &"connections"):
-		var entry := _build_connection_entry(connection, node_lookup)
-		if include_invalid_connections or bool(entry.get("valid", false)):
+	for connection: Dictionary in _dictionary_array_property(graph, &"connections"):
+		var entry: Dictionary = _build_connection_entry(connection, node_lookup)
+		if include_invalid_connections or GFVariantData.get_option_bool(entry, "valid", false):
 			result.append(entry)
 	return result
 
 
 func _build_connection_entry(connection: Dictionary, node_lookup: Dictionary) -> Dictionary:
-	var from_node_id := StringName(connection.get("from_node_id", &""))
-	var from_port_id := StringName(connection.get("from_port_id", &""))
-	var to_node_id := StringName(connection.get("to_node_id", &""))
-	var to_port_id := StringName(connection.get("to_port_id", &""))
-	var from_node := node_lookup.get(from_node_id, {}) as Dictionary
-	var to_node := node_lookup.get(to_node_id, {}) as Dictionary
-	var from_port_index := _get_port_index(from_node, "output_port_indices", from_port_id)
-	var to_port_index := _get_port_index(to_node, "input_port_indices", to_port_id)
-	var valid := from_node != null and not from_node.is_empty() and to_node != null and not to_node.is_empty()
+	var from_node_id: StringName = _get_connection_from_node_id(connection)
+	var from_port_id: StringName = _get_connection_from_port_id(connection)
+	var to_node_id: StringName = _get_connection_to_node_id(connection)
+	var to_port_id: StringName = _get_connection_to_port_id(connection)
+	var from_node: Dictionary = _get_dictionary_ref(node_lookup, from_node_id)
+	var to_node: Dictionary = _get_dictionary_ref(node_lookup, to_node_id)
+	var from_port_index: int = _get_port_index(from_node, "output_port_indices", from_port_id)
+	var to_port_index: int = _get_port_index(to_node, "input_port_indices", to_port_id)
+	var valid: bool = not from_node.is_empty() and not to_node.is_empty()
 	if from_port_id != &"" and from_port_index < 0:
 		valid = false
 	if to_port_id != &"" and to_port_index < 0:
@@ -623,7 +707,7 @@ func _build_connection_entry(connection: Dictionary, node_lookup: Dictionary) ->
 		"to_port_index": to_port_index,
 		"to_graph_slot_index": _to_graph_slot_index(to_port_id, to_port_index),
 		"valid": valid,
-		"metadata": (connection.get("metadata", {}) as Dictionary).duplicate(true) if connection.get("metadata", {}) is Dictionary else {},
+		"metadata": GFVariantData.get_option_dictionary(connection, "metadata"),
 	}
 
 
@@ -633,10 +717,10 @@ func _get_port_index(node_entry: Dictionary, index_key: String, port_id: StringN
 	if node_entry == null or node_entry.is_empty():
 		return -1
 
-	var indices := node_entry.get(index_key, {}) as Dictionary
-	if indices == null:
+	var indices: Dictionary = _get_dictionary_ref(node_entry, index_key)
+	if indices.is_empty():
 		return -1
-	return int(indices.get(port_id, -1))
+	return GFVariantData.get_option_int(indices, port_id, -1)
 
 
 func _to_graph_slot_index(port_id: StringName, port_index: int) -> int:
@@ -648,7 +732,7 @@ func _to_graph_slot_index(port_id: StringName, port_index: int) -> int:
 
 
 func _describe_port_for_editor(port: Resource) -> Dictionary:
-	var port_id := _get_port_id_for_editor(port)
+	var port_id: StringName = _get_port_id_for_editor(port)
 	return {
 		"port_id": port_id,
 		"display_name": _get_port_display_name_for_editor(port, port_id),
@@ -668,18 +752,18 @@ func _get_node_id_for_editor(node: Resource) -> StringName:
 
 
 func _get_node_display_name_for_editor(node: Resource) -> String:
-	var display_name := _get_string_property(node, &"display_name")
+	var display_name: String = _get_string_property(node, &"display_name")
 	if not display_name.is_empty():
 		return display_name
 
-	var node_id := _get_node_id_for_editor(node)
+	var node_id: StringName = _get_node_id_for_editor(node)
 	if node_id != &"":
 		return String(node_id)
 	return "Flow Node"
 
 
 func _get_port_id_for_editor(port: Resource) -> StringName:
-	var port_id := _get_string_name_property(port, &"port_id")
+	var port_id: StringName = _get_string_name_property(port, &"port_id")
 	if port_id != &"":
 		return port_id
 	if port != null and not port.resource_path.is_empty():
@@ -688,7 +772,7 @@ func _get_port_id_for_editor(port: Resource) -> StringName:
 
 
 func _get_port_display_name_for_editor(port: Resource, port_id: StringName) -> String:
-	var display_name := _get_string_property(port, &"display_name")
+	var display_name: String = _get_string_property(port, &"display_name")
 	if not display_name.is_empty():
 		return display_name
 	if port_id != &"":
@@ -699,7 +783,7 @@ func _get_port_display_name_for_editor(port: Resource, port_id: StringName) -> S
 
 
 func _validate_node_ports_for_editor(node: Resource, report: Dictionary) -> void:
-	var node_id := _get_node_id_for_editor(node)
+	var node_id: StringName = _get_node_id_for_editor(node)
 	_validate_ports_for_editor(node_id, "input", _get_resource_array_property(node, &"input_ports"), report)
 	_validate_ports_for_editor(node_id, "output", _get_resource_array_property(node, &"output_ports"), report)
 
@@ -707,12 +791,12 @@ func _validate_node_ports_for_editor(node: Resource, report: Dictionary) -> void
 func _validate_ports_for_editor(node_id: StringName, label: String, ports: Array, report: Dictionary) -> void:
 	var port_ids: Dictionary = {}
 	for port_variant: Variant in ports:
-		var port := port_variant as Resource
+		var port: Resource = _get_resource_value(port_variant)
 		if port == null:
 			_append_validation_issue(report, "warning", "null_%s_port" % label, String(node_id), "Flow node contains a null %s port." % label)
 			continue
 
-		var port_id := _get_port_id_for_editor(port)
+		var port_id: StringName = _get_port_id_for_editor(port)
 		if port_id == &"":
 			_append_validation_issue(report, "error", "empty_%s_port_id" % label, String(node_id), "Flow node contains an empty %s port id." % label)
 			continue
@@ -730,15 +814,15 @@ func _validate_connections_for_editor(
 	var connection_keys: Dictionary = {}
 	var input_counts: Dictionary = {}
 	var output_counts: Dictionary = {}
-	var validate_port_compatibility := _get_bool_property(graph, &"validate_port_compatibility", true)
-	var connections := _get_dictionary_array_property(graph, &"connections")
+	var validate_port_compatibility: bool = _get_bool_property(graph, &"validate_port_compatibility", true)
+	var connections: Array[Dictionary] = _dictionary_array_property(graph, &"connections")
 	for index: int in range(connections.size()):
-		var connection := connections[index]
-		var from_node_id := StringName(connection.get("from_node_id", &""))
-		var from_port_id := StringName(connection.get("from_port_id", &""))
-		var to_node_id := StringName(connection.get("to_node_id", &""))
-		var to_port_id := StringName(connection.get("to_port_id", &""))
-		var connection_key := _get_connection_key(from_node_id, from_port_id, to_node_id, to_port_id)
+		var connection: Dictionary = connections[index]
+		var from_node_id: StringName = _get_connection_from_node_id(connection)
+		var from_port_id: StringName = _get_connection_from_port_id(connection)
+		var to_node_id: StringName = _get_connection_to_node_id(connection)
+		var to_port_id: StringName = _get_connection_to_port_id(connection)
+		var connection_key: String = _get_connection_key(from_node_id, from_port_id, to_node_id, to_port_id)
 
 		if from_node_id == &"" or to_node_id == &"":
 			_append_validation_issue(report, "error", "invalid_connection", str(index), "Flow connection requires from_node_id and to_node_id.")
@@ -747,21 +831,21 @@ func _validate_connections_for_editor(
 			_append_validation_issue(report, "error", "duplicate_connection", String(from_node_id), "Duplicate flow connection.")
 		connection_keys[connection_key] = true
 
-		var from_node := node_lookup.get(from_node_id, null) as Resource
-		var to_node := node_lookup.get(to_node_id, null) as Resource
+		var from_node: Resource = _get_resource_value(GFVariantData.get_option_value(node_lookup, from_node_id, null))
+		var to_node: Resource = _get_resource_value(GFVariantData.get_option_value(node_lookup, to_node_id, null))
 		if from_node == null or not node_ids.has(from_node_id):
 			_append_validation_issue(report, "error", "missing_connection_from_node", String(from_node_id), "Connection source node does not exist.")
 		if to_node == null or not node_ids.has(to_node_id):
 			_append_validation_issue(report, "error", "missing_connection_to_node", String(to_node_id), "Connection target node does not exist.")
 
-		var output_port := _validate_connection_port_for_editor(from_node, from_port_id, false, report)
-		var input_port := _validate_connection_port_for_editor(to_node, to_port_id, true, report)
+		var output_port: Resource = _validate_connection_port_for_editor(from_node, from_port_id, false, report)
+		var input_port: Resource = _validate_connection_port_for_editor(to_node, to_port_id, true, report)
 		_count_connection_port_for_editor(output_counts, from_node_id, from_port_id, output_port, false, report)
 		_count_connection_port_for_editor(input_counts, to_node_id, to_port_id, input_port, true, report)
 		if validate_port_compatibility and output_port != null and input_port != null:
-			var compatibility := _get_compatibility_report_for_editor(output_port, input_port)
-			if not bool(compatibility.get("ok", false)):
-				_append_validation_issue(report, "error", "incompatible_connection_ports", String(from_node_id), String(compatibility.get("message", "")))
+			var compatibility: Dictionary = _get_compatibility_report_for_editor(output_port, input_port)
+			if not GFVariantData.get_option_bool(compatibility, "ok", false):
+				_append_validation_issue(report, "error", "incompatible_connection_ports", String(from_node_id), GFVariantData.get_option_string(compatibility, "message", ""))
 
 
 func _validate_connection_port_for_editor(
@@ -773,18 +857,18 @@ func _validate_connection_port_for_editor(
 	if node == null or port_id == &"":
 		return null
 
-	var ports := _get_resource_array_property(node, &"input_ports" if is_input else &"output_ports")
-	var port := _find_port_for_editor(ports, port_id)
+	var ports: Array[Resource] = _get_resource_array_property(node, &"input_ports" if is_input else &"output_ports")
+	var port: Resource = _find_port_for_editor(ports, port_id)
 	if port == null:
-		var kind := "missing_connection_input_port" if is_input else "missing_connection_output_port"
-		var label := "input" if is_input else "output"
+		var kind: String = "missing_connection_input_port" if is_input else "missing_connection_output_port"
+		var label: String = "input" if is_input else "output"
 		_append_validation_issue(report, "error", kind, String(_get_node_id_for_editor(node)), "Connection %s port does not exist: %s" % [label, String(port_id)])
 	return port
 
 
 func _find_port_for_editor(ports: Array, port_id: StringName) -> Resource:
 	for port_variant: Variant in ports:
-		var port := port_variant as Resource
+		var port: Resource = _get_resource_value(port_variant)
 		if port != null and _get_port_id_for_editor(port) == port_id:
 			return port
 	return null
@@ -801,12 +885,12 @@ func _count_connection_port_for_editor(
 	if port_id == &"" or port == null:
 		return
 
-	var key := "%s:%s" % [String(node_id), String(port_id)]
-	counts[key] = int(counts.get(key, 0)) + 1
-	if int(counts[key]) <= 1 or _get_bool_property(port, &"allow_multiple"):
+	var key: String = "%s:%s" % [String(node_id), String(port_id)]
+	counts[key] = GFVariantData.get_option_int(counts, key, 0) + 1
+	if GFVariantData.get_option_int(counts, key, 0) <= 1 or _get_bool_property(port, &"allow_multiple"):
 		return
 
-	var kind := "input_port_allows_single_connection" if is_input else "output_port_allows_single_connection"
+	var kind: String = "input_port_allows_single_connection" if is_input else "output_port_allows_single_connection"
 	_append_validation_issue(report, "error", kind, String(node_id), "Flow port allows only one connection: %s" % String(port_id))
 
 
@@ -814,13 +898,13 @@ func _get_compatibility_report_for_editor(source_port: Resource, target_port: Re
 	if target_port == null:
 		return _make_compatibility_report_for_editor(false, "missing_target_port", "Target port is null.")
 
-	var source_direction := _get_int_property(source_port, &"direction", GFFlowPort.Direction.OUTPUT)
-	var target_direction := _get_int_property(target_port, &"direction", GFFlowPort.Direction.INPUT)
+	var source_direction: int = _get_int_property(source_port, &"direction", GFFlowPort.Direction.OUTPUT)
+	var target_direction: int = _get_int_property(target_port, &"direction", GFFlowPort.Direction.INPUT)
 	if source_direction != GFFlowPort.Direction.OUTPUT or target_direction != GFFlowPort.Direction.INPUT:
 		return _make_compatibility_report_for_editor(false, "invalid_direction", "Connections require an output port and an input port.")
 
-	var source_type := _get_int_property(source_port, &"value_type", GFFlowPort.ValueType.ANY)
-	var target_type := _get_int_property(target_port, &"value_type", GFFlowPort.ValueType.ANY)
+	var source_type: int = _get_int_property(source_port, &"value_type", GFFlowPort.ValueType.ANY)
+	var target_type: int = _get_int_property(target_port, &"value_type", GFFlowPort.ValueType.ANY)
 	if not _value_types_are_compatible_for_editor(source_type, target_type):
 		return _make_compatibility_report_for_editor(false, "value_type_mismatch", "Port value types are not compatible.")
 	if not _class_hints_are_compatible_for_editor(source_port, target_port):
@@ -836,13 +920,13 @@ func _value_types_are_compatible_for_editor(source_type: int, target_type: int) 
 
 
 func _class_hints_are_compatible_for_editor(source_port: Resource, target_port: Resource) -> bool:
-	var source_type := _get_int_property(source_port, &"value_type", GFFlowPort.ValueType.ANY)
-	var target_type := _get_int_property(target_port, &"value_type", GFFlowPort.ValueType.ANY)
+	var source_type: int = _get_int_property(source_port, &"value_type", GFFlowPort.ValueType.ANY)
+	var target_type: int = _get_int_property(target_port, &"value_type", GFFlowPort.ValueType.ANY)
 	if source_type != GFFlowPort.ValueType.OBJECT or target_type != GFFlowPort.ValueType.OBJECT:
 		return true
 
-	var source_class := _get_string_name_property(source_port, &"class_name_hint")
-	var target_class := _get_string_name_property(target_port, &"class_name_hint")
+	var source_class: StringName = _get_string_name_property(source_port, &"class_name_hint")
+	var target_class: StringName = _get_string_name_property(target_port, &"class_name_hint")
 	if source_class == &"" or target_class == &"":
 		return true
 	return source_class == target_class
@@ -878,16 +962,11 @@ func _validate_unreachable_nodes_for_editor(
 	node_ids: Dictionary,
 	node_lookup: Dictionary
 ) -> void:
-	var start_node_id := _get_string_name_property(graph, &"start_node_id")
+	var start_node_id: StringName = _get_string_name_property(graph, &"start_node_id")
 	if start_node_id == &"" or not node_ids.has(start_node_id):
 		return
 
-	var reachable: Dictionary = _GF_GRAPH_MATH_SCRIPT.find_reachable(
-		start_node_id,
-		INF,
-		func(node_id: Variant) -> Array:
-			return _get_successor_node_ids_for_editor(graph, StringName(node_id), node_ids, node_lookup)
-	)
+	var reachable: Dictionary = _find_reachable_nodes(start_node_id, graph, node_ids, node_lookup)
 	for node_id: StringName in _get_sorted_node_ids(node_ids):
 		if not reachable.has(node_id):
 			_append_validation_issue(report, "warning", "unreachable_node", String(node_id), "Node is not reachable from start_node_id: %s" % String(node_id))
@@ -902,7 +981,7 @@ func _validate_cycles_for_editor(
 	var states: Dictionary = {}
 	var reported_cycles: Dictionary = {}
 	for node_id: StringName in _get_sorted_node_ids(node_ids):
-		if int(states.get(node_id, 0)) == 0:
+		if GFVariantData.get_option_int(states, node_id, 0) == 0:
 			_visit_node_for_cycles_for_editor(graph, node_id, node_ids, node_lookup, states, [], reported_cycles, report)
 
 
@@ -919,9 +998,9 @@ func _visit_node_for_cycles_for_editor(
 	states[node_id] = 1
 	stack.append(node_id)
 	for successor_id: StringName in _get_successor_node_ids_for_editor(graph, node_id, node_ids, node_lookup):
-		var successor_state := int(states.get(successor_id, 0))
+		var successor_state: int = GFVariantData.get_option_int(states, successor_id, 0)
 		if successor_state == 1:
-			var cycle_key := _make_cycle_key(successor_id, stack)
+			var cycle_key: String = _make_cycle_key(successor_id, stack)
 			if not reported_cycles.has(cycle_key):
 				reported_cycles[cycle_key] = true
 				_append_validation_issue(report, "warning", "cycle_detected", cycle_key, "Flow graph contains a cycle: %s" % cycle_key)
@@ -951,15 +1030,15 @@ func _get_successor_node_ids_for_editor(
 	node_lookup: Dictionary
 ) -> Array[StringName]:
 	var result: Array[StringName] = []
-	var node := node_lookup.get(node_id, null) as Resource
+	var node: Resource = _get_resource_value(GFVariantData.get_option_value(node_lookup, node_id, null))
 	if node != null:
 		for next_id_text: String in _get_packed_string_array_property(node, &"next_node_ids"):
 			_append_successor_id_for_editor(result, StringName(next_id_text), node_ids)
 
-	for connection: Dictionary in _get_dictionary_array_property(graph, &"connections"):
-		if StringName(connection.get("from_node_id", &"")) != node_id:
+	for connection: Dictionary in _dictionary_array_property(graph, &"connections"):
+		if _get_connection_from_node_id(connection) != node_id:
 			continue
-		_append_successor_id_for_editor(result, StringName(connection.get("to_node_id", &"")), node_ids)
+		_append_successor_id_for_editor(result, _get_connection_to_node_id(connection), node_ids)
 	return result
 
 
@@ -970,9 +1049,9 @@ func _append_successor_id_for_editor(result: Array[StringName], node_id: StringN
 
 
 func _get_sorted_node_ids(node_ids: Dictionary) -> Array[StringName]:
-	var values := PackedStringArray()
+	var values: PackedStringArray = PackedStringArray()
 	for node_id_variant: Variant in node_ids.keys():
-		values.append(String(node_id_variant))
+		_append_packed_string(values, GFVariantData.to_text(node_id_variant))
 	values.sort()
 
 	var result: Array[StringName] = []
@@ -982,14 +1061,14 @@ func _get_sorted_node_ids(node_ids: Dictionary) -> Array[StringName]:
 
 
 func _make_cycle_key(first_repeated_node_id: StringName, stack: Array[StringName]) -> String:
-	var parts := PackedStringArray()
-	var include := false
+	var parts: PackedStringArray = PackedStringArray()
+	var include: bool = false
 	for node_id: StringName in stack:
 		if node_id == first_repeated_node_id:
 			include = true
 		if include:
-			parts.append(String(node_id))
-	parts.append(String(first_repeated_node_id))
+			_append_packed_string(parts, String(node_id))
+	_append_packed_string(parts, String(first_repeated_node_id))
 	return " -> ".join(parts)
 
 
@@ -1000,14 +1079,14 @@ func _validate_metadata_against_schema(
 	label: String
 ) -> void:
 	for key_variant: Variant in schema.keys():
-		var key := StringName(key_variant)
-		var rule := schema[key_variant] as Dictionary
-		if rule == null:
+		var key: StringName = _get_string_name_value(key_variant)
+		var rule: Dictionary = GFVariantData.as_dictionary(schema[key_variant])
+		if rule.is_empty():
 			_append_validation_issue(report, "warning", "metadata_invalid_rule", String(key), "%s schema rule must be a Dictionary: %s" % [label, String(key)])
 			continue
 
-		var has_key := _metadata_has_key(target_metadata, key)
-		var required := bool(rule.get("required", false))
+		var has_key: bool = _metadata_has_key(target_metadata, key)
+		var required: bool = GFVariantData.get_option_bool(rule, "required", false)
 		if required and not has_key:
 			_append_validation_issue(report, "error", "metadata_missing_required", String(key), "%s is missing required metadata: %s" % [label, String(key)])
 			continue
@@ -1016,21 +1095,22 @@ func _validate_metadata_against_schema(
 
 		var value: Variant = _metadata_get_value(target_metadata, key)
 		if value == null:
-			if not bool(rule.get("allow_null", true)):
+			if not GFVariantData.get_option_bool(rule, "allow_null", true):
 				_append_validation_issue(report, "error", "metadata_null_not_allowed", String(key), "%s metadata does not allow null: %s" % [label, String(key)])
 			continue
 
 		if rule.has("type"):
-			var expected_type := int(rule.get("type", TYPE_NIL))
+			var expected_type: int = GFVariantData.get_option_int(rule, "type", TYPE_NIL)
 			if expected_type != TYPE_NIL and typeof(value) != expected_type:
 				_append_validation_issue(report, "error", "metadata_type_mismatch", String(key), "%s metadata type does not match schema: %s" % [label, String(key)])
 
-		var expected_class := String(rule.get("class_name", ""))
-		if not expected_class.is_empty() and not (value is Object and (value as Object).is_class(expected_class)):
+		var expected_class: String = GFVariantData.get_option_string(rule, "class_name", "")
+		var object_value: Object = value if value is Object else null
+		if not expected_class.is_empty() and not (object_value != null and object_value.is_class(expected_class)):
 			_append_validation_issue(report, "error", "metadata_class_mismatch", String(key), "%s metadata class does not match schema: %s" % [label, String(key)])
 
-		var allowed_values := rule.get("allowed_values", []) as Array
-		if allowed_values != null and not allowed_values.is_empty() and not allowed_values.has(value):
+		var allowed_values: Array = GFVariantData.get_option_array(rule, "allowed_values")
+		if not allowed_values.is_empty() and not allowed_values.has(value):
 			_append_validation_issue(report, "error", "metadata_value_not_allowed", String(key), "%s metadata value is not allowed: %s" % [label, String(key)])
 
 
@@ -1041,11 +1121,13 @@ func _metadata_has_key(target_metadata: Dictionary, key: StringName) -> bool:
 func _metadata_get_value(target_metadata: Dictionary, key: StringName) -> Variant:
 	if target_metadata.has(key):
 		return target_metadata[key]
-	return target_metadata.get(String(key), null)
+	return GFVariantData.get_option_value(target_metadata, String(key), null)
 
 
 func _append_validation_issue(report: Dictionary, severity: String, kind: String, key: String, message: String) -> void:
-	_GF_VALIDATION_REPORT_DICTIONARY_SCRIPT.append_issue(report, severity, StringName(kind), message, { "key": key })
+	var issue: Dictionary = GFVariantData.as_dictionary(_GF_VALIDATION_REPORT_DICTIONARY_SCRIPT.call("append_issue", report, severity, StringName(kind), message, { "key": key }))
+	if not issue.is_empty():
+		return
 
 
 func _get_validation_next_actions() -> Dictionary:
@@ -1066,7 +1148,7 @@ func _get_validation_next_actions() -> Dictionary:
 		"incompatible_connection_ports": "Update the connected port value types or disable strict compatibility validation for this graph.",
 		"unreachable_node": "Connect the node from start_node_id or remove it from this graph resource.",
 		"cycle_detected": "Review the reported cycle and make sure the runner loop guard is intentional for this graph.",
-		"terminal_node": "Connect a successor, disable warn_terminal_nodes, or keep the node as an intentional endpoint.",
+		"terminal_node": "Connect a successor, disable warn_terminal_nodes, or keep the node intentionally terminal.",
 		"metadata_missing_required": "Add the required metadata key or relax the metadata schema.",
 		"metadata_null_not_allowed": "Provide a non-null metadata value or allow null in the schema.",
 		"metadata_type_mismatch": "Update the metadata value type or the schema type hint.",
@@ -1102,7 +1184,7 @@ func _get_connection_key(
 
 
 func _make_null_validation_report() -> Dictionary:
-	var report := {
+	var report: Dictionary = {
 		"ok": false,
 		"healthy": false,
 		"node_count": 0,
@@ -1115,7 +1197,7 @@ func _make_null_validation_report() -> Dictionary:
 		"issues": [],
 	}
 	_append_validation_issue(report, "error", "graph_is_null", "", "Flow graph is null.")
-	return _GF_VALIDATION_REPORT_DICTIONARY_SCRIPT.finalize_report(report, "Flow graph", {
+	return _finalize_validation_report(report, "Flow graph", {
 		"next_actions": {},
 		"fallback_action": "Load a valid GFFlowGraph resource before editing.",
 	})
@@ -1129,26 +1211,25 @@ func _make_empty_catalog() -> Dictionary:
 	}
 
 
-func _get_resource_array_property(object: Object, property_name: StringName) -> Array:
+func _get_resource_array_property(object: Object, property_name: StringName) -> Array[Resource]:
+	var result: Array[Resource] = []
 	if object == null:
-		return []
-	var value: Variant = object.get(property_name)
-	if value is Array:
-		return (value as Array).duplicate()
-	return []
+		return result
+	var value: Variant = GFObjectPropertyTools.read_property(object, NodePath(String(property_name)))
+	for item: Variant in GFVariantData.as_array(value):
+		var resource: Resource = _get_resource_value(item)
+		result.append(resource)
+	return result
 
 
-func _get_dictionary_array_property(object: Object, property_name: StringName) -> Array[Dictionary]:
+func _dictionary_array_property(object: Object, property_name: StringName) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	if object == null:
 		return result
-	var value: Variant = object.get(property_name)
-	var source := value as Array
-	if source == null:
-		return result
-	for item: Variant in source:
-		var dictionary := item as Dictionary
-		if dictionary != null:
+	var value: Variant = GFObjectPropertyTools.read_property(object, NodePath(String(property_name)))
+	for item: Variant in GFVariantData.as_array(value):
+		var dictionary: Dictionary = GFVariantData.as_dictionary(item)
+		if not dictionary.is_empty():
 			result.append(dictionary.duplicate(true))
 	return result
 
@@ -1156,23 +1237,21 @@ func _get_dictionary_array_property(object: Object, property_name: StringName) -
 func _get_dictionary_property(object: Object, property_name: StringName) -> Dictionary:
 	if object == null:
 		return {}
-	var value: Variant = object.get(property_name)
-	var dictionary := value as Dictionary
-	if dictionary == null:
-		return {}
-	return dictionary.duplicate(true)
+	var value: Variant = GFObjectPropertyTools.read_property(object, NodePath(String(property_name)))
+	return GFVariantData.as_dictionary(value).duplicate(true)
 
 
 func _get_packed_string_array_property(object: Object, property_name: StringName) -> PackedStringArray:
 	if object == null:
 		return PackedStringArray()
-	var value: Variant = object.get(property_name)
+	var value: Variant = GFObjectPropertyTools.read_property(object, NodePath(String(property_name)))
 	if value is PackedStringArray:
-		return (value as PackedStringArray).duplicate()
+		var string_values: PackedStringArray = value
+		return string_values.duplicate()
 	if value is Array:
-		var result := PackedStringArray()
-		for item: Variant in value:
-			result.append(String(item))
+		var result: PackedStringArray = PackedStringArray()
+		for item: Variant in GFVariantData.as_array(value):
+			_append_packed_string(result, GFVariantData.to_text(item))
 		return result
 	return PackedStringArray()
 
@@ -1180,55 +1259,43 @@ func _get_packed_string_array_property(object: Object, property_name: StringName
 func _get_string_name_property(object: Object, property_name: StringName, default_value: StringName = &"") -> StringName:
 	if object == null:
 		return default_value
-	var value: Variant = object.get(property_name)
-	if value == null:
-		return default_value
-	return StringName(value)
+	var value: Variant = GFObjectPropertyTools.read_property(object, NodePath(String(property_name)))
+	return _get_string_name_value(value, default_value)
 
 
 func _get_string_property(object: Object, property_name: StringName, default_value: String = "") -> String:
 	if object == null:
 		return default_value
-	var value: Variant = object.get(property_name)
-	if value == null:
-		return default_value
-	return String(value)
+	var value: Variant = GFObjectPropertyTools.read_property(object, NodePath(String(property_name)))
+	return GFVariantData.to_text(value, default_value)
 
 
 func _get_bool_property(object: Object, property_name: StringName, default_value: bool = false) -> bool:
 	if object == null:
 		return default_value
-	var value: Variant = object.get(property_name)
-	if value == null:
-		return default_value
-	return bool(value)
+	var value: Variant = GFObjectPropertyTools.read_property(object, NodePath(String(property_name)))
+	return GFVariantData.to_bool(value, default_value)
 
 
 func _get_int_property(object: Object, property_name: StringName, default_value: int = 0) -> int:
 	if object == null:
 		return default_value
-	var value: Variant = object.get(property_name)
-	if value == null:
-		return default_value
-	return int(value)
+	var value: Variant = GFObjectPropertyTools.read_property(object, NodePath(String(property_name)))
+	return GFVariantData.to_int(value, default_value)
 
 
 func _get_vector2_property(object: Object, property_name: StringName, default_value: Vector2 = Vector2.ZERO) -> Vector2:
 	if object == null:
 		return default_value
-	var value: Variant = object.get(property_name)
-	if value is Vector2:
-		return value
-	return default_value
+	var value: Variant = GFObjectPropertyTools.read_property(object, NodePath(String(property_name)))
+	return GFVariantData.to_vector2(value, default_value)
 
 
 func _get_color_property(object: Object, property_name: StringName, default_value: Color = Color.TRANSPARENT) -> Color:
 	if object == null:
 		return default_value
-	var value: Variant = object.get(property_name)
-	if value is Color:
-		return value
-	return default_value
+	var value: Variant = GFObjectPropertyTools.read_property(object, NodePath(String(property_name)))
+	return _get_color_value(value, default_value)
 
 
 func _make_selected_lookup(node_ids: PackedStringArray) -> Dictionary:
@@ -1240,8 +1307,8 @@ func _make_selected_lookup(node_ids: PackedStringArray) -> Dictionary:
 
 func _connection_is_internal(connection: Dictionary, selected_lookup: Dictionary) -> bool:
 	return (
-		selected_lookup.has(StringName(connection.get("from_node_id", &"")))
-		and selected_lookup.has(StringName(connection.get("to_node_id", &"")))
+		selected_lookup.has(_get_connection_from_node_id(connection))
+		and selected_lookup.has(_get_connection_to_node_id(connection))
 	)
 
 
@@ -1251,7 +1318,7 @@ func _make_unique_node_id(
 	reserved_ids: Dictionary,
 	keep_original_id: bool
 ) -> StringName:
-	var base := String(preferred_id)
+	var base: String = String(preferred_id)
 	if base.is_empty():
 		base = "node"
 	if keep_original_id and not graph.has_node(preferred_id) and not reserved_ids.has(preferred_id):
@@ -1259,9 +1326,9 @@ func _make_unique_node_id(
 	if not graph.has_node(preferred_id) and not reserved_ids.has(preferred_id):
 		return preferred_id
 
-	var index := 2
+	var index: int = 2
 	while true:
-		var candidate := StringName("%s_%d" % [base, index])
+		var candidate: StringName = StringName("%s_%d" % [base, index])
 		if not graph.has_node(candidate) and not reserved_ids.has(candidate):
 			return candidate
 		index += 1
@@ -1269,19 +1336,19 @@ func _make_unique_node_id(
 
 
 func _remap_node_ids(node_ids: PackedStringArray, id_map: Dictionary) -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	for node_id_text: String in node_ids:
-		var node_id := StringName(node_id_text)
-		result.append(String(id_map.get(node_id, node_id)))
+		var node_id: StringName = StringName(node_id_text)
+		_append_packed_string(result, GFVariantData.to_text(GFVariantData.get_option_value(id_map, node_id, node_id)))
 	return result
 
 
 func _remap_connection(connection: Dictionary, id_map: Dictionary) -> Dictionary:
-	var result := connection.duplicate(true)
-	var from_node_id := StringName(connection.get("from_node_id", &""))
-	var to_node_id := StringName(connection.get("to_node_id", &""))
-	result["from_node_id"] = id_map.get(from_node_id, from_node_id)
-	result["to_node_id"] = id_map.get(to_node_id, to_node_id)
+	var result: Dictionary = connection.duplicate(true)
+	var from_node_id: StringName = _get_connection_from_node_id(connection)
+	var to_node_id: StringName = _get_connection_to_node_id(connection)
+	result["from_node_id"] = GFVariantData.get_option_value(id_map, from_node_id, from_node_id)
+	result["to_node_id"] = GFVariantData.get_option_value(id_map, to_node_id, to_node_id)
 	return result
 
 

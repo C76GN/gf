@@ -73,8 +73,17 @@ func make_error_report(
 	message: String,
 	context: Dictionary = {}
 ) -> Dictionary:
-	var report := make_report(table_name)
-	add_issue(report, "error", kind, table_name, context.get("row_key", null), StringName(context.get("field", &"")), message, context)
+	var report: Dictionary = make_report(table_name)
+	add_issue(
+		report,
+		"error",
+		kind,
+		table_name,
+		_get_context_row_key(context),
+		_get_context_field(context),
+		message,
+		context
+	)
 	finalize_report(report)
 	return report
 
@@ -114,7 +123,7 @@ func add_issue(
 	message: String,
 	context: Dictionary = {}
 ) -> void:
-	var issue := {
+	var issue: Dictionary = {
 		"severity": severity,
 		"kind": kind,
 		"table_name": table_name,
@@ -123,14 +132,14 @@ func add_issue(
 		"message": message,
 	}
 	_apply_issue_context(issue, context)
-	var issues := report.get("issues", []) as Array
+	var issues: Array = _get_issues(report)
 	issues.append(issue)
 	report["issues"] = issues
 
 	if severity == "warning":
-		report["warning_count"] = int(report.get("warning_count", 0)) + 1
+		report["warning_count"] = _get_warning_count(report) + 1
 	else:
-		report["error_count"] = int(report.get("error_count", 0)) + 1
+		report["error_count"] = _get_error_count(report) + 1
 		report["ok"] = false
 
 
@@ -149,15 +158,17 @@ func add_issue(
 ## @schema source: GFConfigValidationReport 兼容 Dictionary，会复制合并到 target。
 func merge_report(target: Dictionary, source: Dictionary, include_row_count: bool = false) -> void:
 	if include_row_count:
-		target["row_count"] = int(target.get("row_count", 0)) + int(source.get("row_count", 0))
-	target["error_count"] = int(target.get("error_count", 0)) + int(source.get("error_count", 0))
-	target["warning_count"] = int(target.get("warning_count", 0)) + int(source.get("warning_count", 0))
-	if not bool(source.get("ok", true)):
+		target["row_count"] = _get_row_count(target) + _get_row_count(source)
+	target["error_count"] = _get_error_count(target) + _get_error_count(source)
+	target["warning_count"] = _get_warning_count(target) + _get_warning_count(source)
+	if not _is_report_ok(source):
 		target["ok"] = false
 
-	var target_issues := target.get("issues", []) as Array
-	for issue: Dictionary in source.get("issues", []) as Array:
-		target_issues.append(issue.duplicate(true))
+	var target_issues: Array = _get_issues(target)
+	for issue_value: Variant in _get_issues(source):
+		if issue_value is Dictionary:
+			var issue: Dictionary = issue_value
+			target_issues.append(issue.duplicate(true))
 	target["issues"] = target_issues
 
 
@@ -169,7 +180,7 @@ func merge_report(target: Dictionary, source: Dictionary, include_row_count: boo
 ## [br]
 ## @schema report: GFConfigValidationReport 兼容 Dictionary，会被当前方法修改。
 func finalize_report(report: Dictionary) -> void:
-	report["ok"] = int(report.get("error_count", 0)) == 0
+	report["ok"] = _get_error_count(report) == 0
 
 
 # --- 私有/辅助方法 ---
@@ -178,3 +189,31 @@ func _apply_issue_context(issue: Dictionary, context: Dictionary) -> void:
 	for field_name: String in CONTEXT_FIELDS:
 		if context.has(field_name):
 			issue[field_name] = GFVariantData.duplicate_variant(context[field_name])
+
+
+func _get_context_row_key(context: Dictionary) -> Variant:
+	return GFVariantData.get_option_value(context, "row_key")
+
+
+func _get_context_field(context: Dictionary) -> StringName:
+	return GFVariantData.get_option_string_name(context, "field")
+
+
+func _get_issues(report: Dictionary) -> Array:
+	return GFVariantData.as_array(GFVariantData.get_option_value(report, "issues", []))
+
+
+func _get_row_count(report: Dictionary) -> int:
+	return GFVariantData.get_option_int(report, "row_count")
+
+
+func _get_error_count(report: Dictionary) -> int:
+	return GFVariantData.get_option_int(report, "error_count")
+
+
+func _get_warning_count(report: Dictionary) -> int:
+	return GFVariantData.get_option_int(report, "warning_count")
+
+
+func _is_report_ok(report: Dictionary) -> bool:
+	return GFVariantData.get_option_bool(report, "ok", true)

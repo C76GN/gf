@@ -4,13 +4,13 @@ extends GutTest
 
 # --- 常量 ---
 
-const GF_HEX_GRID_MATH := preload("res://addons/gf/standard/foundation/math/gf_hex_grid_math.gd")
+const GF_HEX_GRID_MATH = preload("res://addons/gf/standard/foundation/math/gf_hex_grid_math.gd")
 
 
 # --- 测试 ---
 
 func test_offset_cube_roundtrip_for_supported_layouts() -> void:
-	var cell := Vector2i(3, 4)
+	var cell: Vector2i = Vector2i(3, 4)
 	for layout: int in [
 		GF_HEX_GRID_MATH.OffsetLayout.ODD_R,
 		GF_HEX_GRID_MATH.OffsetLayout.EVEN_R,
@@ -25,7 +25,7 @@ func test_offset_cube_roundtrip_for_supported_layouts() -> void:
 
 
 func test_pixel_roundtrip_pointy_and_flat() -> void:
-	var cell := Vector2i(2, 3)
+	var cell: Vector2i = Vector2i(2, 3)
 	var pointy_pixel: Vector2 = GF_HEX_GRID_MATH.offset_to_pixel(
 		cell,
 		24.0,
@@ -106,12 +106,12 @@ func test_line_of_sight_respects_blocking_cells() -> void:
 		Vector2i(3, 0),
 		GF_HEX_GRID_MATH.OffsetLayout.ODD_R
 	)
-	var blocked := {
+	var blocked: Dictionary = {
 		line[1]: true,
 	}
 
-	assert_eq(line.front(), Vector2i.ZERO, "直线应从起点开始。")
-	assert_eq(line.back(), Vector2i(3, 0), "直线应抵达终点。")
+	assert_eq(_vector2i_at(line, 0), Vector2i.ZERO, "直线应从起点开始。")
+	assert_eq(_vector2i_at(line, line.size() - 1), Vector2i(3, 0), "直线应抵达终点。")
 	assert_false(
 		GF_HEX_GRID_MATH.has_line_of_sight(
 			Vector2i(0, 0),
@@ -125,7 +125,7 @@ func test_line_of_sight_respects_blocking_cells() -> void:
 
 
 func test_find_path_a_star_avoids_blocked_hex() -> void:
-	var blocked := {
+	var blocked: Dictionary = {
 		Vector2i(1, 0): true,
 	}
 	var path: Array[Vector2i] = GF_HEX_GRID_MATH.find_path_a_star(
@@ -138,8 +138,8 @@ func test_find_path_a_star_avoids_blocked_hex() -> void:
 	)
 
 	assert_false(path.is_empty(), "A* 应能绕过阻挡格。")
-	assert_eq(path.front(), Vector2i.ZERO, "路径应从起点开始。")
-	assert_eq(path.back(), Vector2i(2, 0), "路径应抵达终点。")
+	assert_eq(_vector2i_at(path, 0), Vector2i.ZERO, "路径应从起点开始。")
+	assert_eq(_vector2i_at(path, path.size() - 1), Vector2i(2, 0), "路径应抵达终点。")
 	assert_false(path.has(Vector2i(1, 0)), "路径不应穿过阻挡格。")
 
 
@@ -151,8 +151,8 @@ func test_flow_field_and_reachable_report_costs() -> void:
 			return true,
 		GF_HEX_GRID_MATH.OffsetLayout.ODD_R
 	)
-	var costs := field.get("costs", {}) as Dictionary
-	var directions := field.get("directions", {}) as Dictionary
+	var costs: Dictionary = GFVariantData.get_option_dictionary(field, "costs", {})
+	var directions: Dictionary = GFVariantData.get_option_dictionary(field, "directions", {})
 	var reachable: Dictionary = GF_HEX_GRID_MATH.find_reachable(
 		Vector2i(4, 4),
 		Vector2i.ZERO,
@@ -162,7 +162,13 @@ func test_flow_field_and_reachable_report_costs() -> void:
 		GF_HEX_GRID_MATH.OffsetLayout.ODD_R
 	)
 
-	assert_eq(float(costs.get(Vector2i(2, 0))), 0.0, "目标格代价应为 0。")
-	assert_ne(directions.get(Vector2i.ZERO), null, "Flow Field 应为可达格提供方向。")
+	assert_eq(GFVariantData.get_option_float(costs, Vector2i(2, 0), 0.0), 0.0, "目标格代价应为 0。")
+	assert_true(GFVariantData.get_option_value(directions, Vector2i.ZERO) != null, "Flow Field 应为可达格提供方向。")
 	assert_true(reachable.has(Vector2i.ZERO), "可达结果应包含起点。")
 	assert_true(reachable.size() <= 7, "移动代价 1 最多包含中心和一圈邻居。")
+
+
+func _vector2i_at(cells: Array[Vector2i], index: int) -> Vector2i:
+	if index < 0 or index >= cells.size():
+		return Vector2i.ZERO
+	return cells[index]

@@ -34,7 +34,7 @@ func test_buffer_and_consume() -> void:
 ## 验证消费后再次消费返回 false。
 func test_consume_clears_buffer() -> void:
 	_utility.buffer_action(&"jump", 0.15)
-	_utility.consume_buffered_action(&"jump")
+	var _consume_buffered_action_result_37: Variant = _utility.consume_buffered_action(&"jump")
 	assert_false(_utility.consume_buffered_action(&"jump"), "消费后不应再次消费成功。")
 
 
@@ -157,7 +157,13 @@ func test_debug_snapshot_reports_timers() -> void:
 	_utility.buffer_action(&"jump", 0.2)
 	_utility.start_grace_window(&"ground", 0.1)
 
-	var snapshot := _utility.get_debug_snapshot()
+	var snapshot: Dictionary = _utility.get_debug_snapshot()
+	var action_buffers: Dictionary = GFVariantData.as_dictionary(
+		GFVariantData.get_option_value(snapshot, "action_buffers")
+	)
+	var grace_windows: Dictionary = GFVariantData.as_dictionary(
+		GFVariantData.get_option_value(snapshot, "grace_windows")
+	)
 
-	assert_true((snapshot["action_buffers"] as Dictionary).has("global/jump"), "快照应包含动作缓冲。")
-	assert_true((snapshot["grace_windows"] as Dictionary).has("global/ground"), "快照应包含宽容窗口。")
+	assert_true(action_buffers.has("global/jump"), "快照应包含动作缓冲。")
+	assert_true(grace_windows.has("global/ground"), "快照应包含宽容窗口。")

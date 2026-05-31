@@ -63,8 +63,9 @@ func set_architecture(architecture: GFArchitecture) -> void:
 ## @return: 架构实例；不可用时返回 null。
 func get_architecture() -> GFArchitecture:
 	if _architecture_ref != null:
-		var architecture := _architecture_ref.get_ref() as GFArchitecture
-		if architecture != null:
+		var architecture_value: Object = _architecture_ref.get_ref()
+		if architecture_value is GFArchitecture:
+			var architecture: GFArchitecture = architecture_value
 			return architecture
 	return GFAutoload.get_architecture_or_null()
 
@@ -99,7 +100,7 @@ func set_value(key: StringName, value: Variant) -> GFFlowContext:
 ## [br]
 ## @schema return: values 中的项目值，或传入的 default_value。
 func get_value(key: StringName, default_value: Variant = null) -> Variant:
-	return values.get(key, default_value)
+	return GFVariantData.get_option_value(values, key, default_value)
 
 
 ## 覆盖当前节点执行后的下一个节点列表。
@@ -151,7 +152,7 @@ func register_condition_handler(condition_id: StringName, handler: Callable) -> 
 ## [br]
 ## @param condition_id: 条件标识。
 func unregister_condition_handler(condition_id: StringName) -> void:
-	_condition_handlers.erase(condition_id)
+	_erase_dictionary_key(_condition_handlers, condition_id)
 
 
 ## 检查条件查询处理器是否存在。
@@ -199,7 +200,7 @@ func query_condition(
 	if not _condition_handlers.has(condition_id):
 		return _make_condition_result(false, condition_id, default_value, "missing_condition_handler")
 
-	var handler: Callable = _condition_handlers.get(condition_id, Callable())
+	var handler: Callable = _get_callable_value(GFVariantData.get_option_value(_condition_handlers, condition_id, Callable()))
 	if not handler.is_valid():
 		return _make_condition_result(false, condition_id, default_value, "invalid_condition_handler")
 
@@ -223,7 +224,7 @@ func set_node_runtime_value(node_id: StringName, key: StringName, value: Variant
 		return
 	if not _node_runtime_states.has(node_id):
 		_node_runtime_states[node_id] = {}
-	var state := _node_runtime_states[node_id] as Dictionary
+	var state: Dictionary = GFVariantData.as_dictionary(GFVariantData.get_option_value(_node_runtime_states, node_id, {}))
 	state[key] = value
 
 
@@ -243,10 +244,10 @@ func set_node_runtime_value(node_id: StringName, key: StringName, value: Variant
 ## [br]
 ## @schema return: 节点运行态中的项目值，或传入的 default_value。
 func get_node_runtime_value(node_id: StringName, key: StringName, default_value: Variant = null) -> Variant:
-	var state := _node_runtime_states.get(node_id, {}) as Dictionary
-	if state == null:
+	var state: Dictionary = GFVariantData.as_dictionary(GFVariantData.get_option_value(_node_runtime_states, node_id, {}))
+	if state.is_empty():
 		return default_value
-	return state.get(key, default_value)
+	return GFVariantData.get_option_value(state, key, default_value)
 
 
 ## 清空节点运行态。node_id 为空时清空全部节点运行态。
@@ -258,7 +259,7 @@ func clear_node_runtime_state(node_id: StringName = &"") -> void:
 	if node_id == &"":
 		_node_runtime_states.clear()
 		return
-	_node_runtime_states.erase(node_id)
+	_erase_dictionary_key(_node_runtime_states, node_id)
 
 
 ## 序列化上下文持有的节点运行态。
@@ -283,26 +284,26 @@ func serialize_runtime_state() -> Dictionary:
 ## @schema data: serialize_runtime_state() 返回的运行态 Dictionary。
 func deserialize_runtime_state(data: Dictionary) -> void:
 	_node_runtime_states.clear()
-	var node_states := data.get("nodes", {}) as Dictionary
-	if node_states == null:
+	var node_states: Dictionary = GFVariantData.as_dictionary(GFVariantData.get_option_value(data, "nodes", {}))
+	if node_states.is_empty():
 		return
 	for node_id_variant: Variant in node_states.keys():
-		var state := node_states[node_id_variant] as Dictionary
-		if state != null:
-			_node_runtime_states[StringName(node_id_variant)] = state.duplicate(true)
+		var state: Dictionary = GFVariantData.as_dictionary(GFVariantData.get_option_value(node_states, node_id_variant, {}))
+		if not state.is_empty():
+			_node_runtime_states[GFVariantData.to_string_name(node_id_variant)] = state.duplicate(true)
 
 
 # --- 私有/辅助方法 ---
 
 func _normalize_condition_result(condition_id: StringName, raw_result: Variant, default_value: Variant) -> Dictionary:
 	if raw_result is Dictionary:
-		var data := raw_result as Dictionary
+		var data: Dictionary = GFVariantData.as_dictionary(raw_result)
 		return {
-			"ok": bool(data.get("ok", true)),
+			"ok": GFVariantData.get_option_bool(data, "ok", true),
 			"condition_id": condition_id,
-			"value": data.get("value", default_value),
-			"reason": String(data.get("reason", data.get("error", ""))),
-			"metadata": (data.get("metadata", {}) as Dictionary).duplicate(true) if data.get("metadata", {}) is Dictionary else {},
+			"value": GFVariantData.get_option_value(data, "value", default_value),
+			"reason": GFVariantData.get_option_string(data, "reason", GFVariantData.get_option_string(data, "error", "")),
+			"metadata": GFVariantData.get_option_dictionary(data, "metadata"),
 		}
 	return _make_condition_result(true, condition_id, raw_result, "")
 
@@ -315,3 +316,15 @@ func _make_condition_result(ok: bool, condition_id: StringName, value: Variant, 
 		"reason": reason,
 		"metadata": {},
 	}
+
+
+func _get_callable_value(value: Variant) -> Callable:
+	if value is Callable:
+		return value
+	return Callable()
+
+
+func _erase_dictionary_key(target: Dictionary, key: Variant) -> void:
+	var erased: bool = target.erase(key)
+	if erased:
+		return

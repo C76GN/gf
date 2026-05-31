@@ -74,7 +74,7 @@ static func get_neighbors(
 ) -> Array[Vector3i]:
 	var result: Array[Vector3i] = []
 	for direction: Vector3i in _get_directions(allow_diagonal):
-		var next_cell := cell + direction
+		var next_cell: Vector3i = cell + direction
 		if is_in_bounds(next_cell, grid_size):
 			result.append(next_cell)
 
@@ -112,12 +112,12 @@ static func get_surface_neighbors(
 
 	var directions: Array[Vector3i] = horizontal_directions if not horizontal_directions.is_empty() else _SURFACE_DIRECTIONS
 	for direction: Vector3i in directions:
-		var base_cell := Vector3i(cell.x + direction.x, cell.y, cell.z + direction.z)
+		var base_cell: Vector3i = Vector3i(cell.x + direction.x, cell.y, cell.z + direction.z)
 		for y_offset: int in range(maxi(max_step_up, 0), -maxi(max_step_down, 0) - 1, -1):
-			var candidate := Vector3i(base_cell.x, base_cell.y + y_offset, base_cell.z)
+			var candidate: Vector3i = Vector3i(base_cell.x, base_cell.y + y_offset, base_cell.z)
 			if not is_in_bounds(candidate, grid_size):
 				continue
-			if bool(is_walkable.call(candidate)):
+			if _call_cell_bool(is_walkable, candidate):
 				result.append(candidate)
 				break
 
@@ -160,7 +160,7 @@ static func find_path_a_star(
 		return []
 	if start == goal:
 		return [start]
-	if not bool(is_walkable.call(goal)):
+	if not _call_cell_bool(is_walkable, goal):
 		return []
 
 	var open_set: Array[Vector3i] = [start]
@@ -171,22 +171,22 @@ static func find_path_a_star(
 	var f_score: Dictionary = { start: _heuristic_distance(start, goal, heuristic, allow_diagonal) }
 
 	while not open_set.is_empty():
-		var current := _take_lowest_score_cell(open_set, f_score)
-		open_lookup.erase(current)
+		var current: Vector3i = _take_lowest_score_cell(open_set, f_score)
+		_erase_dictionary_key(open_lookup, current)
 		if current == goal:
 			return _reconstruct_path(start, goal, came_from)
 
 		closed[current] = true
 		for next_cell: Vector3i in get_neighbors(current, grid_size, allow_diagonal):
-			if closed.has(next_cell) or not bool(is_walkable.call(next_cell)):
+			if closed.has(next_cell) or not _call_cell_bool(is_walkable, next_cell):
 				continue
 
-			var move_cost := _get_step_cost(current, next_cell, step_cost)
+			var move_cost: float = _get_step_cost(current, next_cell, step_cost)
 			if move_cost < 0.0:
 				continue
 
-			var tentative_score := float(g_score.get(current, INF)) + move_cost
-			if tentative_score >= float(g_score.get(next_cell, INF)):
+			var tentative_score: float = _get_score(g_score, current) + move_cost
+			if tentative_score >= _get_score(g_score, next_cell):
 				continue
 
 			came_from[next_cell] = current
@@ -227,23 +227,23 @@ static func find_reachable(
 	step_cost: Callable = Callable()
 ) -> Dictionary:
 	var costs: Dictionary = {}
-	if not is_in_bounds(start, grid_size) or not is_walkable.is_valid() or not bool(is_walkable.call(start)):
+	if not is_in_bounds(start, grid_size) or not is_walkable.is_valid() or not _call_cell_bool(is_walkable, start):
 		return costs
 
 	costs[start] = 0.0
 	var frontier: Array[Vector3i] = [start]
 	while not frontier.is_empty():
-		var current := _take_lowest_score_cell(frontier, costs)
+		var current: Vector3i = _take_lowest_score_cell(frontier, costs)
 		for next_cell: Vector3i in get_neighbors(current, grid_size, allow_diagonal):
-			if not bool(is_walkable.call(next_cell)):
+			if not _call_cell_bool(is_walkable, next_cell):
 				continue
 
-			var move_cost := _get_step_cost(current, next_cell, step_cost)
+			var move_cost: float = _get_step_cost(current, next_cell, step_cost)
 			if move_cost < 0.0:
 				continue
 
-			var next_cost := float(costs[current]) + move_cost
-			if next_cost > max_cost or next_cost >= float(costs.get(next_cell, INF)):
+			var next_cost: float = _get_score(costs, current) + move_cost
+			if next_cost > max_cost or next_cost >= _get_score(costs, next_cell):
 				continue
 
 			costs[next_cell] = next_cost
@@ -288,8 +288,8 @@ static func find_surface_path_a_star(
 		not is_in_bounds(start, grid_size)
 		or not is_in_bounds(goal, grid_size)
 		or not is_walkable.is_valid()
-		or not bool(is_walkable.call(start))
-		or not bool(is_walkable.call(goal))
+		or not _call_cell_bool(is_walkable, start)
+		or not _call_cell_bool(is_walkable, goal)
 	):
 		return []
 	if start == goal:
@@ -303,8 +303,8 @@ static func find_surface_path_a_star(
 	var f_score: Dictionary = { start: _heuristic_distance(start, goal, heuristic, false) }
 
 	while not open_set.is_empty():
-		var current := _take_lowest_score_cell(open_set, f_score)
-		open_lookup.erase(current)
+		var current: Vector3i = _take_lowest_score_cell(open_set, f_score)
+		_erase_dictionary_key(open_lookup, current)
 		if current == goal:
 			return _reconstruct_path(start, goal, came_from)
 
@@ -319,12 +319,12 @@ static func find_surface_path_a_star(
 			if closed.has(next_cell):
 				continue
 
-			var move_cost := _get_step_cost(current, next_cell, step_cost)
+			var move_cost: float = _get_step_cost(current, next_cell, step_cost)
 			if move_cost < 0.0:
 				continue
 
-			var tentative_score := float(g_score.get(current, INF)) + move_cost
-			if tentative_score >= float(g_score.get(next_cell, INF)):
+			var tentative_score: float = _get_score(g_score, current) + move_cost
+			if tentative_score >= _get_score(g_score, next_cell):
 				continue
 
 			came_from[next_cell] = current
@@ -357,7 +357,7 @@ static func _get_directions(allow_diagonal: bool) -> Array[Vector3i]:
 
 static func _reconstruct_path(start: Vector3i, goal: Vector3i, came_from: Dictionary) -> Array[Vector3i]:
 	var path: Array[Vector3i] = [goal]
-	var current := goal
+	var current: Vector3i = goal
 
 	while current != start:
 		if not came_from.has(current):
@@ -370,15 +370,15 @@ static func _reconstruct_path(start: Vector3i, goal: Vector3i, came_from: Dictio
 
 
 static func _take_lowest_score_cell(cells: Array[Vector3i], scores: Dictionary) -> Vector3i:
-	var best_index := 0
-	var best_score := float(scores.get(cells[0], INF))
+	var best_index: int = 0
+	var best_score: float = _get_score(scores, cells[0])
 	for index: int in range(1, cells.size()):
-		var score := float(scores.get(cells[index], INF))
+		var score: float = _get_score(scores, cells[index])
 		if score < best_score:
 			best_index = index
 			best_score = score
 
-	var cell := cells[best_index]
+	var cell: Vector3i = cells[best_index]
 	cells.remove_at(best_index)
 	return cell
 
@@ -389,9 +389,9 @@ static func _heuristic_distance(
 	heuristic: StringName,
 	allow_diagonal: bool
 ) -> float:
-	var dx := absi(to_cell.x - from_cell.x)
-	var dy := absi(to_cell.y - from_cell.y)
-	var dz := absi(to_cell.z - from_cell.z)
+	var dx: int = absi(to_cell.x - from_cell.x)
+	var dy: int = absi(to_cell.y - from_cell.y)
+	var dz: int = absi(to_cell.z - from_cell.z)
 	match heuristic:
 		&"chebyshev":
 			return float(maxi(dx, maxi(dy, dz)))
@@ -401,9 +401,23 @@ static func _heuristic_distance(
 			return float(maxi(dx, maxi(dy, dz))) if allow_diagonal and heuristic == &"auto" else float(dx + dy + dz)
 
 
+static func _erase_dictionary_key(target: Dictionary, key: Variant) -> void:
+	var erased: bool = target.erase(key)
+	if erased:
+		return
+
+
+static func _call_cell_bool(callback: Callable, cell: Vector3i) -> bool:
+	return GFVariantData.to_bool(callback.call(cell), false)
+
+
+static func _get_score(scores: Dictionary, cell: Vector3i) -> float:
+	return GFVariantData.get_option_float(scores, cell, INF)
+
+
 static func _get_step_cost(from_cell: Vector3i, to_cell: Vector3i, step_cost: Callable) -> float:
 	if step_cost.is_valid():
-		return float(step_cost.call(from_cell, to_cell))
+		return GFVariantData.to_float(step_cost.call(from_cell, to_cell), 1.0)
 
-	var delta := to_cell - from_cell
+	var delta: Vector3i = to_cell - from_cell
 	return sqrt(float(delta.x * delta.x + delta.y * delta.y + delta.z * delta.z))

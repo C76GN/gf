@@ -83,9 +83,9 @@ func is_valid_definition() -> bool:
 func get_target_fields(target_schema: GFConfigTableSchema = null) -> PackedStringArray:
 	if not target_fields.is_empty():
 		return target_fields.duplicate()
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	if target_schema != null and target_schema.id_field != &"":
-		result.append(String(target_schema.id_field))
+		var _target_field_appended: bool = result.append(String(target_schema.id_field))
 	return result
 
 
@@ -123,15 +123,15 @@ func make_target_key(record: Dictionary, target_schema: GFConfigTableSchema = nu
 ## [br]
 ## @return 新引用声明。
 func duplicate_reference() -> GFConfigTableReference:
-	var reference := GFConfigTableReference.new()
-	reference.reference_id = reference_id
-	reference.source_fields = source_fields.duplicate()
-	reference.target_table_name = target_table_name
-	reference.target_fields = target_fields.duplicate()
-	reference.required = required
-	reference.allow_null_values = allow_null_values
-	reference.metadata = metadata.duplicate(true)
-	return reference
+	var reference_copy: GFConfigTableReference = GFConfigTableReference.new()
+	reference_copy.reference_id = reference_id
+	reference_copy.source_fields = source_fields.duplicate()
+	reference_copy.target_table_name = target_table_name
+	reference_copy.target_fields = target_fields.duplicate()
+	reference_copy.required = required
+	reference_copy.allow_null_values = allow_null_values
+	reference_copy.metadata = metadata.duplicate(true)
+	return reference_copy
 
 
 ## 导出引用声明摘要。
@@ -158,13 +158,13 @@ func describe() -> Dictionary:
 func _make_key(record: Dictionary, fields: PackedStringArray) -> String:
 	if fields.is_empty():
 		return ""
-	var parts := PackedStringArray()
+	var parts: PackedStringArray = PackedStringArray()
 	for field_name: String in fields:
-		var key := StringName(field_name)
+		var key: StringName = StringName(field_name)
 		if not record.has(key):
 			return ""
 		var value: Variant = record[key]
 		if value == null and not allow_null_values:
 			return ""
-		parts.append("%d:%s" % [typeof(value), var_to_str(value)])
+		var _part_appended: bool = parts.append("%d:%s" % [typeof(value), var_to_str(value)])
 	return "|".join(parts)

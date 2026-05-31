@@ -1,32 +1,6 @@
 ## 测试 GFInputMappingUtility 的资源化输入上下文、重映射和动作状态行为。
 extends GutTest
 
-
-# --- 常量 ---
-
-const GFInputActionBase = preload("res://addons/gf/standard/input/mapping/gf_input_action.gd")
-const GFInputBindingBase = preload("res://addons/gf/standard/input/mapping/gf_input_binding.gd")
-const GFInputChordTriggerBase = preload("res://addons/gf/standard/input/triggers/gf_input_chord_trigger.gd")
-const GFInputConflictAnalyzerBase = preload("res://addons/gf/standard/input/rebinding/gf_input_conflict_analyzer.gd")
-const GFInputContextBase = preload("res://addons/gf/standard/input/mapping/gf_input_context.gd")
-const GFInputFormatterBase = preload("res://addons/gf/standard/input/formatting/gf_input_formatter.gd")
-const GFInputHoldTriggerBase = preload("res://addons/gf/standard/input/triggers/gf_input_hold_trigger.gd")
-const GFInputIconProviderBase = preload("res://addons/gf/standard/input/formatting/gf_input_icon_provider.gd")
-const GFInputMappingBase = preload("res://addons/gf/standard/input/mapping/gf_input_mapping.gd")
-const GFInputMappingUtilityBase = preload("res://addons/gf/standard/input/runtime/gf_input_mapping_utility.gd")
-const GFInputPlaybackBase = preload("res://addons/gf/standard/input/recording/gf_input_playback.gd")
-const GFInputPulseTriggerBase = preload("res://addons/gf/standard/input/triggers/gf_input_pulse_trigger.gd")
-const GFInputRecordingBase = preload("res://addons/gf/standard/input/recording/gf_input_recording.gd")
-const GFInputRemapConfigBase = preload("res://addons/gf/standard/input/rebinding/gf_input_remap_config.gd")
-const GFInputTapTriggerBase = preload("res://addons/gf/standard/input/triggers/gf_input_tap_trigger.gd")
-const GFInputSequenceBranchBase = preload("res://addons/gf/standard/input/sequences/gf_input_sequence_branch.gd")
-const GFInputSequenceStepBase = preload("res://addons/gf/standard/input/sequences/gf_input_sequence_step.gd")
-const GFInputSequenceTriggerBase = preload("res://addons/gf/standard/input/sequences/gf_input_sequence_trigger.gd")
-const GFInputScaleModifierBase = preload("res://addons/gf/standard/input/modifiers/gf_input_scale_modifier.gd")
-const GFInputTextProviderBase = preload("res://addons/gf/standard/input/formatting/gf_input_text_provider.gd")
-const GFVirtualInputSourceBase = preload("res://addons/gf/standard/input/sources/gf_virtual_input_source.gd")
-
-
 # --- 辅助类 ---
 
 class CustomKeyTextProvider extends GFInputTextProvider:
@@ -34,22 +8,28 @@ class CustomKeyTextProvider extends GFInputTextProvider:
 		priority = p_priority
 
 	func supports_event(input_event: InputEvent, _options: Dictionary = {}) -> bool:
-		return input_event is InputEventKey and (input_event as InputEventKey).keycode == KEY_K
+		if not (input_event is InputEventKey):
+			return false
+		var key_event: InputEventKey = input_event
+		return key_event.keycode == KEY_K
 
 	func get_event_text(_input_event: InputEvent, options: Dictionary = {}) -> String:
-		return String(options.get("label", "Custom K"))
+		return GFVariantData.get_option_string(options, "label", "Custom K")
 
 
 class CustomKeyIconProvider extends GFInputIconProvider:
 	func supports_event(input_event: InputEvent, _options: Dictionary = {}) -> bool:
-		return input_event is InputEventKey and (input_event as InputEventKey).keycode == KEY_K
+		if not (input_event is InputEventKey):
+			return false
+		var key_event: InputEventKey = input_event
+		return key_event.keycode == KEY_K
 
 	func get_event_rich_text(_input_event: InputEvent, _options: Dictionary = {}) -> String:
 		return "[color=yellow]K[/color]"
 
 
 class InputConsumeSystem extends GFSystem:
-	var input_runtime: Object = null
+	var input_runtime: GFInputMappingUtility = null
 	var action_id: StringName = &"jump"
 	var consumed_count: int = 0
 
@@ -60,19 +40,19 @@ class InputConsumeSystem extends GFSystem:
 
 # --- 私有变量 ---
 
-var _utility: GFInputMappingUtilityBase
+var _utility: GFInputMappingUtility
 
 
 # --- Godot 生命周期方法 ---
 
 func before_each() -> void:
-	_utility = GFInputMappingUtilityBase.new()
+	_utility = GFInputMappingUtility.new()
 	_utility.init()
 
 
 func after_each() -> void:
-	GFInputFormatterBase.clear_text_providers()
-	GFInputFormatterBase.clear_icon_providers()
+	GFInputFormatter.clear_text_providers()
+	GFInputFormatter.clear_icon_providers()
 	if _utility != null:
 		_utility.dispose()
 		_utility = null
@@ -85,7 +65,7 @@ func after_each() -> void:
 
 ## 验证布尔动作可由按键事件激活、消费并释放。
 func test_bool_action_press_consume_and_release() -> void:
-	var context := _make_context(&"gameplay", [
+	var context: GFInputContext = _make_context(&"gameplay", [
 		_make_mapping(_make_action(&"jump"), [
 			_make_key_binding(KEY_SPACE),
 		]),
@@ -109,7 +89,7 @@ func test_bool_action_press_consume_and_release() -> void:
 
 ## 验证 just started 状态会保留到 Utility tick 清理窗口。
 func test_just_started_survives_process_frame_until_utility_tick() -> void:
-	var context := _make_context(&"gameplay", [
+	var context: GFInputContext = _make_context(&"gameplay", [
 		_make_mapping(_make_action(&"jump"), [
 			_make_key_binding(KEY_SPACE),
 		]),
@@ -127,9 +107,9 @@ func test_just_started_survives_process_frame_until_utility_tick() -> void:
 
 ## 验证架构中的 System tick 可以消费输入帧产生的一次性动作。
 func test_action_can_be_consumed_by_system_tick_after_process_frame_signal() -> void:
-	var arch := GFArchitecture.new()
-	var input := GFInputMappingUtilityBase.new()
-	var consumer := InputConsumeSystem.new()
+	var arch: GFArchitecture = GFArchitecture.new()
+	var input: GFInputMappingUtility = GFInputMappingUtility.new()
+	var consumer: InputConsumeSystem = InputConsumeSystem.new()
 	consumer.input_runtime = input
 	await arch.register_utility_instance(input)
 	await arch.register_system_instance(consumer)
@@ -153,18 +133,18 @@ func test_action_can_be_consumed_by_system_tick_after_process_frame_signal() -> 
 
 ## 验证 Utility tick 内由触发器生成的动作会保留到下一次 System tick。
 func test_trigger_generated_action_survives_until_next_system_tick() -> void:
-	var arch := GFArchitecture.new()
-	var input := GFInputMappingUtilityBase.new()
-	var consumer := InputConsumeSystem.new()
+	var arch: GFArchitecture = GFArchitecture.new()
+	var input: GFInputMappingUtility = GFInputMappingUtility.new()
+	var consumer: InputConsumeSystem = InputConsumeSystem.new()
 	consumer.input_runtime = input
 	consumer.action_id = &"charge"
 	await arch.register_utility_instance(input)
 	await arch.register_system_instance(consumer)
 	await arch.init()
-	var action := _make_action(&"charge")
-	var trigger := GFInputHoldTriggerBase.new()
+	var action: GFInputAction = _make_action(&"charge")
+	var trigger: GFInputHoldTrigger = GFInputHoldTrigger.new()
 	trigger.hold_seconds = 0.1
-	var mapping := _make_mapping(action, [
+	var mapping: GFInputMapping = _make_mapping(action, [
 		_make_key_binding(KEY_C),
 	])
 	mapping.triggers = [trigger]
@@ -184,12 +164,12 @@ func test_trigger_generated_action_survives_until_next_system_tick() -> void:
 
 ## 验证上下文优先级可以阻断较低优先级的同输入动作。
 func test_higher_priority_context_blocks_lower_priority_same_input() -> void:
-	var high_context := _make_context(&"menu", [
+	var high_context: GFInputContext = _make_context(&"menu", [
 		_make_mapping(_make_action(&"confirm"), [
 			_make_key_binding(KEY_E),
 		]),
 	])
-	var low_context := _make_context(&"gameplay", [
+	var low_context: GFInputContext = _make_context(&"gameplay", [
 		_make_mapping(_make_action(&"interact"), [
 			_make_key_binding(KEY_E),
 		]),
@@ -205,7 +185,7 @@ func test_higher_priority_context_blocks_lower_priority_same_input() -> void:
 
 ## 验证运行时重绑定覆盖默认输入。
 func test_remap_override_replaces_default_binding() -> void:
-	var context := _make_context(&"gameplay", [
+	var context: GFInputContext = _make_context(&"gameplay", [
 		_make_mapping(_make_action(&"jump"), [
 			_make_key_binding(KEY_SPACE),
 		]),
@@ -223,14 +203,14 @@ func test_remap_override_replaces_default_binding() -> void:
 
 ## 验证二维轴动作会合并多个数字输入方向。
 func test_axis_2d_action_combines_directional_bindings() -> void:
-	var action := _make_action(&"move", GFInputActionBase.ValueType.AXIS_2D)
+	var action: GFInputAction = _make_action(&"move", GFInputAction.ValueType.AXIS_2D)
 	action.activation_threshold = 0.1
-	var context := _make_context(&"gameplay", [
+	var context: GFInputContext = _make_context(&"gameplay", [
 		_make_mapping(action, [
-			_make_key_binding(KEY_A, GFInputBindingBase.ValueTarget.AXIS_2D_X_NEGATIVE),
-			_make_key_binding(KEY_D, GFInputBindingBase.ValueTarget.AXIS_2D_X_POSITIVE),
-			_make_key_binding(KEY_W, GFInputBindingBase.ValueTarget.AXIS_2D_Y_NEGATIVE),
-			_make_key_binding(KEY_S, GFInputBindingBase.ValueTarget.AXIS_2D_Y_POSITIVE),
+			_make_key_binding(KEY_A, GFInputBinding.ValueTarget.AXIS_2D_X_NEGATIVE),
+			_make_key_binding(KEY_D, GFInputBinding.ValueTarget.AXIS_2D_X_POSITIVE),
+			_make_key_binding(KEY_W, GFInputBinding.ValueTarget.AXIS_2D_Y_NEGATIVE),
+			_make_key_binding(KEY_S, GFInputBinding.ValueTarget.AXIS_2D_Y_POSITIVE),
 		]),
 	])
 
@@ -238,7 +218,7 @@ func test_axis_2d_action_combines_directional_bindings() -> void:
 	_utility.handle_input_event(_make_key_event(KEY_D, true))
 	_utility.handle_input_event(_make_key_event(KEY_S, true))
 
-	var value := _utility.get_action_value(&"move") as Vector2
+	var value: Vector2 = GFVariantData.to_vector2(_utility.get_action_value(&"move"))
 	assert_gt(value.x, 0.0, "D 键应贡献 X 正向。")
 	assert_gt(value.y, 0.0, "S 键应贡献 Y 正向。")
 	assert_true(_utility.is_action_active(&"move"), "轴值超过阈值时动作应活跃。")
@@ -246,61 +226,61 @@ func test_axis_2d_action_combines_directional_bindings() -> void:
 
 ## 验证手柄轴正负向绑定会按轴值符号过滤。
 func test_joy_axis_directional_binding_respects_axis_sign() -> void:
-	var action := _make_action(&"look_x", GFInputActionBase.ValueType.AXIS_1D)
+	var action: GFInputAction = _make_action(&"look_x", GFInputAction.ValueType.AXIS_1D)
 	action.activation_threshold = 0.1
-	var context := _make_context(&"gameplay", [
+	var context: GFInputContext = _make_context(&"gameplay", [
 		_make_mapping(action, [
-			_make_joy_axis_binding(JOY_AXIS_LEFT_X, GFInputBindingBase.ValueTarget.AXIS_1D_POSITIVE),
+			_make_joy_axis_binding(JOY_AXIS_LEFT_X, GFInputBinding.ValueTarget.AXIS_1D_POSITIVE),
 		]),
 	])
 
 	_utility.enable_context(context)
 	_utility.handle_input_event(_make_joy_motion_event(JOY_AXIS_LEFT_X, -0.8))
 
-	assert_eq(_utility.get_action_value(&"look_x"), 0.0, "负向轴值不应触发正向绑定。")
+	assert_eq(_action_float(&"look_x"), 0.0, "负向轴值不应触发正向绑定。")
 	assert_false(_utility.is_action_active(&"look_x"), "符号不匹配时动作应保持非活跃。")
 
 	_utility.handle_input_event(_make_joy_motion_event(JOY_AXIS_LEFT_X, 0.8))
 
-	assert_gt(float(_utility.get_action_value(&"look_x")), 0.0, "正向轴值应触发正向绑定。")
+	assert_gt(_action_float(&"look_x"), 0.0, "正向轴值应触发正向绑定。")
 	assert_true(_utility.is_action_active(&"look_x"), "符号匹配且超过阈值时动作应活跃。")
 
 
 ## 验证映射级修饰器会作用于聚合后的动作值。
 func test_mapping_modifier_scales_aggregated_value() -> void:
-	var action := _make_action(&"move_x", GFInputActionBase.ValueType.AXIS_1D)
+	var action: GFInputAction = _make_action(&"move_x", GFInputAction.ValueType.AXIS_1D)
 	action.activation_threshold = 0.1
-	var scale := GFInputScaleModifierBase.new()
+	var scale: GFInputScaleModifier = GFInputScaleModifier.new()
 	scale.scale_x = 0.5
-	var mapping := _make_mapping(action, [
-		_make_joy_axis_binding(JOY_AXIS_LEFT_X, GFInputBindingBase.ValueTarget.AUTO),
+	var mapping: GFInputMapping = _make_mapping(action, [
+		_make_joy_axis_binding(JOY_AXIS_LEFT_X, GFInputBinding.ValueTarget.AUTO),
 	])
 	mapping.modifiers = [scale]
-	var context := _make_context(&"gameplay", [mapping])
+	var context: GFInputContext = _make_context(&"gameplay", [mapping])
 
 	_utility.enable_context(context)
 	_utility.handle_input_event(_make_joy_motion_event(JOY_AXIS_LEFT_X, 0.8))
 
-	assert_almost_eq(float(_utility.get_action_value(&"move_x")), 0.4, 0.001, "映射级修饰器应缩放聚合值。")
+	assert_almost_eq(_action_float(&"move_x"), 0.4, 0.001, "映射级修饰器应缩放聚合值。")
 
 
 ## 验证同一 action_id 出现在多个上下文时，高优先级动作定义不会被低优先级覆盖。
 func test_duplicate_action_id_keeps_higher_priority_definition() -> void:
-	var high_action := _make_action(&"move_x", GFInputActionBase.ValueType.AXIS_1D)
+	var high_action: GFInputAction = _make_action(&"move_x", GFInputAction.ValueType.AXIS_1D)
 	high_action.activation_threshold = 0.1
-	var high_scale := GFInputScaleModifierBase.new()
+	var high_scale: GFInputScaleModifier = GFInputScaleModifier.new()
 	high_scale.scale_x = 0.5
-	var high_mapping := _make_mapping(high_action, [
-		_make_key_binding(KEY_D, GFInputBindingBase.ValueTarget.AXIS_1D_POSITIVE),
+	var high_mapping: GFInputMapping = _make_mapping(high_action, [
+		_make_key_binding(KEY_D, GFInputBinding.ValueTarget.AXIS_1D_POSITIVE),
 	])
 	high_mapping.modifiers = [high_scale]
 
-	var low_action := _make_action(&"move_x", GFInputActionBase.ValueType.AXIS_1D)
+	var low_action: GFInputAction = _make_action(&"move_x", GFInputAction.ValueType.AXIS_1D)
 	low_action.activation_threshold = 0.1
-	var low_scale := GFInputScaleModifierBase.new()
+	var low_scale: GFInputScaleModifier = GFInputScaleModifier.new()
 	low_scale.scale_x = 2.0
-	var low_mapping := _make_mapping(low_action, [
-		_make_key_binding(KEY_A, GFInputBindingBase.ValueTarget.AXIS_1D_POSITIVE),
+	var low_mapping: GFInputMapping = _make_mapping(low_action, [
+		_make_key_binding(KEY_A, GFInputBinding.ValueTarget.AXIS_1D_POSITIVE),
 	])
 	low_mapping.modifiers = [low_scale]
 
@@ -308,27 +288,27 @@ func test_duplicate_action_id_keeps_higher_priority_definition() -> void:
 	_utility.enable_context(_make_context(&"high", [high_mapping]), 10)
 	_utility.handle_input_event(_make_key_event(KEY_D, true))
 
-	assert_almost_eq(float(_utility.get_action_value(&"move_x")), 0.5, 0.001, "重复 action_id 应保留高优先级映射的修饰器。")
+	assert_almost_eq(_action_float(&"move_x"), 0.5, 0.001, "重复 action_id 应保留高优先级映射的修饰器。")
 
 
 ## 验证三维轴动作可以聚合不同方向绑定并应用三维修饰器。
 func test_axis_3d_action_combines_directional_bindings() -> void:
-	var action := _make_action(&"move_3d", GFInputActionBase.ValueType.AXIS_3D)
+	var action: GFInputAction = _make_action(&"move_3d", GFInputAction.ValueType.AXIS_3D)
 	action.activation_threshold = 0.1
-	var scale := GFInputScaleModifierBase.new()
+	var scale: GFInputScaleModifier = GFInputScaleModifier.new()
 	scale.scale_z = 0.5
-	var mapping := _make_mapping(action, [
-		_make_key_binding(KEY_D, GFInputBindingBase.ValueTarget.AXIS_3D_X_POSITIVE),
-		_make_key_binding(KEY_E, GFInputBindingBase.ValueTarget.AXIS_3D_Z_POSITIVE),
+	var mapping: GFInputMapping = _make_mapping(action, [
+		_make_key_binding(KEY_D, GFInputBinding.ValueTarget.AXIS_3D_X_POSITIVE),
+		_make_key_binding(KEY_E, GFInputBinding.ValueTarget.AXIS_3D_Z_POSITIVE),
 	])
 	mapping.modifiers = [scale]
-	var context := _make_context(&"gameplay", [mapping])
+	var context: GFInputContext = _make_context(&"gameplay", [mapping])
 
 	_utility.enable_context(context)
 	_utility.handle_input_event(_make_key_event(KEY_D, true))
 	_utility.handle_input_event(_make_key_event(KEY_E, true))
 
-	var value := _utility.get_action_value(&"move_3d") as Vector3
+	var value: Vector3 = GFVariantData.to_vector3(_utility.get_action_value(&"move_3d"))
 	assert_gt(value.x, 0.0, "D 键应贡献 X 正向。")
 	assert_almost_eq(value.z, sqrt(0.5) * 0.5, 0.001, "三维修饰器应缩放归一化后的 Z 分量。")
 	assert_true(_utility.is_action_active(&"move_3d"), "三维轴超过阈值时动作应活跃。")
@@ -336,14 +316,14 @@ func test_axis_3d_action_combines_directional_bindings() -> void:
 
 ## 验证长按触发器会延迟动作活跃状态。
 func test_hold_trigger_delays_action_activation_until_tick_threshold() -> void:
-	var action := _make_action(&"charge")
-	var trigger := GFInputHoldTriggerBase.new()
+	var action: GFInputAction = _make_action(&"charge")
+	var trigger: GFInputHoldTrigger = GFInputHoldTrigger.new()
 	trigger.hold_seconds = 0.1
-	var mapping := _make_mapping(action, [
+	var mapping: GFInputMapping = _make_mapping(action, [
 		_make_key_binding(KEY_C),
 	])
 	mapping.triggers = [trigger]
-	var context := _make_context(&"gameplay", [mapping])
+	var context: GFInputContext = _make_context(&"gameplay", [mapping])
 
 	_utility.enable_context(context)
 	_utility.handle_input_event(_make_key_event(KEY_C, true))
@@ -358,14 +338,14 @@ func test_hold_trigger_delays_action_activation_until_tick_threshold() -> void:
 
 ## 验证短按触发器会在释放时触发一次。
 func test_tap_trigger_activates_on_quick_release() -> void:
-	var action := _make_action(&"tap")
-	var trigger := GFInputTapTriggerBase.new()
+	var action: GFInputAction = _make_action(&"tap")
+	var trigger: GFInputTapTrigger = GFInputTapTrigger.new()
 	trigger.max_tap_seconds = 0.2
-	var mapping := _make_mapping(action, [
+	var mapping: GFInputMapping = _make_mapping(action, [
 		_make_key_binding(KEY_T),
 	])
 	mapping.triggers = [trigger]
-	var context := _make_context(&"gameplay", [mapping])
+	var context: GFInputContext = _make_context(&"gameplay", [mapping])
 
 	_utility.enable_context(context)
 	_utility.handle_input_event(_make_key_event(KEY_T, true))
@@ -378,15 +358,15 @@ func test_tap_trigger_activates_on_quick_release() -> void:
 
 ## 验证脉冲触发器会在持续输入时按间隔重复触发。
 func test_pulse_trigger_repeats_while_raw_input_is_active() -> void:
-	var action := _make_action(&"repeat")
-	var trigger := GFInputPulseTriggerBase.new()
+	var action: GFInputAction = _make_action(&"repeat")
+	var trigger: GFInputPulseTrigger = GFInputPulseTrigger.new()
 	trigger.interval_seconds = 0.1
 	trigger.trigger_immediately = false
-	var mapping := _make_mapping(action, [
+	var mapping: GFInputMapping = _make_mapping(action, [
 		_make_key_binding(KEY_R),
 	])
 	mapping.triggers = [trigger]
-	var context := _make_context(&"gameplay", [mapping])
+	var context: GFInputContext = _make_context(&"gameplay", [mapping])
 
 	_utility.enable_context(context)
 	_utility.handle_input_event(_make_key_event(KEY_R, true))
@@ -399,13 +379,13 @@ func test_pulse_trigger_repeats_while_raw_input_is_active() -> void:
 
 ## 验证组合触发器依赖另一个抽象动作，而不是具体按键。
 func test_chord_trigger_requires_another_action_active() -> void:
-	var chord := GFInputChordTriggerBase.new()
+	var chord: GFInputChordTrigger = GFInputChordTrigger.new()
 	chord.required_action_id = &"modifier"
-	var chord_mapping := _make_mapping(_make_action(&"special"), [
+	var chord_mapping: GFInputMapping = _make_mapping(_make_action(&"special"), [
 		_make_key_binding(KEY_K),
 	])
 	chord_mapping.triggers = [chord]
-	var context := _make_context(&"gameplay", [
+	var context: GFInputContext = _make_context(&"gameplay", [
 		_make_mapping(_make_action(&"modifier"), [
 			_make_key_binding(KEY_SHIFT),
 		]),
@@ -423,15 +403,18 @@ func test_chord_trigger_requires_another_action_active() -> void:
 
 ## 验证序列触发器支持多分支抽象动作路径。
 func test_sequence_trigger_supports_branch_alternatives() -> void:
-	var sequence_trigger := GFInputSequenceTriggerBase.new()
-	var branch_a: GFInputSequenceBranchBase = GFInputSequenceBranchBase.from_action_ids([&"left", &"down"] as Array[StringName], 0.3) as GFInputSequenceBranchBase
-	var branch_b: GFInputSequenceBranchBase = GFInputSequenceBranchBase.from_action_ids([&"cancel"] as Array[StringName], 0.3) as GFInputSequenceBranchBase
-	sequence_trigger.branches = [branch_a, branch_b] as Array[GFInputSequenceBranchBase]
-	var special_mapping := _make_mapping(_make_action(&"special"), [
+	var sequence_trigger: GFInputSequenceTrigger = GFInputSequenceTrigger.new()
+	var branch_a_ids: Array[StringName] = [&"left", &"down"]
+	var branch_b_ids: Array[StringName] = [&"cancel"]
+	var branch_a: GFInputSequenceBranch = GFInputSequenceBranch.from_action_ids(branch_a_ids, 0.3)
+	var branch_b: GFInputSequenceBranch = GFInputSequenceBranch.from_action_ids(branch_b_ids, 0.3)
+	var branches: Array[GFInputSequenceBranch] = [branch_a, branch_b]
+	sequence_trigger.branches = branches
+	var special_mapping: GFInputMapping = _make_mapping(_make_action(&"special"), [
 		_make_key_binding(KEY_P),
 	])
 	special_mapping.triggers = [sequence_trigger]
-	var context := _make_context(&"gameplay", [
+	var context: GFInputContext = _make_context(&"gameplay", [
 		_make_mapping(_make_action(&"left"), [
 			_make_key_binding(KEY_A),
 		]),
@@ -453,19 +436,21 @@ func test_sequence_trigger_supports_branch_alternatives() -> void:
 
 ## 验证序列步骤支持按住后释放作为完成条件。
 func test_sequence_trigger_supports_hold_then_release_step() -> void:
-	var step: GFInputSequenceStepBase = GFInputSequenceStepBase.new()
+	var step: GFInputSequenceStep = GFInputSequenceStep.new()
 	step.action_id = &"charge"
 	step.min_hold_seconds = 0.1
 	step.trigger_on_release = true
-	var branch: GFInputSequenceBranchBase = GFInputSequenceBranchBase.new()
-	branch.steps = [step] as Array[GFInputSequenceStepBase]
-	var sequence_trigger := GFInputSequenceTriggerBase.new()
-	sequence_trigger.branches = [branch] as Array[GFInputSequenceBranchBase]
-	var release_mapping := _make_mapping(_make_action(&"release_attack"), [
+	var branch: GFInputSequenceBranch = GFInputSequenceBranch.new()
+	var steps: Array[GFInputSequenceStep] = [step]
+	branch.steps = steps
+	var sequence_trigger: GFInputSequenceTrigger = GFInputSequenceTrigger.new()
+	var branches: Array[GFInputSequenceBranch] = [branch]
+	sequence_trigger.branches = branches
+	var release_mapping: GFInputMapping = _make_mapping(_make_action(&"release_attack"), [
 		_make_key_binding(KEY_F),
 	])
 	release_mapping.triggers = [sequence_trigger]
-	var context := _make_context(&"gameplay", [
+	var context: GFInputContext = _make_context(&"gameplay", [
 		_make_mapping(_make_action(&"charge"), [
 			_make_key_binding(KEY_C),
 		]),
@@ -483,7 +468,7 @@ func test_sequence_trigger_supports_hold_then_release_step() -> void:
 
 ## 验证触屏绑定可按需精确匹配触点 index。
 func test_touch_binding_can_match_touch_index() -> void:
-	var binding := GFInputBindingBase.new()
+	var binding: GFInputBinding = GFInputBinding.new()
 	binding.input_event = _make_touch_event(1, true)
 
 	assert_true(binding.matches_event(_make_touch_event(2, true)), "默认触屏绑定应保持任意触点兼容语义。")
@@ -496,7 +481,7 @@ func test_touch_binding_can_match_touch_index() -> void:
 
 ## 验证可重绑条目会返回上下文、动作和有效事件。
 func test_get_remappable_items_returns_effective_event() -> void:
-	var context := _make_context(&"gameplay", [
+	var context: GFInputContext = _make_context(&"gameplay", [
 		_make_mapping(_make_action(&"jump"), [
 			_make_key_binding(KEY_SPACE),
 		]),
@@ -504,46 +489,51 @@ func test_get_remappable_items_returns_effective_event() -> void:
 
 	_utility.enable_context(context)
 	_utility.set_binding_override(&"gameplay", &"jump", 0, _make_key_event(KEY_ENTER, true))
-	var items := _utility.get_remappable_items()
+	var items: Array[Dictionary] = _utility.get_remappable_items()
+	var item_event_value: Variant = GFVariantData.get_option_value(items[0], "event")
+	assert_true(item_event_value is InputEvent, "可重绑条目应包含有效输入事件。")
+	if not (item_event_value is InputEvent):
+		return
+	var item_event: InputEvent = item_event_value
 
 	assert_eq(items.size(), 1, "应返回一个可重绑条目。")
-	assert_eq(items[0]["context_id"], &"gameplay", "条目应包含上下文标识。")
-	assert_eq(items[0]["action_id"], &"jump", "条目应包含动作标识。")
-	assert_eq(GFInputFormatterBase.input_event_as_text(items[0]["event"] as InputEvent), "Enter", "条目应使用重映射后的事件。")
+	assert_eq(GFVariantData.get_option_string_name(items[0], "context_id"), &"gameplay", "条目应包含上下文标识。")
+	assert_eq(GFVariantData.get_option_string_name(items[0], "action_id"), &"jump", "条目应包含动作标识。")
+	assert_eq(GFInputFormatter.input_event_as_text(item_event), "Enter", "条目应使用重映射后的事件。")
 
 
 ## 验证格式化工具可以输出组合键文本。
 func test_input_formatter_formats_key_modifiers() -> void:
-	var event := _make_key_event(KEY_K, true)
+	var event: InputEventKey = _make_key_event(KEY_K, true)
 	event.ctrl_pressed = true
 	event.shift_pressed = true
 
-	assert_eq(GFInputFormatterBase.input_event_as_text(event), "Ctrl + Shift + K", "组合键文本应稳定。")
+	assert_eq(GFInputFormatter.input_event_as_text(event), "Ctrl + Shift + K", "组合键文本应稳定。")
 
 
 ## 验证输入格式化工具可注册文本 provider。
 func test_input_formatter_uses_text_provider() -> void:
-	var provider := CustomKeyTextProvider.new(10)
-	GFInputFormatterBase.add_text_provider(provider)
+	var provider: CustomKeyTextProvider = CustomKeyTextProvider.new(10)
+	GFInputFormatter.add_text_provider(provider)
 
-	assert_eq(GFInputFormatterBase.input_event_as_text(_make_key_event(KEY_K, true)), "Custom K", "文本 provider 应覆盖默认按键文本。")
-	assert_eq(GFInputFormatterBase.input_event_as_text(_make_key_event(KEY_K, true), { "label": "Keyboard K" }), "Keyboard K", "格式化 options 应传递给 provider。")
+	assert_eq(GFInputFormatter.input_event_as_text(_make_key_event(KEY_K, true)), "Custom K", "文本 provider 应覆盖默认按键文本。")
+	assert_eq(GFInputFormatter.input_event_as_text(_make_key_event(KEY_K, true), { "label": "Keyboard K" }), "Keyboard K", "格式化 options 应传递给 provider。")
 
 
 ## 验证输入格式化工具可注册 RichText 图标 provider。
 func test_input_formatter_uses_icon_provider_for_rich_text() -> void:
-	GFInputFormatterBase.add_icon_provider(CustomKeyIconProvider.new())
+	GFInputFormatter.add_icon_provider(CustomKeyIconProvider.new())
 
-	assert_eq(GFInputFormatterBase.input_event_as_rich_text(_make_key_event(KEY_K, true)), "[color=yellow]K[/color]", "图标 provider 应优先生成 RichText。")
-	assert_eq(GFInputFormatterBase.input_event_as_rich_text(_make_key_event(KEY_SPACE, true)), "Space", "无图标 provider 时应回退到文本。")
+	assert_eq(GFInputFormatter.input_event_as_rich_text(_make_key_event(KEY_K, true)), "[color=yellow]K[/color]", "图标 provider 应优先生成 RichText。")
+	assert_eq(GFInputFormatter.input_event_as_rich_text(_make_key_event(KEY_SPACE, true)), "Space", "无图标 provider 时应回退到文本。")
 
 
 ## 验证输入格式化工具为 Joypad 提供通用方位文本，并允许覆盖。
 func test_input_formatter_formats_joypad_with_standard_labels() -> void:
-	assert_eq(GFInputFormatterBase.input_event_as_text(_make_joy_button_event(0, JOY_BUTTON_A, true)), "Button South", "手柄按钮应使用通用方位文本。")
-	assert_eq(GFInputFormatterBase.input_event_as_text(_make_joy_motion_event(JOY_AXIS_LEFT_X, 0.5)), "Left Stick X +", "手柄轴应显示方向。")
+	assert_eq(GFInputFormatter.input_event_as_text(_make_joy_button_event(0, JOY_BUTTON_A, true)), "Button South", "手柄按钮应使用通用方位文本。")
+	assert_eq(GFInputFormatter.input_event_as_text(_make_joy_motion_event(JOY_AXIS_LEFT_X, 0.5)), "Left Stick X +", "手柄轴应显示方向。")
 	assert_eq(
-		GFInputFormatterBase.input_event_as_text(
+		GFInputFormatter.input_event_as_text(
 			_make_joy_button_event(0, JOY_BUTTON_A, true),
 			{ "joypad_button_labels": { JOY_BUTTON_A: "Confirm" } }
 		),
@@ -554,7 +544,7 @@ func test_input_formatter_formats_joypad_with_standard_labels() -> void:
 
 ## 验证输入冲突分析器会使用重映射后的有效事件。
 func test_input_conflict_analyzer_reports_remap_conflicts() -> void:
-	var context := _make_context(&"gameplay", [
+	var context: GFInputContext = _make_context(&"gameplay", [
 		_make_mapping(_make_action(&"jump"), [
 			_make_key_binding(KEY_SPACE),
 		]),
@@ -562,33 +552,40 @@ func test_input_conflict_analyzer_reports_remap_conflicts() -> void:
 			_make_key_binding(KEY_ENTER),
 		]),
 	])
-	var remap_config := GFInputRemapConfigBase.new()
+	var remap_config: GFInputRemapConfig = GFInputRemapConfig.new()
 	remap_config.set_binding(&"gameplay", &"confirm", 0, _make_key_event(KEY_SPACE, true))
 
-	var conflicts := GFInputConflictAnalyzerBase.analyze_context(context, remap_config)
+	var conflicts: Array[Dictionary] = GFInputConflictAnalyzer.analyze_context(context, remap_config)
 
 	assert_eq(conflicts.size(), 1, "重映射到同一按键后应报告一个冲突。")
-	assert_eq(conflicts[0]["event_text"], "Space", "冲突文本应使用有效事件。")
+	assert_eq(GFVariantData.get_option_string(conflicts[0], "event_text"), "Space", "冲突文本应使用有效事件。")
 
 
 func test_input_remap_config_uses_structured_event_records() -> void:
-	var remap_config := GFInputRemapConfigBase.new()
+	var remap_config: GFInputRemapConfig = GFInputRemapConfig.new()
 	remap_config.set_binding(&"gameplay", &"jump", 0, _make_key_event(KEY_SPACE, true))
 
-	var data := remap_config.to_dict()
-	var record := (((data["remapped_events"] as Dictionary)["gameplay"] as Dictionary)["jump"] as Dictionary)["0"] as Dictionary
-	var restored := GFInputRemapConfigBase.from_dict(data)
-	var restored_event := restored.get_bound_event_or_null(&"gameplay", &"jump", 0) as InputEventKey
+	var data: Dictionary = remap_config.to_dict()
+	var remapped_events: Dictionary = GFVariantData.get_option_dictionary(data, "remapped_events")
+	var gameplay_events: Dictionary = GFVariantData.get_option_dictionary(remapped_events, "gameplay")
+	var jump_events: Dictionary = GFVariantData.get_option_dictionary(gameplay_events, "jump")
+	var record: Dictionary = GFVariantData.get_option_dictionary(jump_events, "0")
+	var restored: GFInputRemapConfig = GFInputRemapConfig.from_dict(data)
+	var restored_event_value: InputEvent = restored.get_bound_event_or_null(&"gameplay", &"jump", 0)
+	assert_true(restored_event_value is InputEventKey, "结构化记录应恢复为按键事件。")
+	if not (restored_event_value is InputEventKey):
+		return
+	var restored_event: InputEventKey = restored_event_value
 
 	assert_false(record.has("event"), "新重映射记录不应再使用 str_to_var 文本。")
-	assert_eq(record.get("event_class"), "InputEventKey", "重映射记录应保存白名单事件类型。")
+	assert_eq(GFVariantData.get_option_string(record, "event_class"), "InputEventKey", "重映射记录应保存白名单事件类型。")
 	assert_not_null(restored_event, "结构化记录应能恢复输入事件。")
 	assert_eq(restored_event.keycode, KEY_SPACE, "恢复后的按键事件应保留 keycode。")
 
 
 ## 验证输入冲突分析器可构建完整重绑定报告。
 func test_input_conflict_analyzer_builds_rebind_report() -> void:
-	var context := _make_context(&"gameplay", [
+	var context: GFInputContext = _make_context(&"gameplay", [
 		_make_mapping(_make_action(&"jump"), [
 			_make_key_binding(KEY_SPACE),
 		]),
@@ -597,12 +594,12 @@ func test_input_conflict_analyzer_builds_rebind_report() -> void:
 		]),
 	])
 
-	var report := GFInputConflictAnalyzerBase.build_rebind_report([context])
+	var report: Dictionary = GFInputConflictAnalyzer.build_rebind_report([context])
 
-	assert_false(bool(report["ok"]), "存在冲突时报告 ok 应为 false。")
-	assert_eq(report["context_count"], 1, "报告应包含上下文数量。")
-	assert_eq(report["item_count"], 2, "报告应包含绑定条目数量。")
-	assert_eq(report["conflict_count"], 1, "报告应包含冲突数量。")
+	assert_false(GFVariantData.get_option_bool(report, "ok"), "存在冲突时报告 ok 应为 false。")
+	assert_eq(GFVariantData.get_option_int(report, "context_count"), 1, "报告应包含上下文数量。")
+	assert_eq(GFVariantData.get_option_int(report, "item_count"), 2, "报告应包含绑定条目数量。")
+	assert_eq(GFVariantData.get_option_int(report, "conflict_count"), 1, "报告应包含冲突数量。")
 
 
 ## 验证延迟挂载在 Utility 销毁后不会留下输入路由节点。
@@ -615,15 +612,15 @@ func test_deferred_router_attach_is_canceled_after_dispose() -> void:
 
 ## 验证同一动作可以按输入设备映射维护玩家级状态。
 func test_player_action_state_is_scoped_by_device_assignment() -> void:
-	var arch := GFArchitecture.new()
-	var devices := GFInputDeviceUtility.new()
+	var arch: GFArchitecture = GFArchitecture.new()
+	var devices: GFInputDeviceUtility = GFInputDeviceUtility.new()
 	devices.include_keyboard_mouse = false
 	devices.include_touch = false
 	devices.max_players = 2
 	await arch.register_utility_instance(devices)
 	await arch.register_utility_instance(_utility)
 
-	var context := _make_context(&"gameplay", [
+	var context: GFInputContext = _make_context(&"gameplay", [
 		_make_mapping(_make_action(&"jump"), [
 			_make_joy_button_binding(JOY_BUTTON_A),
 		]),
@@ -645,9 +642,9 @@ func test_player_action_state_is_scoped_by_device_assignment() -> void:
 
 
 func test_player_action_state_keeps_multiple_sources_for_same_player_binding() -> void:
-	var action := _make_action(&"jump")
-	var binding := _make_joy_button_binding(JOY_BUTTON_A)
-	var entry := {
+	var action: GFInputAction = _make_action(&"jump")
+	var binding: GFInputBinding = _make_joy_button_binding(JOY_BUTTON_A)
+	var entry: Dictionary = {
 		"action": action,
 		"action_id": &"jump",
 		"bindings": [{
@@ -656,22 +653,23 @@ func test_player_action_state_keeps_multiple_sources_for_same_player_binding() -
 		}],
 	}
 
-	_utility._apply_entry_event(entry, _make_joy_button_event(0, JOY_BUTTON_A, true), 0)
-	_utility._apply_entry_event(entry, _make_joy_button_event(1, JOY_BUTTON_A, true), 0)
-	_utility._apply_entry_event(entry, _make_joy_button_event(0, JOY_BUTTON_A, false), 0)
+	var _apply_entry_event_result_656: Variant = _utility._apply_entry_event(entry, _make_joy_button_event(0, JOY_BUTTON_A, true), 0)
+	var _apply_entry_event_result_657: Variant = _utility._apply_entry_event(entry, _make_joy_button_event(1, JOY_BUTTON_A, true), 0)
+	var _apply_entry_event_result_658: Variant = _utility._apply_entry_event(entry, _make_joy_button_event(0, JOY_BUTTON_A, false), 0)
 
 	assert_true(_utility.is_action_active_for_player(0, &"jump"), "同一玩家另一个来源仍按住时，玩家动作应保持活跃。")
 
-	_utility._apply_entry_event(entry, _make_joy_button_event(1, JOY_BUTTON_A, false), 0)
+	var _apply_entry_event_result_662: Variant = _utility._apply_entry_event(entry, _make_joy_button_event(1, JOY_BUTTON_A, false), 0)
 	assert_false(_utility.is_action_active_for_player(0, &"jump"), "所有来源释放后玩家动作才应结束。")
 
 
 func test_virtual_input_source_drives_global_and_player_action_state() -> void:
-	var context := _make_context(&"gameplay", [
-		_make_mapping(_make_action(&"jump"), [] as Array[GFInputBindingBase]),
+	var bindings: Array[GFInputBinding] = []
+	var context: GFInputContext = _make_context(&"gameplay", [
+		_make_mapping(_make_action(&"jump"), bindings),
 	])
 	_utility.enable_context(context)
-	var source: GFVirtualInputSourceBase = _utility.create_virtual_source(&"replay", 0)
+	var source: GFVirtualInputSource = _utility.create_virtual_source(&"replay", 0)
 
 	assert_true(source.press(&"jump"), "虚拟输入源应能按下已注册动作。")
 	assert_true(_utility.is_action_active(&"jump"), "虚拟按下应激活全局动作。")
@@ -684,32 +682,34 @@ func test_virtual_input_source_drives_global_and_player_action_state() -> void:
 
 
 func test_virtual_input_source_supports_axis_values_and_clear() -> void:
-	var action := _make_action(&"move", GFInputActionBase.ValueType.AXIS_2D)
+	var action: GFInputAction = _make_action(&"move", GFInputAction.ValueType.AXIS_2D)
 	action.activation_threshold = 0.1
-	var context := _make_context(&"gameplay", [
-		_make_mapping(action, [] as Array[GFInputBindingBase]),
+	var bindings: Array[GFInputBinding] = []
+	var context: GFInputContext = _make_context(&"gameplay", [
+		_make_mapping(action, bindings),
 	])
 	_utility.enable_context(context)
-	var source: GFVirtualInputSourceBase = _utility.create_virtual_source(&"ai")
+	var source: GFVirtualInputSource = _utility.create_virtual_source(&"ai")
 
 	assert_true(source.set_axis_2d(&"move", Vector2(0.25, -0.5)), "虚拟源应能写入二维轴值。")
-	assert_eq(_utility.get_action_value(&"move"), Vector2(0.25, -0.5), "二维虚拟值应可按动作读取。")
+	assert_eq(_action_vector2(&"move"), Vector2(0.25, -0.5), "二维虚拟值应可按动作读取。")
 	assert_true(_utility.is_action_active(&"move"), "超过阈值的虚拟轴值应激活动作。")
 
 	source.clear_all()
 
-	assert_eq(_utility.get_action_value(&"move"), Vector2.ZERO, "清理虚拟源后动作值应回到默认值。")
+	assert_eq(_action_vector2(&"move"), Vector2.ZERO, "清理虚拟源后动作值应回到默认值。")
 	assert_false(_utility.is_action_active(&"move"), "清理虚拟源后动作应结束。")
 
 
 func test_clear_player_input_state_removes_player_global_contributions() -> void:
-	var action := _make_action(&"move", GFInputActionBase.ValueType.AXIS_2D)
+	var action: GFInputAction = _make_action(&"move", GFInputAction.ValueType.AXIS_2D)
 	action.activation_threshold = 0.1
-	var context := _make_context(&"gameplay", [
-		_make_mapping(action, [] as Array[GFInputBindingBase]),
+	var bindings: Array[GFInputBinding] = []
+	var context: GFInputContext = _make_context(&"gameplay", [
+		_make_mapping(action, bindings),
 	])
 	_utility.enable_context(context)
-	var source: GFVirtualInputSourceBase = _utility.create_virtual_source(&"player", 1)
+	var source: GFVirtualInputSource = _utility.create_virtual_source(&"player", 1)
 
 	assert_true(source.set_axis_2d(&"move", Vector2.RIGHT), "玩家虚拟源应能写入动作。")
 	assert_true(_utility.is_action_active(&"move"), "玩家贡献也会聚合到全局动作。")
@@ -717,63 +717,67 @@ func test_clear_player_input_state_removes_player_global_contributions() -> void
 
 	_utility.clear_player_input_state(1)
 
-	assert_eq(_utility.get_action_value(&"move"), Vector2.ZERO, "清理玩家状态应同步移除其全局贡献。")
+	assert_eq(_action_vector2(&"move"), Vector2.ZERO, "清理玩家状态应同步移除其全局贡献。")
 	assert_false(_utility.is_action_active(&"move"), "玩家贡献被清理后全局动作应结束。")
 	assert_false(_utility.is_action_active_for_player(1, &"move"), "玩家级动作应结束。")
 
 
 func test_input_recording_playback_drives_virtual_source() -> void:
-	var context := _make_context(&"gameplay", [
-		_make_mapping(_make_action(&"jump"), [] as Array[GFInputBindingBase]),
+	var bindings: Array[GFInputBinding] = []
+	var context: GFInputContext = _make_context(&"gameplay", [
+		_make_mapping(_make_action(&"jump"), bindings),
 	])
 	_utility.enable_context(context)
-	var source: GFVirtualInputSourceBase = _utility.create_virtual_source(&"recording")
-	var recording := GFInputRecordingBase.new()
-	recording.add_event(&"jump", true, 0.0)
-	recording.add_event(&"jump", false, 0.1)
-	var playback := GFInputPlaybackBase.new()
+	var source: GFVirtualInputSource = _utility.create_virtual_source(&"recording")
+	var recording: GFInputRecording = GFInputRecording.new()
+	var _add_event_result_733: Variant = recording.add_event(&"jump", true, 0.0)
+	var _add_event_result_734: Variant = recording.add_event(&"jump", false, 0.1)
+	var playback: GFInputPlayback = GFInputPlayback.new()
 
 	assert_true(playback.start(recording, source), "回放应能启动。")
 	assert_eq(playback.tick(0.0), 1, "0 秒事件应在首帧应用。")
 	assert_true(_utility.is_action_active(&"jump"), "回放按下事件应激活动作。")
 
-	playback.tick(0.1)
+	var _tick_result_741: Variant = playback.tick(0.1)
 
 	assert_false(_utility.is_action_active(&"jump"), "回放释放事件应结束动作。")
 	assert_false(playback.is_playing, "非循环回放到末尾后应停止。")
 
 
 func test_input_recording_json_roundtrip_preserves_values() -> void:
-	var recording := GFInputRecordingBase.new()
+	var recording: GFInputRecording = GFInputRecording.new()
 	recording.recording_id = &"sample"
-	recording.add_event(&"move", Vector2(0.25, -0.5), 0.2, 1, &"demo", {
+	var _add_event_result_750: Variant = recording.add_event(&"move", Vector2(0.25, -0.5), 0.2, 1, &"demo", {
 		"tags": PackedStringArray(["tutorial"]),
 	})
 
 	var encoded: Variant = GFVariantJsonCodec.variant_to_json_compatible(recording.to_dict(true))
-	var decoded := GFInputRecordingBase.from_dict(
-		GFVariantJsonCodec.json_compatible_to_variant(JSON.parse_string(JSON.stringify(encoded))) as Dictionary
-	) as GFInputRecordingBase
+	var decoded_data: Dictionary = GFVariantData.as_dictionary(
+		GFVariantJsonCodec.json_compatible_to_variant(JSON.parse_string(JSON.stringify(encoded)))
+	)
+	var decoded: GFInputRecording = GFInputRecording.from_dict(decoded_data)
 	var event: Dictionary = decoded.events[0]
+	var metadata: Dictionary = GFVariantData.get_option_dictionary(event, "metadata")
 
 	assert_eq(decoded.recording_id, &"sample", "录制 ID 应保留。")
-	assert_eq(event["value"], Vector2(0.25, -0.5), "录制事件值应保留 Godot 类型。")
-	assert_eq((event["metadata"] as Dictionary)["tags"], PackedStringArray(["tutorial"]), "事件元数据应保留 PackedStringArray。")
+	assert_eq(GFVariantData.to_vector2(GFVariantData.get_option_value(event, "value")), Vector2(0.25, -0.5), "录制事件值应保留 Godot 类型。")
+	assert_eq(GFVariantData.get_option_packed_string_array(metadata, "tags"), PackedStringArray(["tutorial"]), "事件元数据应保留 PackedStringArray。")
 
 
 func test_input_playback_can_respect_recorded_player_index() -> void:
-	var context := _make_context(&"gameplay", [
-		_make_mapping(_make_action(&"jump"), [] as Array[GFInputBindingBase]),
+	var bindings: Array[GFInputBinding] = []
+	var context: GFInputContext = _make_context(&"gameplay", [
+		_make_mapping(_make_action(&"jump"), bindings),
 	])
 	_utility.enable_context(context)
-	var source: GFVirtualInputSourceBase = _utility.create_virtual_source(&"recording")
-	var recording := GFInputRecordingBase.new()
-	recording.add_event(&"jump", true, 0.0, 1)
-	var playback := GFInputPlaybackBase.new()
+	var source: GFVirtualInputSource = _utility.create_virtual_source(&"recording")
+	var recording: GFInputRecording = GFInputRecording.new()
+	var _add_event_result_775: Variant = recording.add_event(&"jump", true, 0.0, 1)
+	var playback: GFInputPlayback = GFInputPlayback.new()
 	playback.respect_recorded_player_index = true
 
-	playback.start(recording, source)
-	playback.tick(0.0)
+	var _start_result_779: Variant = playback.start(recording, source)
+	var _tick_result_780: Variant = playback.tick(0.0)
 
 	assert_false(_utility.is_action_active_for_player(0, &"jump"), "未录制的玩家不应被激活。")
 	assert_true(_utility.is_action_active_for_player(1, &"jump"), "录制玩家索引应被用于虚拟源写入。")
@@ -781,22 +785,30 @@ func test_input_playback_can_respect_recorded_player_index() -> void:
 
 # --- 私有/辅助方法 ---
 
-func _make_action(action_id: StringName, value_type: GFInputActionBase.ValueType = GFInputActionBase.ValueType.BOOL) -> GFInputActionBase:
-	var action := GFInputActionBase.new()
+func _action_float(action_id: StringName) -> float:
+	return GFVariantData.to_float(_utility.get_action_value(action_id))
+
+
+func _action_vector2(action_id: StringName) -> Vector2:
+	return GFVariantData.to_vector2(_utility.get_action_value(action_id))
+
+
+func _make_action(action_id: StringName, value_type: GFInputAction.ValueType = GFInputAction.ValueType.BOOL) -> GFInputAction:
+	var action: GFInputAction = GFInputAction.new()
 	action.action_id = action_id
 	action.value_type = value_type
 	return action
 
 
-func _make_context(context_id: StringName, mappings: Array[GFInputMappingBase]) -> GFInputContextBase:
-	var context := GFInputContextBase.new()
+func _make_context(context_id: StringName, mappings: Array[GFInputMapping]) -> GFInputContext:
+	var context: GFInputContext = GFInputContext.new()
 	context.context_id = context_id
 	context.mappings = mappings
 	return context
 
 
-func _make_mapping(action: GFInputActionBase, bindings: Array[GFInputBindingBase]) -> GFInputMappingBase:
-	var mapping := GFInputMappingBase.new()
+func _make_mapping(action: GFInputAction, bindings: Array[GFInputBinding]) -> GFInputMapping:
+	var mapping: GFInputMapping = GFInputMapping.new()
 	mapping.action = action
 	mapping.bindings = bindings
 	return mapping
@@ -804,29 +816,29 @@ func _make_mapping(action: GFInputActionBase, bindings: Array[GFInputBindingBase
 
 func _make_key_binding(
 	key: Key,
-	target: GFInputBindingBase.ValueTarget = GFInputBindingBase.ValueTarget.AUTO
-) -> GFInputBindingBase:
-	var binding := GFInputBindingBase.new()
+	target: GFInputBinding.ValueTarget = GFInputBinding.ValueTarget.AUTO
+) -> GFInputBinding:
+	var binding: GFInputBinding = GFInputBinding.new()
 	binding.input_event = _make_key_event(key, true)
 	binding.value_target = target
 	return binding
 
 
-func _make_joy_axis_binding(axis: JoyAxis, target: GFInputBindingBase.ValueTarget) -> GFInputBindingBase:
-	var binding := GFInputBindingBase.new()
+func _make_joy_axis_binding(axis: JoyAxis, target: GFInputBinding.ValueTarget) -> GFInputBinding:
+	var binding: GFInputBinding = GFInputBinding.new()
 	binding.input_event = _make_joy_motion_event(axis, 1.0)
 	binding.value_target = target
 	return binding
 
 
-func _make_joy_button_binding(button: JoyButton) -> GFInputBindingBase:
-	var binding := GFInputBindingBase.new()
+func _make_joy_button_binding(button: JoyButton) -> GFInputBinding:
+	var binding: GFInputBinding = GFInputBinding.new()
 	binding.input_event = _make_joy_button_event(0, button, true)
 	return binding
 
 
 func _make_key_event(key: Key, pressed: bool) -> InputEventKey:
-	var event := InputEventKey.new()
+	var event: InputEventKey = InputEventKey.new()
 	event.keycode = key
 	event.physical_keycode = key
 	event.pressed = pressed
@@ -834,14 +846,14 @@ func _make_key_event(key: Key, pressed: bool) -> InputEventKey:
 
 
 func _make_joy_motion_event(axis: JoyAxis, axis_value: float) -> InputEventJoypadMotion:
-	var event := InputEventJoypadMotion.new()
+	var event: InputEventJoypadMotion = InputEventJoypadMotion.new()
 	event.axis = axis
 	event.axis_value = axis_value
 	return event
 
 
 func _make_joy_button_event(device: int, button: JoyButton, pressed: bool) -> InputEventJoypadButton:
-	var event := InputEventJoypadButton.new()
+	var event: InputEventJoypadButton = InputEventJoypadButton.new()
 	event.device = device
 	event.button_index = button
 	event.pressed = pressed
@@ -850,7 +862,7 @@ func _make_joy_button_event(device: int, button: JoyButton, pressed: bool) -> In
 
 
 func _make_touch_event(index: int, pressed: bool) -> InputEventScreenTouch:
-	var event := InputEventScreenTouch.new()
+	var event: InputEventScreenTouch = InputEventScreenTouch.new()
 	event.index = index
 	event.pressed = pressed
 	return event

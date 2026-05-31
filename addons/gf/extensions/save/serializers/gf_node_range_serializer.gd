@@ -59,11 +59,11 @@ func supports_node(node: Node) -> bool:
 ## [br]
 ## @schema return: Dictionary，可包含 min_value、max_value、step、page、rounded、allow_greater、allow_lesser 与 value。
 func gather(node: Node, _context: Dictionary = {}) -> Dictionary:
-	var range := node as Range
-	if range == null:
+	var range_node: Range = _get_range(node)
+	if range_node == null:
 		return {}
 
-	return _gather_property_specs(range, _PROPERTY_SPECS)
+	return _gather_property_specs(range_node, _PROPERTY_SPECS)
 
 
 ## 将序列化数据应用到节点。
@@ -84,9 +84,18 @@ func gather(node: Node, _context: Dictionary = {}) -> Dictionary:
 ## [br]
 ## @schema return: Dictionary，包含 ok: bool 与 error: String。
 func apply(node: Node, payload: Dictionary, _context: Dictionary = {}) -> Dictionary:
-	var range := node as Range
-	if range == null:
+	var range_node: Range = _get_range(node)
+	if range_node == null:
 		return make_result(false, "Node is not Range.")
 
-	_apply_property_specs(range, payload, _PROPERTY_SPECS)
+	_apply_property_specs(range_node, payload, _PROPERTY_SPECS)
 	return make_result(true)
+
+
+# --- 私有/辅助方法 ---
+
+func _get_range(node: Node) -> Range:
+	if node is Range:
+		var range_node: Range = node
+		return range_node
+	return null

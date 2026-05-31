@@ -4,7 +4,7 @@ extends GFInstaller
 
 # --- 常量 ---
 
-const _GF_SAVE_GRAPH_UTILITY_SCRIPT: Script = preload("res://addons/gf/extensions/save/graph/gf_save_graph_utility.gd")
+const _GF_SAVE_GRAPH_UTILITY_SCRIPT = preload("res://addons/gf/extensions/save/graph/gf_save_graph_utility.gd")
 
 
 # --- 框架内部方法 ---

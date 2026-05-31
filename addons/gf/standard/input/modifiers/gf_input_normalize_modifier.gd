@@ -33,7 +33,7 @@ extends GFInputModifier
 ## [br]
 ## @return 归一化后的二维输入值。
 func modify(value: Vector2, _event: InputEvent = null, _action: GFInputAction = null) -> Vector2:
-	var length := value.length()
+	var length: float = value.length()
 	if length <= 0.0001:
 		return Vector2.ZERO
 	if only_when_over_one and length <= 1.0:
@@ -53,7 +53,7 @@ func modify(value: Vector2, _event: InputEvent = null, _action: GFInputAction = 
 ## [br]
 ## @return 归一化后的三维输入值。
 func modify_3d(value: Vector3, _event: InputEvent = null, _action: GFInputAction = null) -> Vector3:
-	var length := value.length()
+	var length: float = value.length()
 	if length <= 0.0001:
 		return Vector3.ZERO
 	if only_when_over_one and length <= 1.0:

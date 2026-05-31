@@ -124,3 +124,25 @@ func get_debug_snapshot() -> Dictionary:
 		"backend": get_script().resource_path if get_script() != null else "",
 		"available": false,
 	}
+
+
+# --- 私有/辅助方法 ---
+
+func _emit_connected() -> void:
+	connected.emit()
+
+
+func _emit_disconnected(reason: String) -> void:
+	disconnected.emit(reason)
+
+
+func _emit_peer_connected(peer_id: int) -> void:
+	peer_connected.emit(peer_id)
+
+
+func _emit_peer_disconnected(peer_id: int) -> void:
+	peer_disconnected.emit(peer_id)
+
+
+func _emit_message_received(peer_id: int, bytes: PackedByteArray) -> void:
+	message_received.emit(peer_id, bytes)

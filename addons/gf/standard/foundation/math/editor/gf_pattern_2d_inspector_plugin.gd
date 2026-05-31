@@ -6,8 +6,8 @@ extends EditorInspectorPlugin
 
 # --- 常量 ---
 
-const _GF_PATTERN_2D_BASE := preload("res://addons/gf/standard/foundation/math/gf_pattern_2d.gd")
-const _GF_PATTERN_2D_EDITOR_PROPERTY := preload("res://addons/gf/standard/foundation/math/editor/gf_pattern_2d_editor_property.gd")
+const _GF_PATTERN_2D_BASE = preload("res://addons/gf/standard/foundation/math/gf_pattern_2d.gd")
+const _GF_PATTERN_2D_EDITOR_PROPERTY = preload("res://addons/gf/standard/foundation/math/editor/gf_pattern_2d_editor_property.gd")
 
 
 # --- Godot 回调方法 ---

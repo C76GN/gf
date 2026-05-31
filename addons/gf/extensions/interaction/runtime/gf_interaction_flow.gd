@@ -49,7 +49,7 @@ func inject_dependencies(architecture: GFArchitecture) -> void:
 ## [br]
 ## @return: 当前交互流程。
 func to(target: Object) -> GFInteractionFlow:
-	context.with_target(target)
+	var _with_target_result_52: Variant = context.with_target(target)
 	return self
 
 
@@ -63,7 +63,7 @@ func to(target: Object) -> GFInteractionFlow:
 ## [br]
 ## @return: 当前交互流程。
 func with_payload(payload: Variant) -> GFInteractionFlow:
-	context.with_payload(payload)
+	var _with_payload_result_66: Variant = context.with_payload(payload)
 	return self
 
 
@@ -75,7 +75,7 @@ func with_payload(payload: Variant) -> GFInteractionFlow:
 ## [br]
 ## @return: 当前交互流程。
 func in_group(group_name: StringName) -> GFInteractionFlow:
-	context.with_group(group_name)
+	var _with_group_result_78: Variant = context.with_group(group_name)
 	return self
 
 
@@ -93,11 +93,11 @@ func execute(command: Object) -> Variant:
 		return null
 
 	_apply_context(command)
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
 		return architecture.send_command(command)
 	if command.has_method("execute"):
-		return command.execute()
+		return command.call("execute")
 	return null
 
 
@@ -111,7 +111,7 @@ func send_event(event_instance: Object) -> void:
 		return
 
 	_apply_context(event_instance)
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
 		architecture.send_event(event_instance)
 
@@ -130,7 +130,14 @@ func _apply_context(instance: Object) -> void:
 
 func _get_architecture_or_null() -> GFArchitecture:
 	if _architecture_ref != null:
-		var architecture := _architecture_ref.get_ref() as GFArchitecture
+		var architecture: GFArchitecture = _get_architecture_value(_architecture_ref.get_ref())
 		if architecture != null:
 			return architecture
 	return GFAutoload.get_architecture_or_null()
+
+
+func _get_architecture_value(value: Variant) -> GFArchitecture:
+	if value is GFArchitecture:
+		var architecture: GFArchitecture = value
+		return architecture
+	return null

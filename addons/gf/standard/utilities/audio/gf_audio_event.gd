@@ -74,7 +74,7 @@ func has_request() -> bool:
 ## [br]
 ## @schema return: 请求选项 Dictionary，包含 metadata 与 extra_options 合并后的字段，并追加 event_id、channel、bank_id、path 和 ambient_channel 字段。
 func to_request_options(extra_options: Dictionary = {}) -> Dictionary:
-	var result := metadata.duplicate(true)
+	var result: Dictionary = metadata.duplicate(true)
 	for key: Variant in extra_options.keys():
 		result[key] = extra_options[key]
 	result["event_id"] = event_id

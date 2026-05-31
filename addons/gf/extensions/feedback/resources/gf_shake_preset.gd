@@ -78,7 +78,7 @@ enum Waveform {
 ## 确定性采样种子。
 ## [br]
 ## @api public
-@export var seed: int = 1
+@export var sample_seed: int = 1
 
 ## 可组合反馈轨道。为空时使用兼容的单波形字段。
 ## [br]
@@ -113,8 +113,8 @@ func get_duration_seconds() -> float:
 ## [br]
 ## @schema return: Dictionary，包含 position: Vector3、rotation_degrees: Vector3、scale: Vector3、intensity: float 与 progress: float。
 func sample(elapsed_seconds: float, strength: float = 1.0, phase_offset: float = 0.0) -> Dictionary:
-	var duration := maxf(duration_seconds, 0.0001)
-	var progress := clampf(elapsed_seconds / duration, 0.0, 1.0)
+	var duration: float = maxf(duration_seconds, 0.0001)
+	var progress: float = clampf(elapsed_seconds / duration, 0.0, 1.0)
 	return sample_at_progress(progress, elapsed_seconds, strength, phase_offset)
 
 
@@ -139,12 +139,12 @@ func sample_at_progress(
 	strength: float = 1.0,
 	phase_offset: float = 0.0
 ) -> Dictionary:
-	var normalized_progress := clampf(progress, 0.0, 1.0)
+	var normalized_progress: float = clampf(progress, 0.0, 1.0)
 	if has_tracks():
 		return _sample_tracks(normalized_progress, elapsed_seconds, strength, phase_offset)
 
-	var intensity := amplitude * maxf(strength, 0.0) * _sample_envelope(normalized_progress)
-	var wave_value := _sample_wave_vector(elapsed_seconds, normalized_progress, phase_offset) * intensity
+	var intensity: float = amplitude * maxf(strength, 0.0) * _sample_envelope(normalized_progress)
+	var wave_value: Vector3 = _sample_wave_vector(elapsed_seconds, normalized_progress, phase_offset) * intensity
 	return {
 		"position": Vector3(
 			position_axis.x * wave_value.x,
@@ -228,15 +228,15 @@ static func zero_sample() -> Dictionary:
 ## [br]
 ## @schema return: Dictionary，合并后的反馈采样，包含 position、rotation_degrees、scale、intensity 与 progress。
 static func combine_samples(samples: Array[Dictionary]) -> Dictionary:
-	var result := zero_sample()
-	var max_intensity := 0.0
-	var max_progress := 0.0
-	for sample: Dictionary in samples:
-		result["position"] = (result["position"] as Vector3) + (sample.get("position", Vector3.ZERO) as Vector3)
-		result["rotation_degrees"] = (result["rotation_degrees"] as Vector3) + (sample.get("rotation_degrees", Vector3.ZERO) as Vector3)
-		result["scale"] = (result["scale"] as Vector3) + (sample.get("scale", Vector3.ZERO) as Vector3)
-		max_intensity = maxf(max_intensity, float(sample.get("intensity", 0.0)))
-		max_progress = maxf(max_progress, float(sample.get("progress", 0.0)))
+	var result: Dictionary = zero_sample()
+	var max_intensity: float = 0.0
+	var max_progress: float = 0.0
+	for sample_data: Dictionary in samples:
+		result["position"] = _read_sample_vector3(result, "position") + _read_sample_vector3(sample_data, "position")
+		result["rotation_degrees"] = _read_sample_vector3(result, "rotation_degrees") + _read_sample_vector3(sample_data, "rotation_degrees")
+		result["scale"] = _read_sample_vector3(result, "scale") + _read_sample_vector3(sample_data, "scale")
+		max_intensity = maxf(max_intensity, GFVariantData.get_option_float(sample_data, "intensity", 0.0))
+		max_progress = maxf(max_progress, GFVariantData.get_option_float(sample_data, "progress", 0.0))
 	result["intensity"] = max_intensity
 	result["progress"] = max_progress
 	return result
@@ -256,12 +256,12 @@ func _sample_tracks(
 	strength: float,
 	phase_offset: float
 ) -> Dictionary:
-	var result := zero_sample()
+	var result: Dictionary = zero_sample()
 	result["progress"] = progress
 	for track: GFShakeTrack in tracks:
 		if track == null or not track.enabled:
 			continue
-		var track_sample := track.sample(progress, elapsed_seconds, strength, phase_offset)
+		var track_sample: Dictionary = track.sample(progress, elapsed_seconds, strength, phase_offset)
 		result = GFShakeTrack.blend_sample(result, track_sample, track.blend_mode)
 	result["progress"] = progress
 	return result
@@ -270,45 +270,53 @@ func _sample_tracks(
 func _sample_wave_vector(elapsed_seconds: float, progress: float, phase_offset: float) -> Vector3:
 	match waveform:
 		Waveform.SINE:
-			var phase := (elapsed_seconds * maxf(frequency, 0.0) + phase_offset) * TAU
+			var phase: float = (elapsed_seconds * maxf(frequency, 0.0) + phase_offset) * TAU
 			return Vector3(
 				sin(phase),
 				sin(phase + TAU / 3.0),
 				sin(phase + TAU * 2.0 / 3.0)
 			)
 		Waveform.RANDOM:
-			var step := int(floor(elapsed_seconds * maxf(frequency, 1.0)))
+			var step: int = GFVariantData.to_int(floor(elapsed_seconds * maxf(frequency, 1.0)))
 			return Vector3(
-				_hash_noise(step, seed + 11),
-				_hash_noise(step, seed + 37),
-				_hash_noise(step, seed + 73)
+				_hash_noise(step, sample_seed + 11),
+				_hash_noise(step, sample_seed + 37),
+				_hash_noise(step, sample_seed + 73)
 			)
 		Waveform.CURVE:
-			var curve_value := 0.5
+			var curve_value: float = 0.5
 			if wave_curve != null:
 				curve_value = wave_curve.sample_baked(progress)
-			var mapped := clampf(curve_value, 0.0, 1.0) * 2.0 - 1.0
+			var mapped: float = clampf(curve_value, 0.0, 1.0) * 2.0 - 1.0
 			return Vector3(mapped, mapped, mapped)
 		_:
 			return _sample_noise_vector(elapsed_seconds)
 
 
 func _sample_noise_vector(elapsed_seconds: float) -> Vector3:
-	var sample_frequency := maxf(frequency, 1.0)
-	var cursor := elapsed_seconds * sample_frequency
-	var step := int(floor(cursor))
-	var blend := smoothstep(0.0, 1.0, cursor - float(step))
+	var sample_frequency: float = maxf(frequency, 1.0)
+	var cursor: float = elapsed_seconds * sample_frequency
+	var step: int = GFVariantData.to_int(floor(cursor))
+	var blend: float = smoothstep(0.0, 1.0, cursor - float(step))
 	return Vector3(
-		lerpf(_hash_noise(step, seed + 11), _hash_noise(step + 1, seed + 11), blend),
-		lerpf(_hash_noise(step, seed + 37), _hash_noise(step + 1, seed + 37), blend),
-		lerpf(_hash_noise(step, seed + 73), _hash_noise(step + 1, seed + 73), blend)
+		lerpf(_hash_noise(step, sample_seed + 11), _hash_noise(step + 1, sample_seed + 11), blend),
+		lerpf(_hash_noise(step, sample_seed + 37), _hash_noise(step + 1, sample_seed + 37), blend),
+		lerpf(_hash_noise(step, sample_seed + 73), _hash_noise(step + 1, sample_seed + 73), blend)
 	)
 
 
 func _hash_noise(step: int, salt: int) -> float:
-	var value := int(step * 1103515245 + salt * 12345 + seed * 2654435761)
+	var value: int = int(step * 1103515245 + salt * 12345 + sample_seed * 2654435761)
 	value = value ^ (value >> 13)
 	value = value * 1274126177
 	value = value ^ (value >> 16)
-	var normalized := float(value & 0x7fffffff) / float(0x7fffffff)
+	var normalized: float = float(value & 0x7fffffff) / float(0x7fffffff)
 	return normalized * 2.0 - 1.0
+
+
+static func _read_sample_vector3(sample_data: Dictionary, key: Variant) -> Vector3:
+	var value: Variant = GFVariantData.get_option_value(sample_data, key, Vector3.ZERO)
+	if value is Vector3:
+		var vector: Vector3 = value
+		return vector
+	return Vector3.ZERO

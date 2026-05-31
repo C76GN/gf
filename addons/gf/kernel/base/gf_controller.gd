@@ -21,6 +21,7 @@ const GFNodeContextBase = preload("res://addons/gf/kernel/core/gf_node_context.g
 const _EVENT_BINDING_KIND_TYPE: StringName = &"type"
 const _EVENT_BINDING_KIND_ASSIGNABLE: StringName = &"assignable"
 const _EVENT_BINDING_KIND_SIMPLE: StringName = &"simple"
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
 
 
 # --- 导出变量 ---
@@ -70,7 +71,7 @@ func _exit_tree() -> void:
 ## [br]
 ## @return 当前可用的架构实例。
 func get_architecture() -> GFArchitecture:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
 		return architecture
 	return GFAutoload.get_architecture()
@@ -92,7 +93,7 @@ func get_architecture_or_null() -> GFArchitecture:
 ## [br]
 ## @return 当前 Controller 可用的架构实例。
 func wait_for_context_ready() -> GFArchitecture:
-	var context := _find_nearest_context()
+	var context: GFNodeContextBase = _find_nearest_context()
 	if context != null:
 		return await context.wait_until_ready()
 
@@ -136,7 +137,7 @@ func has_host() -> bool:
 ##   "description": "Script、ClassDB 原生类型或 null。"
 ## }
 func get_host_as(host_type: Variant) -> Node:
-	var current_host := get_host()
+	var current_host: Node = get_host()
 	if current_host == null:
 		return null
 	if host_type == null:
@@ -156,7 +157,7 @@ func get_host_as(host_type: Variant) -> Node:
 ## [br]
 ## @return 模型实例。
 func get_model(model_type: Script, require_ready: bool = false) -> Object:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_model(model_type, require_ready)
@@ -172,7 +173,7 @@ func get_model(model_type: Script, require_ready: bool = false) -> Object:
 ## [br]
 ## @return 系统实例。
 func get_system(system_type: Script, require_ready: bool = false) -> Object:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_system(system_type, require_ready)
@@ -188,7 +189,7 @@ func get_system(system_type: Script, require_ready: bool = false) -> Object:
 ## [br]
 ## @return 工具实例。
 func get_utility(utility_type: Script, require_ready: bool = false) -> Object:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_utility(utility_type, require_ready)
@@ -204,7 +205,7 @@ func get_utility(utility_type: Script, require_ready: bool = false) -> Object:
 ## [br]
 ## @return 当前架构中的模型实例。
 func get_local_model(model_type: Script, require_ready: bool = false) -> Object:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_local_model(model_type, require_ready)
@@ -220,7 +221,7 @@ func get_local_model(model_type: Script, require_ready: bool = false) -> Object:
 ## [br]
 ## @return 当前架构中的系统实例。
 func get_local_system(system_type: Script, require_ready: bool = false) -> Object:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_local_system(system_type, require_ready)
@@ -236,7 +237,7 @@ func get_local_system(system_type: Script, require_ready: bool = false) -> Objec
 ## [br]
 ## @return 当前架构中的工具实例。
 func get_local_utility(utility_type: Script, require_ready: bool = false) -> Object:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_local_utility(utility_type, require_ready)
@@ -257,7 +258,7 @@ func get_local_utility(utility_type: Script, require_ready: bool = false) -> Obj
 ##   "description": "命令执行结果；异步命令可返回 Signal。"
 ## }
 func send_command(command: Object) -> Variant:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.send_command(command)
@@ -276,7 +277,7 @@ func send_command(command: Object) -> Variant:
 ##   "description": "查询结果；具体类型由查询对象定义。"
 ## }
 func send_query(query: Object) -> Variant:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.send_query(query)
@@ -297,7 +298,7 @@ func register_event(event_type: Script, callback: Callable, priority: int = 0) -
 	_remember_event_binding(_EVENT_BINDING_KIND_TYPE, event_type, callback, priority)
 	if _events_paused_by_pool:
 		return
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
 		architecture.register_event_owned(self, event_type, callback, priority)
 		_remember_event_architecture(architecture)
@@ -313,7 +314,7 @@ func register_event(event_type: Script, callback: Callable, priority: int = 0) -
 func unregister_event(event_type: Script, callback: Callable) -> void:
 	_forget_event_binding(_EVENT_BINDING_KIND_TYPE, event_type, callback)
 	if not _unregister_event_from_tracked_architectures(event_type, callback):
-		var architecture := _get_architecture_or_null()
+		var architecture: GFArchitecture = _get_architecture_or_null()
 		if architecture != null:
 			architecture.unregister_event(event_type, callback)
 
@@ -331,7 +332,7 @@ func register_assignable_event(base_event_type: Script, callback: Callable, prio
 	_remember_event_binding(_EVENT_BINDING_KIND_ASSIGNABLE, base_event_type, callback, priority)
 	if _events_paused_by_pool:
 		return
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
 		architecture.register_assignable_event_owned(self, base_event_type, callback, priority)
 		_remember_event_architecture(architecture)
@@ -347,7 +348,7 @@ func register_assignable_event(base_event_type: Script, callback: Callable, prio
 func unregister_assignable_event(base_event_type: Script, callback: Callable) -> void:
 	_forget_event_binding(_EVENT_BINDING_KIND_ASSIGNABLE, base_event_type, callback)
 	if not _unregister_assignable_event_from_tracked_architectures(base_event_type, callback):
-		var architecture := _get_architecture_or_null()
+		var architecture: GFArchitecture = _get_architecture_or_null()
 		if architecture != null:
 			architecture.unregister_assignable_event(base_event_type, callback)
 
@@ -358,7 +359,7 @@ func unregister_assignable_event(base_event_type: Script, callback: Callable) ->
 ## [br]
 ## @param event_instance: 要分发的事件实例。
 func send_event(event_instance: Object) -> void:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
 		architecture.send_event(event_instance)
 
@@ -374,7 +375,7 @@ func register_simple_event(event_id: StringName, callback: Callable) -> void:
 	_remember_event_binding(_EVENT_BINDING_KIND_SIMPLE, event_id, callback, 0)
 	if _events_paused_by_pool:
 		return
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
 		architecture.register_simple_event_owned(self, event_id, callback)
 		_remember_event_architecture(architecture)
@@ -390,7 +391,7 @@ func register_simple_event(event_id: StringName, callback: Callable) -> void:
 func unregister_simple_event(event_id: StringName, callback: Callable) -> void:
 	_forget_event_binding(_EVENT_BINDING_KIND_SIMPLE, event_id, callback)
 	if not _unregister_simple_event_from_tracked_architectures(event_id, callback):
-		var architecture := _get_architecture_or_null()
+		var architecture: GFArchitecture = _get_architecture_or_null()
 		if architecture != null:
 			architecture.unregister_simple_event(event_id, callback)
 
@@ -408,7 +409,7 @@ func unregister_simple_event(event_id: StringName, callback: Callable) -> void:
 ##   "description": "事件附加数据；由事件消费者约定结构。"
 ## }
 func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
 		architecture.send_simple_event(event_id, payload)
 
@@ -426,7 +427,7 @@ func _gf_on_object_pool_release() -> void:
 func _gf_on_object_pool_acquire() -> void:
 	if not _events_paused_by_pool:
 		return
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return
 
@@ -437,9 +438,9 @@ func _gf_on_object_pool_acquire() -> void:
 
 
 func _get_architecture_or_null() -> GFArchitecture:
-	var context := _find_nearest_context()
+	var context: GFNodeContextBase = _find_nearest_context()
 	if context != null:
-		var context_architecture := context.get_architecture()
+		var context_architecture: GFArchitecture = context.get_architecture()
 		if context_architecture != null:
 			return context_architecture
 
@@ -456,9 +457,9 @@ func _remember_event_architecture(architecture: GFArchitecture) -> void:
 func _remember_event_binding(kind: StringName, event_key: Variant, callback: Callable, priority: int) -> void:
 	for binding: Dictionary in _event_bindings:
 		if (
-			binding.get("kind", &"") == kind
-			and binding.get("event_key") == event_key
-			and binding.get("callback") == callback
+			_GF_VARIANT_ACCESS_SCRIPT.get_option_string_name(binding, "kind") == kind
+			and _GF_VARIANT_ACCESS_SCRIPT.get_option_value(binding, "event_key") == event_key
+			and _read_binding_callable(binding, "callback") == callback
 		):
 			return
 
@@ -472,11 +473,11 @@ func _remember_event_binding(kind: StringName, event_key: Variant, callback: Cal
 
 func _forget_event_binding(kind: StringName, event_key: Variant, callback: Callable) -> void:
 	for i: int in range(_event_bindings.size() - 1, -1, -1):
-		var binding := _event_bindings[i]
+		var binding: Dictionary = _event_bindings[i]
 		if (
-			binding.get("kind", &"") == kind
-			and binding.get("event_key") == event_key
-			and binding.get("callback") == callback
+			_GF_VARIANT_ACCESS_SCRIPT.get_option_string_name(binding, "kind") == kind
+			and _GF_VARIANT_ACCESS_SCRIPT.get_option_value(binding, "event_key") == event_key
+			and _read_binding_callable(binding, "callback") == callback
 		):
 			_event_bindings.remove_at(i)
 
@@ -485,17 +486,23 @@ func _register_event_binding(architecture: GFArchitecture, binding: Dictionary) 
 	if architecture == null or not is_instance_valid(architecture):
 		return
 
-	var kind: StringName = binding.get("kind", &"")
-	var event_key: Variant = binding.get("event_key")
-	var callback: Callable = binding.get("callback", Callable())
-	var priority: int = int(binding.get("priority", 0))
+	var kind: StringName = _GF_VARIANT_ACCESS_SCRIPT.get_option_string_name(binding, "kind")
+	var event_key: Variant = _GF_VARIANT_ACCESS_SCRIPT.get_option_value(binding, "event_key")
+	var callback: Callable = _read_binding_callable(binding, "callback")
+	var priority: int = _GF_VARIANT_ACCESS_SCRIPT.get_option_int(binding, "priority")
 
 	if kind == _EVENT_BINDING_KIND_TYPE:
-		architecture.register_event_owned(self, event_key as Script, callback, priority)
+		if event_key is Script:
+			var event_type: Script = event_key
+			architecture.register_event_owned(self, event_type, callback, priority)
 	elif kind == _EVENT_BINDING_KIND_ASSIGNABLE:
-		architecture.register_assignable_event_owned(self, event_key as Script, callback, priority)
+		if event_key is Script:
+			var base_event_type: Script = event_key
+			architecture.register_assignable_event_owned(self, base_event_type, callback, priority)
 	elif kind == _EVENT_BINDING_KIND_SIMPLE:
-		architecture.register_simple_event_owned(self, event_key as StringName, callback)
+		if event_key is StringName:
+			var event_id: StringName = event_key
+			architecture.register_simple_event_owned(self, event_id, callback)
 
 
 func _unregister_all_tracked_owner_events() -> void:
@@ -505,8 +512,15 @@ func _unregister_all_tracked_owner_events() -> void:
 	_event_architectures.clear()
 
 
+func _read_binding_callable(binding: Dictionary, key: String) -> Callable:
+	var raw_value: Variant = _GF_VARIANT_ACCESS_SCRIPT.get_option_value(binding, key, Callable())
+	if raw_value is Callable:
+		return raw_value
+	return Callable()
+
+
 func _unregister_event_from_tracked_architectures(event_type: Script, callback: Callable) -> bool:
-	var handled := false
+	var handled: bool = false
 	for architecture: GFArchitecture in _event_architectures:
 		if architecture != null and is_instance_valid(architecture):
 			architecture.unregister_event(event_type, callback)
@@ -518,7 +532,7 @@ func _unregister_assignable_event_from_tracked_architectures(
 	base_event_type: Script,
 	callback: Callable
 ) -> bool:
-	var handled := false
+	var handled: bool = false
 	for architecture: GFArchitecture in _event_architectures:
 		if architecture != null and is_instance_valid(architecture):
 			architecture.unregister_assignable_event(base_event_type, callback)
@@ -527,7 +541,7 @@ func _unregister_assignable_event_from_tracked_architectures(
 
 
 func _unregister_simple_event_from_tracked_architectures(event_id: StringName, callback: Callable) -> bool:
-	var handled := false
+	var handled: bool = false
 	for architecture: GFArchitecture in _event_architectures:
 		if architecture != null and is_instance_valid(architecture):
 			architecture.unregister_simple_event(event_id, callback)
@@ -539,7 +553,8 @@ func _find_nearest_context() -> GFNodeContextBase:
 	var current_node: Node = self
 	while current_node != null:
 		if current_node is GFNodeContextBase:
-			return current_node as GFNodeContextBase
+			var context: GFNodeContextBase = current_node
+			return context
 		current_node = current_node.get_parent()
 
 	return null

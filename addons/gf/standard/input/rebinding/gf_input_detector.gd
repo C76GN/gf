@@ -59,6 +59,9 @@ enum DetectionState {
 }
 
 
+# --- 常量 ---
+
+const _INPUT_EVENT_TOOLS = preload("res://addons/gf/standard/input/common/gf_input_event_tools.gd")
 const _ANY_VALUE_TYPE: int = -1
 
 
@@ -143,7 +146,7 @@ func _input(event: InputEvent) -> void:
 	if not _matches_value_type_filter(event):
 		return
 
-	_finish_detection(event.duplicate(true) as InputEvent, wait_for_clear_after_detection)
+	_finish_detection(_INPUT_EVENT_TOOLS.duplicate_input_event(event), wait_for_clear_after_detection)
 	get_viewport().set_input_as_handled()
 
 
@@ -151,7 +154,7 @@ func _process(delta: float) -> void:
 	if _state == DetectionState.IDLE:
 		return
 
-	var safe_delta := maxf(delta, 0.0)
+	var safe_delta: float = maxf(delta, 0.0)
 	if _state == DetectionState.COUNTDOWN:
 		_countdown_remaining = maxf(_countdown_remaining - safe_delta, 0.0)
 		if _countdown_remaining <= 0.0:
@@ -341,7 +344,7 @@ func _finish_detection(input_event: InputEvent, wait_for_release: bool) -> void:
 
 
 func _emit_detected_input() -> void:
-	var input_event := _pending_detected_event
+	var input_event: InputEvent = _pending_detected_event
 	_state = DetectionState.IDLE
 	_elapsed = 0.0
 	_countdown_remaining = 0.0
@@ -365,11 +368,13 @@ func _start_accepting_input() -> void:
 
 
 func _should_ignore_event(event: InputEvent) -> bool:
-	if event is InputEventKey:
-		var key_event := event as InputEventKey
+	var key_event: InputEventKey = _INPUT_EVENT_TOOLS.get_key_event(event)
+	if key_event != null:
 		return ignore_echo and key_event.echo
-	if event is InputEventJoypadMotion:
-		return absf((event as InputEventJoypadMotion).axis_value) < minimum_axis_amplitude
+
+	var joy_motion: InputEventJoypadMotion = _INPUT_EVENT_TOOLS.get_joypad_motion_event(event)
+	if joy_motion != null:
+		return absf(joy_motion.axis_value) < minimum_axis_amplitude
 	return false
 
 
@@ -388,23 +393,31 @@ func _are_abort_events_released() -> bool:
 
 
 func _is_event_still_pressed(event: InputEvent) -> bool:
-	if event is InputEventKey:
-		var key_event := event as InputEventKey
+	var key_event: InputEventKey = _INPUT_EVENT_TOOLS.get_key_event(event)
+	if key_event != null:
 		if key_event.physical_keycode != KEY_NONE:
 			return Input.is_physical_key_pressed(key_event.physical_keycode)
 		return key_event.keycode != KEY_NONE and Input.is_key_pressed(key_event.keycode)
-	if event is InputEventMouseButton:
-		return Input.is_mouse_button_pressed((event as InputEventMouseButton).button_index)
-	if event is InputEventJoypadButton:
-		var joy_button := event as InputEventJoypadButton
+
+	var mouse_button: InputEventMouseButton = _INPUT_EVENT_TOOLS.get_mouse_button_event(event)
+	if mouse_button != null:
+		return Input.is_mouse_button_pressed(mouse_button.button_index)
+
+	var joy_button: InputEventJoypadButton = _INPUT_EVENT_TOOLS.get_joypad_button_event(event)
+	if joy_button != null:
 		return Input.is_joy_button_pressed(joy_button.device, joy_button.button_index)
-	if event is InputEventJoypadMotion:
-		var joy_motion := event as InputEventJoypadMotion
+
+	var joy_motion: InputEventJoypadMotion = _INPUT_EVENT_TOOLS.get_joypad_motion_event(event)
+	if joy_motion != null:
 		return absf(Input.get_joy_axis(joy_motion.device, joy_motion.axis)) >= minimum_axis_amplitude
-	if event is InputEventAction:
-		return Input.is_action_pressed((event as InputEventAction).action)
-	if event is InputEventScreenTouch:
-		return (event as InputEventScreenTouch).pressed
+
+	var action_event: InputEventAction = _INPUT_EVENT_TOOLS.get_action_event(event)
+	if action_event != null:
+		return Input.is_action_pressed(action_event.action)
+
+	var screen_touch: InputEventScreenTouch = _INPUT_EVENT_TOOLS.get_screen_touch_event(event)
+	if screen_touch != null:
+		return screen_touch.pressed
 	return false
 
 
@@ -412,7 +425,7 @@ func _matches_device_filter(event: InputEvent) -> bool:
 	if _allowed_device_types.is_empty():
 		return true
 
-	var device_type := _get_event_device_type(event)
+	var device_type: int = _get_event_device_type(event)
 	return device_type != -1 and _allowed_device_types.has(device_type)
 
 
@@ -430,16 +443,25 @@ func _matches_value_type_filter(event: InputEvent) -> bool:
 
 
 func _is_bool_event(event: InputEvent) -> bool:
-	if event is InputEventAction:
-		return (event as InputEventAction).pressed
-	if event is InputEventKey:
-		return (event as InputEventKey).pressed
-	if event is InputEventMouseButton:
-		return (event as InputEventMouseButton).pressed
-	if event is InputEventJoypadButton:
-		return (event as InputEventJoypadButton).pressed
-	if event is InputEventScreenTouch:
-		return (event as InputEventScreenTouch).pressed
+	var action_event: InputEventAction = _INPUT_EVENT_TOOLS.get_action_event(event)
+	if action_event != null:
+		return action_event.pressed
+
+	var key_event: InputEventKey = _INPUT_EVENT_TOOLS.get_key_event(event)
+	if key_event != null:
+		return key_event.pressed
+
+	var mouse_button: InputEventMouseButton = _INPUT_EVENT_TOOLS.get_mouse_button_event(event)
+	if mouse_button != null:
+		return mouse_button.pressed
+
+	var joy_button: InputEventJoypadButton = _INPUT_EVENT_TOOLS.get_joypad_button_event(event)
+	if joy_button != null:
+		return joy_button.pressed
+
+	var screen_touch: InputEventScreenTouch = _INPUT_EVENT_TOOLS.get_screen_touch_event(event)
+	if screen_touch != null:
+		return screen_touch.pressed
 	return false
 
 

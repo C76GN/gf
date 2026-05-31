@@ -54,13 +54,10 @@ const _AUTO_COMPACT_THRESHOLD: int = 3
 # FULL 模式允许的最大普通十进制指数。
 const _FULL_MAX_EXPONENT: int = 15
 
-const _DECIMAL_STRING_FORMATTER: Script = preload("res://addons/gf/standard/foundation/formatting/gf_decimal_string_formatter.gd")
+const _DECIMAL_STRING_FORMATTER = preload("res://addons/gf/standard/foundation/formatting/gf_decimal_string_formatter.gd")
 
 # FULL 模式允许的最小普通十进制指数。
 const _FULL_MIN_EXPONENT: int = -6
-
-const _BIG_NUMBER_SCRIPT: Script = preload("res://addons/gf/standard/foundation/numeric/gf_big_number.gd")
-const _FIXED_DECIMAL_SCRIPT: Script = preload("res://addons/gf/standard/foundation/numeric/gf_fixed_decimal.gd")
 
 
 # --- 公共变量 ---
@@ -177,14 +174,15 @@ static func format_full(
 	use_grouping: bool = false,
 	use_truncation: bool = false
 ) -> String:
-	var text := ""
-	if _is_fixed_decimal(value):
-		var rounding_mode: int = _FIXED_DECIMAL_SCRIPT.RoundingMode.HALF_UP
+	var text: String = ""
+	if value is GFFixedDecimal:
+		var fixed_value: GFFixedDecimal = value
+		var rounding_mode: int = GFFixedDecimal.RoundingMode.HALF_UP
 		if use_truncation:
-			rounding_mode = _FIXED_DECIMAL_SCRIPT.RoundingMode.TRUNCATE
-		text = value.rescaled(decimal_places, rounding_mode).to_decimal_string(trim_zeroes)
-	elif _is_big_number(value):
-		var big_value = value
+			rounding_mode = GFFixedDecimal.RoundingMode.TRUNCATE
+		text = fixed_value.rescaled(decimal_places, rounding_mode).to_decimal_string(trim_zeroes)
+	elif value is GFBigNumber:
+		var big_value: GFBigNumber = value
 		if big_value.exponent > _FULL_MAX_EXPONENT or big_value.exponent < _FULL_MIN_EXPONENT:
 			return format_scientific(big_value, decimal_places, trim_zeroes, use_truncation)
 		text = _DECIMAL_STRING_FORMATTER.format_decimal_value(big_value.to_float(), decimal_places, trim_zeroes, use_truncation)
@@ -193,7 +191,12 @@ static func format_full(
 			TYPE_INT:
 				text = str(value)
 			TYPE_FLOAT:
-				text = _DECIMAL_STRING_FORMATTER.format_decimal_value(value, decimal_places, trim_zeroes, use_truncation)
+				text = _DECIMAL_STRING_FORMATTER.format_decimal_value(
+					GFVariantData.to_float(value),
+					decimal_places,
+					trim_zeroes,
+					use_truncation
+				)
 			TYPE_STRING:
 				text = value
 			_:
@@ -232,15 +235,14 @@ static func format_compact(
 	if compact_suffixes.is_empty():
 		compact_suffixes = DEFAULT_COMPACT_SUFFIXES
 
-	var big_number_script: Script = _BIG_NUMBER_SCRIPT
-	var big_value = big_number_script.from_variant(value)
+	var big_value: GFBigNumber = GFBigNumber.from_variant(value)
 	if big_value.is_zero():
 		return "0"
 
 	if big_value.exponent < _AUTO_COMPACT_THRESHOLD:
 		return format_full(value, decimal_places, trim_zeroes, false, use_truncation)
 
-	var suffix_index := int(floor(float(big_value.exponent) / 3.0))
+	var suffix_index: int = GFVariantData.to_int(floor(float(big_value.exponent) / 3.0))
 	if suffix_index >= compact_suffixes.size():
 		return format_scientific(big_value, decimal_places, trim_zeroes, use_truncation)
 
@@ -289,13 +291,13 @@ static func format_scientific(
 	style: ScientificStyle = ScientificStyle.E_LOWER,
 	engineering: bool = false
 ) -> String:
-	var big_value = _BIG_NUMBER_SCRIPT.from_variant(value)
+	var big_value: GFBigNumber = GFBigNumber.from_variant(value)
 	if big_value.is_zero():
 		return "0"
 
 	var output_exponent: int = big_value.exponent
 	if engineering:
-		output_exponent = int(floor(float(big_value.exponent) / 3.0)) * 3
+		output_exponent = GFVariantData.to_int(floor(float(big_value.exponent) / 3.0)) * 3
 
 	var display_value: float = big_value.mantissa * pow(10.0, big_value.exponent - output_exponent)
 	var display_text: String = _DECIMAL_STRING_FORMATTER.format_decimal_value(
@@ -344,11 +346,11 @@ static func format_auto(
 	use_truncation: bool = false,
 	scientific_style: ScientificStyle = ScientificStyle.E_LOWER
 ) -> String:
-	var big_value = _BIG_NUMBER_SCRIPT.from_variant(value)
+	var big_value: GFBigNumber = GFBigNumber.from_variant(value)
 	if big_value.is_zero():
 		return "0"
 
-	var max_compact_exponent := (DEFAULT_COMPACT_SUFFIXES.size() - 1) * 3 + 2
+	var max_compact_exponent: int = (DEFAULT_COMPACT_SUFFIXES.size() - 1) * 3 + 2
 	if big_value.exponent >= _AUTO_COMPACT_THRESHOLD and big_value.exponent <= max_compact_exponent:
 		return format_compact(value, decimal_places, trim_zeroes, use_truncation)
 
@@ -362,47 +364,25 @@ static func format_auto(
 
 
 static func _group_integer_part(text: String) -> String:
-	var sign_text := ""
-	var body := text
+	var sign_text: String = ""
+	var body: String = text
 	if body.begins_with("-"):
 		sign_text = "-"
 		body = body.substr(1)
 
-	var decimal_index := body.find(".")
-	var integer_part := body
-	var fractional_part := ""
+	var decimal_index: int = body.find(".")
+	var integer_part: String = body
+	var fractional_part: String = ""
 	if decimal_index != -1:
 		integer_part = body.substr(0, decimal_index)
 		fractional_part = body.substr(decimal_index)
 
-	var grouped := ""
-	var digit_count := 0
-	for i in range(integer_part.length() - 1, -1, -1):
+	var grouped: String = ""
+	var digit_count: int = 0
+	for i: int in range(integer_part.length() - 1, -1, -1):
 		grouped = integer_part.substr(i, 1) + grouped
 		digit_count += 1
 		if digit_count % 3 == 0 and i > 0:
 			grouped = "," + grouped
 
 	return sign_text + grouped + fractional_part
-
-
-static func _is_big_number(value: Variant) -> bool:
-	if not is_instance_valid(value):
-		return false
-
-	var script := value.get_script() as Script
-	if script == null:
-		return false
-
-	return script.resource_path == "res://addons/gf/standard/foundation/numeric/gf_big_number.gd"
-
-
-static func _is_fixed_decimal(value: Variant) -> bool:
-	if not is_instance_valid(value):
-		return false
-
-	var script := value.get_script() as Script
-	if script == null:
-		return false
-
-	return script.resource_path == "res://addons/gf/standard/foundation/numeric/gf_fixed_decimal.gd"

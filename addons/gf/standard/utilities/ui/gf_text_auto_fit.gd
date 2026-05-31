@@ -132,7 +132,7 @@ func request_refresh() -> void:
 		call_deferred("_flush_refresh")
 		return
 
-	refresh()
+	var _refresh_result_135: Variant = refresh()
 
 
 ## 立即执行一次文本适配。
@@ -147,7 +147,7 @@ func refresh() -> int:
 	if _target == null:
 		return 0
 
-	var fit_options := options.duplicate(true)
+	var fit_options: Dictionary = options.duplicate(true)
 	fit_options["min_font_size"] = min_font_size
 	if max_font_size > 0:
 		fit_options["max_font_size"] = max_font_size
@@ -171,14 +171,14 @@ func get_target() -> Control:
 # --- 私有/辅助方法 ---
 
 func _bind_target() -> void:
-	var resolved := _resolve_target()
+	var resolved: Control = _resolve_target()
 	if resolved == _target:
 		return
 
 	_disconnect_target()
 	_target = resolved
 	if _target != null and refresh_on_resize and not _target.resized.is_connected(_on_target_resized):
-		_target.resized.connect(_on_target_resized)
+		var _connect_result_181: Variant = _target.resized.connect(_on_target_resized)
 
 
 func _disconnect_target() -> void:
@@ -190,12 +190,19 @@ func _disconnect_target() -> void:
 
 func _resolve_target() -> Control:
 	if not target_path.is_empty():
-		return get_node_or_null(target_path) as Control
-	return get_parent() as Control
+		return _get_control(get_node_or_null(target_path))
+	return _get_control(get_parent())
+
+
+func _get_control(value: Variant) -> Control:
+	if value is Control:
+		var control: Control = value
+		return control
+	return null
 
 
 func _flush_refresh() -> void:
-	refresh()
+	var _refresh_result_205: Variant = refresh()
 
 
 # --- 信号处理函数 ---

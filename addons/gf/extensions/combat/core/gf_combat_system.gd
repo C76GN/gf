@@ -15,10 +15,10 @@ extends GFSystem
 # --- 私有变量 ---
 
 # 存储所有当前受系统管理的战斗实体元数据。
-# 格式：{ entity_object: { "buffs": [GFBuff], "skills": [GFSkill] } }
+# 格式：{ entity_id: { "buffs": [GFBuff], "skills": [GFSkill] } }
 var _entities: Dictionary = {}
 
-# 活跃实体集合。键为实体 ID，值为实体对象。
+# 活跃实体集合。键为实体 ID，值固定为 true。
 var _active_entities: Dictionary = {}
 
 
@@ -31,14 +31,14 @@ var _active_entities: Dictionary = {}
 ## @param p_delta: 本帧时间增量（秒）。
 func tick(p_delta: float) -> void:
 	_cleanup_invalid_entities()
-	var ids := _active_entities.keys()
-	for id in ids:
-		if not _active_entities.has(id):
+	var ids: Array = _active_entities.keys()
+	for entity_id: int in ids:
+		if not _active_entities.has(entity_id):
 			continue
 
-		var entity = _active_entities.get(id)
-		if not is_instance_valid(entity) or not _entities.has(entity):
-			_active_entities.erase(id)
+		var entity: Object = instance_from_id(entity_id)
+		if not is_instance_valid(entity) or not _entities.has(entity_id):
+			_erase_dictionary_key(_active_entities, entity_id)
 			continue
 
 		_process_entity(entity, p_delta)
@@ -48,8 +48,8 @@ func tick(p_delta: float) -> void:
 ## [br]
 ## @api public
 func dispose() -> void:
-	for entity in _entities.keys():
-		_remove_entity_record(entity, true)
+	for entity_id: int in _entities.keys():
+		_remove_entity_record_by_id(entity_id, true)
 
 	_entities.clear()
 	_active_entities.clear()
@@ -63,10 +63,14 @@ func dispose() -> void:
 ## [br]
 ## @param p_entity: 实体对象。
 func register_entity(p_entity: Object) -> void:
-	if p_entity == null or _entities.has(p_entity):
+	if p_entity == null:
+		return
+
+	var entity_id: int = p_entity.get_instance_id()
+	if _entities.has(entity_id):
 		return
 		
-	_entities[p_entity] = {
+	_entities[entity_id] = {
 		"buffs": [],
 		"skills": [],
 	}
@@ -90,17 +94,22 @@ func unregister_entity(p_entity: Object) -> void:
 ## [br]
 ## @param p_buff: Buff 实例。
 func add_buff(p_entity: Object, p_buff: GFBuff) -> void:
-	if p_buff == null or not _entities.has(p_entity):
+	if p_buff == null or p_entity == null:
+		return
+
+	var entity_id: int = p_entity.get_instance_id()
+	if not _entities.has(entity_id):
 		return
 
 	if p_buff.owner == null:
 		p_buff.owner = p_entity
 
-	var data: Dictionary = _entities[p_entity]
-	var buffs: Array = data["buffs"]
+	var data: Dictionary = _get_entity_data(entity_id)
+	var buffs: Array = _get_entity_buffs(data)
 	
 	# 检查重叠逻辑 (简单的 ID 排斥/刷新)
-	for existing: GFBuff in buffs:
+	for existing_value: Variant in buffs:
+		var existing: GFBuff = _variant_to_buff(existing_value)
 		if _should_refresh_existing_buff(existing, p_buff):
 			existing.refresh_from(p_buff)
 			_send_combat_event(GFCombatPayloads.GFBuffRefreshedPayload.new(p_entity, existing))
@@ -121,21 +130,24 @@ func add_buff(p_entity: Object, p_buff: GFBuff) -> void:
 ## [br]
 ## @param p_skill: 技能实例。
 func add_skill(p_entity: Object, p_skill: GFSkill) -> void:
-	if p_skill == null or not _entities.has(p_entity):
+	if p_skill == null or p_entity == null:
+		return
+
+	var entity_id: int = p_entity.get_instance_id()
+	if not _entities.has(entity_id):
 		return
 
 	if p_skill.owner == null:
 		p_skill.owner = p_entity
 
-	var data: Dictionary = _entities[p_entity]
-	var skills: Array = data["skills"]
+	var data: Dictionary = _get_entity_data(entity_id)
+	var skills: Array = _get_entity_skills(data)
 	
 	if not skills.has(p_skill):
 		skills.append(p_skill)
 		if p_skill.has_method("inject_dependencies"):
 			p_skill.inject_dependencies(_get_architecture_or_null())
-		if not p_skill.is_connected(&"cooldown_started", _on_skill_cooldown_started):
-			p_skill.cooldown_started.connect(_on_skill_cooldown_started)
+		_connect_skill_cooldown(p_skill)
 		
 	_update_active_status(p_entity)
 
@@ -150,12 +162,17 @@ func add_skill(p_entity: Object, p_skill: GFSkill) -> void:
 ## [br]
 ## @return 找到时返回正在系统中生效的 Buff 实例，否则返回 null。
 func get_buff(p_entity: Object, p_buff_id: StringName) -> GFBuff:
-	if not _entities.has(p_entity):
+	if p_entity == null:
 		return null
 
-	var data: Dictionary = _entities[p_entity]
-	var buffs: Array = data["buffs"]
-	for buff: GFBuff in buffs:
+	var entity_id: int = p_entity.get_instance_id()
+	if not _entities.has(entity_id):
+		return null
+
+	var data: Dictionary = _get_entity_data(entity_id)
+	var buffs: Array = _get_entity_buffs(data)
+	for buff_value: Variant in buffs:
+		var buff: GFBuff = _variant_to_buff(buff_value)
 		if buff != null and buff.id == p_buff_id:
 			return buff
 	return null
@@ -183,12 +200,17 @@ func has_buff(p_entity: Object, p_buff_id: StringName) -> bool:
 ## @return Buff 实例数组副本；数组本身可安全修改，但元素仍是运行中的 Buff 引用。
 func get_buffs(p_entity: Object) -> Array[GFBuff]:
 	var result: Array[GFBuff] = []
-	if not _entities.has(p_entity):
+	if p_entity == null:
 		return result
 
-	var data: Dictionary = _entities[p_entity]
-	var buffs: Array = data["buffs"]
-	for buff: GFBuff in buffs:
+	var entity_id: int = p_entity.get_instance_id()
+	if not _entities.has(entity_id):
+		return result
+
+	var data: Dictionary = _get_entity_data(entity_id)
+	var buffs: Array = _get_entity_buffs(data)
+	for buff_value: Variant in buffs:
+		var buff: GFBuff = _variant_to_buff(buff_value)
 		if buff != null:
 			result.append(buff)
 	return result
@@ -204,7 +226,7 @@ func get_buffs(p_entity: Object) -> Array[GFBuff]:
 ## [br]
 ## @return 至少刷新了一个属性时返回 true。
 func refresh_buff_modifiers(p_entity: Object, p_buff_id: StringName) -> bool:
-	var buff := get_buff(p_entity, p_buff_id)
+	var buff: GFBuff = get_buff(p_entity, p_buff_id)
 	if buff == null:
 		return false
 	return _refresh_buff_modifier_attributes(buff)
@@ -220,13 +242,17 @@ func refresh_buff_modifiers(p_entity: Object, p_buff_id: StringName) -> bool:
 ## [br]
 ## @return 找到并移除 Buff 时返回 true。
 func remove_buff(p_entity: Object, p_buff_id: StringName) -> bool:
-	if not _entities.has(p_entity):
+	if p_entity == null:
 		return false
 
-	var data: Dictionary = _entities[p_entity]
-	var buffs: Array = data["buffs"]
-	for index in range(buffs.size() - 1, -1, -1):
-		var buff := buffs[index] as GFBuff
+	var entity_id: int = p_entity.get_instance_id()
+	if not _entities.has(entity_id):
+		return false
+
+	var data: Dictionary = _get_entity_data(entity_id)
+	var buffs: Array = _get_entity_buffs(data)
+	for index: int in range(buffs.size() - 1, -1, -1):
+		var buff: GFBuff = _get_buff_at(buffs, index)
 		if buff != null and buff.id == p_buff_id:
 			_remove_buff_at(p_entity, buffs, index, true)
 			_update_active_status(p_entity)
@@ -244,18 +270,22 @@ func remove_buff(p_entity: Object, p_buff_id: StringName) -> bool:
 ## [br]
 ## @return 被清理的 Buff 数量。
 func clear_buffs(p_entity: Object, predicate: Callable = Callable()) -> int:
-	if not _entities.has(p_entity):
+	if p_entity == null:
 		return 0
 
-	var data: Dictionary = _entities[p_entity]
-	var buffs: Array = data["buffs"]
-	var removed_count := 0
-	for index in range(buffs.size() - 1, -1, -1):
-		var buff := buffs[index] as GFBuff
+	var entity_id: int = p_entity.get_instance_id()
+	if not _entities.has(entity_id):
+		return 0
+
+	var data: Dictionary = _get_entity_data(entity_id)
+	var buffs: Array = _get_entity_buffs(data)
+	var removed_count: int = 0
+	for index: int in range(buffs.size() - 1, -1, -1):
+		var buff: GFBuff = _get_buff_at(buffs, index)
 		if buff == null:
 			buffs.remove_at(index)
 			continue
-		if predicate.is_valid() and not bool(predicate.call(buff)):
+		if not _predicate_accepts_buff(predicate, buff):
 			continue
 		_remove_buff_at(p_entity, buffs, index, true)
 		removed_count += 1
@@ -275,11 +305,15 @@ func clear_buffs(p_entity: Object, predicate: Callable = Callable()) -> int:
 ## [br]
 ## @return 找到并移除技能时返回 true。
 func remove_skill(p_entity: Object, p_skill: GFSkill) -> bool:
-	if p_skill == null or not _entities.has(p_entity):
+	if p_skill == null or p_entity == null:
 		return false
 
-	var data: Dictionary = _entities[p_entity]
-	var skills: Array = data["skills"]
+	var entity_id: int = p_entity.get_instance_id()
+	if not _entities.has(entity_id):
+		return false
+
+	var data: Dictionary = _get_entity_data(entity_id)
+	var skills: Array = _get_entity_skills(data)
 	if not skills.has(p_skill):
 		return false
 
@@ -292,15 +326,114 @@ func remove_skill(p_entity: Object, p_skill: GFSkill) -> bool:
 
 # --- 私有/辅助方法 ---
 
+func _get_entity_data(entity_id: int) -> Dictionary:
+	if not _entities.has(entity_id):
+		return {}
+
+	var value: Variant = _entities[entity_id]
+	if value is Dictionary:
+		var data: Dictionary = value
+		return data
+
+	var repaired_data: Dictionary = {
+		"buffs": [],
+		"skills": [],
+	}
+	_entities[entity_id] = repaired_data
+	return repaired_data
+
+
+func _get_entity_buffs(data: Dictionary) -> Array:
+	return _get_or_create_entity_array(data, "buffs")
+
+
+func _get_entity_skills(data: Dictionary) -> Array:
+	return _get_or_create_entity_array(data, "skills")
+
+
+func _get_or_create_entity_array(data: Dictionary, key: String) -> Array:
+	if data.has(key):
+		var value: Variant = data[key]
+		if value is Array:
+			var array: Array = value
+			return array
+
+	var created: Array = []
+	data[key] = created
+	return created
+
+
+func _get_buff_at(buffs: Array, index: int) -> GFBuff:
+	if index < 0 or index >= buffs.size():
+		return null
+	return _variant_to_buff(buffs[index])
+
+
+func _get_skill_at(skills: Array, index: int) -> GFSkill:
+	if index < 0 or index >= skills.size():
+		return null
+	return _variant_to_skill(skills[index])
+
+
+func _predicate_accepts_buff(predicate: Callable, buff: GFBuff) -> bool:
+	if not predicate.is_valid():
+		return true
+	var accepted: Variant = predicate.call(buff)
+	return accepted if accepted is bool else false
+
+
+func _connect_skill_cooldown(skill: GFSkill) -> void:
+	if skill == null or skill.is_connected(&"cooldown_started", _on_skill_cooldown_started):
+		return
+	var connect_result: int = skill.cooldown_started.connect(_on_skill_cooldown_started)
+	if connect_result != OK:
+		push_warning("[GFCombatSystem] 无法连接技能冷却信号，错误码：%s" % connect_result)
+
+
+func _erase_dictionary_key(target: Dictionary, key: Variant) -> void:
+	var _removed: bool = target.erase(key)
+
+
+func _variant_to_buff(value: Variant) -> GFBuff:
+	if not is_instance_valid(value):
+		return null
+	if value is GFBuff:
+		var buff: GFBuff = value
+		return buff
+	return null
+
+
+func _variant_to_skill(value: Variant) -> GFSkill:
+	if not is_instance_valid(value):
+		return null
+	if value is GFSkill:
+		var skill: GFSkill = value
+		return skill
+	return null
+
+
+func _variant_to_modified_attribute(value: Variant) -> GFModifiedAttribute:
+	if not is_instance_valid(value):
+		return null
+	if value is GFModifiedAttribute:
+		var attribute: GFModifiedAttribute = value
+		return attribute
+	return null
+
+
 # 更新实体的活跃状态。
 func _update_active_status(p_entity: Object) -> void:
-	if not is_instance_valid(p_entity) or not _entities.has(p_entity):
-		_erase_active_entity(p_entity)
+	if not is_instance_valid(p_entity):
+		return
+
+	var entity_id: int = p_entity.get_instance_id()
+	if not _entities.has(entity_id):
+		_erase_dictionary_key(_active_entities, entity_id)
 		return
 		
-	var data: Dictionary = _entities[p_entity]
-	var buffs: Array = data["buffs"]
-	var skills: Array = data["skills"]
+	var data: Dictionary = _get_entity_data(entity_id)
+	var buffs: Array = _get_entity_buffs(data)
+	var skills: Array = _get_entity_skills(data)
 	
 	var is_active: bool = not buffs.is_empty()
 	
@@ -311,57 +444,53 @@ func _update_active_status(p_entity: Object) -> void:
 				break
 				
 	if is_active:
-		_active_entities[p_entity.get_instance_id()] = p_entity
+		_active_entities[entity_id] = true
 	else:
-		_active_entities.erase(p_entity.get_instance_id())
+		_erase_dictionary_key(_active_entities, entity_id)
 
 
 func _cleanup_invalid_entities() -> void:
-	for entity in _entities.keys():
+	for entity_id: int in _entities.keys():
+		var entity: Object = instance_from_id(entity_id)
 		if not is_instance_valid(entity):
-			_remove_entity_record(entity, false)
+			_remove_entity_record_by_id(entity_id, false)
 
-	for entity_id in _active_entities.keys():
-		var entity = _active_entities[entity_id]
-		if not is_instance_valid(entity) or not _entities.has(entity):
-			_active_entities.erase(entity_id)
+	for entity_id: int in _active_entities.keys():
+		var entity: Object = instance_from_id(entity_id)
+		if not is_instance_valid(entity) or not _entities.has(entity_id):
+			_erase_dictionary_key(_active_entities, entity_id)
 
 
-func _erase_active_entity(p_entity: Variant) -> void:
-	if is_instance_valid(p_entity):
-		_active_entities.erase(p_entity.get_instance_id())
+func _remove_entity_record(p_entity: Object, remove_effects: bool) -> void:
+	if p_entity == null:
 		return
 
-	var stale_ids: Array = []
-	for entity_id in _active_entities.keys():
-		if _active_entities[entity_id] == p_entity:
-			stale_ids.append(entity_id)
-
-	for entity_id in stale_ids:
-		_active_entities.erase(entity_id)
+	_remove_entity_record_by_id(p_entity.get_instance_id(), remove_effects)
 
 
-func _remove_entity_record(p_entity: Variant, remove_effects: bool) -> void:
-	if not _entities.has(p_entity):
-		_erase_active_entity(p_entity)
+func _remove_entity_record_by_id(entity_id: int, remove_effects: bool) -> void:
+	if not _entities.has(entity_id):
+		_erase_dictionary_key(_active_entities, entity_id)
 		return
 
-	var data: Dictionary = _entities[p_entity]
+	var data: Dictionary = _get_entity_data(entity_id)
 	_cleanup_entity_data(data, remove_effects)
-	_entities.erase(p_entity)
-	_erase_active_entity(p_entity)
+	_erase_dictionary_key(_entities, entity_id)
+	_erase_dictionary_key(_active_entities, entity_id)
 
 
 func _cleanup_entity_data(data: Dictionary, remove_effects: bool) -> void:
-	var buffs: Array = data.get("buffs", [])
-	for buff: GFBuff in buffs:
+	var buffs: Array = _get_entity_buffs(data)
+	for buff_value: Variant in buffs:
+		var buff: GFBuff = _variant_to_buff(buff_value)
 		if buff == null:
 			continue
 		if remove_effects:
 			buff.on_remove()
 
-	var skills: Array = data.get("skills", [])
-	for skill: GFSkill in skills:
+	var skills: Array = _get_entity_skills(data)
+	for skill_value: Variant in skills:
+		var skill: GFSkill = _variant_to_skill(skill_value)
 		if skill == null:
 			continue
 		if skill.is_connected(&"cooldown_started", _on_skill_cooldown_started):
@@ -374,18 +503,18 @@ func _on_skill_cooldown_started(p_skill: GFSkill) -> void:
 
 
 func _send_combat_event(event_instance: Object) -> void:
-	var arch := _get_architecture_or_null()
+	var arch: GFArchitecture = _get_architecture_or_null()
 	if arch != null and arch.has_method("send_event"):
 		arch.send_event(event_instance)
 
 
 func _remove_buff_at(p_entity: Object, buffs: Array, index: int, remove_effects: bool) -> void:
-	var buff := buffs[index] as GFBuff
+	var buff: GFBuff = _get_buff_at(buffs, index)
 	buffs.remove_at(index)
 	if buff == null:
 		return
 
-	var removed_id := buff.id
+	var removed_id: StringName = buff.id
 	if remove_effects:
 		buff.on_remove()
 	_send_combat_event(GFCombatPayloads.GFBuffRemovedPayload.new(p_entity, removed_id))
@@ -406,14 +535,15 @@ func _refresh_buff_modifier_attributes(buff: GFBuff) -> bool:
 		return false
 
 	var refreshed_attribute_ids: Dictionary = {}
-	var refreshed := false
+	var refreshed: bool = false
+	var get_attribute: Callable = Callable(buff.owner, "get_attribute")
 	for modifier: GFModifier in buff.modifiers:
 		if modifier == null or modifier.attribute_id == &"":
 			continue
 		if refreshed_attribute_ids.has(modifier.attribute_id):
 			continue
 
-		var attr := buff.owner.get_attribute(modifier.attribute_id) as GFModifiedAttribute
+		var attr: GFModifiedAttribute = _variant_to_modified_attribute(get_attribute.call(modifier.attribute_id))
 		if attr == null:
 			continue
 
@@ -424,18 +554,19 @@ func _refresh_buff_modifier_attributes(buff: GFBuff) -> bool:
 
 
 func _process_entity(p_entity: Object, p_delta: float) -> void:
-	if not _entities.has(p_entity):
+	var entity_id: int = p_entity.get_instance_id()
+	if not _entities.has(entity_id):
 		return
 
-	var data: Dictionary = _entities[p_entity]
-	var buffs: Array = data["buffs"]
-	var buff_index := buffs.size() - 1
+	var data: Dictionary = _get_entity_data(entity_id)
+	var buffs: Array = _get_entity_buffs(data)
+	var buff_index: int = buffs.size() - 1
 	while buff_index >= 0:
 		if buff_index >= buffs.size():
 			buff_index = buffs.size() - 1
 			continue
 
-		var buff := buffs[buff_index] as GFBuff
+		var buff: GFBuff = _get_buff_at(buffs, buff_index)
 		if buff == null:
 			buffs.remove_at(buff_index)
 			buff_index -= 1
@@ -449,16 +580,16 @@ func _process_entity(p_entity: Object, p_delta: float) -> void:
 				_send_combat_event(GFCombatPayloads.GFBuffRemovedPayload.new(p_entity, buff.id))
 		buff_index -= 1
 
-	if not _entities.has(p_entity):
+	if not _entities.has(entity_id):
 		return
 
-	var skills: Array = data["skills"]
-	var skill_index := skills.size() - 1
+	var skills: Array = _get_entity_skills(data)
+	var skill_index: int = skills.size() - 1
 	while skill_index >= 0:
 		if skill_index >= skills.size():
 			skill_index = skills.size() - 1
 			continue
-		var skill := skills[skill_index] as GFSkill
+		var skill: GFSkill = _get_skill_at(skills, skill_index)
 		if skill == null:
 			skills.remove_at(skill_index)
 			skill_index -= 1
@@ -466,5 +597,5 @@ func _process_entity(p_entity: Object, p_delta: float) -> void:
 		skill.update(p_delta)
 		skill_index -= 1
 
-	if _entities.has(p_entity):
+	if _entities.has(entity_id):
 		_update_active_status(p_entity)

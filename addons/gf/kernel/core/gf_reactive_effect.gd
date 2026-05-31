@@ -29,7 +29,8 @@ signal effect_ran(value: Variant)
 
 # --- 常量 ---
 
-const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
+const _INSTANCE_GUARD = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
 
 
 # --- 公共变量 ---
@@ -104,9 +105,9 @@ func configure(
 	for source: GFBindableProperty in _sources:
 		_bind_source(source, owner)
 
-	var stop_callback := Callable(self, "stop")
+	var stop_callback: Callable = Callable(self, "stop")
 	if owner != null and not owner.tree_exited.is_connected(stop_callback):
-		owner.tree_exited.connect(stop_callback, CONNECT_ONE_SHOT)
+		var _connect_result_110: Variant = owner.tree_exited.connect(stop_callback, CONNECT_ONE_SHOT)
 
 	if run_immediately:
 		run()
@@ -130,7 +131,7 @@ func run() -> Variant:
 		return null
 
 	var value: Variant = null
-	var rerun_count := 0
+	var rerun_count: int = 0
 	while _active and _callback.is_valid():
 		_running = true
 		_rerun_requested = false
@@ -152,20 +153,20 @@ func run() -> Variant:
 ## @api public
 func stop() -> void:
 	for connection: Dictionary in _connections:
-		var source := connection.get("source") as GFBindableProperty
-		var callback := connection.get("callable", Callable()) as Callable
-		var owner := _get_owner()
+		var source: GFBindableProperty = _get_connection_source(connection)
+		var callback: Callable = _get_connection_callable(connection)
+		var connection_owner: Node = _get_owner()
 		if source == null or not callback.is_valid():
 			continue
-		if owner != null:
-			source.unbind(owner, callback)
+		if connection_owner != null:
+			source.unbind(connection_owner, callback)
 		elif source.value_changed.is_connected(callback):
 			source.value_changed.disconnect(callback)
 
-	var owner := _get_owner()
-	var stop_callback := Callable(self, "stop")
-	if owner != null and owner.tree_exited.is_connected(stop_callback):
-		owner.tree_exited.disconnect(stop_callback)
+	var effect_owner: Node = _get_owner()
+	var stop_callback: Callable = Callable(self, "stop")
+	if effect_owner != null and effect_owner.tree_exited.is_connected(stop_callback):
+		effect_owner.tree_exited.disconnect(stop_callback)
 
 	_connections.clear()
 	_sources.clear()
@@ -204,7 +205,7 @@ func get_sources() -> Array[GFBindableProperty]:
 # --- 私有/辅助方法 ---
 
 func _bind_source(source: GFBindableProperty, owner: Node) -> void:
-	var callback := Callable(self, "_on_source_changed")
+	var callback: Callable = Callable(self, "_on_source_changed")
 	_connections.append({
 		"source": source,
 		"callable": callback,
@@ -212,7 +213,7 @@ func _bind_source(source: GFBindableProperty, owner: Node) -> void:
 	if owner != null:
 		source.bind_to(owner, callback)
 	elif not source.value_changed.is_connected(callback):
-		source.value_changed.connect(callback)
+		var _connect_result_216: Variant = source.value_changed.connect(callback)
 
 
 func _filter_sources(sources: Array[GFBindableProperty]) -> Array[GFBindableProperty]:
@@ -231,3 +232,19 @@ func _get_owner() -> Node:
 
 func _on_source_changed(_old_value: Variant, _new_value: Variant) -> void:
 	run()
+
+
+func _get_connection_source(connection: Dictionary) -> GFBindableProperty:
+	var raw_source: Variant = _GF_VARIANT_ACCESS_SCRIPT.get_option_value(connection, "source")
+	if raw_source is GFBindableProperty:
+		var source: GFBindableProperty = raw_source
+		return source
+	return null
+
+
+func _get_connection_callable(connection: Dictionary) -> Callable:
+	var raw_callable: Variant = _GF_VARIANT_ACCESS_SCRIPT.get_option_value(connection, "callable", Callable())
+	if raw_callable is Callable:
+		var callback: Callable = raw_callable
+		return callback
+	return Callable()

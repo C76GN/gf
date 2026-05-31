@@ -105,7 +105,7 @@ func apply(action: GFCombatAction) -> GFCombatAction:
 	if action == null:
 		return null
 
-	var result := action.duplicate_action()
+	var result: GFCombatAction = action.duplicate_action()
 	if not matches(action):
 		return result
 
@@ -116,9 +116,8 @@ func apply(action: GFCombatAction) -> GFCombatAction:
 		result.action_kind = action_kind
 
 	var modifier_metadata: Array = []
-	var modifier_metadata_value: Variant = result.metadata.get("modifiers", [])
-	if modifier_metadata_value is Array:
-		modifier_metadata = (modifier_metadata_value as Array).duplicate(true)
+	var modifier_metadata_value: Variant = GFVariantData.get_option_value(result.metadata, "modifiers", [])
+	modifier_metadata = GFVariantData.to_array(modifier_metadata_value)
 	modifier_metadata.append({
 		"modifier_id": modifier_id,
 		"metadata": metadata.duplicate(true),
@@ -133,7 +132,7 @@ func apply(action: GFCombatAction) -> GFCombatAction:
 ## [br]
 ## @return 新修正器。
 func duplicate_modifier() -> GFCombatActionModifier:
-	var modifier := GFCombatActionModifier.new()
+	var modifier: GFCombatActionModifier = GFCombatActionModifier.new()
 	modifier.modifier_id = modifier_id
 	modifier.accepted_action_kinds = accepted_action_kinds.duplicate()
 	modifier.rejected_action_kinds = rejected_action_kinds.duplicate()

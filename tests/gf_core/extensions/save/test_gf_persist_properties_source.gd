@@ -4,22 +4,19 @@ extends GutTest
 
 # --- 常量 ---
 
-const GFPersistPropertiesSourceBase = preload("res://addons/gf/extensions/save/core/gf_persist_properties_source.gd")
-const GFSaveGraphUtilityBase = preload("res://addons/gf/extensions/save/graph/gf_save_graph_utility.gd")
-const GFSaveScopeBase = preload("res://addons/gf/extensions/save/core/gf_save_scope.gd")
 
 
 # --- 私有变量 ---
 
-var _utility: GFSaveGraphUtilityBase
-var _scope: GFSaveScopeBase
+var _utility: GFSaveGraphUtility
+var _scope: GFSaveScope
 
 
 # --- Godot 生命周期方法 ---
 
 func before_each() -> void:
-	_utility = GFSaveGraphUtilityBase.new()
-	_scope = GFSaveScopeBase.new()
+	_utility = GFSaveGraphUtility.new()
+	_scope = GFSaveScope.new()
 	_scope.name = "RootScope"
 	_scope.scope_key = &"root"
 	get_tree().root.add_child(_scope)
@@ -36,47 +33,47 @@ func after_each() -> void:
 # --- 测试方法 ---
 
 func test_persist_properties_source_restores_parent_properties() -> void:
-	var target := Node2D.new()
+	var target: Node2D = Node2D.new()
 	target.name = "Target"
 	target.position = Vector2(12.0, 34.0)
 	target.rotation = 0.5
 	_scope.add_child(target)
 
-	var source := GFPersistPropertiesSourceBase.new()
+	var source: GFPersistPropertiesSource = GFPersistPropertiesSource.new()
 	source.name = "State"
 	source.source_key = &"target_state"
 	source.properties = PackedStringArray(["position", "rotation"])
 	target.add_child(source)
 
-	var payload := _utility.gather_scope(_scope)
+	var payload: Dictionary = _utility.gather_scope(_scope)
 	target.position = Vector2.ZERO
 	target.rotation = 0.0
-	var result := _utility.apply_scope(_scope, payload)
+	var result: Dictionary = _utility.apply_scope(_scope, payload)
 
-	assert_true(bool(result["ok"]), "属性持久化 Source 应能通过 SaveGraph 应用。")
+	assert_true(GFVariantData.get_option_bool(result, "ok"), "属性持久化 Source 应能通过 SaveGraph 应用。")
 	assert_eq(target.position, Vector2(12.0, 34.0), "白名单中的 Vector2 属性应恢复。")
 	assert_almost_eq(target.rotation, 0.5, 0.001, "白名单中的 float 属性应恢复。")
 
 
 func test_persist_properties_source_keeps_extra_serializers_composable() -> void:
-	var target := Node2D.new()
+	var target: Node2D = Node2D.new()
 	target.name = "Target"
 	target.position = Vector2(2.0, 3.0)
 	target.scale = Vector2(4.0, 5.0)
 	_scope.add_child(target)
 
-	var source := GFPersistPropertiesSourceBase.new()
+	var source: GFPersistPropertiesSource = GFPersistPropertiesSource.new()
 	source.name = "State"
 	source.source_key = &"target_state"
 	source.properties = PackedStringArray(["position"])
 	source.use_registry_serializers = true
 	target.add_child(source)
 
-	var payload := _utility.gather_scope(_scope)
+	var payload: Dictionary = _utility.gather_scope(_scope)
 	target.position = Vector2.ZERO
 	target.scale = Vector2.ONE
-	var result := _utility.apply_scope(_scope, payload)
+	var result: Dictionary = _utility.apply_scope(_scope, payload)
 
-	assert_true(bool(result["ok"]), "属性 Source 应能继续组合注册表默认序列化器。")
+	assert_true(GFVariantData.get_option_bool(result, "ok"), "属性 Source 应能继续组合注册表默认序列化器。")
 	assert_eq(target.position, Vector2(2.0, 3.0), "属性白名单片段应恢复 position。")
 	assert_eq(target.scale, Vector2(4.0, 5.0), "注册表 Transform2D 序列化器应恢复 scale。")

@@ -124,7 +124,7 @@ Returns: 等待动作。
 - API: `public`
 
 ```gdscript
-static func callback(callback: Callable, args: Array = []) -> GFCallableAction:
+static func callback(action_callback: Callable, args: Array = []) -> GFCallableAction:
 ```
 
 创建回调动作。
@@ -133,14 +133,14 @@ Parameters:
 
 | Name | Description |
 |---|---|
-| `callback` | 要执行的回调。 |
+| `action_callback` | 要执行的回调。 |
 | `args` | 回调参数。 |
 
 Returns: 回调动作。
 
 Schemas:
 
-- `args`: Array，传给 callback.callv() 的参数列表。
+- `args`: Array，传给 action_callback.callv() 的参数列表。
 
 #### `repeat`
 

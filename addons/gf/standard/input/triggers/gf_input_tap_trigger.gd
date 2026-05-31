@@ -61,8 +61,8 @@ func reset_trigger_state(state: Dictionary) -> void:
 ## [br]
 ## @return 触发状态。
 func update(raw_active: bool, _value: Variant, delta: float, state: Dictionary) -> TriggerState:
-	var was_active := bool(state.get("was_active", false))
-	var elapsed := float(state.get("elapsed", 0.0))
+	var was_active: bool = GFVariantData.get_option_bool(state, "was_active", false)
+	var elapsed: float = GFVariantData.get_option_float(state, "elapsed", 0.0)
 
 	if raw_active:
 		elapsed = 0.0 if not was_active else elapsed + maxf(delta, 0.0)

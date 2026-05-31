@@ -114,7 +114,7 @@ enum BlendMode {
 ## 确定性采样种子。
 ## [br]
 ## @api public
-@export var seed: int = 1
+@export var sample_seed: int = 1
 
 ## 项目自定义元数据。框架不解释该字段。
 ## [br]
@@ -150,18 +150,18 @@ func sample(
 	if not enabled:
 		return zero_sample()
 
-	var range_start := clampf(start_progress, 0.0, 1.0)
-	var range_end := clampf(end_progress, range_start, 1.0)
-	var clamped_progress := clampf(preset_progress, 0.0, 1.0)
+	var range_start: float = clampf(start_progress, 0.0, 1.0)
+	var range_end: float = clampf(end_progress, range_start, 1.0)
+	var clamped_progress: float = clampf(preset_progress, 0.0, 1.0)
 	if clamped_progress < range_start or clamped_progress > range_end:
 		return zero_sample()
 
-	var local_progress := 1.0
+	var local_progress: float = 1.0
 	if range_end > range_start:
 		local_progress = (clamped_progress - range_start) / (range_end - range_start)
 
-	var intensity := amplitude * maxf(strength, 0.0) * _sample_envelope(local_progress)
-	var wave_value := _sample_wave_vector(elapsed_seconds, local_progress, phase_offset) * intensity
+	var intensity: float = amplitude * maxf(strength, 0.0) * _sample_envelope(local_progress)
+	var wave_value: Vector3 = _sample_wave_vector(elapsed_seconds, local_progress, phase_offset) * intensity
 	return {
 		"position": Vector3(
 			position_axis.x * wave_value.x,
@@ -222,53 +222,76 @@ static func zero_sample() -> Dictionary:
 ## [br]
 ## @schema return: Dictionary，合并后的反馈采样，包含 position、rotation_degrees、scale、intensity 与 progress。
 static func blend_sample(base_sample: Dictionary, track_sample: Dictionary, mode: BlendMode) -> Dictionary:
-	var result := _normalize_sample(base_sample)
-	var next := _normalize_sample(track_sample)
+	var result: Dictionary = _normalize_sample(base_sample)
+	var next_sample: Dictionary = _normalize_sample(track_sample)
+	var position: Vector3 = _get_sample_vector3(result, "position", Vector3.ZERO)
+	var rotation_degrees: Vector3 = _get_sample_vector3(result, "rotation_degrees", Vector3.ZERO)
+	var scale: Vector3 = _get_sample_vector3(result, "scale", Vector3.ZERO)
+	var next_position: Vector3 = _get_sample_vector3(next_sample, "position", Vector3.ZERO)
+	var next_rotation_degrees: Vector3 = _get_sample_vector3(next_sample, "rotation_degrees", Vector3.ZERO)
+	var next_scale: Vector3 = _get_sample_vector3(next_sample, "scale", Vector3.ZERO)
 	match mode:
 		BlendMode.OVERRIDE:
-			result["position"] = next["position"]
-			result["rotation_degrees"] = next["rotation_degrees"]
-			result["scale"] = next["scale"]
+			position = next_position
+			rotation_degrees = next_rotation_degrees
+			scale = next_scale
 		BlendMode.MULTIPLY:
-			result["position"] = (result["position"] as Vector3) * (next["position"] as Vector3)
-			result["rotation_degrees"] = (result["rotation_degrees"] as Vector3) * (next["rotation_degrees"] as Vector3)
-			result["scale"] = (result["scale"] as Vector3) * (next["scale"] as Vector3)
+			position *= next_position
+			rotation_degrees *= next_rotation_degrees
+			scale *= next_scale
 		BlendMode.SUBTRACT:
-			result["position"] = (result["position"] as Vector3) - (next["position"] as Vector3)
-			result["rotation_degrees"] = (result["rotation_degrees"] as Vector3) - (next["rotation_degrees"] as Vector3)
-			result["scale"] = (result["scale"] as Vector3) - (next["scale"] as Vector3)
+			position -= next_position
+			rotation_degrees -= next_rotation_degrees
+			scale -= next_scale
 		BlendMode.AVERAGE:
-			result["position"] = ((result["position"] as Vector3) + (next["position"] as Vector3)) * 0.5
-			result["rotation_degrees"] = ((result["rotation_degrees"] as Vector3) + (next["rotation_degrees"] as Vector3)) * 0.5
-			result["scale"] = ((result["scale"] as Vector3) + (next["scale"] as Vector3)) * 0.5
+			position = (position + next_position) * 0.5
+			rotation_degrees = (rotation_degrees + next_rotation_degrees) * 0.5
+			scale = (scale + next_scale) * 0.5
 		BlendMode.MAX:
-			result["position"] = _vector3_max(result["position"] as Vector3, next["position"] as Vector3)
-			result["rotation_degrees"] = _vector3_max(result["rotation_degrees"] as Vector3, next["rotation_degrees"] as Vector3)
-			result["scale"] = _vector3_max(result["scale"] as Vector3, next["scale"] as Vector3)
+			position = _vector3_max(position, next_position)
+			rotation_degrees = _vector3_max(rotation_degrees, next_rotation_degrees)
+			scale = _vector3_max(scale, next_scale)
 		BlendMode.MIN:
-			result["position"] = _vector3_min(result["position"] as Vector3, next["position"] as Vector3)
-			result["rotation_degrees"] = _vector3_min(result["rotation_degrees"] as Vector3, next["rotation_degrees"] as Vector3)
-			result["scale"] = _vector3_min(result["scale"] as Vector3, next["scale"] as Vector3)
+			position = _vector3_min(position, next_position)
+			rotation_degrees = _vector3_min(rotation_degrees, next_rotation_degrees)
+			scale = _vector3_min(scale, next_scale)
 		_:
-			result["position"] = (result["position"] as Vector3) + (next["position"] as Vector3)
-			result["rotation_degrees"] = (result["rotation_degrees"] as Vector3) + (next["rotation_degrees"] as Vector3)
-			result["scale"] = (result["scale"] as Vector3) + (next["scale"] as Vector3)
+			position += next_position
+			rotation_degrees += next_rotation_degrees
+			scale += next_scale
 
-	result["intensity"] = maxf(float(result.get("intensity", 0.0)), float(next.get("intensity", 0.0)))
-	result["progress"] = maxf(float(result.get("progress", 0.0)), float(next.get("progress", 0.0)))
+	result["position"] = position
+	result["rotation_degrees"] = rotation_degrees
+	result["scale"] = scale
+	result["intensity"] = maxf(
+		_get_sample_float(result, "intensity", 0.0),
+		_get_sample_float(next_sample, "intensity", 0.0)
+	)
+	result["progress"] = maxf(
+		_get_sample_float(result, "progress", 0.0),
+		_get_sample_float(next_sample, "progress", 0.0)
+	)
 	return result
 
 
 # --- 私有/辅助方法 ---
 
-static func _normalize_sample(sample: Dictionary) -> Dictionary:
+static func _normalize_sample(sample_data: Dictionary) -> Dictionary:
 	return {
-		"position": sample.get("position", Vector3.ZERO) as Vector3,
-		"rotation_degrees": sample.get("rotation_degrees", Vector3.ZERO) as Vector3,
-		"scale": sample.get("scale", Vector3.ZERO) as Vector3,
-		"intensity": float(sample.get("intensity", 0.0)),
-		"progress": float(sample.get("progress", 0.0)),
+		"position": _get_sample_vector3(sample_data, "position", Vector3.ZERO),
+		"rotation_degrees": _get_sample_vector3(sample_data, "rotation_degrees", Vector3.ZERO),
+		"scale": _get_sample_vector3(sample_data, "scale", Vector3.ZERO),
+		"intensity": _get_sample_float(sample_data, "intensity", 0.0),
+		"progress": _get_sample_float(sample_data, "progress", 0.0),
 	}
+
+
+static func _get_sample_vector3(sample_data: Dictionary, key: String, default_value: Vector3) -> Vector3:
+	return GFVariantData.get_option_vector3(sample_data, key, default_value)
+
+
+static func _get_sample_float(sample_data: Dictionary, key: String, default_value: float) -> float:
+	return GFVariantData.get_option_float(sample_data, key, default_value)
 
 
 static func _vector3_max(left: Vector3, right: Vector3) -> Vector3:
@@ -296,45 +319,45 @@ func _sample_envelope(progress: float) -> float:
 func _sample_wave_vector(elapsed_seconds: float, progress: float, phase_offset: float) -> Vector3:
 	match waveform:
 		Waveform.SINE:
-			var phase := (elapsed_seconds * maxf(frequency, 0.0) + phase_offset) * TAU
+			var phase: float = (elapsed_seconds * maxf(frequency, 0.0) + phase_offset) * TAU
 			return Vector3(
 				sin(phase),
 				sin(phase + TAU / 3.0),
 				sin(phase + TAU * 2.0 / 3.0)
 			)
 		Waveform.RANDOM:
-			var step := int(floor(elapsed_seconds * maxf(frequency, 1.0)))
+			var step: int = int(floorf(elapsed_seconds * maxf(frequency, 1.0)))
 			return Vector3(
-				_hash_noise(step, seed + 11),
-				_hash_noise(step, seed + 37),
-				_hash_noise(step, seed + 73)
+				_hash_noise(step, sample_seed + 11),
+				_hash_noise(step, sample_seed + 37),
+				_hash_noise(step, sample_seed + 73)
 			)
 		Waveform.CURVE:
-			var curve_value := 0.5
+			var curve_value: float = 0.5
 			if wave_curve != null:
 				curve_value = wave_curve.sample_baked(progress)
-			var mapped := clampf(curve_value, 0.0, 1.0) * 2.0 - 1.0
+			var mapped: float = clampf(curve_value, 0.0, 1.0) * 2.0 - 1.0
 			return Vector3(mapped, mapped, mapped)
 		_:
 			return _sample_noise_vector(elapsed_seconds)
 
 
 func _sample_noise_vector(elapsed_seconds: float) -> Vector3:
-	var sample_frequency := maxf(frequency, 1.0)
-	var cursor := elapsed_seconds * sample_frequency
-	var step := int(floor(cursor))
-	var blend := smoothstep(0.0, 1.0, cursor - float(step))
+	var sample_frequency: float = maxf(frequency, 1.0)
+	var cursor: float = elapsed_seconds * sample_frequency
+	var step: int = int(floorf(cursor))
+	var blend: float = smoothstep(0.0, 1.0, cursor - float(step))
 	return Vector3(
-		lerpf(_hash_noise(step, seed + 11), _hash_noise(step + 1, seed + 11), blend),
-		lerpf(_hash_noise(step, seed + 37), _hash_noise(step + 1, seed + 37), blend),
-		lerpf(_hash_noise(step, seed + 73), _hash_noise(step + 1, seed + 73), blend)
+		lerpf(_hash_noise(step, sample_seed + 11), _hash_noise(step + 1, sample_seed + 11), blend),
+		lerpf(_hash_noise(step, sample_seed + 37), _hash_noise(step + 1, sample_seed + 37), blend),
+		lerpf(_hash_noise(step, sample_seed + 73), _hash_noise(step + 1, sample_seed + 73), blend)
 	)
 
 
 func _hash_noise(step: int, salt: int) -> float:
-	var value := int(step * 1103515245 + salt * 12345 + seed * 2654435761)
+	var value: int = step * 1103515245 + salt * 12345 + sample_seed * 2654435761
 	value = value ^ (value >> 13)
 	value = value * 1274126177
 	value = value ^ (value >> 16)
-	var normalized := float(value & 0x7fffffff) / float(0x7fffffff)
+	var normalized: float = float(value & 0x7fffffff) / float(0x7fffffff)
 	return normalized * 2.0 - 1.0

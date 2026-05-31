@@ -133,7 +133,7 @@ func add_rule(rule: GFValidationRuleBase) -> bool:
 ## [br]
 ## @return 移除成功返回 true。
 func remove_rule(rule: GFValidationRuleBase) -> bool:
-	var index := rules.find(rule)
+	var index: int = rules.find(rule)
 	if index < 0:
 		return false
 	rules.remove_at(index)
@@ -176,11 +176,11 @@ func matches_path(path: String) -> bool:
 ## [br]
 ## @return 已排序路径列表。
 func collect_paths() -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	if not enabled:
 		return result
 
-	var scan_state := _make_scan_state()
+	var scan_state: Dictionary = _make_scan_state()
 	for include_path: String in include_paths:
 		_collect_path(include_path, result, 0, scan_state)
 		if not _can_collect_more_paths(result):
@@ -195,7 +195,7 @@ func collect_paths() -> PackedStringArray:
 ## [br]
 ## @return 新套件。
 func duplicate_suite() -> GFValidationSuite:
-	var suite := GFValidationSuite.new()
+	var suite: GFValidationSuite = GFValidationSuite.new()
 	suite.suite_id = suite_id
 	suite.description = description
 	suite.enabled = enabled
@@ -226,19 +226,21 @@ func _collect_path(path: String, result: PackedStringArray, depth: int, scan_sta
 		_append_path_if_allowed(path, result, scan_state)
 		return
 
-	var dir := DirAccess.open(path)
+	var dir: DirAccess = DirAccess.open(path)
 	if dir == null:
 		return
 	dir.include_hidden = include_hidden
 	dir.include_navigational = false
-	dir.list_dir_begin()
-	var entry := dir.get_next()
+	var list_result: Error = dir.list_dir_begin()
+	if list_result != OK:
+		return
+	var entry: String = dir.get_next()
 	while not entry.is_empty():
 		if not _can_collect_more_paths(result):
 			_warn_collected_path_limit(scan_state)
 			break
 
-		var child_path := path.path_join(entry)
+		var child_path: String = path.path_join(entry)
 		if dir.current_is_dir():
 			if recursive and _should_scan_directory(entry, child_path, depth, scan_state):
 				_collect_path(child_path, result, depth + 1, scan_state)
@@ -265,7 +267,7 @@ func _append_path_if_allowed(path: String, result: PackedStringArray, scan_state
 	if not _can_collect_more_paths(result):
 		_warn_collected_path_limit(scan_state)
 		return
-	result.append(path)
+	_append_packed_string(result, path)
 
 
 func _can_collect_more_paths(result: PackedStringArray) -> bool:
@@ -280,21 +282,21 @@ func _make_scan_state() -> Dictionary:
 
 
 func _warn_collected_path_limit(scan_state: Dictionary) -> void:
-	if bool(scan_state.get("count_warning_emitted", false)):
+	if GFVariantData.get_option_bool(scan_state, "count_warning_emitted"):
 		return
 	scan_state["count_warning_emitted"] = true
 	push_warning("[GFValidationSuite] collect_paths 已达到 max_collected_paths=%d，后续路径已跳过。" % max_collected_paths)
 
 
 func _warn_scan_depth_limit(path: String, scan_state: Dictionary) -> void:
-	if bool(scan_state.get("depth_warning_emitted", false)):
+	if GFVariantData.get_option_bool(scan_state, "depth_warning_emitted"):
 		return
 	scan_state["depth_warning_emitted"] = true
 	push_warning("[GFValidationSuite] collect_paths 已达到 max_scan_depth=%d，已跳过更深目录：%s。" % [max_scan_depth, path])
 
 
 func _is_supported_file(path: String) -> bool:
-	var extension := path.get_extension().to_lower()
+	var extension: String = path.get_extension().to_lower()
 	return resource_extensions.has(extension) or scene_extensions.has(extension)
 
 
@@ -308,3 +310,9 @@ func _is_excluded(path: String) -> bool:
 			if path.match(pattern):
 				return true
 	return false
+
+
+static func _append_packed_string(target: PackedStringArray, value: String) -> void:
+	var appended: bool = target.append(value)
+	if appended:
+		return

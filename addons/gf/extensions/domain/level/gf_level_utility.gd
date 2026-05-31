@@ -189,20 +189,23 @@ func get_catalog_levels(pack_id: StringName = &"") -> Array[GFLevelEntry]:
 ## [br]
 ## @schema return: Dictionary，当前关卡数据副本；找不到数据时为空字典。
 func load_level_data(level_id: Variant) -> Dictionary:
-	var config_provider := _get_config_provider()
+	var config_provider: GFConfigProvider = _get_config_provider()
 	if config_provider != null:
 		var record: Variant = config_provider.get_record(level_table_name, level_id)
-		if typeof(record) == TYPE_DICTIONARY:
-			return (record as Dictionary).duplicate(true)
+		if record is Dictionary:
+			var record_data: Dictionary = record
+			return record_data.duplicate(true)
 
-		if is_instance_valid(record) and record.has_method("to_dict"):
-			var data: Variant = record.to_dict()
-			if typeof(data) == TYPE_DICTIONARY:
-				return (data as Dictionary).duplicate(true)
+		var record_object: Object = _variant_to_object(record)
+		if record_object != null and record_object.has_method("to_dict"):
+			var raw_data: Variant = record_object.call("to_dict")
+			if raw_data is Dictionary:
+				var data: Dictionary = raw_data
+				return data.duplicate(true)
 
-	var entry := get_level_entry(_to_level_id(level_id))
+	var entry: GFLevelEntry = get_level_entry(_to_level_id(level_id))
 	if entry != null:
-		var entry_data := entry.metadata.duplicate(true)
+		var entry_data: Dictionary = entry.metadata.duplicate(true)
 		entry_data["level_id"] = entry.get_level_id()
 		entry_data["pack_id"] = entry.pack_id
 		entry_data["scene_path"] = entry.scene_path
@@ -229,10 +232,10 @@ func load_level_data(level_id: Variant) -> Dictionary:
 ## [br]
 ## @schema return: Dictionary，启动后的当前关卡数据副本；失败时为空字典。
 func start_level(level_id: Variant, level_data_override: Dictionary = {}) -> Dictionary:
-	var next_override := level_data_override.duplicate(true)
-	var next_data := next_override.duplicate(true) if not next_override.is_empty() else load_level_data(level_id)
+	var next_override: Dictionary = level_data_override.duplicate(true)
+	var next_data: Dictionary = next_override.duplicate(true) if not next_override.is_empty() else load_level_data(level_id)
 	if fail_on_missing_level_data and next_data.is_empty():
-		push_error("[GFLevelUtility] 找不到关卡数据：%s" % String(level_id))
+		push_error("[GFLevelUtility] 找不到关卡数据：%s" % GFVariantData.to_text(level_id))
 		return {}
 
 	current_level_id = level_id
@@ -258,9 +261,9 @@ func restart_level(clear_runtime: bool = true) -> Dictionary:
 	if clear_runtime:
 		clear_level_runtime()
 
-	var next_data := _resolve_level_data(current_level_id)
+	var next_data: Dictionary = _resolve_level_data(current_level_id)
 	if fail_on_missing_level_data and next_data.is_empty():
-		push_error("[GFLevelUtility] 找不到关卡数据：%s" % String(current_level_id))
+		push_error("[GFLevelUtility] 找不到关卡数据：%s" % GFVariantData.to_text(current_level_id))
 		return {}
 
 	current_level_data = next_data
@@ -297,13 +300,13 @@ func complete_current_level(
 	if current_level_id == null:
 		return
 
-	var level_id := _to_level_id(current_level_id)
-	var progress := _get_progress_model()
+	var level_id: StringName = _to_level_id(current_level_id)
+	var progress: GFLevelProgressModel = _get_progress_model()
 	if progress != null:
 		progress.complete_level(level_id, result)
 		_unlock_declared_next_levels(level_id, progress)
 		if unlock_next and catalog != null:
-			var next_level_id := catalog.get_next_level_id(level_id)
+			var next_level_id: StringName = catalog.get_next_level_id(level_id)
 			if next_level_id != &"":
 				progress.unlock_level(next_level_id)
 
@@ -325,12 +328,12 @@ func lose_current_level() -> void:
 ## [br]
 ## @api public
 func clear_level_runtime() -> void:
-	var history := _get_utility(GFCommandHistoryUtility) as GFCommandHistoryUtility
+	var history: GFCommandHistoryUtility = _get_command_history_utility()
 	if history != null:
 		history.clear()
 
 	for cleanup_id: StringName in _runtime_cleanup_callbacks.keys():
-		var callback := _runtime_cleanup_callbacks[cleanup_id] as Callable
+		var callback: Callable = _get_runtime_cleanup_callback(cleanup_id)
 		if callback.is_valid():
 			callback.call()
 
@@ -357,7 +360,7 @@ func register_runtime_cleanup(cleanup_id: StringName, callback: Callable) -> boo
 ## [br]
 ## @param cleanup_id: 清理项唯一标识。
 func unregister_runtime_cleanup(cleanup_id: StringName) -> void:
-	_runtime_cleanup_callbacks.erase(cleanup_id)
+	var _erase_result_363: Variant = _runtime_cleanup_callbacks.erase(cleanup_id)
 
 
 ## 检查关卡运行时清理回调是否存在。
@@ -377,9 +380,9 @@ func has_runtime_cleanup(cleanup_id: StringName) -> bool:
 ## [br]
 ## @return: 排序后的清理项标识。
 func get_runtime_cleanup_ids() -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	for cleanup_id: StringName in _runtime_cleanup_callbacks.keys():
-		result.append(String(cleanup_id))
+		var _append_result_385: Variant = result.append(String(cleanup_id))
 	result.sort()
 	return result
 
@@ -404,7 +407,7 @@ func start_next_level() -> Dictionary:
 	if current_level_id == null or catalog == null:
 		return {}
 
-	var next_level_id := catalog.get_next_level_id(_to_level_id(current_level_id))
+	var next_level_id: StringName = catalog.get_next_level_id(_to_level_id(current_level_id))
 	if next_level_id == &"":
 		return {}
 
@@ -417,7 +420,7 @@ func start_next_level() -> Dictionary:
 ## [br]
 ## @param level_id: 关卡 ID。
 func unlock_level(level_id: StringName) -> void:
-	var progress := _get_progress_model()
+	var progress: GFLevelProgressModel = _get_progress_model()
 	if progress != null:
 		progress.unlock_level(level_id)
 
@@ -430,7 +433,7 @@ func unlock_level(level_id: StringName) -> void:
 ## [br]
 ## @return: 已解锁时返回 true；未注册进度模型时返回 true。
 func is_level_unlocked(level_id: StringName) -> bool:
-	var progress := _get_progress_model()
+	var progress: GFLevelProgressModel = _get_progress_model()
 	if progress == null:
 		return true
 	return progress.is_level_unlocked(level_id)
@@ -439,14 +442,24 @@ func is_level_unlocked(level_id: StringName) -> bool:
 # --- 私有/辅助方法 ---
 
 func _get_config_provider() -> GFConfigProvider:
-	return _get_utility(GFConfigProvider) as GFConfigProvider
+	var utility: Object = get_utility(GFConfigProvider)
+	if utility is GFConfigProvider:
+		return utility
+	return null
+
+
+func _get_command_history_utility() -> GFCommandHistoryUtility:
+	var utility: Object = get_utility(GFCommandHistoryUtility)
+	if utility is GFCommandHistoryUtility:
+		return utility
+	return null
 
 
 func _get_progress_model() -> GFLevelProgressModel:
-	var arch := _get_architecture_or_null()
-	if arch == null:
-		return null
-	return arch.get_model(GFLevelProgressModel) as GFLevelProgressModel
+	var model: Object = get_model(GFLevelProgressModel)
+	if model is GFLevelProgressModel:
+		return model
+	return null
 
 
 func _resolve_level_data(level_id: Variant) -> Dictionary:
@@ -460,7 +473,7 @@ func _unlock_declared_next_levels(level_id: StringName, progress: GFLevelProgres
 	if catalog == null or progress == null:
 		return
 
-	var entry := catalog.get_entry(level_id)
+	var entry: GFLevelEntry = catalog.get_entry(level_id)
 	if entry == null:
 		return
 
@@ -469,14 +482,20 @@ func _unlock_declared_next_levels(level_id: StringName, progress: GFLevelProgres
 
 
 func _to_level_id(value: Variant) -> StringName:
-	if typeof(value) == TYPE_STRING_NAME:
-		return value as StringName
-	return StringName(String(value))
+	return GFVariantData.to_string_name(value)
 
 
-func _get_utility(utility_type: Script) -> Object:
-	var arch := _get_architecture_or_null()
-	if arch == null:
-		return null
+func _variant_to_object(value: Variant) -> Object:
+	if value is Object:
+		var object: Object = value
+		if is_instance_valid(object):
+			return object
+	return null
 
-	return arch.get_utility(utility_type)
+
+func _get_runtime_cleanup_callback(cleanup_id: StringName) -> Callable:
+	var value: Variant = _runtime_cleanup_callbacks[cleanup_id]
+	if value is Callable:
+		var callback: Callable = value
+		return callback
+	return Callable()

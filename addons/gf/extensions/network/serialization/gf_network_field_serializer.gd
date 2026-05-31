@@ -87,15 +87,15 @@ enum ValueType {
 func serialize_value(value: Variant) -> Variant:
 	match value_type:
 		ValueType.BOOL:
-			return bool(value)
+			return _coerce_bool(value)
 		ValueType.INT:
-			return int(roundf(_apply_number_policy(float(value))))
+			return int(roundf(_apply_number_policy(_coerce_float(value))))
 		ValueType.FLOAT:
-			return _apply_number_policy(float(value))
+			return _apply_number_policy(_coerce_float(value))
 		ValueType.STRING:
 			return str(value)
 		ValueType.STRING_NAME:
-			return String(value)
+			return _coerce_text(value)
 		ValueType.VECTOR2:
 			return _serialize_vector2(value)
 		ValueType.VECTOR3:
@@ -124,11 +124,11 @@ func serialize_value(value: Variant) -> Variant:
 func deserialize_value(value: Variant) -> Variant:
 	match value_type:
 		ValueType.BOOL:
-			return bool(value)
+			return _coerce_bool(value)
 		ValueType.INT:
-			return int(value)
+			return _coerce_int(value)
 		ValueType.FLOAT:
-			return float(value)
+			return _coerce_float(value)
 		ValueType.STRING:
 			return str(value)
 		ValueType.STRING_NAME:
@@ -153,7 +153,7 @@ func deserialize_value(value: Variant) -> Variant:
 ## [br]
 ## @return 新编码器。
 func duplicate_serializer() -> GFNetworkFieldSerializer:
-	var serializer := GFNetworkFieldSerializer.new()
+	var serializer: GFNetworkFieldSerializer = GFNetworkFieldSerializer.new()
 	serializer.value_type = value_type
 	serializer.quantize_decimals = quantize_decimals
 	serializer.clamp_enabled = clamp_enabled
@@ -165,19 +165,19 @@ func duplicate_serializer() -> GFNetworkFieldSerializer:
 # --- 私有/辅助方法 ---
 
 func _apply_number_policy(value: float) -> float:
-	var result := value
+	var result: float = value
 	if clamp_enabled:
 		result = clampf(result, minf(min_value, max_value), maxf(min_value, max_value))
 	if quantize_decimals >= 0:
-		var scale := pow(10.0, float(quantize_decimals))
+		var scale: float = pow(10.0, float(quantize_decimals))
 		result = roundf(result * scale) / scale
 	return result
 
 
 func _serialize_vector2(value: Variant) -> Array:
-	var vector := Vector2.ZERO
+	var vector: Vector2 = Vector2.ZERO
 	if value is Vector2:
-		vector = value as Vector2
+		vector = value
 	return [
 		_apply_number_policy(vector.x),
 		_apply_number_policy(vector.y),
@@ -185,9 +185,9 @@ func _serialize_vector2(value: Variant) -> Array:
 
 
 func _serialize_vector3(value: Variant) -> Array:
-	var vector := Vector3.ZERO
+	var vector: Vector3 = Vector3.ZERO
 	if value is Vector3:
-		vector = value as Vector3
+		vector = value
 	return [
 		_apply_number_policy(vector.x),
 		_apply_number_policy(vector.y),
@@ -196,9 +196,9 @@ func _serialize_vector3(value: Variant) -> Array:
 
 
 func _serialize_vector2i(value: Variant) -> Array:
-	var vector := Vector2i.ZERO
+	var vector: Vector2i = Vector2i.ZERO
 	if value is Vector2i:
-		vector = value as Vector2i
+		vector = value
 	return [
 		vector.x,
 		vector.y,
@@ -206,9 +206,9 @@ func _serialize_vector2i(value: Variant) -> Array:
 
 
 func _serialize_vector3i(value: Variant) -> Array:
-	var vector := Vector3i.ZERO
+	var vector: Vector3i = Vector3i.ZERO
 	if value is Vector3i:
-		vector = value as Vector3i
+		vector = value
 	return [
 		vector.x,
 		vector.y,
@@ -217,9 +217,9 @@ func _serialize_vector3i(value: Variant) -> Array:
 
 
 func _serialize_color(value: Variant) -> Array:
-	var color := Color.WHITE
+	var color: Color = Color.WHITE
 	if value is Color:
-		color = value as Color
+		color = value
 	return [
 		_apply_number_policy(color.r),
 		_apply_number_policy(color.g),
@@ -229,58 +229,145 @@ func _serialize_color(value: Variant) -> Array:
 
 
 func _deserialize_vector2(value: Variant) -> Vector2:
-	var values := _read_array(value)
+	var values: Array = _read_array(value)
 	return Vector2(
-		float(values[0]) if values.size() > 0 else 0.0,
-		float(values[1]) if values.size() > 1 else 0.0
+		_get_array_float(values, 0),
+		_get_array_float(values, 1)
 	)
 
 
 func _deserialize_vector3(value: Variant) -> Vector3:
-	var values := _read_array(value)
+	var values: Array = _read_array(value)
 	return Vector3(
-		float(values[0]) if values.size() > 0 else 0.0,
-		float(values[1]) if values.size() > 1 else 0.0,
-		float(values[2]) if values.size() > 2 else 0.0
+		_get_array_float(values, 0),
+		_get_array_float(values, 1),
+		_get_array_float(values, 2)
 	)
 
 
 func _deserialize_vector2i(value: Variant) -> Vector2i:
-	var values := _read_array(value)
+	var values: Array = _read_array(value)
 	return Vector2i(
-		int(values[0]) if values.size() > 0 else 0,
-		int(values[1]) if values.size() > 1 else 0
+		_get_array_int(values, 0),
+		_get_array_int(values, 1)
 	)
 
 
 func _deserialize_vector3i(value: Variant) -> Vector3i:
-	var values := _read_array(value)
+	var values: Array = _read_array(value)
 	return Vector3i(
-		int(values[0]) if values.size() > 0 else 0,
-		int(values[1]) if values.size() > 1 else 0,
-		int(values[2]) if values.size() > 2 else 0
+		_get_array_int(values, 0),
+		_get_array_int(values, 1),
+		_get_array_int(values, 2)
 	)
 
 
 func _deserialize_color(value: Variant) -> Color:
-	var values := _read_array(value)
+	var values: Array = _read_array(value)
 	return Color(
-		float(values[0]) if values.size() > 0 else 1.0,
-		float(values[1]) if values.size() > 1 else 1.0,
-		float(values[2]) if values.size() > 2 else 1.0,
-		float(values[3]) if values.size() > 3 else 1.0
+		_get_array_float(values, 0, 1.0),
+		_get_array_float(values, 1, 1.0),
+		_get_array_float(values, 2, 1.0),
+		_get_array_float(values, 3, 1.0)
 	)
 
 
 func _read_array(value: Variant) -> Array:
 	if value is Array:
-		return value as Array
+		var array_value: Array = value
+		return array_value
 	if value is PackedFloat32Array:
-		return Array(value as PackedFloat32Array)
+		var float32_values: PackedFloat32Array = value
+		return Array(float32_values)
 	if value is PackedFloat64Array:
-		return Array(value as PackedFloat64Array)
+		var float64_values: PackedFloat64Array = value
+		return Array(float64_values)
 	if value is PackedInt32Array:
-		return Array(value as PackedInt32Array)
+		var int32_values: PackedInt32Array = value
+		return Array(int32_values)
 	if value is PackedInt64Array:
-		return Array(value as PackedInt64Array)
+		var int64_values: PackedInt64Array = value
+		return Array(int64_values)
 	return []
+
+
+func _get_array_float(values: Array, index: int, default_value: float = 0.0) -> float:
+	if index < 0 or index >= values.size():
+		return default_value
+	return _coerce_float(values[index], default_value)
+
+
+func _get_array_int(values: Array, index: int, default_value: int = 0) -> int:
+	if index < 0 or index >= values.size():
+		return default_value
+	return _coerce_int(values[index], default_value)
+
+
+func _coerce_bool(value: Variant, default_value: bool = false) -> bool:
+	if value is bool:
+		var bool_value: bool = value
+		return bool_value
+	if value is int:
+		var int_value: int = value
+		return int_value != 0
+	if value is float:
+		var float_value: float = value
+		return not is_zero_approx(float_value)
+	if value is String or value is StringName:
+		var text: String = _coerce_text(value).strip_edges().to_lower()
+		if text in ["true", "1", "yes", "on"]:
+			return true
+		if text in ["false", "0", "no", "off", ""]:
+			return false
+	return default_value
+
+
+func _coerce_int(value: Variant, default_value: int = 0) -> int:
+	if value is int:
+		var int_value: int = value
+		return int_value
+	if value is float:
+		var float_value: float = value
+		return int(float_value)
+	if value is bool:
+		var bool_value: bool = value
+		return int(bool_value)
+	if value is String or value is StringName:
+		var text: String = _coerce_text(value).strip_edges()
+		if text.is_valid_int():
+			return text.to_int()
+		if text.is_valid_float():
+			return int(text.to_float())
+	return default_value
+
+
+func _coerce_float(value: Variant, default_value: float = 0.0) -> float:
+	if value is float:
+		var float_value: float = value
+		return float_value
+	if value is int:
+		var int_value: int = value
+		return float(int_value)
+	if value is bool:
+		var bool_value: bool = value
+		return 1.0 if bool_value else 0.0
+	if value is String or value is StringName:
+		var text: String = _coerce_text(value).strip_edges()
+		if text.is_valid_float():
+			return text.to_float()
+	return default_value
+
+
+func _coerce_text(value: Variant, default_value: String = "") -> String:
+	if value is String:
+		var text_value: String = value
+		return text_value
+	if value is StringName:
+		var name_value: StringName = value
+		return String(name_value)
+	if value is NodePath:
+		var path_value: NodePath = value
+		return String(path_value)
+	if value == null:
+		return default_value
+	return str(value)

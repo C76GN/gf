@@ -103,11 +103,11 @@ func get_setting_key() -> StringName:
 func coerce_value(value: Variant) -> Variant:
 	match value_type:
 		ValueType.BOOL:
-			return bool(value)
+			return GFVariantData.to_bool(value)
 		ValueType.INT:
-			return int(value)
+			return GFVariantData.to_int(value)
 		ValueType.FLOAT:
-			return float(value)
+			return GFVariantData.to_float(value)
 		ValueType.STRING:
 			return str(value)
 		ValueType.STRING_NAME:
@@ -169,7 +169,7 @@ func is_value_valid(value: Variant) -> bool:
 ## [br]
 ## @return 新定义。
 func duplicate_definition() -> GFSettingDefinition:
-	var definition := GFSettingDefinition.new()
+	var definition: GFSettingDefinition = GFSettingDefinition.new()
 	definition.key = key
 	definition.default_value = GFVariantData.duplicate_collection(default_value)
 	definition.value_type = value_type
@@ -182,39 +182,48 @@ func duplicate_definition() -> GFSettingDefinition:
 
 func _coerce_vector2(value: Variant) -> Vector2:
 	if value is Vector2:
-		return value as Vector2
+		var vector2: Vector2 = value
+		return vector2
 	if value is Vector2i:
-		var vector2i := value as Vector2i
+		var vector2i: Vector2i = value
 		return Vector2(vector2i.x, vector2i.y)
 	if value is Dictionary:
-		var data := value as Dictionary
-		return Vector2(float(data.get("x", 0.0)), float(data.get("y", 0.0)))
+		var data: Dictionary = value
+		return Vector2(
+			GFVariantData.get_option_float(data, "x", 0.0),
+			GFVariantData.get_option_float(data, "y", 0.0)
+		)
 	return Vector2.ZERO
 
 
 func _coerce_vector2i(value: Variant) -> Vector2i:
 	if value is Vector2i:
-		return value as Vector2i
+		var vector2i: Vector2i = value
+		return vector2i
 	if value is Vector2:
-		var vector2 := value as Vector2
+		var vector2: Vector2 = value
 		return Vector2i(roundi(vector2.x), roundi(vector2.y))
 	if value is Dictionary:
-		var data := value as Dictionary
-		return Vector2i(int(data.get("x", 0)), int(data.get("y", 0)))
+		var data: Dictionary = value
+		return Vector2i(
+			GFVariantData.get_option_int(data, "x", 0),
+			GFVariantData.get_option_int(data, "y", 0)
+		)
 	return Vector2i.ZERO
 
 
 func _coerce_color(value: Variant) -> Color:
 	if value is Color:
-		return value as Color
+		var color: Color = value
+		return color
 	if value is Dictionary:
-		var data := value as Dictionary
+		var data: Dictionary = value
 		return Color(
-			float(data.get("r", 1.0)),
-			float(data.get("g", 1.0)),
-			float(data.get("b", 1.0)),
-			float(data.get("a", 1.0))
+			GFVariantData.get_option_float(data, "r", 1.0),
+			GFVariantData.get_option_float(data, "g", 1.0),
+			GFVariantData.get_option_float(data, "b", 1.0),
+			GFVariantData.get_option_float(data, "a", 1.0)
 		)
 	if typeof(value) == TYPE_STRING:
-		return Color(String(value))
+		return Color(GFVariantData.to_text(value))
 	return Color.WHITE

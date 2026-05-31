@@ -125,16 +125,16 @@ func enqueue(
 	metadata: Dictionary = {},
 	front: bool = false
 ) -> GFJob:
-	var effective_queue := queue_name if queue_name != &"" else &"default"
+	var effective_queue: StringName = _normalize_queue_name(queue_name)
 	_job_serial += 1
-	var job := GFJob.new()
+	var job: GFJob = GFJob.new()
 	job.job_id = StringName("%s:%d" % [String(effective_queue), _job_serial])
 	job.queue_name = effective_queue
 	job.data = data
 	job.metadata = metadata.duplicate(true)
 	job.created_msec = Time.get_ticks_msec()
 
-	var queue := _ensure_queue(effective_queue)
+	var queue: Array = _ensure_queue(effective_queue)
 	if front:
 		queue.push_front(job)
 	else:
@@ -152,13 +152,13 @@ func enqueue(
 ## [br]
 ## @return 任务记录；没有可执行任务时返回 null。
 func start_next_job(queue_name: StringName = &"default") -> GFJob:
-	var effective_queue := queue_name if queue_name != &"" else &"default"
+	var effective_queue: StringName = _normalize_queue_name(queue_name)
 	if is_queue_paused(effective_queue):
 		return null
 
-	var queue := _ensure_queue(effective_queue)
+	var queue: Array = _ensure_queue(effective_queue)
 	while not queue.is_empty():
-		var job := queue.pop_front() as GFJob
+		var job: GFJob = _variant_to_job(queue.pop_front())
 		if job == null or job.status != GFJob.Status.WAITING:
 			continue
 		job.status = GFJob.Status.ACTIVE
@@ -180,17 +180,21 @@ func start_next_job(queue_name: StringName = &"default") -> GFJob:
 func run_next_job(queue_name: StringName, processor: Callable) -> GFJob:
 	if not processor.is_valid():
 		return null
-	var job := start_next_job(queue_name)
+	var job: GFJob = start_next_job(queue_name)
 	if job == null:
 		return null
 
 	var value: Variant = processor.call(job)
-	if value is Dictionary and not bool((value as Dictionary).get("ok", true)):
-		fail_job(job.job_id, String((value as Dictionary).get("error", "")), value)
-	elif value is bool and not bool(value):
-		fail_job(job.job_id, "", value)
+	if value is Dictionary:
+		var data: Dictionary = GFVariantData.as_dictionary(value)
+		if not GFVariantData.get_option_bool(data, "ok", true):
+			var _fail_job_result_191: Variant = fail_job(job.job_id, GFVariantData.get_option_string(data, "error"), value)
+		else:
+			var _complete_job_result_193: Variant = complete_job(job.job_id, value)
+	elif value is bool and not GFVariantData.to_bool(value):
+		var _fail_job_result_195: Variant = fail_job(job.job_id, "", value)
 	else:
-		complete_job(job.job_id, value)
+		var _complete_job_result_197: Variant = complete_job(job.job_id, value)
 	return job
 
 
@@ -206,7 +210,7 @@ func run_next_job(queue_name: StringName, processor: Callable) -> GFJob:
 ## [br]
 ## @return 更新成功返回 true。
 func update_job_progress(job_id: StringName, progress: float, message: String = "") -> bool:
-	var job := get_job(job_id)
+	var job: GFJob = get_job(job_id)
 	if job == null or job.is_finished():
 		return false
 	job.progress = clampf(progress, 0.0, 1.0)
@@ -226,7 +230,7 @@ func update_job_progress(job_id: StringName, progress: float, message: String = 
 ## [br]
 ## @schema result: Variant，项目侧任务结果载荷。
 func complete_job(job_id: StringName, result: Variant = null) -> bool:
-	var job := get_job(job_id)
+	var job: GFJob = get_job(job_id)
 	if job == null or job.is_finished():
 		return false
 	job.status = GFJob.Status.COMPLETED
@@ -253,7 +257,7 @@ func complete_job(job_id: StringName, result: Variant = null) -> bool:
 ## [br]
 ## @schema result: Variant，项目侧失败结果载荷。
 func fail_job(job_id: StringName, error_message: String = "", result: Variant = null) -> bool:
-	var job := get_job(job_id)
+	var job: GFJob = get_job(job_id)
 	if job == null or job.is_finished():
 		return false
 	job.status = GFJob.Status.FAILED
@@ -274,7 +278,7 @@ func fail_job(job_id: StringName, error_message: String = "", result: Variant = 
 ## [br]
 ## @return 取消成功返回 true。
 func cancel_job(job_id: StringName) -> bool:
-	var job := get_job(job_id)
+	var job: GFJob = get_job(job_id)
 	if job == null or job.is_finished():
 		return false
 	_remove_waiting_job_from_queue(job)
@@ -299,7 +303,7 @@ func pause_queue(queue_name: StringName = &"default") -> void:
 ## [br]
 ## @param queue_name: 队列名。
 func resume_queue(queue_name: StringName = &"default") -> void:
-	_paused_queues.erase(queue_name if queue_name != &"" else &"default")
+	var _removed: bool = _paused_queues.erase(_normalize_queue_name(queue_name))
 
 
 ## 检查队列是否暂停。
@@ -310,7 +314,7 @@ func resume_queue(queue_name: StringName = &"default") -> void:
 ## [br]
 ## @return 暂停时返回 true。
 func is_queue_paused(queue_name: StringName = &"default") -> bool:
-	return bool(_paused_queues.get(queue_name if queue_name != &"" else &"default", false))
+	return GFVariantData.get_option_bool(_paused_queues, _normalize_queue_name(queue_name), false)
 
 
 ## 获取任务。
@@ -321,7 +325,7 @@ func is_queue_paused(queue_name: StringName = &"default") -> bool:
 ## [br]
 ## @return 任务记录；不存在时返回 null。
 func get_job(job_id: StringName) -> GFJob:
-	return _jobs.get(job_id) as GFJob
+	return _variant_to_job(GFVariantData.get_option_value(_jobs, job_id))
 
 
 ## 获取队列中的等待任务。
@@ -332,8 +336,8 @@ func get_job(job_id: StringName) -> GFJob:
 ## [br]
 ## @return 等待任务列表副本。
 func get_waiting_jobs(queue_name: StringName = &"default") -> Array[GFJob]:
-	var queue := _ensure_queue(queue_name if queue_name != &"" else &"default")
-	return queue.duplicate()
+	var queue: Array = _ensure_queue(_normalize_queue_name(queue_name))
+	return _job_array_from_values(queue)
 
 
 ## 清空指定队列中的等待任务。
@@ -344,15 +348,15 @@ func get_waiting_jobs(queue_name: StringName = &"default") -> Array[GFJob]:
 ## [br]
 ## @param cancel_jobs: 是否把等待任务标记为取消。
 func clear_queue(queue_name: StringName = &"default", cancel_jobs: bool = true) -> void:
-	var effective_queue := queue_name if queue_name != &"" else &"default"
-	var queue := _ensure_queue(effective_queue)
+	var effective_queue: StringName = _normalize_queue_name(queue_name)
+	var queue: Array = _ensure_queue(effective_queue)
 	if cancel_jobs:
-		var jobs_to_cancel: Array[GFJob] = queue.duplicate()
+		var jobs_to_cancel: Array[GFJob] = _job_array_from_values(queue)
 		for job: GFJob in jobs_to_cancel:
-			cancel_job(job.job_id)
+			var _cancel_job_result_356: Variant = cancel_job(job.job_id)
 	else:
-		for job: GFJob in queue:
-			_jobs.erase(job.job_id)
+		for job: GFJob in _job_array_from_values(queue):
+			var _removed: bool = _jobs.erase(job.job_id)
 	queue.clear()
 
 
@@ -377,9 +381,9 @@ func clear_all() -> void:
 ## @schema return: Dictionary，包含 job_count、queue_count、completed_count、failed_count，以及以队列名为键的 queues。
 func get_debug_snapshot() -> Dictionary:
 	var queue_info: Dictionary = {}
-	for queue_name: StringName in _queues.keys():
-		var queue := _queues[queue_name] as Array[GFJob]
-		var waiting_jobs: Array[GFJob] = queue if queue != null else []
+	for queue_key: Variant in _queues.keys():
+		var queue_name: StringName = GFVariantData.to_string_name(queue_key)
+		var waiting_jobs: Array[GFJob] = _job_array_from_values(_get_queue(queue_name))
 		queue_info[String(queue_name)] = {
 			"waiting_count": waiting_jobs.size(),
 			"is_paused": is_queue_paused(queue_name),
@@ -396,28 +400,51 @@ func get_debug_snapshot() -> Dictionary:
 
 # --- 私有/辅助方法 ---
 
-func _ensure_queue(queue_name: StringName) -> Array[GFJob]:
+func _normalize_queue_name(queue_name: StringName) -> StringName:
+	return queue_name if queue_name != &"" else &"default"
+
+
+func _ensure_queue(queue_name: StringName) -> Array:
 	if not _queues.has(queue_name):
-		_queues[queue_name] = [] as Array[GFJob]
-	return _queues[queue_name] as Array[GFJob]
+		_queues[queue_name] = []
+	return _get_queue(queue_name)
+
+
+func _get_queue(queue_name: StringName) -> Array:
+	return GFVariantData.as_array(GFVariantData.get_option_value(_queues, queue_name, []))
 
 
 func _remove_waiting_job_from_queue(job: GFJob) -> void:
-	var queue := _queues.get(job.queue_name) as Array[GFJob]
-	if queue != null:
-		queue.erase(job)
+	var queue: Array = _get_queue(job.queue_name)
+	queue.erase(job)
 
 
 func _trim_finished_jobs(jobs: Array[GFJob], limit: int) -> void:
 	while jobs.size() > limit:
-		var removed := jobs.pop_front() as GFJob
+		var removed: GFJob = jobs.pop_front()
 		if removed != null:
-			_jobs.erase(removed.job_id)
+			var _removed: bool = _jobs.erase(removed.job_id)
 
 
 func _job_ids(jobs: Array[GFJob]) -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	for job: GFJob in jobs:
 		if job != null:
-			result.append(String(job.job_id))
+			var _appended: bool = result.append(String(job.job_id))
 	return result
+
+
+func _job_array_from_values(values: Array) -> Array[GFJob]:
+	var jobs: Array[GFJob] = []
+	for value: Variant in values:
+		var job: GFJob = _variant_to_job(value)
+		if job != null:
+			jobs.append(job)
+	return jobs
+
+
+func _variant_to_job(value: Variant) -> GFJob:
+	if value is GFJob:
+		var job: GFJob = value
+		return job
+	return null

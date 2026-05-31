@@ -68,7 +68,7 @@ func intersects_range(range_start: float, range_end: float) -> bool:
 ## [br]
 ## @return 新条目。
 func duplicate_entry() -> GFTimedTextEntry:
-	var entry := GFTimedTextEntry.new()
+	var entry: GFTimedTextEntry = GFTimedTextEntry.new()
 	entry.start_time = start_time
 	entry.end_time = end_time
 	entry.text = text
@@ -100,8 +100,8 @@ func to_dictionary() -> Dictionary:
 ## [br]
 ## @schema data: Dictionary serialized timed text entry.
 func apply_dictionary(data: Dictionary) -> void:
-	start_time = float(data.get("start_time", start_time))
-	end_time = float(data.get("end_time", end_time))
-	text = String(data.get("text", text))
-	var raw_metadata := data.get("metadata", {}) as Dictionary
-	metadata = raw_metadata.duplicate(true) if raw_metadata != null else {}
+	start_time = GFVariantData.get_option_float(data, "start_time", start_time)
+	end_time = GFVariantData.get_option_float(data, "end_time", end_time)
+	text = GFVariantData.get_option_string(data, "text", text)
+	var raw_metadata: Dictionary = GFVariantData.as_dictionary(GFVariantData.get_option_value(data, "metadata", {}))
+	metadata = raw_metadata.duplicate(true)

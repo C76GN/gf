@@ -20,8 +20,7 @@ extends RefCounted
 ## [br]
 ## @api public
 const DEFAULT_OUTPUT_DIR: String = "res://gf/generated/network"
-const _GF_SOURCE_BUILDER_SCRIPT: Script = preload("res://addons/gf/kernel/editor/gf_source_builder.gd")
-const _GF_VALIDATION_REPORT_DICTIONARY := preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
+const _GF_VALIDATION_REPORT_DICTIONARY = preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
 
 
 # --- 公共方法 ---
@@ -50,14 +49,14 @@ func generate(
 	if contract == null:
 		return ERR_INVALID_PARAMETER
 	var validation: Dictionary = contract.validate_contract()
-	if not bool(validation.get("ok", false)):
+	if not GFVariantData.get_option_bool(validation, "ok", false):
 		return ERR_INVALID_DATA
 
-	var resolved_output_path := output_path
+	var resolved_output_path: String = output_path
 	if resolved_output_path.is_empty():
-		var class_name_value := _resolve_class_name(contract, options)
+		var class_name_value: String = _resolve_class_name(contract, options)
 		resolved_output_path = DEFAULT_OUTPUT_DIR.path_join("%s.gd" % class_name_value.to_snake_case())
-	var source := build_source(contract, options)
+	var source: String = build_source(contract, options)
 	return save_source(resolved_output_path, source, overwrite_existing)
 
 
@@ -86,21 +85,21 @@ func generate_many(
 ) -> Dictionary:
 	var generated: Array[Dictionary] = []
 	var issues: Array[Dictionary] = []
-	var generated_count := 0
+	var generated_count: int = 0
 	for contract_path: String in contract_paths:
-		var contract := load(contract_path) as GFNetworkContract
+		var contract: GFNetworkContract = _variant_to_contract(load(contract_path))
 		if contract == null:
 			issues.append({
 				"severity": "error",
 				"kind": "invalid_contract_resource",
 				"path": contract_path,
-				"message": "Contract resource could not be loaded as GFNetworkContract.",
+				"message": "Contract resource is not a GFNetworkContract resource.",
 			})
 			continue
 
-		var class_name_value := _resolve_class_name(contract, options)
-		var output_path := output_dir.path_join("%s.gd" % class_name_value.to_snake_case())
-		var error := generate(contract, output_path, overwrite_existing, options)
+		var class_name_value: String = _resolve_class_name(contract, options)
+		var output_path: String = output_dir.path_join("%s.gd" % class_name_value.to_snake_case())
+		var error: Error = generate(contract, output_path, overwrite_existing, options)
 		generated.append({
 			"contract_path": contract_path,
 			"output_path": output_path,
@@ -117,7 +116,7 @@ func generate_many(
 		else:
 			generated_count += 1
 
-	var report := {
+	var report: Dictionary = {
 		"ok": issues.is_empty(),
 		"generated_count": generated_count,
 		"attempted_count": generated.size(),
@@ -144,9 +143,9 @@ func generate_many(
 ## [br]
 ## @schema options: Dictionary，支持 class_name。
 func build_source(contract: GFNetworkContract, options: Dictionary = {}) -> String:
-	var builder: GFSourceBuilder = _GF_SOURCE_BUILDER_SCRIPT.new()
-	var class_name_value := _resolve_class_name(contract, options)
-	var message_records := _build_message_records(contract)
+	var builder: GFSourceBuilder = GFSourceBuilder.new()
+	var class_name_value: String = _resolve_class_name(contract, options)
+	var message_records: Array[Dictionary] = _build_message_records(contract)
 
 	builder.doc("%s: 自动生成的 GF Network 契约访问器。" % class_name_value)
 	builder.doc()
@@ -179,19 +178,19 @@ func save_source(output_path: String, source: String, overwrite_existing: bool =
 	if FileAccess.file_exists(output_path) and not overwrite_existing:
 		return ERR_ALREADY_EXISTS
 
-	var dir_path := ProjectSettings.globalize_path(output_path.get_base_dir())
-	var dir_error := DirAccess.make_dir_recursive_absolute(dir_path)
+	var dir_path: String = ProjectSettings.globalize_path(output_path.get_base_dir())
+	var dir_error: Error = DirAccess.make_dir_recursive_absolute(dir_path)
 	if dir_error != OK:
 		return dir_error
 
-	var file := FileAccess.open(output_path, FileAccess.WRITE)
+	var file: FileAccess = FileAccess.open(output_path, FileAccess.WRITE)
 	if file == null:
 		return FileAccess.get_open_error()
-	file.store_string(source)
+	var _stored: bool = file.store_string(source)
 	file.close()
 
 	if Engine.is_editor_hint():
-		var filesystem := EditorInterface.get_resource_filesystem()
+		var filesystem: EditorFileSystem = EditorInterface.get_resource_filesystem()
 		if filesystem != null:
 			filesystem.scan()
 	return OK
@@ -200,11 +199,11 @@ func save_source(output_path: String, source: String, overwrite_existing: bool =
 # --- 私有/辅助方法 ---
 
 func _resolve_class_name(contract: GFNetworkContract, options: Dictionary) -> String:
-	var configured := String(options.get("class_name", "")).strip_edges()
+	var configured: String = GFVariantData.get_option_string(options, "class_name").strip_edges()
 	if not configured.is_empty():
 		return _to_pascal_identifier(configured, "GFGeneratedNetworkContract")
 
-	var base_name := String(contract.contract_id).strip_edges()
+	var base_name: String = String(contract.contract_id).strip_edges()
 	if base_name.is_empty():
 		base_name = contract.resource_path.get_file().get_basename()
 	if base_name.is_empty():
@@ -223,15 +222,15 @@ func _build_message_records(contract: GFNetworkContract) -> Array[Dictionary]:
 		if message_contract == null:
 			continue
 
-		var suffix := _make_unique_name(
+		var suffix: String = _make_unique_name(
 			_to_snake_identifier(String(message_contract.message_type), "message"),
 			used_suffixes
 		)
-		var message_constant := _make_unique_name(
+		var message_constant: String = _make_unique_name(
 			"MESSAGE_%s" % _to_constant_name(String(message_contract.message_type), "MESSAGE"),
 			used_constants
 		)
-		var channel_constant := _make_unique_name(
+		var channel_constant: String = _make_unique_name(
 			"CHANNEL_%s" % _to_constant_name(String(message_contract.message_type), "MESSAGE"),
 			used_constants
 		)
@@ -255,12 +254,12 @@ func _build_field_records(
 	used_parameters["network"] = true
 	used_parameters["peer_id"] = true
 
-	var message_constant_part := _to_constant_name(String(message_contract.message_type), "MESSAGE")
+	var message_constant_part: String = _to_constant_name(String(message_contract.message_type), "MESSAGE")
 	for field: GFNetworkContractField in _ordered_fields(message_contract.fields):
 		if field == null or field.field_name == &"":
 			continue
 
-		var field_constant := _make_unique_name(
+		var field_constant: String = _make_unique_name(
 			"FIELD_%s_%s" % [
 				message_constant_part,
 				_to_constant_name(String(field.field_name), "FIELD"),
@@ -297,19 +296,23 @@ func _append_constants(builder: GFSourceBuilder, message_records: Array[Dictiona
 		return
 
 	for record: Dictionary in message_records:
-		var message_contract := record.get("message") as GFNetworkContractMessage
+		var message_contract: GFNetworkContractMessage = _get_record_message(record)
+		if message_contract == null:
+			continue
 		builder.line("const %s: StringName = &\"%s\"" % [
-			String(record.get("message_constant", "")),
+			_get_record_string(record, "message_constant"),
 			String(message_contract.message_type).c_escape(),
 		])
 		builder.line("const %s: StringName = &\"%s\"" % [
-			String(record.get("channel_constant", "")),
+			_get_record_string(record, "channel_constant"),
 			String(message_contract.channel_id).c_escape(),
 		])
-		for field_record: Dictionary in record.get("field_records", []):
-			var field := field_record.get("field") as GFNetworkContractField
+		for field_record: Dictionary in _get_record_array(record, "field_records"):
+			var field: GFNetworkContractField = _get_record_field(field_record)
+			if field == null:
+				continue
 			builder.line("const %s: StringName = &\"%s\"" % [
-				String(field_record.get("field_constant", "")),
+				_get_record_string(field_record, "field_constant"),
 				String(field.field_name).c_escape(),
 			])
 		builder.blank()
@@ -317,13 +320,15 @@ func _append_constants(builder: GFSourceBuilder, message_records: Array[Dictiona
 
 
 func _append_message_methods(builder: GFSourceBuilder, record: Dictionary) -> void:
-	var message_contract := record.get("message") as GFNetworkContractMessage
-	var suffix := String(record.get("suffix", "message"))
-	var field_records := record.get("field_records", []) as Array
-	var make_params := _build_function_parameters(field_records, true)
-	var send_params := _build_function_parameters(field_records, true)
-	send_params.insert(0, "peer_id: int")
-	send_params.insert(0, "network: GFNetworkUtility")
+	var message_contract: GFNetworkContractMessage = _get_record_message(record)
+	if message_contract == null:
+		return
+	var suffix: String = _get_record_string(record, "suffix", "message")
+	var field_records: Array = _get_record_array(record, "field_records")
+	var make_params: PackedStringArray = _build_function_parameters(field_records, true)
+	var send_params: PackedStringArray = _build_function_parameters(field_records, true)
+	var _peer_id_inserted: int = send_params.insert(0, "peer_id: int")
+	var _network_inserted: int = send_params.insert(0, "network: GFNetworkUtility")
 
 	builder.doc("创建 %s 消息。" % String(message_contract.message_type))
 	builder.line("static func make_%s(%s) -> GFNetworkMessage:" % [suffix, ", ".join(make_params)])
@@ -331,12 +336,12 @@ func _append_message_methods(builder: GFSourceBuilder, record: Dictionary) -> vo
 	_append_payload_builder(builder, field_records)
 	builder.line("return GFNetworkMessage.new(")
 	builder.indent()
-	builder.line("%s," % String(record.get("message_constant", "")))
+	builder.line("%s," % _get_record_string(record, "message_constant"))
 	builder.line("payload,")
-	builder.line("int(options.get(\"sequence\", 0)),")
-	builder.line("int(options.get(\"tick\", 0)),")
-	builder.line("int(options.get(\"sender_id\", -1)),")
-	builder.line("StringName(options.get(\"channel_id\", %s))" % String(record.get("channel_constant", "")))
+	builder.line("GFVariantData.get_option_int(options, \"sequence\"),")
+	builder.line("GFVariantData.get_option_int(options, \"tick\"),")
+	builder.line("GFVariantData.get_option_int(options, \"sender_id\", -1),")
+	builder.line("GFVariantData.get_option_string_name(options, \"channel_id\", %s)" % _get_record_string(record, "channel_constant"))
 	builder.dedent()
 	builder.line(")")
 	builder.dedent()
@@ -345,8 +350,8 @@ func _append_message_methods(builder: GFSourceBuilder, record: Dictionary) -> vo
 	builder.doc("发送 %s 消息。" % String(message_contract.message_type))
 	builder.line("static func send_%s(%s) -> Error:" % [suffix, ", ".join(send_params)])
 	builder.indent()
-	builder.line("var message := make_%s(%s)" % [suffix, _build_make_call_arguments(field_records)])
-	builder.line("var channel_id := StringName(options.get(\"channel_id\", %s))" % String(record.get("channel_constant", "")))
+	builder.line("var message: GFNetworkMessage = make_%s(%s)" % [suffix, _build_make_call_arguments(field_records)])
+	builder.line("var channel_id: StringName = GFVariantData.get_option_string_name(options, \"channel_id\", %s)" % _get_record_string(record, "channel_constant"))
 	builder.line("return _send_contract_message(network, peer_id, message, channel_id, options)")
 	builder.dedent()
 	builder.blank(2)
@@ -354,7 +359,7 @@ func _append_message_methods(builder: GFSourceBuilder, record: Dictionary) -> vo
 	builder.doc("检查消息是否为 %s。" % String(message_contract.message_type))
 	builder.line("static func is_%s(message: GFNetworkMessage) -> bool:" % suffix)
 	builder.indent()
-	builder.line("return message != null and message.message_type == %s" % String(record.get("message_constant", "")))
+	builder.line("return message != null and message.message_type == %s" % _get_record_string(record, "message_constant"))
 	builder.dedent()
 	builder.blank(2)
 
@@ -372,27 +377,31 @@ func _append_message_methods(builder: GFSourceBuilder, record: Dictionary) -> vo
 func _append_payload_builder(builder: GFSourceBuilder, field_records: Array) -> void:
 	builder.line("var payload: Dictionary = {}")
 	for field_record: Dictionary in field_records:
-		var field := field_record.get("field") as GFNetworkContractField
-		var field_constant := String(field_record.get("field_constant", ""))
-		var parameter_name := String(field_record.get("parameter_name", ""))
+		var field: GFNetworkContractField = _get_record_field(field_record)
+		if field == null:
+			continue
+		var field_constant: String = _get_record_string(field_record, "field_constant")
+		var parameter_name: String = _get_record_string(field_record, "parameter_name")
 		if _should_omit_null_optional_parameter(field):
-			builder.line("if %s != null or bool(options.get(\"include_null_optional_fields\", false)):" % parameter_name)
+			builder.line("if %s != null or GFVariantData.get_option_bool(options, \"include_null_optional_fields\"):" % parameter_name)
 			builder.indent()
 			builder.line("payload[%s] = %s" % [field_constant, parameter_name])
 			builder.dedent()
 			continue
 
 		builder.line("payload[%s] = %s" % [
-			String(field_record.get("field_constant", "")),
-			String(field_record.get("parameter_name", "")),
+			_get_record_string(field_record, "field_constant"),
+			_get_record_string(field_record, "parameter_name"),
 		])
 
 
 func _append_field_getter(builder: GFSourceBuilder, suffix: String, field_record: Dictionary) -> void:
-	var field := field_record.get("field") as GFNetworkContractField
-	var field_suffix := _to_snake_identifier(String(field.field_name), "field")
-	var return_type := _get_gdscript_type(field)
-	var default_literal := _get_default_literal(field)
+	var field: GFNetworkContractField = _get_record_field(field_record)
+	if field == null:
+		return
+	var field_suffix: String = _to_snake_identifier(String(field.field_name), "field")
+	var return_type: String = _get_gdscript_type(field)
+	var default_literal: String = _get_default_literal(field)
 	builder.doc("读取 %s 字段。" % String(field.field_name))
 	builder.line("static func get_%s_%s(message: GFNetworkMessage, default_value: %s = %s) -> %s:" % [
 		suffix,
@@ -402,26 +411,38 @@ func _append_field_getter(builder: GFSourceBuilder, suffix: String, field_record
 		return_type,
 	])
 	builder.indent()
-	builder.line("var value: Variant = _get_payload_value(message, %s, default_value)" % String(field_record.get("field_constant", "")))
+	builder.line("var value: Variant = _get_payload_value(message, %s, default_value)" % _get_record_string(field_record, "field_constant"))
 	match field.value_type:
 		GFNetworkContractField.ValueType.VARIANT:
 			builder.line("return value")
 		GFNetworkContractField.ValueType.BOOL:
-			builder.line("return bool(value)")
+			builder.line("return GFVariantData.to_bool(value, default_value)")
 		GFNetworkContractField.ValueType.INT:
-			builder.line("return int(value)")
+			builder.line("return GFVariantData.to_int(value, default_value)")
 		GFNetworkContractField.ValueType.FLOAT:
-			builder.line("return float(value)")
+			builder.line("return GFVariantData.to_float(value, default_value)")
 		GFNetworkContractField.ValueType.STRING:
-			builder.line("return str(value)")
+			builder.line("return GFVariantData.to_text(value, default_value)")
 		GFNetworkContractField.ValueType.STRING_NAME:
-			builder.line("return StringName(value)")
+			builder.line("return GFVariantData.to_string_name(value, default_value)")
+		GFNetworkContractField.ValueType.VECTOR2:
+			builder.line("return GFVariantData.to_vector2(value, default_value)")
+		GFNetworkContractField.ValueType.VECTOR3:
+			builder.line("return GFVariantData.to_vector3(value, default_value)")
+		GFNetworkContractField.ValueType.VECTOR2I:
+			builder.line("return _get_vector2i_value(value, default_value)")
+		GFNetworkContractField.ValueType.VECTOR3I:
+			builder.line("return _get_vector3i_value(value, default_value)")
+		GFNetworkContractField.ValueType.COLOR:
+			builder.line("return _get_color_value(value, default_value)")
 		GFNetworkContractField.ValueType.DICTIONARY:
-			builder.line("return (value as Dictionary).duplicate(true) if value is Dictionary else default_value")
+			builder.line("return GFVariantData.to_dictionary(value, default_value)")
 		GFNetworkContractField.ValueType.ARRAY:
-			builder.line("return (value as Array).duplicate(true) if value is Array else default_value")
+			builder.line("return GFVariantData.to_array(value, default_value)")
+		GFNetworkContractField.ValueType.NODE_PATH:
+			builder.line("return _get_node_path_value(value, default_value)")
 		GFNetworkContractField.ValueType.OBJECT:
-			builder.line("return value as Object if value is Object else default_value")
+			builder.line("return _get_object_value(value, default_value)")
 		_:
 			builder.line("return value if value is %s else default_value" % return_type)
 	builder.dedent()
@@ -436,11 +457,62 @@ func _append_private_helpers(builder: GFSourceBuilder) -> void:
 	builder.indent()
 	builder.line("return default_value")
 	builder.dedent()
-	builder.line("if message.payload.has(field_name):")
-	builder.indent()
-	builder.line("return message.payload[field_name]")
+	builder.line("return GFVariantData.get_option_value(message.payload, field_name, default_value)")
 	builder.dedent()
-	builder.line("return message.payload.get(String(field_name), default_value)")
+	builder.blank(2)
+
+	builder.line("static func _get_vector2i_value(value: Variant, default_value: Vector2i = Vector2i.ZERO) -> Vector2i:")
+	builder.indent()
+	builder.line("if value is Vector2i:")
+	builder.indent()
+	builder.line("var vector: Vector2i = value")
+	builder.line("return vector")
+	builder.dedent()
+	builder.line("return default_value")
+	builder.dedent()
+	builder.blank(2)
+
+	builder.line("static func _get_vector3i_value(value: Variant, default_value: Vector3i = Vector3i.ZERO) -> Vector3i:")
+	builder.indent()
+	builder.line("if value is Vector3i:")
+	builder.indent()
+	builder.line("var vector: Vector3i = value")
+	builder.line("return vector")
+	builder.dedent()
+	builder.line("return default_value")
+	builder.dedent()
+	builder.blank(2)
+
+	builder.line("static func _get_color_value(value: Variant, default_value: Color = Color.WHITE) -> Color:")
+	builder.indent()
+	builder.line("if value is Color:")
+	builder.indent()
+	builder.line("var color: Color = value")
+	builder.line("return color")
+	builder.dedent()
+	builder.line("return default_value")
+	builder.dedent()
+	builder.blank(2)
+
+	builder.line("static func _get_node_path_value(value: Variant, default_value: NodePath = NodePath(\"\")) -> NodePath:")
+	builder.indent()
+	builder.line("if value is NodePath:")
+	builder.indent()
+	builder.line("var node_path: NodePath = value")
+	builder.line("return node_path")
+	builder.dedent()
+	builder.line("return default_value")
+	builder.dedent()
+	builder.blank(2)
+
+	builder.line("static func _get_object_value(value: Variant, default_value: Object = null) -> Object:")
+	builder.indent()
+	builder.line("if value is Object:")
+	builder.indent()
+	builder.line("var object: Object = value")
+	builder.line("return object")
+	builder.dedent()
+	builder.line("return default_value")
 	builder.dedent()
 	builder.blank(2)
 
@@ -450,7 +522,7 @@ func _append_private_helpers(builder: GFSourceBuilder) -> void:
 	builder.indent()
 	builder.line("return ERR_UNCONFIGURED")
 	builder.dedent()
-	builder.line("var send_options := _get_send_options(options)")
+	builder.line("var send_options: Dictionary = _get_send_options(options)")
 	builder.line("if channel_id != &\"\" and network.get_channel(channel_id) != null:")
 	builder.indent()
 	builder.line("return network.send_message_on_channel(peer_id, message, channel_id, send_options)")
@@ -461,33 +533,142 @@ func _append_private_helpers(builder: GFSourceBuilder) -> void:
 
 	builder.line("static func _get_send_options(options: Dictionary) -> Dictionary:")
 	builder.indent()
-	builder.line("var send_options: Variant = options.get(\"send_options\", {})")
-	builder.line("return (send_options as Dictionary).duplicate(true) if send_options is Dictionary else {}")
+	builder.line("return GFVariantData.get_option_dictionary(options, \"send_options\")")
 	builder.dedent()
 
 
 func _build_function_parameters(field_records: Array, include_options: bool) -> PackedStringArray:
-	var params := PackedStringArray()
+	var params: PackedStringArray = PackedStringArray()
 	for field_record: Dictionary in field_records:
-		var field := field_record.get("field") as GFNetworkContractField
-		var parameter := "%s: %s" % [
-			String(field_record.get("parameter_name", "")),
+		var field: GFNetworkContractField = _get_record_field(field_record)
+		if field == null:
+			continue
+		var parameter: String = "%s: %s" % [
+			_get_record_string(field_record, "parameter_name"),
 			_get_parameter_type(field),
 		]
 		if not field.required:
 			parameter += " = %s" % _get_parameter_default_literal(field)
-		params.append(parameter)
+		_append_packed_string(params, parameter)
 	if include_options:
-		params.append("options: Dictionary = {}")
+		_append_packed_string(params, "options: Dictionary = {}")
 	return params
 
 
 func _build_make_call_arguments(field_records: Array) -> String:
-	var args := PackedStringArray()
+	var args: PackedStringArray = PackedStringArray()
 	for field_record: Dictionary in field_records:
-		args.append(String(field_record.get("parameter_name", "")))
-	args.append("options")
+		_append_packed_string(args, _get_record_string(field_record, "parameter_name"))
+	_append_packed_string(args, "options")
 	return ", ".join(args)
+
+
+func _get_record_message(record: Dictionary) -> GFNetworkContractMessage:
+	return _variant_to_message(GFVariantData.get_option_value(record, "message"))
+
+
+func _get_record_field(record: Dictionary) -> GFNetworkContractField:
+	return _variant_to_field(GFVariantData.get_option_value(record, "field"))
+
+
+func _get_record_array(record: Dictionary, field_name: String) -> Array:
+	return GFVariantData.get_option_array(record, field_name)
+
+
+func _get_record_string(record: Dictionary, field_name: String, default_value: String = "") -> String:
+	return GFVariantData.get_option_string(record, field_name, default_value)
+
+
+func _variant_to_contract(value: Variant) -> GFNetworkContract:
+	if value is GFNetworkContract:
+		var contract: GFNetworkContract = value
+		return contract
+	return null
+
+
+func _variant_to_message(value: Variant) -> GFNetworkContractMessage:
+	if value is GFNetworkContractMessage:
+		var message_contract: GFNetworkContractMessage = value
+		return message_contract
+	return null
+
+
+func _variant_to_field(value: Variant) -> GFNetworkContractField:
+	if value is GFNetworkContractField:
+		var field: GFNetworkContractField = value
+		return field
+	return null
+
+
+func _coerce_literal_int(value: Variant, default_value: int = 0) -> int:
+	if value == null:
+		return default_value
+	if value is int:
+		var int_value: int = value
+		return int_value
+	if value is float:
+		var float_value: float = value
+		return roundi(float_value)
+	if value is bool:
+		var bool_value: bool = value
+		return 1 if bool_value else 0
+	var text: String = GFVariantData.to_text(value).strip_edges()
+	return text.to_int() if text.is_valid_int() else default_value
+
+
+func _coerce_literal_float(value: Variant, default_value: float = 0.0) -> float:
+	if value == null:
+		return default_value
+	if value is float:
+		var float_value: float = value
+		return float_value
+	if value is int:
+		var int_value: int = value
+		return float(int_value)
+	if value is bool:
+		var bool_value: bool = value
+		return 1.0 if bool_value else 0.0
+	var text: String = GFVariantData.to_text(value).strip_edges()
+	return text.to_float() if text.is_valid_float() else default_value
+
+
+func _variant_to_vector2(value: Variant) -> Vector2:
+	if value is Vector2:
+		var vector: Vector2 = value
+		return vector
+	return Vector2.ZERO
+
+
+func _variant_to_vector3(value: Variant) -> Vector3:
+	if value is Vector3:
+		var vector: Vector3 = value
+		return vector
+	return Vector3.ZERO
+
+
+func _variant_to_vector2i(value: Variant) -> Vector2i:
+	if value is Vector2i:
+		var vector: Vector2i = value
+		return vector
+	return Vector2i.ZERO
+
+
+func _variant_to_vector3i(value: Variant) -> Vector3i:
+	if value is Vector3i:
+		var vector: Vector3i = value
+		return vector
+	return Vector3i.ZERO
+
+
+func _variant_to_color(value: Variant) -> Color:
+	if value is Color:
+		var color: Color = value
+		return color
+	return Color.WHITE
+
+
+func _append_packed_string(target: PackedStringArray, value: String) -> void:
+	var _added: bool = target.append(value)
 
 
 func _get_gdscript_type(field: GFNetworkContractField) -> String:
@@ -542,7 +723,7 @@ func _should_omit_null_optional_parameter(field: GFNetworkContractField) -> bool
 
 func _get_default_literal(field: GFNetworkContractField) -> String:
 	if field.default_value != null:
-		var literal := _variant_literal(field.default_value)
+		var literal: String = _variant_literal(field.default_value)
 		if not literal.is_empty():
 			return literal
 
@@ -584,30 +765,30 @@ func _variant_literal(value: Variant) -> String:
 		return "null"
 	match typeof(value):
 		TYPE_BOOL:
-			return "true" if bool(value) else "false"
+			return "true" if GFVariantData.to_bool(value) else "false"
 		TYPE_INT:
-			return str(int(value))
+			return str(_coerce_literal_int(value))
 		TYPE_FLOAT:
-			var text := str(float(value))
+			var text: String = str(_coerce_literal_float(value))
 			return text if text.contains(".") else text + ".0"
 		TYPE_STRING:
-			return "\"%s\"" % String(value).c_escape()
+			return "\"%s\"" % GFVariantData.to_text(value).c_escape()
 		TYPE_STRING_NAME:
-			return "&\"%s\"" % String(value).c_escape()
+			return "&\"%s\"" % GFVariantData.to_text(value).c_escape()
 		TYPE_VECTOR2:
-			var vector2 := value as Vector2
+			var vector2: Vector2 = _variant_to_vector2(value)
 			return "Vector2(%s, %s)" % [_float_literal(vector2.x), _float_literal(vector2.y)]
 		TYPE_VECTOR3:
-			var vector3 := value as Vector3
+			var vector3: Vector3 = _variant_to_vector3(value)
 			return "Vector3(%s, %s, %s)" % [_float_literal(vector3.x), _float_literal(vector3.y), _float_literal(vector3.z)]
 		TYPE_VECTOR2I:
-			var vector2i := value as Vector2i
+			var vector2i: Vector2i = _variant_to_vector2i(value)
 			return "Vector2i(%d, %d)" % [vector2i.x, vector2i.y]
 		TYPE_VECTOR3I:
-			var vector3i := value as Vector3i
+			var vector3i: Vector3i = _variant_to_vector3i(value)
 			return "Vector3i(%d, %d, %d)" % [vector3i.x, vector3i.y, vector3i.z]
 		TYPE_COLOR:
-			var color := value as Color
+			var color: Color = _variant_to_color(value)
 			return "Color(%s, %s, %s, %s)" % [
 				_float_literal(color.r),
 				_float_literal(color.g),
@@ -615,18 +796,18 @@ func _variant_literal(value: Variant) -> String:
 				_float_literal(color.a),
 			]
 		TYPE_NODE_PATH:
-			return "NodePath(\"%s\")" % String(value).c_escape()
+			return "NodePath(\"%s\")" % GFVariantData.to_text(value).c_escape()
 		_:
 			return ""
 
 
 func _float_literal(value: float) -> String:
-	var text := str(value)
+	var text: String = str(value)
 	return text if text.contains(".") else text + ".0"
 
 
 func _to_pascal_identifier(value: String, fallback: String) -> String:
-	var base := _to_snake_identifier(value, fallback).to_pascal_case()
+	var base: String = _to_snake_identifier(value, fallback).to_pascal_case()
 	if base.is_empty():
 		base = fallback
 	if _starts_with_digit(base):
@@ -635,12 +816,12 @@ func _to_pascal_identifier(value: String, fallback: String) -> String:
 
 
 func _to_snake_identifier(value: String, fallback: String) -> String:
-	var snake := value.to_snake_case().to_lower()
-	var result := ""
-	var previous_was_separator := false
+	var snake: String = value.to_snake_case().to_lower()
+	var result: String = ""
+	var previous_was_separator: bool = false
 	for index: int in range(snake.length()):
-		var code := snake.unicode_at(index)
-		var valid := (
+		var code: int = snake.unicode_at(index)
+		var valid: bool = (
 			(code >= 97 and code <= 122)
 			or (code >= 48 and code <= 57)
 			or code == 95
@@ -661,13 +842,13 @@ func _to_snake_identifier(value: String, fallback: String) -> String:
 
 
 func _to_constant_name(value: String, fallback: String) -> String:
-	var constant_name := _to_snake_identifier(value, fallback).to_upper()
+	var constant_name: String = _to_snake_identifier(value, fallback).to_upper()
 	return constant_name if not constant_name.is_empty() else fallback
 
 
 func _make_unique_name(base_name: String, used_names: Dictionary) -> String:
-	var candidate := base_name
-	var index := 2
+	var candidate: String = base_name
+	var index: int = 2
 	while used_names.has(candidate):
 		candidate = "%s_%d" % [base_name, index]
 		index += 1

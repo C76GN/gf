@@ -121,7 +121,7 @@ func _exit_tree() -> void:
 func get_target_node() -> Node2D:
 	if target_path.is_empty():
 		return null
-	return get_node_or_null(target_path) as Node2D
+	return _get_node_2d_value(get_node_or_null(target_path))
 
 
 ## 获取当前期望相机姿态。
@@ -132,15 +132,15 @@ func get_target_node() -> Node2D:
 ## [br]
 ## @schema return: Dictionary，包含 position: Vector2、rotation: float、zoom: Vector2 与 rig: GFCameraRig2D。
 func get_camera_pose() -> Dictionary:
-	var target := get_target_node()
-	var base_position := global_position
-	var base_rotation := global_rotation
+	var target: Node2D = get_target_node()
+	var base_position: Vector2 = global_position
+	var base_rotation: float = global_rotation
 	if target != null:
 		base_position = target.global_position
 		if use_target_rotation:
 			base_rotation = target.global_rotation
 
-	var effective_offset := offset.rotated(base_rotation) if offset_follows_rotation else offset
+	var effective_offset: Vector2 = offset.rotated(base_rotation) if offset_follows_rotation else offset
 	return {
 		"position": base_position + effective_offset,
 		"rotation": base_rotation + deg_to_rad(rotation_degrees_offset),
@@ -156,3 +156,12 @@ func get_camera_pose() -> Dictionary:
 ## @return 可用时返回 true。
 func is_available() -> bool:
 	return active and is_inside_tree()
+
+
+# --- 私有/辅助方法 ---
+
+func _get_node_2d_value(value: Variant) -> Node2D:
+	if value is Node2D:
+		var node: Node2D = value
+		return node
+	return null

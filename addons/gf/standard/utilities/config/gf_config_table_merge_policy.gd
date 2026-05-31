@@ -113,12 +113,12 @@ func make_record_key(record: Dictionary, outer_key: Variant = null) -> String:
 	if key_fields.is_empty():
 		return ""
 
-	var parts := PackedStringArray()
+	var parts: PackedStringArray = PackedStringArray()
 	for field_name: String in key_fields:
-		var key := StringName(field_name)
+		var key: StringName = StringName(field_name)
 		if not record.has(key):
 			return ""
-		parts.append(_make_variant_key(record[key]))
+		var _part_appended: bool = parts.append(_make_variant_key(record[key]))
 	return "|".join(parts)
 
 
@@ -149,7 +149,7 @@ func merge_record(base_record: Dictionary, patch_record: Dictionary) -> Dictiona
 ## [br]
 ## @return 新合并策略。
 func duplicate_policy() -> GFConfigTableMergePolicy:
-	return duplicate(true) as GFConfigTableMergePolicy
+	return _variant_to_merge_policy(duplicate(true))
 
 
 ## 导出策略摘要。
@@ -176,13 +176,17 @@ func describe() -> Dictionary:
 # --- 私有/辅助方法 ---
 
 func _merge_dictionaries(base_record: Dictionary, patch_record: Dictionary) -> Dictionary:
-	var result := base_record.duplicate(true)
+	var result: Dictionary = base_record.duplicate(true)
 	for key: Variant in patch_record.keys():
 		if key == delete_marker_field:
 			continue
 		var patch_value: Variant = patch_record[key]
-		if result.get(key) is Dictionary and patch_value is Dictionary:
-			result[key] = _merge_dictionaries(result[key] as Dictionary, patch_value as Dictionary)
+		var base_value: Variant = GFVariantData.get_option_value(result, key)
+		if base_value is Dictionary and patch_value is Dictionary:
+			result[key] = _merge_dictionaries(
+				GFVariantData.as_dictionary(base_value),
+				GFVariantData.as_dictionary(patch_value)
+			)
 		else:
 			result[key] = GFVariantData.duplicate_variant(patch_value)
 	return result
@@ -190,3 +194,10 @@ func _merge_dictionaries(base_record: Dictionary, patch_record: Dictionary) -> D
 
 func _make_variant_key(value: Variant) -> String:
 	return "%d:%s" % [typeof(value), var_to_str(value)]
+
+
+func _variant_to_merge_policy(value: Variant) -> GFConfigTableMergePolicy:
+	if value is GFConfigTableMergePolicy:
+		var policy: GFConfigTableMergePolicy = value
+		return policy
+	return null

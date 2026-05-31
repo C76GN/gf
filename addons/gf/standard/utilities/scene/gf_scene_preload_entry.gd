@@ -54,13 +54,13 @@ func get_scene_path() -> String:
 ## [br]
 ## @return 相邻场景路径列表。
 func get_adjacent_scene_paths() -> PackedStringArray:
-	var result := PackedStringArray()
-	var source_path := get_scene_path()
+	var result: PackedStringArray = PackedStringArray()
+	var source_path: String = get_scene_path()
 	for raw_path: String in adjacent_scene_paths:
-		var path := raw_path.strip_edges()
+		var path: String = raw_path.strip_edges()
 		if path.is_empty() or path == source_path or result.has(path):
 			continue
-		result.append(path)
+		var _appended: bool = result.append(path)
 	return result
 
 

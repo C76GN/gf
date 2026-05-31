@@ -8,43 +8,46 @@ extends RefCounted
 # --- 私有/辅助方法 ---
 
 static func _get_live_object(value: Variant) -> Object:
+	if typeof(value) != TYPE_OBJECT:
+		return null
 	if not is_instance_valid(value):
 		return null
-	if not (value is Object):
-		return null
-	return value as Object
+	var object: Object = value
+	return object
 
 
 static func _get_live_node(value: Variant) -> Node:
-	var object := _get_live_object(value)
+	var object: Object = _get_live_object(value)
 	if object == null or not (object is Node):
 		return null
-	return object as Node
+	var node: Node = object
+	return node
 
 
 static func _get_live_control(value: Variant) -> Control:
-	var node := _get_live_node(value)
+	var node: Node = _get_live_node(value)
 	if node == null or not (node is Control):
 		return null
-	return node as Control
+	var control: Control = node
+	return control
 
 
-static func _get_live_object_from_ref(reference: WeakRef) -> Object:
-	if reference == null:
+static func _get_live_object_from_ref(object_ref: WeakRef) -> Object:
+	if object_ref == null:
 		return null
-	return _get_live_object(reference.get_ref())
+	return _get_live_object(object_ref.get_ref())
 
 
-static func _get_live_node_from_ref(reference: WeakRef) -> Node:
-	if reference == null:
+static func _get_live_node_from_ref(object_ref: WeakRef) -> Node:
+	if object_ref == null:
 		return null
-	return _get_live_node(reference.get_ref())
+	return _get_live_node(object_ref.get_ref())
 
 
-static func _get_live_control_from_ref(reference: WeakRef) -> Control:
-	if reference == null:
+static func _get_live_control_from_ref(object_ref: WeakRef) -> Control:
+	if object_ref == null:
 		return null
-	return _get_live_control(reference.get_ref())
+	return _get_live_control(object_ref.get_ref())
 
 
 static func _get_live_object_from_id(instance_id: int) -> Object:

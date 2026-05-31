@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFInventoryStack" path="addons/gf/extensions/domain/inventory/gf_inventory_stack.gd" module="extensions/domain" extends="Resource" classDigest="5399373028c4dcc10b7de19be9b52179a1cf5dd8752b182a06ed0045bb05d1a3">
+<class name="GFInventoryStack" path="addons/gf/extensions/domain/inventory/gf_inventory_stack.gd" module="extensions/domain" extends="Resource" classDigest="a84aa04b4204e52f91006d27f51507544d8fddce244a88f492a243eee14987fb">
 	<description>GFInventoryStack: 通用库存堆叠记录。
 只保存物品标识、数量和实例数据，不解释实例数据的业务含义。</description>
 	<tags>
@@ -74,21 +74,21 @@
 			</tags>
 		</member>
 		<member kind="method" name="add_amount">
-			<signature>func add_amount(add_amount: int, registry: GFInventoryItemRegistry = null) -&gt; int:</signature>
+			<signature>func add_amount(quantity: int, registry: GFInventoryItemRegistry = null) -&gt; int:</signature>
 			<description>增加数量并返回未加入的剩余数量。</description>
 			<tags>
 				<tag name="api">public</tag>
-				<tag name="param">add_amount: 尝试增加的数量。</tag>
+				<tag name="param">quantity: 尝试增加的数量。</tag>
 				<tag name="param">registry: 可选物品注册表。</tag>
 				<tag name="return">未加入的剩余数量。</tag>
 			</tags>
 		</member>
 		<member kind="method" name="remove_amount">
-			<signature>func remove_amount(remove_amount: int) -&gt; int:</signature>
+			<signature>func remove_amount(quantity: int) -&gt; int:</signature>
 			<description>移除数量并返回实际移除数量。</description>
 			<tags>
 				<tag name="api">public</tag>
-				<tag name="param">remove_amount: 尝试移除的数量。</tag>
+				<tag name="param">quantity: 尝试移除的数量。</tag>
 				<tag name="return">实际移除数量。</tag>
 			</tags>
 		</member>

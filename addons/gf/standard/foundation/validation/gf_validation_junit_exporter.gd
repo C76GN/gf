@@ -43,41 +43,42 @@ static func export_report(report: GFValidationReport, options: Dictionary = {}) 
 ## [br]
 ## @return JUnit XML 文本。
 static func export_reports(reports: Array, options: Dictionary = {}) -> String:
-	var suite_name := String(options.get("suite_name", "GF Validation"))
-	var warnings_as_failures := bool(options.get("warnings_as_failures", true))
-	var include_passing_case := bool(options.get("include_passing_case", true))
-	var case_lines := PackedStringArray()
-	var test_count := 0
-	var failure_count := 0
+	var suite_name: String = GFVariantData.get_option_string(options, "suite_name", "GF Validation")
+	var warnings_as_failures: bool = GFVariantData.get_option_bool(options, "warnings_as_failures", true)
+	var include_passing_case: bool = GFVariantData.get_option_bool(options, "include_passing_case", true)
+	var case_lines: PackedStringArray = PackedStringArray()
+	var test_count: int = 0
+	var failure_count: int = 0
 
 	for report_variant: Variant in reports:
-		var report := report_variant as GFValidationReport
+		var report: GFValidationReport = _as_validation_report(report_variant)
 		if report == null:
 			continue
-		var issues := report.issues
+		var issues: Array[RefCounted] = report.issues
 		if issues.is_empty() and include_passing_case:
 			test_count += 1
-			case_lines.append(_make_passing_case(report))
+			_append_packed_string(case_lines, _make_passing_case(report))
 			continue
 		for issue: RefCounted in issues:
-			if issue == null:
+			var validation_issue: GFValidationIssue = _as_validation_issue(issue)
+			if validation_issue == null:
 				continue
 			test_count += 1
-			var is_failure := bool(issue.call("is_error")) or (warnings_as_failures and bool(issue.call("is_warning")))
+			var is_failure: bool = validation_issue.is_error() or (warnings_as_failures and validation_issue.is_warning())
 			if is_failure:
 				failure_count += 1
-			case_lines.append(_make_issue_case(report, issue, is_failure))
+			_append_packed_string(case_lines, _make_issue_case(report, validation_issue, is_failure))
 
-	var lines := PackedStringArray()
-	lines.append('<?xml version="1.0" encoding="UTF-8"?>')
-	lines.append('<testsuite name="%s" tests="%d" failures="%d" errors="0" skipped="0">' % [
+	var lines: PackedStringArray = PackedStringArray()
+	_append_packed_string(lines, '<?xml version="1.0" encoding="UTF-8"?>')
+	_append_packed_string(lines, '<testsuite name="%s" tests="%d" failures="%d" errors="0" skipped="0">' % [
 		_escape_attribute(suite_name),
 		test_count,
 		failure_count,
 	])
 	for line: String in case_lines:
-		lines.append(line)
-	lines.append("</testsuite>")
+		_append_packed_string(lines, line)
+	_append_packed_string(lines, "</testsuite>")
 	return "\n".join(lines)
 
 
@@ -87,13 +88,13 @@ static func _make_passing_case(report: GFValidationReport) -> String:
 	return '\t<testcase classname="%s" name="healthy" />' % _escape_attribute(_get_report_subject(report))
 
 
-static func _make_issue_case(report: GFValidationReport, issue: RefCounted, is_failure: bool) -> String:
-	var class_label := _escape_attribute(_get_report_subject(report))
-	var kind := _escape_attribute(String(issue.call("get_kind_key")))
-	var message := _escape_attribute(String(issue.get("message")))
-	var severity := _escape_attribute(GFValidationIssue.severity_to_string(issue.get("severity")))
-	var location := _escape_text(String(issue.call("get_location_text")))
-	var text := _escape_text(String(issue.get("message")))
+static func _make_issue_case(report: GFValidationReport, issue: GFValidationIssue, is_failure: bool) -> String:
+	var class_label: String = _escape_attribute(_get_report_subject(report))
+	var kind: String = _escape_attribute(issue.get_kind_key())
+	var message: String = _escape_attribute(issue.message)
+	var severity: String = _escape_attribute(GFValidationIssue.severity_to_string(issue.severity))
+	var location: String = _escape_text(issue.get_location_text())
+	var text: String = _escape_text(issue.message)
 	if not location.is_empty():
 		text = "%s\n%s" % [location, text]
 	if not is_failure:
@@ -119,3 +120,23 @@ static func _escape_attribute(value: String) -> String:
 
 static func _escape_text(value: String) -> String:
 	return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+static func _as_validation_report(value: Variant) -> GFValidationReport:
+	if value is GFValidationReport:
+		var report: GFValidationReport = value
+		return report
+	return null
+
+
+static func _as_validation_issue(value: Variant) -> GFValidationIssue:
+	if value is GFValidationIssue:
+		var issue: GFValidationIssue = value
+		return issue
+	return null
+
+
+static func _append_packed_string(target: PackedStringArray, value: String) -> void:
+	var appended: bool = target.append(value)
+	if appended:
+		return

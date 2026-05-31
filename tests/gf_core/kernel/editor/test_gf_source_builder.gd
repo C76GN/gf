@@ -1,21 +1,16 @@
 extends GutTest
 
 
-# --- 常量 ---
-
-const GF_SOURCE_BUILDER_BASE := preload("res://addons/gf/kernel/editor/gf_source_builder.gd")
-
-
 # --- 测试用例 ---
 
 func test_empty_builder_builds_empty_source() -> void:
-	var builder: Variant = GF_SOURCE_BUILDER_BASE.new()
+	var builder: GFSourceBuilder = GFSourceBuilder.new()
 
 	assert_eq(builder.build(), "", "空 SourceBuilder 不应生成孤立换行。")
 
 
 func test_builder_formats_docs_sections_and_indentation() -> void:
-	var builder: Variant = GF_SOURCE_BUILDER_BASE.new()
+	var builder: GFSourceBuilder = GFSourceBuilder.new()
 
 	builder.doc("Example: generated source.")
 	builder.doc()
@@ -36,9 +31,15 @@ func test_builder_formats_docs_sections_and_indentation() -> void:
 
 
 func test_builder_clear_resets_source_and_indent() -> void:
-	var builder: Variant = GF_SOURCE_BUILDER_BASE.new()
+	var builder: GFSourceBuilder = GFSourceBuilder.new()
 
-	builder.line("func old() -> void:").indent().line("pass").clear()
-	var source: String = builder.line("func fresh() -> void:").indent().line("pass").build()
+	builder.line("func old() -> void:")
+	builder.indent()
+	builder.line("pass")
+	builder.clear()
+	builder.line("func fresh() -> void:")
+	builder.indent()
+	builder.line("pass")
+	var source: String = builder.build()
 
 	assert_eq(source, "func fresh() -> void:\n\tpass\n", "clear() 应清空旧内容并重置缩进。")

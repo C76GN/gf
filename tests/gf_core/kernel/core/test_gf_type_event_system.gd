@@ -1,6 +1,10 @@
-﻿## 测试 GFTypeEventSystem 的注册、发送、注销及遍历中注销的边界情况。
+## 测试 GFTypeEventSystem 的注册、发送、注销及遍历中注销的边界情况。
 extends GutTest
 
+
+# --- 常量 ---
+
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
 
 # --- 私有变量 ---
 
@@ -19,18 +23,36 @@ func after_each() -> void:
 
 # --- 辅助类型 ---
 
-class TestEventA:
+class SampleEventA:
 	var value: int = 0
 	var is_consumed: bool = false
 
 
-class TestEventB:
+class SampleEventB:
 	pass
 
 
-class TestEventChild extends TestEventA:
+class SampleEventChild extends SampleEventA:
 	pass
 
+
+class EventTestState:
+	var value: int = -1
+	var count: int = 0
+	var assignable: int = 0
+	var exact: int = 0
+	var child: int = 0
+	var other: int = 0
+	var typed: int = 0
+	var simple: int = 0
+	var nested_sent: bool = false
+	var called: bool = false
+	var payload: Variant = null
+	var order: Array[String] = []
+	var cb_a: Callable = Callable()
+	var cb_b: Callable = Callable()
+	var late_cb: Callable = Callable()
+	var replacement: Callable = Callable()
 
 class SimpleReceiver:
 	var payload: Variant = null
@@ -42,13 +64,13 @@ class SimpleReceiver:
 class ArgumentReceiver:
 	var count: int = 0
 
-	func on_type_one(_event: TestEventA) -> void:
+	func on_type_one(_event: SampleEventA) -> void:
 		count += 1
 
-	func on_type_extra_required(_event: TestEventA, _extra: Variant) -> void:
+	func on_type_extra_required(_event: SampleEventA, _extra: Variant) -> void:
 		count += 1
 
-	func on_type_extra_default(_event: TestEventA, _extra: Variant = null) -> void:
+	func on_type_extra_default(_event: SampleEventA, _extra: Variant = null) -> void:
 		count += 1
 
 	func on_simple_extra_required(_payload: Variant, _extra: Variant) -> void:
@@ -59,18 +81,18 @@ class ArgumentReceiver:
 
 ## 验证无效 Callable 不会通过 assert 造成不一致行为，而是输出错误并跳过注册。
 func test_register_invalid_callable_reports_error_without_listener() -> void:
-	_system.register(TestEventA, Callable())
-	_system.send(TestEventA.new())
+	_system.register(SampleEventA, Callable())
+	_system.send(SampleEventA.new())
 
 	assert_push_error("[GFTypeEventSystem] 注册的类型事件回调无效。")
 
 
 ## 验证事件回调不能要求比派发参数更多的未绑定必填参数。
 func test_register_rejects_callback_requiring_extra_unbound_args() -> void:
-	var receiver := ArgumentReceiver.new()
+	var receiver: ArgumentReceiver = ArgumentReceiver.new()
 
-	_system.register(TestEventA, Callable(receiver, "on_type_extra_required"))
-	_system.send(TestEventA.new())
+	_system.register(SampleEventA, Callable(receiver, "on_type_extra_required"))
+	_system.send(SampleEventA.new())
 
 	assert_eq(receiver.count, 0, "必填参数过多的回调不应被注册。")
 	assert_push_error("[GFTypeEventSystem] 注册的类型事件回调 on_type_extra_required 不能要求超过 1 个未绑定参数，当前必填 2 个。")
@@ -78,20 +100,20 @@ func test_register_rejects_callback_requiring_extra_unbound_args() -> void:
 
 ## 验证默认参数或绑定参数可以满足额外参数需求。
 func test_register_accepts_default_or_bound_extra_args() -> void:
-	var receiver := ArgumentReceiver.new()
+	var receiver: ArgumentReceiver = ArgumentReceiver.new()
 
-	_system.register(TestEventA, Callable(receiver, "on_type_extra_default"))
-	_system.register(TestEventA, Callable(receiver, "on_type_extra_required").bind("bound"))
-	_system.send(TestEventA.new())
+	_system.register(SampleEventA, Callable(receiver, "on_type_extra_default"))
+	_system.register(SampleEventA, Callable(receiver, "on_type_extra_required").bind("bound"))
+	_system.send(SampleEventA.new())
 
 	assert_eq(receiver.count, 2, "默认参数和 bind 参数都应允许回调正常注册。")
 
 
 func test_register_rejects_bound_args_that_exceed_callback_arity() -> void:
-	var receiver := ArgumentReceiver.new()
+	var receiver: ArgumentReceiver = ArgumentReceiver.new()
 
-	_system.register(TestEventA, Callable(receiver, "on_type_one").bind("too_much"))
-	_system.send(TestEventA.new())
+	_system.register(SampleEventA, Callable(receiver, "on_type_one").bind("too_much"))
+	_system.send(SampleEventA.new())
 
 	assert_eq(receiver.count, 0, "bind 后实参超过目标方法参数数量时不应注册。")
 	assert_push_error("[GFTypeEventSystem] 注册的类型事件回调 on_type_one 最多接收 1 个参数，当前会传入 2 个。")
@@ -99,7 +121,7 @@ func test_register_rejects_bound_args_that_exceed_callback_arity() -> void:
 
 ## 验证简单事件也会拒绝必填参数过多的回调。
 func test_register_simple_rejects_callback_requiring_extra_unbound_args() -> void:
-	var receiver := ArgumentReceiver.new()
+	var receiver: ArgumentReceiver = ArgumentReceiver.new()
 
 	_system.register_simple(&"simple_extra_required", Callable(receiver, "on_simple_extra_required"))
 	_system.send_simple(&"simple_extra_required", "payload")
@@ -110,11 +132,11 @@ func test_register_simple_rejects_callback_requiring_extra_unbound_args() -> voi
 
 ## 验证注册后，send 能正确调用回调。
 func test_register_and_send() -> void:
-	var state := {"value": - 1}
-	var script_a: Script = TestEventA
-	_system.register(script_a, func(e: TestEventA) -> void: state.value = e.value)
+	var state: EventTestState = EventTestState.new()
+	var script_a: Script = SampleEventA
+	_system.register(script_a, func(e: SampleEventA) -> void: state.value = e.value)
 
-	var evt := TestEventA.new()
+	var evt: SampleEventA = SampleEventA.new()
 	evt.value = 42
 	_system.send(evt)
 
@@ -123,42 +145,42 @@ func test_register_and_send() -> void:
 
 ## 验证普通类型事件保持精确脚本匹配。
 func test_exact_listener_does_not_receive_child_event() -> void:
-	var state := {"count": 0}
-	_system.register(TestEventA, func(_e: TestEventA) -> void:
+	var state: EventTestState = EventTestState.new()
+	_system.register(SampleEventA, func(_e: SampleEventA) -> void:
 		state.count += 1
 	)
 
-	_system.send(TestEventChild.new())
+	_system.send(SampleEventChild.new())
 
 	assert_eq(state.count, 0, "普通 register 应保持精确类型匹配。")
 
 
 ## 验证可赋值类型监听能收到子类事件。
 func test_assignable_listener_receives_child_event() -> void:
-	var state := {"count": 0}
-	_system.register_assignable(TestEventA, func(_e: TestEventA) -> void:
+	var state: EventTestState = EventTestState.new()
+	_system.register_assignable(SampleEventA, func(_e: SampleEventA) -> void:
 		state.count += 1
 	)
 
-	_system.send(TestEventChild.new())
+	_system.send(SampleEventChild.new())
 
 	assert_eq(state.count, 1, "register_assignable 应接收继承自基类的事件。")
 
 
 ## 验证类型事件派发缓存会在注册和注销后刷新。
 func test_type_dispatch_cache_updates_after_register_and_unregister() -> void:
-	var state := {"assignable": 0, "exact": 0}
-	var assignable_callback := func(_e: TestEventA) -> void:
+	var state: EventTestState = EventTestState.new()
+	var assignable_callback: Callable = func(_e: SampleEventA) -> void:
 		state.assignable += 1
-	var exact_callback := func(_e: TestEventChild) -> void:
+	var exact_callback: Callable = func(_e: SampleEventChild) -> void:
 		state.exact += 1
 
-	_system.register_assignable(TestEventA, assignable_callback)
-	_system.send(TestEventChild.new())
-	_system.register(TestEventChild, exact_callback)
-	_system.send(TestEventChild.new())
-	_system.unregister_assignable(TestEventA, assignable_callback)
-	_system.send(TestEventChild.new())
+	_system.register_assignable(SampleEventA, assignable_callback)
+	_system.send(SampleEventChild.new())
+	_system.register(SampleEventChild, exact_callback)
+	_system.send(SampleEventChild.new())
+	_system.unregister_assignable(SampleEventA, assignable_callback)
+	_system.send(SampleEventChild.new())
 
 	assert_eq(state.assignable, 2, "注销可赋值监听后缓存不应继续触发旧回调。")
 	assert_eq(state.exact, 2, "后续新增的精确监听应进入刷新后的缓存。")
@@ -166,165 +188,165 @@ func test_type_dispatch_cache_updates_after_register_and_unregister() -> void:
 
 ## 验证类型事件派发缓存只刷新受影响的类型条目。
 func test_type_dispatch_cache_invalidates_only_affected_entries() -> void:
-	var state := {"child": 0, "other": 0}
-	var child_callback := func(_e: TestEventA) -> void:
+	var state: EventTestState = EventTestState.new()
+	var child_callback: Callable = func(_e: SampleEventA) -> void:
 		state.child += 1
-	var other_callback := func(_e: TestEventB) -> void:
+	var other_callback: Callable = func(_e: SampleEventB) -> void:
 		state.other += 1
 
-	_system.register_assignable(TestEventA, child_callback)
-	_system.register(TestEventB, other_callback)
-	_system.send(TestEventChild.new())
-	_system.send(TestEventB.new())
+	_system.register_assignable(SampleEventA, child_callback)
+	_system.register(SampleEventB, other_callback)
+	_system.send(SampleEventChild.new())
+	_system.send(SampleEventB.new())
 
-	assert_true(_system._type_dispatch_cache.has(TestEventChild), "子类事件派发后应建立缓存。")
-	assert_true(_system._type_dispatch_cache.has(TestEventB), "独立事件派发后应建立缓存。")
+	assert_true(_system._type_dispatch_cache.has(SampleEventChild), "子类事件派发后应建立缓存。")
+	assert_true(_system._type_dispatch_cache.has(SampleEventB), "独立事件派发后应建立缓存。")
 
-	_system.register(TestEventB, func(_e: TestEventB) -> void:
+	_system.register(SampleEventB, func(_e: SampleEventB) -> void:
 		state.other += 10
 	)
 
-	assert_true(_system._type_dispatch_cache.has(TestEventChild), "独立精确监听变更不应清掉子类事件缓存。")
-	assert_false(_system._type_dispatch_cache.has(TestEventB), "精确监听变更应刷新对应事件缓存。")
+	assert_true(_system._type_dispatch_cache.has(SampleEventChild), "独立精确监听变更不应清掉子类事件缓存。")
+	assert_false(_system._type_dispatch_cache.has(SampleEventB), "精确监听变更应刷新对应事件缓存。")
 
-	_system.send(TestEventB.new())
-	_system.register_assignable(TestEventA, func(_e: TestEventA) -> void:
+	_system.send(SampleEventB.new())
+	_system.register_assignable(SampleEventA, func(_e: SampleEventA) -> void:
 		state.child += 10
 	)
 
-	assert_false(_system._type_dispatch_cache.has(TestEventChild), "可赋值监听变更应刷新继承事件缓存。")
-	assert_true(_system._type_dispatch_cache.has(TestEventB), "不相关事件缓存应保留。")
+	assert_false(_system._type_dispatch_cache.has(SampleEventChild), "可赋值监听变更应刷新继承事件缓存。")
+	assert_true(_system._type_dispatch_cache.has(SampleEventB), "不相关事件缓存应保留。")
 
-	_system.send(TestEventChild.new())
+	_system.send(SampleEventChild.new())
 
 	assert_eq(state.child, 12, "刷新后的子类事件缓存应包含新增可赋值监听。")
 
 
 ## 验证可赋值类型监听可注销。
 func test_unregister_assignable_listener() -> void:
-	var state := {"count": 0}
-	var callback := func(_e: TestEventA) -> void:
+	var state: EventTestState = EventTestState.new()
+	var callback: Callable = func(_e: SampleEventA) -> void:
 		state.count += 1
-	_system.register_assignable(TestEventA, callback)
-	_system.unregister_assignable(TestEventA, callback)
+	_system.register_assignable(SampleEventA, callback)
+	_system.unregister_assignable(SampleEventA, callback)
 
-	_system.send(TestEventChild.new())
+	_system.send(SampleEventChild.new())
 
 	assert_eq(state.count, 0, "unregister_assignable 后不应再收到子类事件。")
 
 
 ## 验证 owner 注销会移除可赋值类型监听。
 func test_unregister_owner_removes_assignable_listeners() -> void:
-	var listener_owner := RefCounted.new()
-	var state := {"count": 0}
-	_system.register_assignable(TestEventA, func(_e: TestEventA) -> void:
+	var listener_owner: RefCounted = RefCounted.new()
+	var state: EventTestState = EventTestState.new()
+	_system.register_assignable(SampleEventA, func(_e: SampleEventA) -> void:
 		state.count += 1
 	, 0, listener_owner)
 
-	_system.send(TestEventChild.new())
+	_system.send(SampleEventChild.new())
 	_system.unregister_owner(listener_owner)
-	_system.send(TestEventChild.new())
+	_system.send(SampleEventChild.new())
 
 	assert_eq(state.count, 1, "owner 注销后可赋值类型监听不应继续触发。")
 
 
 ## 验证相同 Callable 可以用不同 owner 注册为独立监听。
 func test_same_callable_can_register_with_different_owners() -> void:
-	var owner_a := RefCounted.new()
-	var owner_b := RefCounted.new()
-	var state := {"count": 0}
-	var callback := func(_e: TestEventA) -> void:
+	var owner_a: RefCounted = RefCounted.new()
+	var owner_b: RefCounted = RefCounted.new()
+	var state: EventTestState = EventTestState.new()
+	var callback: Callable = func(_e: SampleEventA) -> void:
 		state.count += 1
 
-	_system.register(TestEventA, callback, 0, owner_a)
-	_system.register(TestEventA, callback, 0, owner_b)
-	_system.send(TestEventA.new())
+	_system.register(SampleEventA, callback, 0, owner_a)
+	_system.register(SampleEventA, callback, 0, owner_b)
+	_system.send(SampleEventA.new())
 	_system.unregister_owner(owner_a)
-	_system.send(TestEventA.new())
+	_system.send(SampleEventA.new())
 
 	assert_eq(state.count, 3, "不同 owner 的同一 Callable 应分别注册并可独立注销。")
 
 
 ## 验证诊断统计会报告各事件轨道监听数量。
 func test_debug_stats_reports_listener_counts() -> void:
-	_system.register(TestEventA, func(_e: TestEventA) -> void:
+	_system.register(SampleEventA, func(_e: SampleEventA) -> void:
 		pass
 	)
-	_system.register_assignable(TestEventA, func(_e: TestEventA) -> void:
+	_system.register_assignable(SampleEventA, func(_e: SampleEventA) -> void:
 		pass
 	)
 	_system.register_simple(&"debug_simple", func(_payload: Variant) -> void:
 		pass
 	)
 
-	var stats := _system.get_debug_stats()
+	var stats: Dictionary = _system.get_debug_stats()
 
-	assert_eq(_sum_listener_counts(stats.get("type_events", {})), 1, "诊断统计应包含精确类型监听数量。")
-	assert_eq(_sum_listener_counts(stats.get("assignable_type_events", {})), 1, "诊断统计应包含可赋值类型监听数量。")
-	assert_eq(_sum_listener_counts(stats.get("simple_events", {})), 1, "诊断统计应包含简单事件监听数量。")
+	assert_eq(_sum_listener_counts(_GF_VARIANT_ACCESS_SCRIPT.get_option_dictionary(stats, "type_events")), 1, "诊断统计应包含精确类型监听数量。")
+	assert_eq(_sum_listener_counts(_GF_VARIANT_ACCESS_SCRIPT.get_option_dictionary(stats, "assignable_type_events")), 1, "诊断统计应包含可赋值类型监听数量。")
+	assert_eq(_sum_listener_counts(_GF_VARIANT_ACCESS_SCRIPT.get_option_dictionary(stats, "simple_events")), 1, "诊断统计应包含简单事件监听数量。")
 
 
 ## 验证诊断统计会报告派发次数和嵌套深度。
 func test_debug_stats_reports_dispatch_counts_and_depth() -> void:
-	var state := {"nested_sent": false}
-	_system.register(TestEventA, func(_e: TestEventA) -> void:
+	var state: EventTestState = EventTestState.new()
+	_system.register(SampleEventA, func(_e: SampleEventA) -> void:
 		if not state.nested_sent:
 			state.nested_sent = true
-			_system.send(TestEventA.new())
+			_system.send(SampleEventA.new())
 	)
 	_system.register_simple(&"debug_depth", func(_payload: Variant) -> void:
 		if state.nested_sent:
 			return
 	)
 
-	_system.send(TestEventA.new())
+	_system.send(SampleEventA.new())
 	_system.send_simple(&"debug_depth")
-	var stats := _system.get_debug_stats()
+	var stats: Dictionary = _system.get_debug_stats()
 
-	assert_eq(int(stats["type_dispatch_count"]), 2, "嵌套类型事件应记录两次派发。")
-	assert_eq(int(stats["max_type_dispatch_depth_observed"]), 2, "嵌套类型事件应记录最大深度。")
-	assert_eq(int(stats["simple_dispatch_count"]), 1, "简单事件派发次数应记录到诊断统计。")
+	assert_eq(_GF_VARIANT_ACCESS_SCRIPT.get_option_int(stats, "type_dispatch_count"), 2, "嵌套类型事件应记录两次派发。")
+	assert_eq(_GF_VARIANT_ACCESS_SCRIPT.get_option_int(stats, "max_type_dispatch_depth_observed"), 2, "嵌套类型事件应记录最大深度。")
+	assert_eq(_GF_VARIANT_ACCESS_SCRIPT.get_option_int(stats, "simple_dispatch_count"), 1, "简单事件派发次数应记录到诊断统计。")
 
 
 ## 验证最大派发深度能阻止递归事件无限嵌套。
 func test_max_dispatch_depth_defaults_to_guarded_value() -> void:
-	var stats := _system.get_debug_stats()
+	var stats: Dictionary = _system.get_debug_stats()
 
 	assert_eq(_system.max_dispatch_depth, GFTypeEventSystem.DEFAULT_MAX_DISPATCH_DEPTH, "2.0 默认应启用事件嵌套保护。")
-	assert_eq(int(stats["max_dispatch_depth"]), GFTypeEventSystem.DEFAULT_MAX_DISPATCH_DEPTH, "诊断统计应报告默认最大派发深度。")
+	assert_eq(_GF_VARIANT_ACCESS_SCRIPT.get_option_int(stats, "max_dispatch_depth"), GFTypeEventSystem.DEFAULT_MAX_DISPATCH_DEPTH, "诊断统计应报告默认最大派发深度。")
 
 
 ## 验证显式关闭最大派发深度时，有限递归事件仍可完整派发。
 func test_max_dispatch_depth_can_be_disabled_explicitly() -> void:
 	_system.max_dispatch_depth = 0
-	var state := {"count": 0}
-	_system.register(TestEventA, func(_e: TestEventA) -> void:
+	var state: EventTestState = EventTestState.new()
+	_system.register(SampleEventA, func(_e: SampleEventA) -> void:
 		state.count += 1
-		if int(state.count) < 3:
-			_system.send(TestEventA.new())
+		if state.count < 3:
+			_system.send(SampleEventA.new())
 	)
 
-	_system.send(TestEventA.new())
-	var stats := _system.get_debug_stats()
+	_system.send(SampleEventA.new())
+	var stats: Dictionary = _system.get_debug_stats()
 
 	assert_eq(state.count, 3, "显式设置 0 后应允许项目自己的有限递归事件链。")
-	assert_eq(int(stats["max_dispatch_depth"]), 0, "诊断统计应报告保护已关闭。")
+	assert_eq(_GF_VARIANT_ACCESS_SCRIPT.get_option_int(stats, "max_dispatch_depth"), 0, "诊断统计应报告保护已关闭。")
 
 
 ## 验证最大派发深度能阻止递归事件无限嵌套。
 func test_max_dispatch_depth_stops_recursive_type_dispatch() -> void:
 	_system.max_dispatch_depth = 1
-	var state := {"count": 0}
-	_system.register(TestEventA, func(_e: TestEventA) -> void:
+	var state: EventTestState = EventTestState.new()
+	_system.register(SampleEventA, func(_e: SampleEventA) -> void:
 		state.count += 1
-		_system.send(TestEventA.new())
+		_system.send(SampleEventA.new())
 	)
 
-	_system.send(TestEventA.new())
-	var stats := _system.get_debug_stats()
+	_system.send(SampleEventA.new())
+	var stats: Dictionary = _system.get_debug_stats()
 
 	assert_eq(state.count, 1, "达到最大深度后不应继续递归派发。")
-	assert_eq(int(stats["type_dispatch_count"]), 1, "被深度保护拒绝的派发不应计入成功派发次数。")
+	assert_eq(_GF_VARIANT_ACCESS_SCRIPT.get_option_int(stats, "type_dispatch_count"), 1, "被深度保护拒绝的派发不应计入成功派发次数。")
 	assert_push_error("[GFTypeEventSystem] type 事件派发超过最大嵌套深度 1")
 
 
@@ -332,18 +354,20 @@ func test_max_dispatch_depth_stops_recursive_type_dispatch() -> void:
 func test_dispatch_trace_records_recent_events() -> void:
 	_system.trace_enabled = true
 	_system.max_trace_entries = 2
-	_system.register(TestEventA, func(_e: TestEventA) -> void:
+	_system.register(SampleEventA, func(_e: SampleEventA) -> void:
 		pass
 	)
 
 	_system.send_simple(&"missing_trace_event")
-	_system.send(TestEventA.new())
+	_system.send(SampleEventA.new())
 	_system.send_simple(&"missing_trace_event_2")
-	var trace := _system.get_dispatch_trace()
+	var trace: Array = _system.get_dispatch_trace()
+	var first_trace_entry: Dictionary = _GF_VARIANT_ACCESS_SCRIPT.as_dictionary(trace[0])
+	var second_trace_entry: Dictionary = _GF_VARIANT_ACCESS_SCRIPT.as_dictionary(trace[1])
 
 	assert_eq(trace.size(), 2, "追踪记录应按容量保留最近条目。")
-	assert_eq(String((trace[0] as Dictionary).get("track")), "type", "较旧的简单事件应被容量淘汰。")
-	assert_eq(String((trace[1] as Dictionary).get("event")), "missing_trace_event_2", "最新简单事件应保留。")
+	assert_eq(_GF_VARIANT_ACCESS_SCRIPT.get_option_string(first_trace_entry, "track"), "type", "较旧的简单事件应被容量淘汰。")
+	assert_eq(_GF_VARIANT_ACCESS_SCRIPT.get_option_string(second_trace_entry, "event"), "missing_trace_event_2", "最新简单事件应保留。")
 
 	_system.clear_dispatch_trace()
 	assert_true(_system.get_dispatch_trace().is_empty(), "clear_dispatch_trace 应清空追踪记录。")
@@ -351,32 +375,32 @@ func test_dispatch_trace_records_recent_events() -> void:
 
 ## 验证 unregister 后，send 不再调用该回调。
 func test_unregister() -> void:
-	var state := {"count": 0}
-	var script_a: Script = TestEventA
-	var cb: Callable = func(_e: TestEventA) -> void: state.count += 1
+	var state: EventTestState = EventTestState.new()
+	var script_a: Script = SampleEventA
+	var cb: Callable = func(_e: SampleEventA) -> void: state.count += 1
 
 	_system.register(script_a, cb)
 	_system.unregister(script_a, cb)
-	_system.send(TestEventA.new())
+	_system.send(SampleEventA.new())
 
 	assert_eq(state.count, 0, "注销后不应再被调用。")
 
 
 ## 验证在回调 A 内注销回调 B 时，回调 B 在本次 send 中不被执行（遍历中注销边界情况）。
 func test_unregister_during_traversal() -> void:
-	var state := {"order": [], "cb_b": Callable()}
-	var script_a: Script = TestEventA
+	var state: EventTestState = EventTestState.new()
+	var script_a: Script = SampleEventA
 
-	var cb_a: Callable = func(_e: TestEventA) -> void:
+	var cb_a: Callable = func(_e: SampleEventA) -> void:
 		state.order.append("A")
 		_system.unregister(script_a, state.cb_b)
 
-	state.cb_b = func(_e: TestEventA) -> void:
+	state.cb_b = func(_e: SampleEventA) -> void:
 		state.order.append("B")
 
 	_system.register(script_a, cb_a)
 	_system.register(script_a, state.cb_b)
-	_system.send(TestEventA.new())
+	_system.send(SampleEventA.new())
 
 	assert_eq(state.order.size(), 1, "回调 B 被注销后不应在本次 send 中执行。")
 	assert_eq(state.order[0], "A", "只有回调 A 应被执行。")
@@ -384,56 +408,56 @@ func test_unregister_during_traversal() -> void:
 
 ## 验证在回调内注销自身时，不会崩溃且逻辑正确。
 func test_unregister_self_during_traversal() -> void:
-	var state := {"count": 0, "cb_a": Callable()}
-	var script_a: Script = TestEventA
+	var state: EventTestState = EventTestState.new()
+	var script_a: Script = SampleEventA
 
-	state.cb_a = func(_e: TestEventA) -> void:
+	state.cb_a = func(_e: SampleEventA) -> void:
 		state.count += 1
 		_system.unregister(script_a, state.cb_a)
 
 	_system.register(script_a, state.cb_a)
-	_system.send(TestEventA.new())
-	_system.send(TestEventA.new())
+	_system.send(SampleEventA.new())
+	_system.send(SampleEventA.new())
 
 	assert_eq(state.count, 1, "回调应该只执行一次，并在本次调用后注销自身。")
 
 
 ## 验证多个监听器都能收到事件。
 func test_multiple_listeners() -> void:
-	var state := {"count": 0}
-	var script_a: Script = TestEventA
-	_system.register(script_a, func(_e: TestEventA) -> void: state.count += 1)
-	_system.register(script_a, func(_e: TestEventA) -> void: state.count += 1)
-	_system.send(TestEventA.new())
+	var state: EventTestState = EventTestState.new()
+	var script_a: Script = SampleEventA
+	_system.register(script_a, func(_e: SampleEventA) -> void: state.count += 1)
+	_system.register(script_a, func(_e: SampleEventA) -> void: state.count += 1)
+	_system.send(SampleEventA.new())
 
 	assert_eq(state.count, 2, "两个监听器都应被调用。")
 
 
 ## 验证 clear 后，send 不再触发任何回调。
 func test_clear() -> void:
-	var state := {"called": false}
-	var script_a: Script = TestEventA
-	_system.register(script_a, func(_e: TestEventA) -> void: state.called = true)
+	var state: EventTestState = EventTestState.new()
+	var script_a: Script = SampleEventA
+	_system.register(script_a, func(_e: SampleEventA) -> void: state.called = true)
 	_system.clear()
-	_system.send(TestEventA.new())
+	_system.send(SampleEventA.new())
 
 	assert_false(state.called, "clear 后不应再触发回调。")
 
 
 ## 验证类型事件派发中 clear 不会破坏派发深度计数。
 func test_clear_during_type_dispatch_stops_current_dispatch_safely() -> void:
-	var state := {"order": []}
-	var script_a: Script = TestEventA
-	_system.register(script_a, func(_e: TestEventA) -> void:
+	var state: EventTestState = EventTestState.new()
+	var script_a: Script = SampleEventA
+	_system.register(script_a, func(_e: SampleEventA) -> void:
 		state.order.append("first")
 		_system.clear()
 	)
-	_system.register(script_a, func(_e: TestEventA) -> void:
+	_system.register(script_a, func(_e: SampleEventA) -> void:
 		state.order.append("second")
 	)
 
-	_system.send(TestEventA.new())
-	_system.send(TestEventA.new())
+	_system.send(SampleEventA.new())
+	_system.send(SampleEventA.new())
 
 	assert_eq(state.order, ["first"], "clear 后本轮后续监听与下一轮派发都不应触发。")
 	assert_eq(_system._type_dispatch_depth, 0, "clear 不应让类型事件派发深度变成负数。")
@@ -443,17 +467,17 @@ func test_clear_during_type_dispatch_stops_current_dispatch_safely() -> void:
 
 ## 验证简单事件注册与发送。
 func test_send_simple_register_and_send() -> void:
-	var state := {"payload": null}
+	var state: EventTestState = EventTestState.new()
 	var event_id: StringName = &"test_event"
 
 	_system.register_simple(event_id, func(p: Variant) -> void: state.payload = p)
 	_system.send_simple(event_id, 99)
 
-	assert_eq(state.payload, 99, "简单事件回调应接收到正确的 payload。")
+	assert_eq(_GF_VARIANT_ACCESS_SCRIPT.to_int(state.payload), 99, "简单事件回调应接收到正确的 payload。")
 
 
 func test_register_simple_rejects_empty_event_id() -> void:
-	var state := {"called": false}
+	var state: EventTestState = EventTestState.new()
 
 	_system.register_simple(&"", func(_payload: Variant) -> void:
 		state.called = true
@@ -472,18 +496,18 @@ func test_send_simple_rejects_empty_event_id() -> void:
 
 ## 验证简单事件支持对象方法回调，并会走签名校验路径。
 func test_send_simple_register_method_callback() -> void:
-	var receiver := SimpleReceiver.new()
+	var receiver: SimpleReceiver = SimpleReceiver.new()
 	var event_id: StringName = &"method_simple_event"
 
 	_system.register_simple(event_id, Callable(receiver, "on_simple_event"))
 	_system.send_simple(event_id, "ok")
 
-	assert_eq(receiver.payload, "ok", "对象方法形式的简单事件回调应接收到 payload。")
+	assert_eq(_GF_VARIANT_ACCESS_SCRIPT.to_text(receiver.payload), "ok", "对象方法形式的简单事件回调应接收到 payload。")
 
 
 ## 验证简单事件在回调内注销另一回调时，被注销的回调不被执行。
 func test_send_simple_unregister_during_traversal() -> void:
-	var state := {"order": [], "cb_b": Callable()}
+	var state: EventTestState = EventTestState.new()
 	var event_id: StringName = &"traversal_test"
 
 	var cb_a: Callable = func(_p: Variant) -> void:
@@ -503,7 +527,7 @@ func test_send_simple_unregister_during_traversal() -> void:
 
 ## 验证简单事件回调注销自身时，不会崩溃且逻辑正确。
 func test_send_simple_unregister_self_during_traversal() -> void:
-	var state := {"count": 0, "cb_a": Callable()}
+	var state: EventTestState = EventTestState.new()
 	var event_id: StringName = &"self_traversal_test"
 
 	state.cb_a = func(_p: Variant) -> void:
@@ -519,7 +543,7 @@ func test_send_simple_unregister_self_during_traversal() -> void:
 
 ## 验证注销简单事件后不再触发。
 func test_send_simple_unregister() -> void:
-	var state := {"called": false}
+	var state: EventTestState = EventTestState.new()
 	var event_id: StringName = &"remove_test"
 
 	var cb: Callable = func(_p: Variant) -> void: state.called = true
@@ -532,7 +556,7 @@ func test_send_simple_unregister() -> void:
 
 ## 验证简单事件派发中 clear 不会破坏派发深度计数。
 func test_clear_during_simple_dispatch_stops_current_dispatch_safely() -> void:
-	var state := {"order": []}
+	var state: EventTestState = EventTestState.new()
 	var event_id: StringName = &"clear_simple"
 	_system.register_simple(event_id, func(_p: Variant) -> void:
 		state.order.append("first")
@@ -551,7 +575,7 @@ func test_clear_during_simple_dispatch_stops_current_dispatch_safely() -> void:
 
 ## 验证嵌套简单事件期间注册的新回调不会在当前派发链中提前生效。
 func test_send_simple_register_during_nested_dispatch_waits_for_outermost_flush() -> void:
-	var state := {"order": [], "nested_sent": false, "late_cb": Callable()}
+	var state: EventTestState = EventTestState.new()
 	var event_id: StringName = &"nested_simple_event"
 
 	state.late_cb = func(_p: Variant) -> void:
@@ -580,7 +604,7 @@ func test_send_simple_register_during_nested_dispatch_waits_for_outermost_flush(
 
 ## 验证同一轮简单事件中先注册再注销的回调不会在 flush 后残留。
 func test_send_simple_register_then_unregister_during_dispatch_does_not_leave_listener() -> void:
-	var state := {"count": 0, "late_cb": Callable()}
+	var state: EventTestState = EventTestState.new()
 	var event_id: StringName = &"register_then_unregister_simple"
 
 	state.late_cb = func(_p: Variant) -> void:
@@ -600,7 +624,7 @@ func test_send_simple_register_then_unregister_during_dispatch_does_not_leave_li
 
 ## 验证派发中跨简单事件 ID 先注册再注销的回调不会在 flush 后残留。
 func test_send_simple_register_then_unregister_different_id_during_dispatch_does_not_leave_listener() -> void:
-	var state := {"count": 0, "late_cb": Callable()}
+	var state: EventTestState = EventTestState.new()
 	var outer_id: StringName = &"register_then_unregister_simple_outer"
 	var inner_id: StringName = &"register_then_unregister_simple_inner"
 
@@ -623,18 +647,18 @@ func test_send_simple_register_then_unregister_different_id_during_dispatch_does
 
 ## 验证注销 owner 会同时移除类型事件和简单事件监听。
 func test_unregister_owner_removes_type_and_simple_listeners() -> void:
-	var listener_owner := RefCounted.new()
-	var state := {"typed": 0, "simple": 0}
-	var script_a: Script = TestEventA
+	var listener_owner: RefCounted = RefCounted.new()
+	var state: EventTestState = EventTestState.new()
+	var script_a: Script = SampleEventA
 	var event_id: StringName = &"owned_simple"
 
-	_system.register(script_a, func(_e: TestEventA) -> void: state.typed += 1, 0, listener_owner)
+	_system.register(script_a, func(_e: SampleEventA) -> void: state.typed += 1, 0, listener_owner)
 	_system.register_simple(event_id, func(_p: Variant) -> void: state.simple += 1, listener_owner)
 
-	_system.send(TestEventA.new())
+	_system.send(SampleEventA.new())
 	_system.send_simple(event_id)
 	_system.unregister_owner(listener_owner)
-	_system.send(TestEventA.new())
+	_system.send(SampleEventA.new())
 	_system.send_simple(event_id)
 
 	assert_eq(state.typed, 1, "owner 注销后类型事件不应继续触发。")
@@ -643,47 +667,47 @@ func test_unregister_owner_removes_type_and_simple_listeners() -> void:
 
 ## 验证派发中注销 owner 会阻止同一 owner 后续监听在本轮继续执行。
 func test_unregister_owner_during_dispatch_skips_later_owned_callbacks() -> void:
-	var listener_owner := RefCounted.new()
-	var state := {"order": []}
-	var script_a: Script = TestEventA
+	var listener_owner: RefCounted = RefCounted.new()
+	var state: EventTestState = EventTestState.new()
+	var script_a: Script = SampleEventA
 
-	_system.register(script_a, func(_e: TestEventA) -> void:
+	_system.register(script_a, func(_e: SampleEventA) -> void:
 		state.order.append("first")
 		_system.unregister_owner(listener_owner)
 	, 10, listener_owner)
-	_system.register(script_a, func(_e: TestEventA) -> void:
+	_system.register(script_a, func(_e: SampleEventA) -> void:
 		state.order.append("second")
 	, 0, listener_owner)
 
-	_system.send(TestEventA.new())
-	_system.send(TestEventA.new())
+	_system.send(SampleEventA.new())
+	_system.send(SampleEventA.new())
 
 	assert_eq(state.order, ["first"], "派发中注销 owner 后，同 owner 后续回调和下一轮回调都不应执行。")
 
 
 ## 验证类型派发中注销 owner 会同时阻止后续可赋值监听。
 func test_unregister_owner_during_type_dispatch_skips_later_assignable_callback() -> void:
-	var listener_owner := RefCounted.new()
-	var state := {"order": []}
+	var listener_owner: RefCounted = RefCounted.new()
+	var state: EventTestState = EventTestState.new()
 
-	_system.register(TestEventChild, func(_e: TestEventChild) -> void:
+	_system.register(SampleEventChild, func(_e: SampleEventChild) -> void:
 		state.order.append("exact")
 		_system.unregister_owner(listener_owner)
 	, 10, listener_owner)
-	_system.register_assignable(TestEventA, func(_e: TestEventA) -> void:
+	_system.register_assignable(SampleEventA, func(_e: SampleEventA) -> void:
 		state.order.append("assignable")
 	, 0, listener_owner)
 
-	_system.send(TestEventChild.new())
-	_system.send(TestEventChild.new())
+	_system.send(SampleEventChild.new())
+	_system.send(SampleEventChild.new())
 
 	assert_eq(state.order, ["exact"], "类型派发中注销 owner 后，可赋值轨道的同 owner 后续监听也不应执行。")
 
 
 ## 验证简单事件派发中注销 owner 会阻止同 owner 后续监听。
 func test_unregister_owner_during_simple_dispatch_skips_later_owned_callbacks() -> void:
-	var listener_owner := RefCounted.new()
-	var state := {"order": []}
+	var listener_owner: RefCounted = RefCounted.new()
+	var state: EventTestState = EventTestState.new()
 	var event_id: StringName = &"owned_simple_dispatch"
 
 	_system.register_simple(event_id, func(_p: Variant) -> void:
@@ -702,21 +726,21 @@ func test_unregister_owner_during_simple_dispatch_skips_later_owned_callbacks() 
 
 ## 验证派发中注销 owner 后重新注册的新回调会在下一轮生效。
 func test_unregister_owner_then_register_same_owner_during_dispatch_keeps_new_listener() -> void:
-	var listener_owner := RefCounted.new()
-	var state := {"order": [], "replacement": Callable()}
-	var script_a: Script = TestEventA
+	var listener_owner: RefCounted = RefCounted.new()
+	var state: EventTestState = EventTestState.new()
+	var script_a: Script = SampleEventA
 
-	state.replacement = func(_e: TestEventA) -> void:
+	state.replacement = func(_e: SampleEventA) -> void:
 		state.order.append("replacement")
 
-	_system.register(script_a, func(_e: TestEventA) -> void:
+	_system.register(script_a, func(_e: SampleEventA) -> void:
 		state.order.append("old")
 		_system.unregister_owner(listener_owner)
 		_system.register(script_a, state.replacement, 0, listener_owner)
 	, 10, listener_owner)
 
-	_system.send(TestEventA.new())
-	_system.send(TestEventA.new())
+	_system.send(SampleEventA.new())
+	_system.send(SampleEventA.new())
 
 	assert_eq(state.order, ["old", "replacement"], "同一 owner 重新注册的新监听应在下一轮派发生效。")
 
@@ -725,11 +749,11 @@ func test_unregister_owner_then_register_same_owner_during_dispatch_keeps_new_li
 
 ## 验证高优先级回调先于低优先级执行。
 func test_priority_high_executes_first() -> void:
-	var state := {"order": []}
-	var script_a: Script = TestEventA
-	_system.register(script_a, func(_e: TestEventA) -> void: state.order.append("low"), 0)
-	_system.register(script_a, func(_e: TestEventA) -> void: state.order.append("high"), 10)
-	_system.send(TestEventA.new())
+	var state: EventTestState = EventTestState.new()
+	var script_a: Script = SampleEventA
+	_system.register(script_a, func(_e: SampleEventA) -> void: state.order.append("low"), 0)
+	_system.register(script_a, func(_e: SampleEventA) -> void: state.order.append("high"), 10)
+	_system.send(SampleEventA.new())
 
 	assert_eq(state.order.size(), 2, "两个回调都应被调用。")
 	assert_eq(state.order[0], "high", "高优先级应先执行。")
@@ -738,26 +762,26 @@ func test_priority_high_executes_first() -> void:
 
 ## 验证精确监听与可赋值监听按全局优先级合并排序。
 func test_exact_and_assignable_listeners_share_priority_order() -> void:
-	var state := {"order": []}
-	_system.register(TestEventChild, func(_e: TestEventChild) -> void:
+	var state: EventTestState = EventTestState.new()
+	_system.register(SampleEventChild, func(_e: SampleEventChild) -> void:
 		state.order.append("exact_low")
 	, 0)
-	_system.register_assignable(TestEventA, func(_e: TestEventA) -> void:
+	_system.register_assignable(SampleEventA, func(_e: SampleEventA) -> void:
 		state.order.append("assignable_high")
 	, 10)
 
-	_system.send(TestEventChild.new())
+	_system.send(SampleEventChild.new())
 
 	assert_eq(state.order, ["assignable_high", "exact_low"], "精确与可赋值监听应按全局 priority 排序。")
 
 
 ## 验证相同优先级保持注册顺序。
 func test_same_priority_keeps_registration_order() -> void:
-	var state := {"order": []}
-	var script_a: Script = TestEventA
-	_system.register(script_a, func(_e: TestEventA) -> void: state.order.append("first"), 5)
-	_system.register(script_a, func(_e: TestEventA) -> void: state.order.append("second"), 5)
-	_system.send(TestEventA.new())
+	var state: EventTestState = EventTestState.new()
+	var script_a: Script = SampleEventA
+	_system.register(script_a, func(_e: SampleEventA) -> void: state.order.append("first"), 5)
+	_system.register(script_a, func(_e: SampleEventA) -> void: state.order.append("second"), 5)
+	_system.send(SampleEventA.new())
 
 	assert_eq(state.order[0], "first", "同优先级应按注册顺序执行。")
 	assert_eq(state.order[1], "second", "同优先级应按注册顺序执行。")
@@ -767,19 +791,19 @@ func test_same_priority_keeps_registration_order() -> void:
 
 ## 验证高优先级设置 is_consumed 后，低优先级不被执行。
 func test_consumed_event_stops_propagation() -> void:
-	var state := {"order": []}
-	var script_a: Script = TestEventA
+	var state: EventTestState = EventTestState.new()
+	var script_a: Script = SampleEventA
 
-	_system.register(script_a, func(e: TestEventA) -> void:
+	_system.register(script_a, func(e: SampleEventA) -> void:
 		state.order.append("high")
 		e.is_consumed = true
 	, 10)
 
-	_system.register(script_a, func(_e: TestEventA) -> void:
+	_system.register(script_a, func(_e: SampleEventA) -> void:
 		state.order.append("low")
 	, 0)
 
-	var evt := TestEventA.new()
+	var evt: SampleEventA = SampleEventA.new()
 	_system.send(evt)
 
 	assert_eq(state.order.size(), 1, "消费后应只有高优先级被调用。")
@@ -789,35 +813,35 @@ func test_consumed_event_stops_propagation() -> void:
 
 ## 验证未设置 is_consumed 时所有优先级正常触发。
 func test_unconsumed_event_propagates_to_all() -> void:
-	var state := {"count": 0}
-	var script_a: Script = TestEventA
-	_system.register(script_a, func(_e: TestEventA) -> void: state.count += 1, 10)
-	_system.register(script_a, func(_e: TestEventA) -> void: state.count += 1, 5)
-	_system.register(script_a, func(_e: TestEventA) -> void: state.count += 1, 0)
-	_system.send(TestEventA.new())
+	var state: EventTestState = EventTestState.new()
+	var script_a: Script = SampleEventA
+	_system.register(script_a, func(_e: SampleEventA) -> void: state.count += 1, 10)
+	_system.register(script_a, func(_e: SampleEventA) -> void: state.count += 1, 5)
+	_system.register(script_a, func(_e: SampleEventA) -> void: state.count += 1, 0)
+	_system.send(SampleEventA.new())
 
 	assert_eq(state.count, 3, "未消费时所有优先级回调都应被调用。")
 
 
 ## 验证三级优先级中，中间级消费后最低级不执行。
 func test_mid_priority_consumes() -> void:
-	var state := {"order": []}
-	var script_a: Script = TestEventA
+	var state: EventTestState = EventTestState.new()
+	var script_a: Script = SampleEventA
 
-	_system.register(script_a, func(_e: TestEventA) -> void:
+	_system.register(script_a, func(_e: SampleEventA) -> void:
 		state.order.append("high")
 	, 10)
 
-	_system.register(script_a, func(e: TestEventA) -> void:
+	_system.register(script_a, func(e: SampleEventA) -> void:
 		state.order.append("mid")
 		e.is_consumed = true
 	, 5)
 
-	_system.register(script_a, func(_e: TestEventA) -> void:
+	_system.register(script_a, func(_e: SampleEventA) -> void:
 		state.order.append("low")
 	, 0)
 
-	_system.send(TestEventA.new())
+	_system.send(SampleEventA.new())
 
 	assert_eq(state.order.size(), 2, "中间级消费后应只有高和中被调用。")
 	assert_eq(state.order[0], "high", "高优先级应先执行。")
@@ -828,117 +852,117 @@ func test_mid_priority_consumes() -> void:
 
 ## 验证在回调内注册新事件，不会破坏当前遍历且能在下次生效。
 func test_register_during_traversal() -> void:
-	var state := {"count": 0}
-	var script_a: Script = TestEventA
+	var state: EventTestState = EventTestState.new()
+	var script_a: Script = SampleEventA
 
-	var cb_inner: Callable = func(_e: TestEventA) -> void:
+	var cb_inner: Callable = func(_e: SampleEventA) -> void:
 		state.count += 10
 
-	var cb_outer: Callable = func(_e: TestEventA) -> void:
+	var cb_outer: Callable = func(_e: SampleEventA) -> void:
 		state.count += 1
 		_system.register(script_a, cb_inner)
 
 	_system.register(script_a, cb_outer)
 
 	# 第一次发送：触发 outer，注册 inner
-	_system.send(TestEventA.new())
+	_system.send(SampleEventA.new())
 	assert_eq(state.count, 1, "第一次发送应只触发 outer，inner 暂存。")
 
 	# 第二次发送：触发 outer 和 inner
-	_system.send(TestEventA.new())
+	_system.send(SampleEventA.new())
 	assert_eq(state.count, 12, "第二次发送应触发 outer(1) 和 inner(10)。")
 
 
 ## 验证嵌套发送期间注册的新回调不会在内层或当前外层派发中提前生效。
 func test_register_during_nested_dispatch_waits_for_outermost_flush() -> void:
-	var state := {"order": [], "nested_sent": false, "late_cb": Callable()}
-	var script_a: Script = TestEventA
+	var state: EventTestState = EventTestState.new()
+	var script_a: Script = SampleEventA
 
-	state.late_cb = func(_e: TestEventA) -> void:
+	state.late_cb = func(_e: SampleEventA) -> void:
 		state.order.append("late")
 
-	var cb_outer: Callable = func(_e: TestEventA) -> void:
+	var cb_outer: Callable = func(_e: SampleEventA) -> void:
 		state.order.append("outer")
 		if not state.nested_sent:
 			state.nested_sent = true
 			_system.register(script_a, state.late_cb)
-			_system.send(TestEventA.new())
+			_system.send(SampleEventA.new())
 
-	var cb_existing: Callable = func(_e: TestEventA) -> void:
+	var cb_existing: Callable = func(_e: SampleEventA) -> void:
 		state.order.append("existing")
 
 	_system.register(script_a, cb_outer)
 	_system.register(script_a, cb_existing)
 
-	_system.send(TestEventA.new())
+	_system.send(SampleEventA.new())
 
 	assert_eq(state.order, ["outer", "outer", "existing", "existing"], "嵌套派发期间新增回调应等最外层结束后才生效。")
 
-	_system.send(TestEventA.new())
+	_system.send(SampleEventA.new())
 	assert_eq(state.order.slice(4), ["outer", "existing", "late"], "下一次派发应包含之前新增的回调。")
 
 
 ## 验证同一轮类型事件中先注册再注销的回调不会在 flush 后残留。
 func test_register_then_unregister_during_dispatch_does_not_leave_listener() -> void:
-	var state := {"count": 0, "late_cb": Callable()}
-	var script_a: Script = TestEventA
+	var state: EventTestState = EventTestState.new()
+	var script_a: Script = SampleEventA
 
-	state.late_cb = func(_e: TestEventA) -> void:
+	state.late_cb = func(_e: SampleEventA) -> void:
 		state.count += 10
 
-	var cb_outer: Callable = func(_e: TestEventA) -> void:
+	var cb_outer: Callable = func(_e: SampleEventA) -> void:
 		state.count += 1
 		_system.register(script_a, state.late_cb)
 		_system.unregister(script_a, state.late_cb)
 
 	_system.register(script_a, cb_outer)
-	_system.send(TestEventA.new())
-	_system.send(TestEventA.new())
+	_system.send(SampleEventA.new())
+	_system.send(SampleEventA.new())
 
 	assert_eq(state.count, 2, "同一轮派发中先注册再注销的类型事件回调不应残留到下一次派发。")
 
 
 ## 验证派发中跨事件类型先注册再注销的回调不会在 flush 后残留。
 func test_register_then_unregister_different_type_during_dispatch_does_not_leave_listener() -> void:
-	var state := {"count": 0, "late_cb": Callable()}
+	var state: EventTestState = EventTestState.new()
 
-	state.late_cb = func(_e: TestEventB) -> void:
+	state.late_cb = func(_e: SampleEventB) -> void:
 		state.count += 10
 
-	var cb_outer: Callable = func(_e: TestEventA) -> void:
+	var cb_outer: Callable = func(_e: SampleEventA) -> void:
 		state.count += 1
-		_system.register(TestEventB, state.late_cb)
-		_system.unregister(TestEventB, state.late_cb)
+		_system.register(SampleEventB, state.late_cb)
+		_system.unregister(SampleEventB, state.late_cb)
 
-	_system.register(TestEventA, cb_outer)
-	_system.send(TestEventA.new())
-	_system.send(TestEventB.new())
+	_system.register(SampleEventA, cb_outer)
+	_system.send(SampleEventA.new())
+	_system.send(SampleEventB.new())
 
 	assert_eq(state.count, 1, "跨事件类型 pending add 被注销后不应在下一次派发中触发。")
 
 
 ## 验证派发中跨可赋值类型先注册再注销的回调不会在 flush 后残留。
 func test_register_then_unregister_different_assignable_type_during_dispatch_does_not_leave_listener() -> void:
-	var state := {"count": 0, "late_cb": Callable()}
+	var state: EventTestState = EventTestState.new()
 
-	state.late_cb = func(_e: TestEventB) -> void:
+	state.late_cb = func(_e: SampleEventB) -> void:
 		state.count += 10
 
-	var cb_outer: Callable = func(_e: TestEventA) -> void:
+	var cb_outer: Callable = func(_e: SampleEventA) -> void:
 		state.count += 1
-		_system.register_assignable(TestEventB, state.late_cb)
-		_system.unregister_assignable(TestEventB, state.late_cb)
+		_system.register_assignable(SampleEventB, state.late_cb)
+		_system.unregister_assignable(SampleEventB, state.late_cb)
 
-	_system.register(TestEventA, cb_outer)
-	_system.send(TestEventA.new())
-	_system.send(TestEventB.new())
+	_system.register(SampleEventA, cb_outer)
+	_system.send(SampleEventA.new())
+	_system.send(SampleEventB.new())
 
 	assert_eq(state.count, 1, "跨可赋值类型 pending add 被注销后不应在下一次派发中触发。")
 
 
 func _sum_listener_counts(value: Variant) -> int:
-	var listeners := value as Dictionary
-	var total := 0
+	var listeners: Dictionary = _GF_VARIANT_ACCESS_SCRIPT.as_dictionary(value)
+	var total: int = 0
 	for count: Variant in listeners.values():
-		total += int(count)
+		total += _GF_VARIANT_ACCESS_SCRIPT.to_int(count)
 	return total

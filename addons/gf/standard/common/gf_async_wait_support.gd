@@ -46,7 +46,7 @@ static func await_signal_safely(
 	timeout_warning: String = "",
 	guard_node: Node = null
 ) -> bool:
-	var result := await _await_signal_state_safely(
+	var result: Dictionary = await _await_signal_state_safely(
 		result_signal,
 		should_continue,
 		time_utility,
@@ -56,7 +56,7 @@ static func await_signal_safely(
 		guard_node,
 		false
 	)
-	return bool(result.get("completed", false))
+	return GFVariantData.get_option_bool(result, "completed")
 
 
 ## 安全等待 Signal，并保留 Signal 发射时携带的参数。
@@ -124,7 +124,7 @@ static func get_timeout_elapsed_msec(
 	time_utility: GFTimeUtility,
 	respect_time_scale: bool
 ) -> float:
-	var elapsed_msec := float(current_msec - previous_msec)
+	var elapsed_msec: float = float(current_msec - previous_msec)
 	if not respect_time_scale:
 		return elapsed_msec
 	if time_utility == null:
@@ -146,7 +146,7 @@ static func get_timeout_elapsed_msec(
 ## [br]
 ## @return 可连接到目标信号的回调。
 static func make_signal_resume_callable(target_signal: Signal, callback: Callable) -> Callable:
-	var argument_count := get_signal_argument_count(target_signal)
+	var argument_count: int = get_signal_argument_count(target_signal)
 	if argument_count <= 0:
 		return callback
 	return callback.unbind(argument_count)
@@ -168,11 +168,11 @@ static func get_signal_argument_count(target_signal: Signal) -> int:
 	if not is_instance_valid(target_obj):
 		return 0
 
-	var target_name := StringName(target_signal.get_name())
+	var target_name: StringName = StringName(target_signal.get_name())
 	for signal_info: Dictionary in target_obj.get_signal_list():
-		if StringName(signal_info.get("name", "")) != target_name:
+		if GFVariantData.get_option_string_name(signal_info, "name", &"") != target_name:
 			continue
-		var args: Array = signal_info.get("args", [])
+		var args: Array = GFVariantData.to_array(GFVariantData.get_option_value(signal_info, "args", []))
 		return args.size()
 	return 0
 
@@ -220,28 +220,28 @@ static func _await_signal_state_safely(
 			"args": [],
 		}
 
-	var completion_state := {
+	var completion_state: Dictionary = {
 		"completed": false,
 		"args": [],
 	}
-	var on_resume := func() -> void:
+	var on_resume: Callable = func() -> void:
 		completion_state["completed"] = true
-	var result_callback := _make_signal_capture_callable(result_signal, completion_state) if capture_payload else make_signal_resume_callable(result_signal, on_resume)
-	var tree_exit_callback := on_resume
-	var guard_exit_callback := on_resume
+	var result_callback: Callable = _make_signal_capture_callable(result_signal, completion_state) if capture_payload else make_signal_resume_callable(result_signal, on_resume)
+	var tree_exit_callback: Callable = on_resume
+	var guard_exit_callback: Callable = on_resume
 
-	result_signal.connect(result_callback, CONNECT_ONE_SHOT)
+	var _result_connect_result: int = result_signal.connect(result_callback, CONNECT_ONE_SHOT)
 
-	var tree_exit_signal := Signal()
-	var guard_exit_signal := Signal()
+	var tree_exit_signal: Signal = Signal()
+	var guard_exit_signal: Signal = Signal()
 	if target_obj is Node:
-		var node := target_obj as Node
+		var node: Node = _variant_to_node(target_obj)
 		if not node.is_inside_tree() and result_signal != node.tree_exited:
 			disconnect_signal_if_connected(result_signal, result_callback)
 			return completion_state
 		if result_signal != node.tree_exited:
 			tree_exit_callback = make_signal_resume_callable(node.tree_exited, on_resume)
-			node.tree_exited.connect(tree_exit_callback, CONNECT_ONE_SHOT)
+			var _tree_exit_connect_result: int = node.tree_exited.connect(tree_exit_callback, CONNECT_ONE_SHOT)
 			tree_exit_signal = node.tree_exited
 
 	if is_instance_valid(guard_node) and result_signal != guard_node.tree_exited and tree_exit_signal != guard_node.tree_exited:
@@ -250,20 +250,20 @@ static func _await_signal_state_safely(
 			disconnect_signal_if_connected(tree_exit_signal, tree_exit_callback)
 			return completion_state
 		guard_exit_callback = make_signal_resume_callable(guard_node.tree_exited, on_resume)
-		guard_node.tree_exited.connect(guard_exit_callback, CONNECT_ONE_SHOT)
+		var _guard_exit_connect_result: int = guard_node.tree_exited.connect(guard_exit_callback, CONNECT_ONE_SHOT)
 		guard_exit_signal = guard_node.tree_exited
 
-	var timeout_msec := maxf(timeout_seconds, 0.0) * 1000.0
-	var elapsed_timeout_msec := 0.0
-	var last_timeout_msec := Time.get_ticks_msec()
-	var timed_out := false
-	var tree := Engine.get_main_loop() as SceneTree
+	var timeout_msec: float = maxf(timeout_seconds, 0.0) * 1000.0
+	var elapsed_timeout_msec: float = 0.0
+	var last_timeout_msec: int = Time.get_ticks_msec()
+	var timed_out: bool = false
+	var tree: SceneTree = _variant_to_scene_tree(Engine.get_main_loop())
 
-	while not bool(completion_state.get("completed", false)):
+	while not GFVariantData.get_option_bool(completion_state, "completed"):
 		if tree == null:
 			break
 
-		var current_timeout_msec := Time.get_ticks_msec()
+		var current_timeout_msec: int = Time.get_ticks_msec()
 		if timeout_msec > 0.0:
 			elapsed_timeout_msec += get_timeout_elapsed_msec(
 				last_timeout_msec,
@@ -276,11 +276,12 @@ static func _await_signal_state_safely(
 				break
 		last_timeout_msec = current_timeout_msec
 
-		if should_continue.is_valid() and not bool(should_continue.call()):
+		if should_continue.is_valid() and not GFVariantData.to_bool(should_continue.call()):
 			break
 		if not is_instance_valid(target_obj):
 			break
-		if target_obj is Node and not (target_obj as Node).is_inside_tree():
+		var target_node: Node = _variant_to_node(target_obj)
+		if target_node != null and not target_node.is_inside_tree():
 			break
 		if guard_node != null and (not is_instance_valid(guard_node) or not guard_node.is_inside_tree()):
 			break
@@ -296,7 +297,7 @@ static func _await_signal_state_safely(
 
 
 static func _make_signal_capture_callable(target_signal: Signal, completion_state: Dictionary) -> Callable:
-	var argument_count := get_signal_argument_count(target_signal)
+	var argument_count: int = get_signal_argument_count(target_signal)
 	if argument_count > MAX_CAPTURED_SIGNAL_ARGUMENTS:
 		push_warning("[GFAsyncWaitSupport] 信号 payload 当前最多捕获 %d 个参数。" % MAX_CAPTURED_SIGNAL_ARGUMENTS)
 		return make_signal_resume_callable(target_signal, func() -> void:
@@ -322,7 +323,7 @@ static func _make_signal_capture_callable(target_signal: Signal, completion_stat
 		arg15: Variant = null,
 		arg16: Variant = null
 	) -> void:
-		var raw_args := [
+		var raw_args: Array = [
 			arg1,
 			arg2,
 			arg3,
@@ -342,3 +343,17 @@ static func _make_signal_capture_callable(target_signal: Signal, completion_stat
 		]
 		completion_state["completed"] = true
 		completion_state["args"] = raw_args.slice(0, mini(argument_count, raw_args.size()))
+
+
+static func _variant_to_node(value: Variant) -> Node:
+	if value is Node:
+		var node: Node = value
+		return node
+	return null
+
+
+static func _variant_to_scene_tree(value: Variant) -> SceneTree:
+	if value is SceneTree:
+		var tree: SceneTree = value
+		return tree
+	return null

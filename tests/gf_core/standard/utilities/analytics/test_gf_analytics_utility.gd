@@ -70,30 +70,29 @@ func test_failed_flush_requeue_respects_max_size() -> void:
 	_analytics.track(&"failed_a")
 	_analytics.track(&"failed_b")
 
-	var captured := { "events": [] }
+	var captured: AnalyticsPayloadCapture = AnalyticsPayloadCapture.new()
 	_analytics.transport_callback = func(payload: Dictionary) -> Dictionary:
-		captured["events"] = (payload.get("events", []) as Array).duplicate(true)
-		return { "success": true, "accepted": (captured["events"] as Array).size() }
+		captured.events = GFVariantData.get_option_array(payload, "events").duplicate(true)
+		return { "success": true, "accepted": captured.events.size() }
 	_analytics.flush()
 
-	var captured_events := captured["events"] as Array
-	assert_eq(captured_events.size(), 2, "失败批次回灌后应能再次被 flush。")
-	if captured_events.size() < 2:
+	assert_eq(captured.events.size(), 2, "失败批次回灌后应能再次被 flush。")
+	if captured.events.size() < 2:
 		return
-	assert_eq(String((captured_events[0] as Dictionary).get("event")), "failed_a", "失败批次应保留在队列前端。")
-	assert_eq(String((captured_events[1] as Dictionary).get("event")), "failed_b", "失败批次顺序应保持。")
+	assert_eq(GFVariantData.get_option_string(GFVariantData.as_dictionary(captured.events[0]), "event"), "failed_a", "失败批次应保留在队列前端。")
+	assert_eq(GFVariantData.get_option_string(GFVariantData.as_dictionary(captured.events[1]), "event"), "failed_b", "失败批次顺序应保持。")
 
 
 ## 验证自定义 HTTP Header 会过滤空名和 CR/LF 注入。
 func test_analytics_headers_reject_invalid_entries() -> void:
-	var config := GFAnalyticsConfig.new()
+	var config: GFAnalyticsConfig = GFAnalyticsConfig.new()
 	config.headers = {
 		"X-Ok": "yes",
 		"X-Bad\r\nInjected": "no",
 		"": "empty",
 	}
 
-	var headers := config.build_headers()
+	var headers: PackedStringArray = config.build_headers()
 
 	assert_eq(headers.size(), 2, "只应包含默认 Content-Type 和合法自定义 Header。")
 	assert_true(headers.has("X-Ok: yes"), "合法 Header 应保留。")
@@ -103,14 +102,14 @@ func test_analytics_headers_reject_invalid_entries() -> void:
 
 ## 验证启用压缩时会固定 Content-Encoding，避免自定义 Header 和请求体不一致。
 func test_analytics_headers_add_gzip_when_payload_compression_enabled() -> void:
-	var config := GFAnalyticsConfig.new()
+	var config: GFAnalyticsConfig = GFAnalyticsConfig.new()
 	config.compress_payload = true
 	config.headers = {
 		"Content-Encoding": "identity",
 		"X-Trace": "abc",
 	}
 
-	var headers := config.build_headers()
+	var headers: PackedStringArray = config.build_headers()
 
 	assert_true(headers.has("Content-Encoding: gzip"), "启用压缩后应声明 gzip 请求体。")
 	assert_false(headers.has("Content-Encoding: identity"), "自定义 Content-Encoding 不应覆盖压缩配置。")
@@ -132,7 +131,7 @@ func test_runtime_config_values_are_clamped() -> void:
 
 ## 验证配置关闭后不会继续记录事件。
 func test_disabled_config_ignores_events() -> void:
-	var config := GFAnalyticsConfig.new()
+	var config: GFAnalyticsConfig = GFAnalyticsConfig.new()
 	config.enabled = false
 	_analytics.configure(config)
 
@@ -143,18 +142,18 @@ func test_disabled_config_ignores_events() -> void:
 
 ## 验证持久 client id 可跨实例复用。
 func test_persistent_client_id_survives_new_instance() -> void:
-	var config := GFAnalyticsConfig.new()
+	var config: GFAnalyticsConfig = GFAnalyticsConfig.new()
 	config.client_id_storage_path = "user://test_gf_analytics_client.cfg"
 	config.flush_interval_seconds = 0.0
 	config.auto_capture_context = false
 
-	var first := GFAnalyticsUtility.new()
+	var first: GFAnalyticsUtility = GFAnalyticsUtility.new()
 	first.configure(config)
 	first.init()
-	var client_id := first.get_client_id()
+	var client_id: String = first.get_client_id()
 	first.dispose()
 
-	var second := GFAnalyticsUtility.new()
+	var second: GFAnalyticsUtility = GFAnalyticsUtility.new()
 	second.configure(config)
 	second.init()
 
@@ -165,7 +164,7 @@ func test_persistent_client_id_survives_new_instance() -> void:
 
 ## 验证 init 不会覆盖提前 identify 的稳定 ID。
 func test_identify_before_init_is_preserved() -> void:
-	var analytics := GFAnalyticsUtility.new()
+	var analytics: GFAnalyticsUtility = GFAnalyticsUtility.new()
 	analytics.identify("pre-init-client")
 	analytics.init()
 
@@ -175,16 +174,15 @@ func test_identify_before_init_is_preserved() -> void:
 
 ## 验证自定义 transport hook 可接管 flush。
 func test_transport_callback_receives_payload() -> void:
-	var captured := { "payload": {} }
+	var captured: AnalyticsPayloadCapture = AnalyticsPayloadCapture.new()
 	_analytics.transport_callback = func(payload: Dictionary) -> Dictionary:
-		captured["payload"] = payload
+		captured.payload = payload
 		return { "success": true, "accepted": 1, "custom": true }
 
 	_analytics.track(&"opened")
 	_analytics.flush()
 
-	var captured_payload := captured["payload"] as Dictionary
-	assert_true(captured_payload.has("events"), "transport hook 应收到由事件批次构建的 payload。")
+	assert_true(captured.payload.has("events"), "transport hook 应收到由事件批次构建的 payload。")
 	assert_eq(_analytics.get_queue_size(), 0, "自定义 transport 成功后应清空本批队列。")
 
 
@@ -215,4 +213,14 @@ func test_shutdown_flushes_all_synchronous_batches() -> void:
 
 func _remove_file_if_exists(path: String) -> void:
 	if FileAccess.file_exists(path):
-		DirAccess.remove_absolute(path)
+		var remove_error: Error = DirAccess.remove_absolute(path)
+		assert_eq(remove_error, OK, "测试应能删除 analytics 临时文件。")
+
+
+# --- 内部类 ---
+
+class AnalyticsPayloadCapture:
+	extends RefCounted
+
+	var events: Array = []
+	var payload: Dictionary = {}

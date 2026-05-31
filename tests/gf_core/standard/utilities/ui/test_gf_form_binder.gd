@@ -19,19 +19,19 @@ func after_each() -> void:
 # --- 测试方法 ---
 
 func test_option_button_uses_selected_index_not_button_pressed() -> void:
-	var option := OptionButton.new()
+	var option: OptionButton = OptionButton.new()
 	_track_control(option)
 	option.add_item("Low")
 	option.add_item("High")
 
 	assert_true(GFControlValueAdapter.set_value(option, 1), "OptionButton 应支持写入 selected。")
-	assert_eq(GFControlValueAdapter.get_value(option), 1, "OptionButton 应读取 selected 索引。")
+	assert_eq(GFVariantData.to_int(GFControlValueAdapter.get_value(option)), 1, "OptionButton 应读取 selected 索引。")
 
 
 func test_form_binder_reads_and_writes_common_controls() -> void:
-	var binder := GFFormBinder.new()
-	var name_edit := LineEdit.new()
-	var enabled_check := CheckBox.new()
+	var binder: GFFormBinder = GFFormBinder.new()
+	var name_edit: LineEdit = LineEdit.new()
+	var enabled_check: CheckBox = CheckBox.new()
 	_track_control(name_edit)
 	_track_control(enabled_check)
 
@@ -42,15 +42,15 @@ func test_form_binder_reads_and_writes_common_controls() -> void:
 		"enabled": true,
 	})
 
-	var values := binder.read_values()
+	var values: Dictionary = binder.read_values()
 
-	assert_eq(values.get(&"name"), "Player", "表单绑定应读取 LineEdit 文本。")
-	assert_eq(values.get(&"enabled"), true, "表单绑定应读取 BaseButton 状态。")
+	assert_eq(GFVariantData.get_option_string(values, &"name"), "Player", "表单绑定应读取 LineEdit 文本。")
+	assert_true(GFVariantData.get_option_bool(values, &"enabled"), "表单绑定应读取 BaseButton 状态。")
 
 
 func test_form_binder_emits_field_changed_from_control_signal() -> void:
-	var binder := GFFormBinder.new()
-	var name_edit := LineEdit.new()
+	var binder: GFFormBinder = GFFormBinder.new()
+	var name_edit: LineEdit = LineEdit.new()
 	_track_control(name_edit)
 	binder.bind_field(&"name", name_edit)
 	watch_signals(binder)
@@ -62,8 +62,8 @@ func test_form_binder_emits_field_changed_from_control_signal() -> void:
 
 
 func test_form_binder_rebind_disconnects_previous_signal_handlers() -> void:
-	var binder := GFFormBinder.new()
-	var name_edit := LineEdit.new()
+	var binder: GFFormBinder = GFFormBinder.new()
+	var name_edit: LineEdit = LineEdit.new()
 	_track_control(name_edit)
 	binder.bind_field(&"name", name_edit)
 	binder.bind_field(&"name", name_edit)
@@ -76,8 +76,8 @@ func test_form_binder_rebind_disconnects_previous_signal_handlers() -> void:
 
 
 func test_form_binder_unbind_disconnects_signal_handlers() -> void:
-	var binder := GFFormBinder.new()
-	var name_edit := LineEdit.new()
+	var binder: GFFormBinder = GFFormBinder.new()
+	var name_edit: LineEdit = LineEdit.new()
 	_track_control(name_edit)
 	binder.bind_field(&"name", name_edit)
 	binder.unbind_field(&"name")

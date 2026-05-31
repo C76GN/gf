@@ -94,7 +94,7 @@ func modify_3d(value: Vector3, _event: InputEvent = null, _action: GFInputAction
 # --- 私有/辅助方法 ---
 
 func _apply_sign(value: float) -> float:
-	var result := maxf(value, 0.0)
+	var result: float = maxf(value, 0.0)
 	if allowed_sign == AllowedSign.NEGATIVE:
 		result = minf(value, 0.0)
 	if remap_to_positive:

@@ -13,7 +13,7 @@ extends GFInputTrigger
 
 # --- 常量 ---
 
-const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
+const _INSTANCE_GUARD = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
 
 
 # --- 导出变量 ---
@@ -77,19 +77,19 @@ func update(raw_active: bool, _value: Variant, _delta: float, state: Dictionary)
 	if required_action_id == &"":
 		return TriggerState.TRIGGERED
 
-	var input_runtime := _get_input_runtime(state)
+	var input_runtime: Object = _get_input_runtime(state)
 	if input_runtime == null:
 		return TriggerState.INACTIVE
 
-	var player_index := int(state.get("player_index", -1))
+	var player_index: int = GFVariantData.get_option_int(state, "player_index", -1)
 	if player_scoped and player_index >= 0 and input_runtime.has_method("is_action_active_for_player"):
 		return (
 			TriggerState.TRIGGERED
-			if bool(input_runtime.call("is_action_active_for_player", player_index, required_action_id))
+			if GFVariantData.to_bool(input_runtime.call("is_action_active_for_player", player_index, required_action_id))
 			else TriggerState.INACTIVE
 		)
 
-	if input_runtime.has_method("is_action_active") and bool(input_runtime.call("is_action_active", required_action_id)):
+	if input_runtime.has_method("is_action_active") and GFVariantData.to_bool(input_runtime.call("is_action_active", required_action_id)):
 		return TriggerState.TRIGGERED
 	return TriggerState.INACTIVE
 
@@ -97,4 +97,4 @@ func update(raw_active: bool, _value: Variant, _delta: float, state: Dictionary)
 # --- 私有/辅助方法 ---
 
 func _get_input_runtime(state: Dictionary) -> Object:
-	return _INSTANCE_GUARD._get_live_object(state.get("input_runtime"))
+	return _INSTANCE_GUARD._get_live_object(GFVariantData.get_option_value(state, "input_runtime"))

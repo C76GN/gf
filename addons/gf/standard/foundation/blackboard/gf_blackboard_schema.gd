@@ -11,11 +11,6 @@ class_name GFBlackboardSchema
 extends Resource
 
 
-# --- 常量 ---
-
-const _GF_VALIDATION_REPORT_DICTIONARY_SCRIPT: Script = preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
-
-
 # --- 导出变量 ---
 
 ## Schema 标识。为空时可由调用方自行决定命名。
@@ -93,10 +88,10 @@ func has_entry(entry_key: StringName) -> bool:
 ## [br]
 ## @return 排序后的字段键。
 func get_entry_keys() -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	for entry: GFBlackboardEntry in entries:
 		if entry != null and entry.get_key() != &"":
-			result.append(String(entry.get_key()))
+			_append_packed_string(result, String(entry.get_key()))
 	result.sort()
 	return result
 
@@ -136,12 +131,12 @@ func build_defaults(include_optional: bool = true) -> Dictionary:
 ## [br]
 ## @schema return: Dictionary normalized blackboard values.
 func apply_defaults(values: Dictionary, include_optional: bool = true, should_coerce: bool = true) -> Dictionary:
-	var result := _normalize_keys(values)
+	var result: Dictionary = _normalize_keys(values)
 	for entry: GFBlackboardEntry in entries:
 		if entry == null or entry.get_key() == &"":
 			continue
 
-		var entry_key := entry.get_key()
+		var entry_key: StringName = entry.get_key()
 		if result.has(entry_key):
 			if should_coerce:
 				result[entry_key] = entry.coerce_value(result[entry_key])
@@ -165,7 +160,7 @@ func apply_defaults(values: Dictionary, include_optional: bool = true, should_co
 ## [br]
 ## @schema return: Dictionary coerced blackboard values.
 func coerce_dictionary(values: Dictionary, include_defaults: bool = true) -> Dictionary:
-	var result := apply_defaults(values, include_defaults, false) if include_defaults else _normalize_keys(values)
+	var result: Dictionary = apply_defaults(values, include_defaults, false) if include_defaults else _normalize_keys(values)
 	for entry: GFBlackboardEntry in entries:
 		if entry == null or entry.get_key() == &"" or not result.has(entry.get_key()):
 			continue
@@ -185,8 +180,8 @@ func coerce_dictionary(values: Dictionary, include_defaults: bool = true) -> Dic
 ## [br]
 ## @schema return: Dictionary validation report.
 func validate_values(values: Dictionary) -> Dictionary:
-	var report := _make_report()
-	var working_values := _coerce_values_for_validation(values, report) if coerce_values else _normalize_keys(values)
+	var report: Dictionary = _make_report()
+	var working_values: Dictionary = _coerce_values_for_validation(values, report) if coerce_values else _normalize_keys(values)
 	var declared_keys: Dictionary = {}
 
 	for entry: GFBlackboardEntry in entries:
@@ -194,7 +189,7 @@ func validate_values(values: Dictionary) -> Dictionary:
 			_append_issue(report, "error", "null_entry", &"", "字段声明为空。")
 			continue
 
-		var entry_key := entry.get_key()
+		var entry_key: StringName = entry.get_key()
 		if entry_key == &"":
 			_append_issue(report, "error", "empty_key", &"", "字段键为空。")
 			continue
@@ -213,11 +208,11 @@ func validate_values(values: Dictionary) -> Dictionary:
 
 	if not allow_extra_keys:
 		for key_variant: Variant in working_values.keys():
-			var entry_key := StringName(key_variant)
+			var entry_key: StringName = GFVariantData.to_string_name(key_variant)
 			if not declared_keys.has(entry_key):
 				_append_issue(report, "error", "extra_key", entry_key, "存在未声明字段：%s。" % String(entry_key))
 
-	return _GF_VALIDATION_REPORT_DICTIONARY_SCRIPT.finalize_report(report, "Blackboard schema", {
+	return GFValidationReportDictionary.finalize_report(report, "Blackboard schema", {
 		"next_actions": _get_validation_next_actions(),
 		"fallback_action": "Review the first reported blackboard schema issue.",
 	})
@@ -229,7 +224,7 @@ func validate_values(values: Dictionary) -> Dictionary:
 ## [br]
 ## @return 新 schema。
 func duplicate_schema() -> GFBlackboardSchema:
-	var schema := GFBlackboardSchema.new()
+	var schema: GFBlackboardSchema = GFBlackboardSchema.new()
 	schema.schema_id = schema_id
 	schema.allow_extra_keys = allow_extra_keys
 	schema.coerce_values = coerce_values
@@ -280,29 +275,29 @@ func _make_report() -> Dictionary:
 
 
 func _coerce_values_for_validation(values: Dictionary, report: Dictionary) -> Dictionary:
-	var result := _normalize_keys(values)
+	var result: Dictionary = _normalize_keys(values)
 	for entry: GFBlackboardEntry in entries:
 		if entry == null or entry.get_key() == &"":
 			continue
 
-		var entry_key := entry.get_key()
-		var has_value := result.has(entry_key)
+		var entry_key: StringName = entry.get_key()
+		var has_value: bool = result.has(entry_key)
 		if not has_value and entry.default_value == null:
 			continue
 
 		var source_value: Variant = result[entry_key] if has_value else entry.default_value
-		var coerce_result := entry.try_coerce_value(source_value)
-		result[entry_key] = coerce_result.get("value")
-		if bool(coerce_result.get("ok", false)):
+		var coerce_result: Dictionary = entry.try_coerce_value(source_value)
+		result[entry_key] = GFVariantData.get_option_value(coerce_result, "value")
+		if GFVariantData.get_option_bool(coerce_result, "ok", false):
 			continue
 
-		var severity := "error" if fail_on_coerce_error else "warning"
+		var severity: String = "error" if fail_on_coerce_error else "warning"
 		_append_issue(
 			report,
 			severity,
 			"coerce_failed",
 			entry_key,
-			String(coerce_result.get("message", "字段类型转换失败：%s。" % String(entry_key)))
+			GFVariantData.get_option_string(coerce_result, "message", "字段类型转换失败：%s。" % String(entry_key))
 		)
 	return result
 
@@ -310,12 +305,12 @@ func _coerce_values_for_validation(values: Dictionary, report: Dictionary) -> Di
 func _normalize_keys(values: Dictionary) -> Dictionary:
 	var result: Dictionary = {}
 	for key_variant: Variant in values.keys():
-		result[StringName(key_variant)] = GFVariantData.duplicate_variant(values[key_variant])
+		result[GFVariantData.to_string_name(key_variant)] = GFVariantData.duplicate_variant(values[key_variant])
 	return result
 
 
 func _append_issue(report: Dictionary, severity: String, kind: String, entry_key: StringName, message: String) -> void:
-	_GF_VALIDATION_REPORT_DICTIONARY_SCRIPT.append_issue(report, severity, StringName(kind), message, {
+	var _issue: Dictionary = GFValidationReportDictionary.append_issue(report, severity, StringName(kind), message, {
 		"key": String(entry_key),
 		"schema_id": schema_id,
 	})
@@ -331,3 +326,9 @@ func _get_validation_next_actions() -> Dictionary:
 		"extra_key": "Remove the undeclared key or enable allow_extra_keys.",
 		"coerce_failed": "Fix the source value so it can be converted to the declared blackboard entry type.",
 	}
+
+
+func _append_packed_string(target: PackedStringArray, value: String) -> void:
+	var appended: bool = target.append(value)
+	if appended:
+		return

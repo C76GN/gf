@@ -52,11 +52,11 @@ func _init(p_path: String = "", p_clip: GFAudioClip = null) -> void:
 ## [br]
 ## @schema return: Variant，始终为 null。
 func execute() -> Variant:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 
-	var audio := architecture.get_utility(GFAudioUtility) as GFAudioUtility
+	var audio: GFAudioUtility = _get_audio_utility_value(architecture.get_utility(GFAudioUtility))
 	if audio == null:
 		return null
 
@@ -67,4 +67,13 @@ func execute() -> Variant:
 	elif not path.is_empty():
 		audio.play_sfx(path)
 
+	return null
+
+
+# --- 私有/辅助方法 ---
+
+func _get_audio_utility_value(value: Variant) -> GFAudioUtility:
+	if value is GFAudioUtility:
+		var audio: GFAudioUtility = value
+		return audio
 	return null

@@ -78,20 +78,19 @@ var free_instantiated_scenes: bool = true
 ## [br]
 ## @return 聚合报告。
 func run_suite(suite: GFValidationSuiteBase, options: Dictionary = {}) -> GFValidationReport:
-	var report := _make_report(suite, options)
+	var report: GFValidationReport = _make_report(suite, options)
 	if suite == null or not suite.enabled:
 		return report
 
 	validation_started.emit(suite.suite_id)
-	var context := _make_base_context(suite, options)
-	var targets := options.get("targets", []) as Array
-	if targets != null:
-		_run_targets_into(report, suite, targets, context)
+	var context: Dictionary = _make_base_context(suite, options)
+	var targets: Array = GFVariantData.as_array(GFVariantData.get_option_value(options, "targets", []))
+	_run_targets_into(report, suite, targets, context)
 
-	var paths := _resolve_paths(suite, options)
+	var paths: PackedStringArray = _resolve_paths(suite, options)
 	_run_paths_into(report, suite, paths, context)
-	if bool(options.get("treat_warnings_as_errors", suite.treat_warnings_as_errors)):
-		report.promote_warnings_to_errors()
+	if GFVariantData.get_option_bool(options, "treat_warnings_as_errors", suite.treat_warnings_as_errors):
+		var _promoted_report: RefCounted = report.promote_warnings_to_errors()
 
 	validation_finished.emit(report)
 	return report
@@ -117,8 +116,8 @@ func run_targets(
 	suite: GFValidationSuiteBase = null,
 	options: Dictionary = {}
 ) -> GFValidationReport:
-	var effective_suite := suite if suite != null else GFValidationSuiteBase.new()
-	var merged_options := options.duplicate(true)
+	var effective_suite: GFValidationSuiteBase = suite if suite != null else GFValidationSuiteBase.new()
+	var merged_options: Dictionary = options.duplicate(true)
 	merged_options["targets"] = targets
 	merged_options["paths"] = PackedStringArray()
 	return run_suite(effective_suite, merged_options)
@@ -142,8 +141,8 @@ func run_paths(
 	suite: GFValidationSuiteBase = null,
 	options: Dictionary = {}
 ) -> GFValidationReport:
-	var effective_suite := suite if suite != null else GFValidationSuiteBase.new()
-	var merged_options := options.duplicate(true)
+	var effective_suite: GFValidationSuiteBase = suite if suite != null else GFValidationSuiteBase.new()
+	var merged_options: Dictionary = options.duplicate(true)
 	merged_options["paths"] = paths
 	merged_options["targets"] = []
 	return run_suite(effective_suite, merged_options)
@@ -152,13 +151,13 @@ func run_paths(
 # --- 私有/辅助方法 ---
 
 func _make_report(suite: GFValidationSuiteBase, options: Dictionary) -> GFValidationReport:
-	var subject := String(options.get("subject", ""))
+	var subject: String = GFVariantData.get_option_string(options, "subject")
 	if subject.is_empty() and suite != null and suite.suite_id != &"":
 		subject = String(suite.suite_id)
 	if subject.is_empty():
 		subject = "GFValidationRunner"
 
-	var metadata := {}
+	var metadata: Dictionary = {}
 	if suite != null:
 		metadata["suite_id"] = String(suite.suite_id)
 		if not suite.metadata.is_empty():
@@ -167,9 +166,9 @@ func _make_report(suite: GFValidationSuiteBase, options: Dictionary) -> GFValida
 
 
 func _make_base_context(suite: GFValidationSuiteBase, options: Dictionary) -> Dictionary:
-	var context := {}
-	var custom_context := options.get("context", {}) as Dictionary
-	if custom_context != null:
+	var context: Dictionary = {}
+	var custom_context: Dictionary = GFVariantData.as_dictionary(GFVariantData.get_option_value(options, "context", {}))
+	if not custom_context.is_empty():
 		context = custom_context.duplicate(true)
 	context["suite"] = suite
 	context["suite_id"] = suite.suite_id
@@ -177,13 +176,15 @@ func _make_base_context(suite: GFValidationSuiteBase, options: Dictionary) -> Di
 
 
 func _resolve_paths(suite: GFValidationSuiteBase, options: Dictionary) -> PackedStringArray:
-	var explicit_paths := options.get("paths", null)
+	var explicit_paths: Variant = GFVariantData.get_option_value(options, "paths")
 	if explicit_paths is PackedStringArray:
-		return (explicit_paths as PackedStringArray).duplicate()
+		var packed_paths: PackedStringArray = explicit_paths
+		return packed_paths.duplicate()
 	if explicit_paths is Array:
-		var result := PackedStringArray()
-		for path_variant: Variant in explicit_paths as Array:
-			result.append(String(path_variant))
+		var result: PackedStringArray = PackedStringArray()
+		var path_values: Array = explicit_paths
+		for path_variant: Variant in path_values:
+			_append_packed_string(result, GFVariantData.to_text(path_variant))
 		return result
 	return suite.collect_paths()
 
@@ -194,12 +195,12 @@ func _run_targets_into(
 	targets: Array,
 	base_context: Dictionary
 ) -> void:
-	var index := 0
+	var index: int = 0
 	for target: Variant in targets:
-		var context := base_context.duplicate(true)
+		var context: Dictionary = base_context.duplicate(true)
 		context["target_index"] = index
-		var target_report := _validate_target(target, suite, context)
-		report.merge(target_report)
+		var target_report: GFValidationReport = _validate_target(target, suite, context)
+		_merge_report(report, target_report)
 		target_validated.emit(_make_target_id(target, context), target_report)
 		index += 1
 
@@ -222,20 +223,21 @@ func _validate_path_into(
 	path: String,
 	base_context: Dictionary
 ) -> void:
-	var resource := load(path)
+	var resource: Resource = load(path)
 	if resource == null:
-		report.add_error(&"resource_load_failed", "Resource could not be loaded.", null, path)
+		var _load_issue: RefCounted = report.add_error(&"resource_load_failed", "Resource could not be loaded.", null, path)
 		return
 
-	var resource_context := base_context.duplicate(true)
+	var resource_context: Dictionary = base_context.duplicate(true)
 	resource_context["path"] = path
 	resource_context["subject"] = path
-	var resource_report := _validate_target(resource, suite, resource_context)
-	report.merge(resource_report)
+	var resource_report: GFValidationReport = _validate_target(resource, suite, resource_context)
+	_merge_report(report, resource_report)
 	target_validated.emit(path, resource_report)
 
 	if validate_scene_instances and resource is PackedScene:
-		_validate_scene_instance_into(report, suite, resource as PackedScene, path, base_context)
+		var packed_scene: PackedScene = resource
+		_validate_scene_instance_into(report, suite, packed_scene, path, base_context)
 
 
 func _validate_scene_instance_into(
@@ -245,17 +247,17 @@ func _validate_scene_instance_into(
 	path: String,
 	base_context: Dictionary
 ) -> void:
-	var root := packed_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED) as Node
+	var root: Node = packed_scene.instantiate(PackedScene.GEN_EDIT_STATE_DISABLED)
 	if root == null:
-		report.add_error(&"scene_instantiation_failed", "Scene could not be instantiated.", null, path)
+		var _scene_issue: RefCounted = report.add_error(&"scene_instantiation_failed", "Scene could not be instantiated.", null, path)
 		return
 
-	var context := base_context.duplicate(true)
+	var context: Dictionary = base_context.duplicate(true)
 	context["path"] = path
 	context["scene_path"] = path
 	context["subject"] = "%s#root" % path
-	var scene_report := _validate_target(root, suite, context)
-	report.merge(scene_report)
+	var scene_report: GFValidationReport = _validate_target(root, suite, context)
+	_merge_report(report, scene_report)
 	target_validated.emit("%s#root" % path, scene_report)
 	if free_instantiated_scenes:
 		root.free()
@@ -266,23 +268,34 @@ func _validate_target(
 	suite: GFValidationSuiteBase,
 	base_context: Dictionary
 ) -> GFValidationReport:
-	var target_report := GFValidationReport.new(String(base_context.get("subject", _make_target_id(target, base_context))))
+	var target_report: GFValidationReport = GFValidationReport.new(GFVariantData.get_option_string(base_context, "subject", _make_target_id(target, base_context)))
 	for rule: GFValidationRuleBase in suite.get_enabled_rules():
 		if rule == null:
 			continue
-		var context := base_context.duplicate(true)
+		var context: Dictionary = base_context.duplicate(true)
 		context["rule_id"] = rule.rule_id
-		target_report.merge(rule.validate(target, context))
+		_merge_report(target_report, rule.validate(target, context))
 	return target_report
 
 
 func _make_target_id(target: Variant, context: Dictionary) -> String:
-	var path := String(context.get("path", ""))
+	var path: String = GFVariantData.get_option_string(context, "path")
 	if not path.is_empty():
 		return path
 	if target is Node:
-		var node := target as Node
+		var node: Node = target
 		return str(node.get_path()) if node.is_inside_tree() else String(node.name)
 	if target is Resource:
-		return (target as Resource).resource_path
+		var resource: Resource = target
+		return resource.resource_path
 	return str(target)
+
+
+func _merge_report(target_report: GFValidationReport, source_report: Variant) -> void:
+	var _merged_report: RefCounted = target_report.merge(source_report)
+
+
+static func _append_packed_string(target: PackedStringArray, value: String) -> void:
+	var appended: bool = target.append(value)
+	if appended:
+		return

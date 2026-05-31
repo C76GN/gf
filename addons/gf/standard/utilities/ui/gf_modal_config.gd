@@ -94,7 +94,7 @@ func get_action(action_id: StringName) -> GFModalAction:
 ## [br]
 ## @return 新配置。
 func duplicate_config() -> GFModalConfig:
-	var config := GFModalConfig.new()
+	var config: GFModalConfig = GFModalConfig.new()
 	config.title = title
 	config.message = message
 	config.dismiss_on_backdrop = dismiss_on_backdrop

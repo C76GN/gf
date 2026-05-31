@@ -29,8 +29,6 @@ signal requested_transition(group_name: StringName, state_name: StringName, args
 
 # --- 常量 ---
 
-const _GF_AUTOLOAD_BASE := preload("res://addons/gf/kernel/core/gf_autoload.gd")
-const _GF_NODE_CONTEXT_BASE := preload("res://addons/gf/kernel/core/gf_node_context.gd")
 const _PHASE_ENTER: StringName = &"enter"
 const _PHASE_EXIT: StringName = &"exit"
 
@@ -126,11 +124,11 @@ func get_group() -> Object:
 ## [br]
 ## @return: 状态机宿主节点；不可用时返回当前父节点或 null。
 func get_host() -> Node:
-	var machine := get_machine() as Node
+	var machine: Node = _variant_to_node(get_machine())
 	if machine != null and machine.get_parent() != null:
 		return machine.get_parent()
 
-	var group := get_group() as Node
+	var group: Node = _variant_to_node(get_group())
 	if group != null and group.get_parent() != null:
 		return group.get_parent()
 
@@ -219,13 +217,13 @@ func resume(previous_state: StringName = &"", args: Dictionary = {}) -> void:
 ## [br]
 ## @schema args: 状态切换参数 Dictionary；键和值由调用方约定。
 func transition_to(path: StringName, args: Dictionary = {}) -> void:
-	var text := String(path)
-	var parts := text.split("/", false)
+	var text: String = String(path)
+	var parts: PackedStringArray = text.split("/", false)
 	if parts.size() == 1:
-		var group := get_group()
+		var group: Object = get_group()
 		var group_name: StringName = &""
 		if group != null and group.has_method("get_group_name"):
-			group_name = group.call("get_group_name")
+			group_name = GFVariantData.to_string_name(group.call("get_group_name"))
 		requested_transition.emit(group_name, StringName(parts[0]), args)
 	elif parts.size() == 2:
 		requested_transition.emit(StringName(parts[0]), StringName(parts[1]), args)
@@ -283,9 +281,9 @@ func can_exit(next_state: StringName = &"", args: Dictionary = {}) -> bool:
 ## [br]
 ## @schema return: 状态组共享黑板 Dictionary；键和值由项目状态逻辑约定。
 func get_blackboard() -> Dictionary:
-	var group := get_group()
+	var group: Object = get_group()
 	if group != null and group.has_method("get_blackboard"):
-		return group.call("get_blackboard") as Dictionary
+		return GFVariantData.as_dictionary(group.call("get_blackboard"))
 	return {}
 
 
@@ -325,7 +323,7 @@ func get_architecture_or_null() -> GFArchitecture:
 ## [br]
 ## @return: 模型实例；不可用时返回 null。
 func get_model(model_type: Script, require_ready: bool = false) -> Object:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_model(model_type, require_ready)
@@ -341,7 +339,7 @@ func get_model(model_type: Script, require_ready: bool = false) -> Object:
 ## [br]
 ## @return: 系统实例；不可用时返回 null。
 func get_system(system_type: Script, require_ready: bool = false) -> Object:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_system(system_type, require_ready)
@@ -357,7 +355,7 @@ func get_system(system_type: Script, require_ready: bool = false) -> Object:
 ## [br]
 ## @return: 工具实例；不可用时返回 null。
 func get_utility(utility_type: Script, require_ready: bool = false) -> Object:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_utility(utility_type, require_ready)
@@ -373,7 +371,7 @@ func get_utility(utility_type: Script, require_ready: bool = false) -> Object:
 ## [br]
 ## @return: 当前架构中的模型实例；不可用时返回 null。
 func get_local_model(model_type: Script, require_ready: bool = false) -> Object:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_local_model(model_type, require_ready)
@@ -389,7 +387,7 @@ func get_local_model(model_type: Script, require_ready: bool = false) -> Object:
 ## [br]
 ## @return: 当前架构中的系统实例；不可用时返回 null。
 func get_local_system(system_type: Script, require_ready: bool = false) -> Object:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_local_system(system_type, require_ready)
@@ -405,7 +403,7 @@ func get_local_system(system_type: Script, require_ready: bool = false) -> Objec
 ## [br]
 ## @return: 当前架构中的工具实例；不可用时返回 null。
 func get_local_utility(utility_type: Script, require_ready: bool = false) -> Object:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_local_utility(utility_type, require_ready)
@@ -421,7 +419,7 @@ func get_local_utility(utility_type: Script, require_ready: bool = false) -> Obj
 ## [br]
 ## @schema return: 命令返回值；具体结构由 GFCommand 实现决定。
 func send_command(command: Object) -> Variant:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.send_command(command)
@@ -437,7 +435,7 @@ func send_command(command: Object) -> Variant:
 ## [br]
 ## @schema return: 查询返回值；具体结构由 GFQuery 实现决定。
 func send_query(query: Object) -> Variant:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.send_query(query)
@@ -449,7 +447,7 @@ func send_query(query: Object) -> Variant:
 ## [br]
 ## @param event_instance: 要分发的事件实例。
 func send_event(event_instance: Object) -> void:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
 		architecture.send_event(event_instance)
 
@@ -464,7 +462,7 @@ func send_event(event_instance: Object) -> void:
 ## [br]
 ## @schema payload: 轻量事件载荷；具体结构由 event_id 和项目逻辑约定。
 func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
 		architecture.send_simple_event(event_id, payload)
 
@@ -479,7 +477,7 @@ func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
 ## [br]
 ## @param priority: 回调优先级，数值越大越先执行，默认为 0。
 func register_event(event_type: Script, callback: Callable, priority: int = 0) -> void:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
 		architecture.register_event_owned(self, event_type, callback, priority)
 		_remember_event_architecture(architecture)
@@ -507,7 +505,7 @@ func unregister_event(event_type: Script, callback: Callable) -> void:
 ## [br]
 ## @param priority: 回调优先级，数值越大越先执行，默认为 0。
 func register_assignable_event(base_event_type: Script, callback: Callable, priority: int = 0) -> void:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
 		architecture.register_assignable_event_owned(self, base_event_type, callback, priority)
 		_remember_event_architecture(architecture)
@@ -533,7 +531,7 @@ func unregister_assignable_event(base_event_type: Script, callback: Callable) ->
 ## [br]
 ## @param callback: 回调函数，签名为 func(payload: Variant)。
 func register_simple_event(event_id: StringName, callback: Callable) -> void:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
 		architecture.register_simple_event_owned(self, event_id, callback)
 		_remember_event_architecture(architecture)
@@ -689,7 +687,10 @@ func _evaluate_conditions(
 	args: Dictionary
 ) -> bool:
 	for condition: Resource in conditions:
-		if condition != null and condition.has_method("evaluate") and not condition.call("evaluate", self, phase, peer_state, args):
+		if condition == null or not condition.has_method("evaluate"):
+			continue
+		var result: Variant = condition.call("evaluate", self, phase, peer_state, args)
+		if not GFVariantData.to_bool(result):
 			return false
 	return true
 
@@ -697,70 +698,88 @@ func _evaluate_conditions(
 func _run_behaviors_initialize() -> void:
 	for behavior: Resource in behaviors:
 		if behavior != null and behavior.has_method("initialize"):
-			behavior.call("initialize", self)
+			var _result: Variant = behavior.call("initialize", self)
 
 
 func _run_behaviors_enter(previous_state: StringName, args: Dictionary) -> void:
 	for behavior: Resource in behaviors:
 		if behavior != null and behavior.has_method("enter"):
-			behavior.call("enter", self, previous_state, args)
+			var _result: Variant = behavior.call("enter", self, previous_state, args)
 
 
 func _run_behaviors_exit(next_state: StringName, args: Dictionary) -> void:
 	for behavior: Resource in behaviors:
 		if behavior != null and behavior.has_method("exit"):
-			behavior.call("exit", self, next_state, args)
+			var _result: Variant = behavior.call("exit", self, next_state, args)
 
 
 func _run_behaviors_pause(next_state: StringName, args: Dictionary) -> void:
 	for behavior: Resource in behaviors:
 		if behavior != null and behavior.has_method("pause"):
-			behavior.call("pause", self, next_state, args)
+			var _result: Variant = behavior.call("pause", self, next_state, args)
 
 
 func _run_behaviors_resume(previous_state: StringName, args: Dictionary) -> void:
 	for behavior: Resource in behaviors:
 		if behavior != null and behavior.has_method("resume"):
-			behavior.call("resume", self, previous_state, args)
+			var _result: Variant = behavior.call("resume", self, previous_state, args)
 
 
 func _run_behaviors_handle_state_event(event_id: StringName, payload: Variant) -> bool:
 	for behavior: Resource in behaviors:
-		if behavior != null and behavior.has_method("handle_state_event") and bool(behavior.call("handle_state_event", self, event_id, payload)):
+		if behavior == null or not behavior.has_method("handle_state_event"):
+			continue
+		var result: Variant = behavior.call("handle_state_event", self, event_id, payload)
+		if GFVariantData.to_bool(result):
 			return true
 	return false
 
 
 func _set_state_enabled(enabled: bool) -> void:
 	if enabled:
-		process_mode = _original_process_mode
+		process_mode = _to_process_mode(_original_process_mode)
 	else:
 		process_mode = Node.PROCESS_MODE_DISABLED
 
 
 func _get_architecture_or_null() -> GFArchitecture:
-	var machine := get_machine()
+	var machine: Object = get_machine()
 	if machine != null and machine.has_method("get_architecture_or_null"):
-		var machine_architecture := machine.call("get_architecture_or_null") as GFArchitecture
+		var machine_architecture: GFArchitecture = _variant_to_architecture(machine.call("get_architecture_or_null"))
 		if machine_architecture != null:
 			return machine_architecture
 
-	var context := _find_nearest_context()
+	var context: GFNodeContext = _find_nearest_context()
 	if context != null:
-		var context_architecture := context.get_architecture()
+		var context_architecture: GFArchitecture = context.get_architecture()
 		if context_architecture != null:
 			return context_architecture
 
-	return _GF_AUTOLOAD_BASE.get_architecture_or_null()
+	return GFAutoload.get_architecture_or_null()
 
 
-func _find_nearest_context() -> _GF_NODE_CONTEXT_BASE:
+func _find_nearest_context() -> GFNodeContext:
 	var current_node: Node = self
 	while current_node != null:
-		if current_node is _GF_NODE_CONTEXT_BASE:
-			return current_node as _GF_NODE_CONTEXT_BASE
+		if current_node is GFNodeContext:
+			var context: GFNodeContext = current_node
+			return context
 		current_node = current_node.get_parent()
 	return null
+
+
+func _to_process_mode(value: int) -> ProcessMode:
+	match value:
+		Node.PROCESS_MODE_PAUSABLE:
+			return Node.PROCESS_MODE_PAUSABLE
+		Node.PROCESS_MODE_WHEN_PAUSED:
+			return Node.PROCESS_MODE_WHEN_PAUSED
+		Node.PROCESS_MODE_ALWAYS:
+			return Node.PROCESS_MODE_ALWAYS
+		Node.PROCESS_MODE_DISABLED:
+			return Node.PROCESS_MODE_DISABLED
+		_:
+			return Node.PROCESS_MODE_INHERIT
 
 
 func _remember_event_architecture(architecture: GFArchitecture) -> void:
@@ -779,3 +798,17 @@ func _get_tracked_event_architectures() -> Array[GFArchitecture]:
 			live_architectures.append(architecture)
 	_event_architectures = live_architectures
 	return result
+
+
+func _variant_to_node(value: Variant) -> Node:
+	if value is Node:
+		var node: Node = value
+		return node
+	return null
+
+
+func _variant_to_architecture(value: Variant) -> GFArchitecture:
+	if value is GFArchitecture:
+		var architecture: GFArchitecture = value
+		return architecture
+	return null

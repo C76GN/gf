@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFResourceRegistryEntry" path="addons/gf/standard/utilities/assets/gf_resource_registry_entry.gd" module="standard" extends="Resource" classDigest="f787dd1d53304f2c251b2bc0f41e1c02108054113876c5df5ed0829e28fe3679">
+<class name="GFResourceRegistryEntry" path="addons/gf/standard/utilities/assets/gf_resource_registry_entry.gd" module="standard" extends="Resource" classDigest="b625e7f63936cf71c5316e9fb27500ffab68adfb4a25d96734846e2dcbceffb3">
 	<description>GFResourceRegistryEntry: 通用资源注册表条目。
 用稳定 ID 描述一个可通过 ResourceLoader 读取的资源路径、可选类型提示和可索引字段。
 条目不解释字段业务含义，只为 GFResourceRegistry 提供数据。</description>
@@ -44,12 +44,12 @@
 	</properties>
 	<methods>
 		<member kind="method" name="configure">
-			<signature>func configure( entry_id: StringName, path: String, hint: String = "", indexed_fields: Dictionary = {} ) -&gt; Resource:</signature>
+			<signature>func configure( entry_id: StringName, entry_path: String, hint: String = "", indexed_fields: Dictionary = {} ) -&gt; Resource:</signature>
 			<description>配置条目并返回自身。</description>
 			<tags>
 				<tag name="api">public</tag>
 				<tag name="param">entry_id: 条目稳定 ID。</tag>
-				<tag name="param">path: 资源路径，支持 `res://` 或 `uid://`。</tag>
+				<tag name="param">entry_path: 资源路径，支持 `res://` 或 `uid://`。</tag>
 				<tag name="param">hint: 可选资源类型提示。</tag>
 				<tag name="param">indexed_fields: 可索引字段。</tag>
 				<tag name="return">当前条目。</tag>

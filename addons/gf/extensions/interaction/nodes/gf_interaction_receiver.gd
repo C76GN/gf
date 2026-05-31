@@ -50,7 +50,7 @@ signal interaction_rejected(context: GFInteractionContext, report: Dictionary)
 
 # --- 常量 ---
 
-const _MESSAGE_RECEIVER_SUPPORT: Script = preload("res://addons/gf/standard/common/gf_message_receiver_support.gd")
+const _MESSAGE_RECEIVER_SUPPORT = preload("res://addons/gf/standard/common/gf_message_receiver_support.gd")
 
 
 # --- 导出变量 ---
@@ -111,7 +111,7 @@ func can_receive_interaction(interaction_id: StringName = &"") -> bool:
 		return false
 	if receiver_path == NodePath(""):
 		return true
-	var receiver := _resolve_receiver()
+	var receiver: Object = _resolve_receiver()
 	return receiver != null
 
 
@@ -127,8 +127,8 @@ func can_receive_interaction(interaction_id: StringName = &"") -> bool:
 ## [br]
 ## @schema return: 交互结果报告 Dictionary，包含 ok、interaction_id、receiver、reason、message 和 metadata 等字段。
 func receive_interaction(context: GFInteractionContext, interaction_id: StringName = &"") -> Dictionary:
-	var receiver := _resolve_receiver()
-	var has_receiver_path := receiver_path != NodePath("")
+	var receiver: Object = _resolve_receiver()
+	var has_receiver_path: bool = receiver_path != NodePath("")
 	var report: Dictionary = _MESSAGE_RECEIVER_SUPPORT._receive_with_delegate(
 		self,
 		context,
@@ -139,9 +139,9 @@ func receive_interaction(context: GFInteractionContext, interaction_id: StringNa
 		rejected_interaction_ids,
 		metadata,
 		validation_callback,
-		&"interaction_validating",
-		&"interaction_received",
-		&"interaction_rejected",
+		Callable(self, "_emit_interaction_validating"),
+		Callable(self, "_emit_interaction_received"),
+		Callable(self, "_emit_interaction_rejected"),
 		"Interaction context is null.",
 		"Interaction receiver is disabled.",
 		"Interaction id is rejected.",
@@ -152,7 +152,7 @@ func receive_interaction(context: GFInteractionContext, interaction_id: StringNa
 		[context, interaction_id],
 		"Interaction delegate receiver is missing.",
 		"Interaction delegate receiver returned an invalid interaction report."
-	) as Dictionary
+	)
 	return report
 
 
@@ -161,7 +161,19 @@ func receive_interaction(context: GFInteractionContext, interaction_id: StringNa
 func _resolve_receiver() -> Object:
 	if receiver_path == NodePath(""):
 		return null
-	var receiver := get_node_or_null(receiver_path)
+	var receiver: Node = get_node_or_null(receiver_path)
 	if receiver == self:
 		return null
 	return receiver
+
+
+func _emit_interaction_validating(context: GFInteractionContext, report: Dictionary) -> void:
+	interaction_validating.emit(context, report)
+
+
+func _emit_interaction_received(context: GFInteractionContext, report: Dictionary) -> void:
+	interaction_received.emit(context, report)
+
+
+func _emit_interaction_rejected(context: GFInteractionContext, report: Dictionary) -> void:
+	interaction_rejected.emit(context, report)

@@ -11,9 +11,9 @@ const README_EN_PATH: String = "res://README.md"
 const README_ZH_PATH: String = "res://README.zh.md"
 const ADDON_README_PATH: String = "res://addons/gf/README.md"
 const READTHEDOCS_URL: String = "https://gf-framework.readthedocs.io/"
-const WIKI_ENTRY_FILES := ["Home.md", "_Sidebar.md", "_Footer.md"]
-const DOCS_TOP_LEVEL_FILES := ["index.md", "faq.md", "changelog.md"]
-const DOCS_TOP_LEVEL_DIRECTORIES := [
+const WIKI_ENTRY_FILES: Array[String] = ["Home.md", "_Sidebar.md", "_Footer.md"]
+const DOCS_TOP_LEVEL_FILES: Array[String] = ["index.md", "faq.md", "changelog.md"]
+const DOCS_TOP_LEVEL_DIRECTORIES: Array[String] = [
 	"overview",
 	"kernel",
 	"standard",
@@ -26,12 +26,12 @@ const DOCS_TOP_LEVEL_DIRECTORIES := [
 # --- 测试用例 ---
 
 func test_mkdocs_nav_mentions_every_chinese_doc_page() -> void:
-	var docs_paths := _collect_markdown_files(DOCS_ROOT)
-	var mkdocs_source := _read_text(MKDOCS_CONFIG_PATH)
+	var docs_paths: Array[String] = _collect_markdown_files(DOCS_ROOT)
+	var mkdocs_source: String = _read_text(MKDOCS_CONFIG_PATH)
 
 	var issues: Array[String] = []
 	for path: String in docs_paths:
-		var relative_path := path.trim_prefix(DOCS_ROOT + "/")
+		var relative_path: String = path.trim_prefix(DOCS_ROOT + "/")
 		if not mkdocs_source.contains(relative_path):
 			issues.append("%s is not mentioned in mkdocs.yml" % relative_path)
 
@@ -39,12 +39,12 @@ func test_mkdocs_nav_mentions_every_chinese_doc_page() -> void:
 
 
 func test_mkdocs_nav_paths_exist() -> void:
-	var mkdocs_source := _read_text(MKDOCS_CONFIG_PATH)
-	var nav_paths := _collect_markdown_paths_from_text(mkdocs_source)
+	var mkdocs_source: String = _read_text(MKDOCS_CONFIG_PATH)
+	var nav_paths: Array[String] = _collect_markdown_paths_from_text(mkdocs_source)
 
 	var issues: Array[String] = []
 	for relative_path: String in nav_paths:
-		var docs_path := DOCS_ROOT.path_join(relative_path)
+		var docs_path: String = DOCS_ROOT.path_join(relative_path)
 		if not FileAccess.file_exists(docs_path):
 			issues.append("%s points to missing file" % relative_path)
 
@@ -52,14 +52,14 @@ func test_mkdocs_nav_paths_exist() -> void:
 
 
 func test_docs_use_semantic_directories_matching_navigation() -> void:
-	var dir := DirAccess.open(DOCS_ROOT)
+	var dir: DirAccess = DirAccess.open(DOCS_ROOT)
 	assert_not_null(dir, "应能打开 docs/zh。")
 	if dir == null:
 		return
 
 	var issues: Array[String] = []
-	dir.list_dir_begin()
-	var entry := dir.get_next()
+	var _list_dir_begin_result_61: Variant = dir.list_dir_begin()
+	var entry: String = dir.get_next()
 	while not entry.is_empty():
 		if entry.begins_with("."):
 			entry = dir.get_next()
@@ -79,11 +79,11 @@ func test_docs_use_semantic_directories_matching_navigation() -> void:
 
 
 func test_doc_directories_have_index_pages() -> void:
-	var dirs := _collect_directories(DOCS_ROOT)
+	var dirs: Array[String] = _collect_directories(DOCS_ROOT)
 
 	var issues: Array[String] = []
 	for dir_path: String in dirs:
-		var index_path := dir_path.path_join("index.md")
+		var index_path: String = dir_path.path_join("index.md")
 		if not FileAccess.file_exists(index_path):
 			issues.append("%s has no index.md" % dir_path.trim_prefix(DOCS_ROOT + "/"))
 
@@ -93,12 +93,12 @@ func test_doc_directories_have_index_pages() -> void:
 func test_legacy_wiki_entry_files_point_to_readthedocs() -> void:
 	var issues: Array[String] = []
 	for file_name: String in WIKI_ENTRY_FILES:
-		var path := WIKI_ROOT.path_join(file_name)
+		var path: String = WIKI_ROOT.path_join(file_name)
 		if not FileAccess.file_exists(path):
 			issues.append("%s is missing" % path)
 			continue
 
-		var text := _read_text(path)
+		var text: String = _read_text(path)
 		if not text.contains(READTHEDOCS_URL):
 			issues.append("%s must link to Read the Docs" % path)
 
@@ -106,7 +106,7 @@ func test_legacy_wiki_entry_files_point_to_readthedocs() -> void:
 
 
 func test_legacy_wiki_contains_only_entry_files() -> void:
-	var wiki_paths := _collect_markdown_files(WIKI_ROOT)
+	var wiki_paths: Array[String] = _collect_markdown_files(WIKI_ROOT)
 	var issues: Array[String] = []
 	for path: String in wiki_paths:
 		if not WIKI_ENTRY_FILES.has(path.get_file()):
@@ -116,9 +116,9 @@ func test_legacy_wiki_contains_only_entry_files() -> void:
 
 
 func test_readme_language_switches_and_doc_links_are_present() -> void:
-	var english_readme := _read_text(README_EN_PATH)
-	var chinese_readme := _read_text(README_ZH_PATH)
-	var addon_readme := _read_text(ADDON_README_PATH)
+	var english_readme: String = _read_text(README_EN_PATH)
+	var chinese_readme: String = _read_text(README_ZH_PATH)
+	var addon_readme: String = _read_text(ADDON_README_PATH)
 
 	var issues: Array[String] = []
 	if not english_readme.contains("English | [简体中文](README.zh.md)"):
@@ -128,7 +128,7 @@ func test_readme_language_switches_and_doc_links_are_present() -> void:
 	if not addon_readme.contains("../../README.md") or not addon_readme.contains("../../README.zh.md"):
 		issues.append("addons/gf/README.md must point to both root README languages")
 
-	var required_fragments := [
+	var required_fragments: Array[String] = [
 		READTHEDOCS_URL,
 		"addons/gf/kernel",
 		"addons/gf/standard",
@@ -162,14 +162,14 @@ func _collect_directories(root_path: String) -> Array[String]:
 
 
 func _collect_markdown_files_recursive(root_path: String, result: Array[String]) -> void:
-	var dir := DirAccess.open(root_path)
+	var dir: DirAccess = DirAccess.open(root_path)
 	if dir == null:
 		return
 
-	dir.list_dir_begin()
-	var entry := dir.get_next()
+	var _list_dir_begin_result_169: Variant = dir.list_dir_begin()
+	var entry: String = dir.get_next()
 	while not entry.is_empty():
-		var child_path := root_path.path_join(entry)
+		var child_path: String = root_path.path_join(entry)
 		if dir.current_is_dir():
 			if not entry.begins_with("."):
 				_collect_markdown_files_recursive(child_path, result)
@@ -180,15 +180,15 @@ func _collect_markdown_files_recursive(root_path: String, result: Array[String])
 
 
 func _collect_directories_recursive(root_path: String, result: Array[String]) -> void:
-	var dir := DirAccess.open(root_path)
+	var dir: DirAccess = DirAccess.open(root_path)
 	if dir == null:
 		return
 
-	dir.list_dir_begin()
-	var entry := dir.get_next()
+	var _list_dir_begin_result_187: Variant = dir.list_dir_begin()
+	var entry: String = dir.get_next()
 	while not entry.is_empty():
 		if dir.current_is_dir() and not entry.begins_with("."):
-			var child_path := root_path.path_join(entry)
+			var child_path: String = root_path.path_join(entry)
 			result.append(child_path)
 			_collect_directories_recursive(child_path, result)
 		entry = dir.get_next()
@@ -197,10 +197,10 @@ func _collect_directories_recursive(root_path: String, result: Array[String]) ->
 
 func _collect_markdown_paths_from_text(text: String) -> Array[String]:
 	var result: Array[String] = []
-	var regex := RegEx.new()
-	regex.compile("([A-Za-z0-9_./-]+\\.md)")
+	var regex: RegEx = RegEx.new()
+	var _compile_result_201: Variant = regex.compile("([A-Za-z0-9_./-]+\\.md)")
 	for match_result: RegExMatch in regex.search_all(text):
-		var path := match_result.get_string(1)
+		var path: String = match_result.get_string(1)
 		if not result.has(path):
 			result.append(path)
 	result.sort()
@@ -208,16 +208,16 @@ func _collect_markdown_paths_from_text(text: String) -> Array[String]:
 
 
 func _is_numbered_slug(value: String) -> bool:
-	var regex := RegEx.new()
-	regex.compile("^\\d\\d-[a-z0-9-]+$")
+	var regex: RegEx = RegEx.new()
+	var _compile_result_212: Variant = regex.compile("^\\d\\d-[a-z0-9-]+$")
 	return regex.search(value) != null
 
 
 func _read_text(path: String) -> String:
-	var file := FileAccess.open(path, FileAccess.READ)
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		return ""
-	var text := file.get_as_text()
+	var text: String = file.get_as_text()
 	file.close()
 	return text
 
@@ -226,7 +226,7 @@ func _join_lines(values: Array[String]) -> String:
 	if values.is_empty():
 		return ""
 
-	var packed := PackedStringArray()
+	var packed: PackedStringArray = PackedStringArray()
 	for value: String in values:
-		packed.append(value)
+		var _append_result_231: Variant = packed.append(value)
 	return "\n".join(packed)

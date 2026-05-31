@@ -54,7 +54,7 @@ extends GFInputModifier
 ## [br]
 ## @return 幅值投影后的二维输入值。
 func modify(value: Vector2, _event: InputEvent = null, _action: GFInputAction = null) -> Vector2:
-	var magnitude := _get_magnitude_2d(value)
+	var magnitude: float = _get_magnitude_2d(value)
 	return Vector2(
 		magnitude if output_x else (_preserve_component(value.x)),
 		magnitude if output_y else (_preserve_component(value.y))
@@ -73,7 +73,7 @@ func modify(value: Vector2, _event: InputEvent = null, _action: GFInputAction = 
 ## [br]
 ## @return 幅值投影后的三维输入值。
 func modify_3d(value: Vector3, _event: InputEvent = null, _action: GFInputAction = null) -> Vector3:
-	var magnitude := _get_magnitude_3d(value)
+	var magnitude: float = _get_magnitude_3d(value)
 	return Vector3(
 		magnitude if output_x else (_preserve_component(value.x)),
 		magnitude if output_y else (_preserve_component(value.y)),
@@ -84,21 +84,21 @@ func modify_3d(value: Vector3, _event: InputEvent = null, _action: GFInputAction
 # --- 私有/辅助方法 ---
 
 func _get_magnitude_2d(value: Vector2) -> float:
-	var magnitude := value.length()
+	var magnitude: float = value.length()
 	if absolute_value:
 		return magnitude
 	return magnitude * _get_dominant_sign(Vector3(value.x, value.y, 0.0))
 
 
 func _get_magnitude_3d(value: Vector3) -> float:
-	var magnitude := value.length()
+	var magnitude: float = value.length()
 	if absolute_value:
 		return magnitude
 	return magnitude * _get_dominant_sign(value)
 
 
 func _get_dominant_sign(value: Vector3) -> float:
-	var axis_value := value.x
+	var axis_value: float = value.x
 	if absf(value.y) > absf(axis_value):
 		axis_value = value.y
 	if absf(value.z) > absf(axis_value):

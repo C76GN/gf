@@ -14,7 +14,7 @@ extends Resource
 
 # --- 常量 ---
 
-const _GF_VALIDATION_REPORT_DICTIONARY := preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
+const _GF_VALIDATION_REPORT_DICTIONARY = preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
 
 
 # --- 导出变量 ---
@@ -116,7 +116,7 @@ func has_message_contract(message_type: StringName) -> bool:
 ## [br]
 ## @schema options: Dictionary，支持 include_defaults、sequence、tick、sender_id、channel_id。
 func make_message(message_type: StringName, values: Dictionary = {}, options: Dictionary = {}) -> GFNetworkMessage:
-	var message_contract := get_message_contract(message_type)
+	var message_contract: GFNetworkContractMessage = get_message_contract(message_type)
 	if message_contract == null:
 		return null
 	return message_contract.make_message(values, options)
@@ -135,7 +135,7 @@ func validate_message(message: GFNetworkMessage) -> Dictionary:
 	if message == null:
 		return _finalize_report([_make_issue("error", "missing_message", "Network message is null.")])
 
-	var message_contract := get_message_contract(message.message_type)
+	var message_contract: GFNetworkContractMessage = get_message_contract(message.message_type)
 	if message_contract == null:
 		return _finalize_report([_make_issue("error", "unknown_message_type", "Network message_type is not declared by this contract.", String(message.message_type))])
 	return message_contract.validate_message(message)
@@ -155,13 +155,13 @@ func validate_contract() -> Dictionary:
 
 	var seen_messages: Dictionary = {}
 	for index: int in range(messages.size()):
-		var message_contract := messages[index]
+		var message_contract: GFNetworkContractMessage = messages[index]
 		if message_contract == null:
 			issues.append(_make_issue("warning", "null_message_contract", "Network contract contains a null message.", str(index)))
 			continue
 
-		var message_report := message_contract.validate_definition()
-		issues.append_array(message_report.get("issues", []) as Array)
+		var message_report: Dictionary = message_contract.validate_definition()
+		issues.append_array(GFVariantData.get_option_array(message_report, "issues"))
 		if message_contract.message_type == &"":
 			continue
 		if seen_messages.has(message_contract.message_type):
@@ -199,7 +199,7 @@ func describe() -> Dictionary:
 # --- 私有/辅助方法 ---
 
 func _make_issue(severity: String, kind: String, message: String, key: String = "") -> Dictionary:
-	var issue := {
+	var issue: Dictionary = {
 		"severity": severity,
 		"kind": kind,
 		"contract_id": contract_id,
@@ -214,7 +214,7 @@ func _make_issue(severity: String, kind: String, message: String, key: String = 
 
 
 func _finalize_report(issues: Array[Dictionary]) -> Dictionary:
-	var report := {
+	var report: Dictionary = {
 		"subject": "Network contract",
 		"contract_id": contract_id,
 		"issues": issues,

@@ -179,7 +179,7 @@ func calculate(agent: GFSteeringAgent, context: Dictionary = {}) -> GFSteeringAc
 		BehaviorType.ALIGN:
 			return GFSteeringMath.align(
 				agent,
-				float(context.get("target_orientation", target_orientation)),
+				GFVariantData.to_float(_get_context_value(context, &"target_orientation", target_orientation), target_orientation),
 				align_tolerance,
 				slow_angle,
 				time_to_target
@@ -197,7 +197,7 @@ func calculate(agent: GFSteeringAgent, context: Dictionary = {}) -> GFSteeringAc
 				minimum_separation
 			)
 		BehaviorType.PATH_FOLLOW_SEEK:
-			var target := GFSteeringMath.path_follow_target(agent, _get_path(context), path_offset)
+			var target: Vector3 = GFSteeringMath.path_follow_target(agent, _get_path(context), path_offset)
 			return GFSteeringMath.seek(agent, target)
 		_:
 			return GFSteeringMath.seek(agent, _get_vector3(context, &"target_position", target_position))
@@ -209,7 +209,15 @@ func calculate(agent: GFSteeringAgent, context: Dictionary = {}) -> GFSteeringAc
 ## [br]
 ## @return 新行为资源。
 func duplicate_behavior() -> Resource:
-	var behavior := get_script().new() as Resource
+	var behavior_script: Script = _get_script_value(get_script())
+	if behavior_script == null:
+		return null
+
+	var raw_behavior: Variant = behavior_script.call("new")
+	if not (raw_behavior is Resource):
+		return null
+
+	var behavior: Resource = raw_behavior
 	behavior.set("behavior_type", behavior_type)
 	behavior.set("enabled", enabled)
 	behavior.set("weight", weight)
@@ -232,42 +240,61 @@ func duplicate_behavior() -> Resource:
 
 # --- 私有/辅助方法 ---
 
+func _get_script_value(value: Variant) -> Script:
+	if value is Script:
+		var script: Script = value
+		return script
+	return null
+
+
+func _get_context_value(context: Dictionary, key: StringName, fallback: Variant = null) -> Variant:
+	var string_key: String = String(key)
+	if context.has(string_key):
+		return GFVariantData.get_option_value(context, string_key, fallback)
+	return GFVariantData.get_option_value(context, key, fallback)
+
+
 func _get_vector3(context: Dictionary, key: StringName, fallback: Vector3) -> Vector3:
-	var value: Variant = context.get(String(key), context.get(key, fallback))
+	var value: Variant = _get_context_value(context, key, fallback)
 	if value is Vector3:
 		return value
 	if value is Vector2:
-		var vector_2 := value as Vector2
+		var vector_2: Vector2 = value
 		return Vector3(vector_2.x, vector_2.y, 0.0)
 	return fallback
 
 
 func _get_agent(context: Dictionary, key: StringName) -> GFSteeringAgent:
-	var value: Variant = context.get(String(key), context.get(key, null))
-	return value as GFSteeringAgent
+	var value: Variant = _get_context_value(context, key)
+	if value is GFSteeringAgent:
+		var agent: GFSteeringAgent = value
+		return agent
+	return null
 
 
 func _get_agents(context: Dictionary, key: StringName) -> Array[GFSteeringAgent]:
 	var result: Array[GFSteeringAgent] = []
-	var value: Variant = context.get(String(key), context.get(key, []))
+	var value: Variant = _get_context_value(context, key, [])
 	if not (value is Array):
 		return result
-	for item: Variant in value as Array:
-		var agent := item as GFSteeringAgent
-		if agent != null:
+	var agents: Array = GFVariantData.as_array(value)
+	for item: Variant in agents:
+		if item is GFSteeringAgent:
+			var agent: GFSteeringAgent = item
 			result.append(agent)
 	return result
 
 
 func _get_path(context: Dictionary) -> Array[Vector3]:
 	var result: Array[Vector3] = []
-	var value: Variant = context.get("path", [])
+	var value: Variant = GFVariantData.get_option_value(context, "path", [])
 	if not (value is Array):
 		return result
-	for item: Variant in value as Array:
+	var path: Array = GFVariantData.as_array(value)
+	for item: Variant in path:
 		if item is Vector3:
 			result.append(item)
 		elif item is Vector2:
-			var vector_2 := item as Vector2
+			var vector_2: Vector2 = item
 			result.append(Vector3(vector_2.x, vector_2.y, 0.0))
 	return result

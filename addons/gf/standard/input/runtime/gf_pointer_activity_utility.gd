@@ -105,6 +105,11 @@ signal pointer_idle_started(pointer_id: int, position: Vector2)
 signal pointer_idle_ended(pointer_id: int, position: Vector2)
 
 
+# --- 常量 ---
+
+const _INPUT_EVENT_TOOLS = preload("res://addons/gf/standard/input/common/gf_input_event_tools.gd")
+
+
 # --- 公共变量 ---
 
 ## 是否追踪鼠标事件。
@@ -190,14 +195,18 @@ var _idle_elapsed_seconds: float = 0.0
 func handle_input_event(event: InputEvent) -> bool:
 	if event == null:
 		return false
-	if track_mouse and event is InputEventMouseButton:
-		return _handle_mouse_button(event as InputEventMouseButton)
-	if track_mouse and event is InputEventMouseMotion:
-		return _handle_mouse_motion(event as InputEventMouseMotion)
-	if track_touch and event is InputEventScreenTouch:
-		return _handle_screen_touch(event as InputEventScreenTouch)
-	if track_touch and event is InputEventScreenDrag:
-		return _handle_screen_drag(event as InputEventScreenDrag)
+	var mouse_button: InputEventMouseButton = _INPUT_EVENT_TOOLS.get_mouse_button_event(event)
+	if track_mouse and mouse_button != null:
+		return _handle_mouse_button(mouse_button)
+	var mouse_motion: InputEventMouseMotion = _INPUT_EVENT_TOOLS.get_mouse_motion_event(event)
+	if track_mouse and mouse_motion != null:
+		return _handle_mouse_motion(mouse_motion)
+	var screen_touch: InputEventScreenTouch = _INPUT_EVENT_TOOLS.get_screen_touch_event(event)
+	if track_touch and screen_touch != null:
+		return _handle_screen_touch(screen_touch)
+	var screen_drag: InputEventScreenDrag = _INPUT_EVENT_TOOLS.get_screen_drag_event(event)
+	if track_touch and screen_drag != null:
+		return _handle_screen_drag(screen_drag)
 	return false
 
 
@@ -207,7 +216,7 @@ func handle_input_event(event: InputEvent) -> bool:
 ## [br]
 ## @param delta: 秒。
 func tick(delta: float) -> void:
-	var safe_delta := maxf(delta, 0.0)
+	var safe_delta: float = maxf(delta, 0.0)
 	if is_pointer_moving:
 		is_pointer_moving = false
 		_idle_elapsed_seconds = 0.0
@@ -321,7 +330,7 @@ func _move_pointer(pointer_id: int, position: Vector2, event: InputEvent) -> voi
 	if active_pointer_id != -1 and active_pointer_id != pointer_id:
 		return
 
-	var previous_position := last_position
+	var previous_position: Vector2 = last_position
 	last_position = position
 	_mark_pointer_activity(pointer_id, position)
 	pointer_moved.emit(pointer_id, position, previous_position, event)
@@ -329,7 +338,7 @@ func _move_pointer(pointer_id: int, position: Vector2, event: InputEvent) -> voi
 	if not is_pointer_pressed:
 		return
 
-	var drag_distance := press_position.distance_to(position)
+	var drag_distance: float = press_position.distance_to(position)
 	if not is_pointer_dragging and drag_distance >= maxf(drag_threshold_pixels, 0.0):
 		is_pointer_dragging = true
 		pointer_drag_started.emit(pointer_id, press_position, position, event)
@@ -338,7 +347,7 @@ func _move_pointer(pointer_id: int, position: Vector2, event: InputEvent) -> voi
 
 
 func _mark_pointer_activity(pointer_id: int, position: Vector2) -> void:
-	var was_idle := is_pointer_idle
+	var was_idle: bool = is_pointer_idle
 	last_pointer_id = pointer_id
 	is_pointer_moving = true
 	is_pointer_idle = false

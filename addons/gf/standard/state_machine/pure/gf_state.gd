@@ -133,7 +133,7 @@ func handle_state_event(_event_id: StringName, _payload: Variant = null) -> bool
 ## [br]
 ## @return 模型实例。
 func get_model(model_type: Script) -> Object:
-	var machine := _get_machine()
+	var machine: GFStateMachine = _get_machine()
 	if machine == null:
 		return null
 	return machine.get_model(model_type)
@@ -147,7 +147,7 @@ func get_model(model_type: Script) -> Object:
 ## [br]
 ## @return 系统实例。
 func get_system(system_type: Script) -> Object:
-	var machine := _get_machine()
+	var machine: GFStateMachine = _get_machine()
 	if machine == null:
 		return null
 	return machine.get_system(system_type)
@@ -161,7 +161,7 @@ func get_system(system_type: Script) -> Object:
 ## [br]
 ## @return 工具实例。
 func get_utility(utility_type: Script) -> Object:
-	var machine := _get_machine()
+	var machine: GFStateMachine = _get_machine()
 	if machine == null:
 		return null
 	return machine.get_utility(utility_type)
@@ -177,7 +177,7 @@ func get_utility(utility_type: Script) -> Object:
 ## [br]
 ## @schema return: Variant command result, Signal, or null.
 func send_command(command: Object) -> Variant:
-	var machine := _get_machine()
+	var machine: GFStateMachine = _get_machine()
 	if machine == null:
 		return null
 	return machine.send_command(command)
@@ -193,7 +193,7 @@ func send_command(command: Object) -> Variant:
 ## [br]
 ## @schema return: Variant query result or null.
 func send_query(query: Object) -> Variant:
-	var machine := _get_machine()
+	var machine: GFStateMachine = _get_machine()
 	if machine == null:
 		return null
 	return machine.send_query(query)
@@ -205,7 +205,7 @@ func send_query(query: Object) -> Variant:
 ## [br]
 ## @param event_instance: 要分发的事件实例。
 func send_event(event_instance: Object) -> void:
-	var machine := _get_machine()
+	var machine: GFStateMachine = _get_machine()
 	if machine != null:
 		machine.send_event(event_instance)
 
@@ -220,7 +220,7 @@ func send_event(event_instance: Object) -> void:
 ## [br]
 ## @schema payload: Variant event payload.
 func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
-	var machine := _get_machine()
+	var machine: GFStateMachine = _get_machine()
 	if machine != null:
 		machine.send_simple_event(event_id, payload)
 
@@ -235,7 +235,7 @@ func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
 ## [br]
 ## @param priority: 回调优先级，数值越大越先执行，默认为 0。
 func register_event(event_type: Script, callback: Callable, priority: int = 0) -> void:
-	var machine := _get_machine()
+	var machine: GFStateMachine = _get_machine()
 	if machine != null:
 		machine.register_event_owned(self, event_type, callback, priority)
 
@@ -248,7 +248,7 @@ func register_event(event_type: Script, callback: Callable, priority: int = 0) -
 ## [br]
 ## @param callback: 要移除的回调函数。
 func unregister_event(event_type: Script, callback: Callable) -> void:
-	var machine := _get_machine()
+	var machine: GFStateMachine = _get_machine()
 	if machine != null:
 		machine.unregister_event(event_type, callback)
 
@@ -263,7 +263,7 @@ func unregister_event(event_type: Script, callback: Callable) -> void:
 ## [br]
 ## @param priority: 回调优先级，数值越大越先执行，默认为 0。
 func register_assignable_event(base_event_type: Script, callback: Callable, priority: int = 0) -> void:
-	var machine := _get_machine()
+	var machine: GFStateMachine = _get_machine()
 	if machine != null:
 		machine.register_assignable_event_owned(self, base_event_type, callback, priority)
 
@@ -276,7 +276,7 @@ func register_assignable_event(base_event_type: Script, callback: Callable, prio
 ## [br]
 ## @param callback: 要移除的回调函数。
 func unregister_assignable_event(base_event_type: Script, callback: Callable) -> void:
-	var machine := _get_machine()
+	var machine: GFStateMachine = _get_machine()
 	if machine != null:
 		machine.unregister_assignable_event(base_event_type, callback)
 
@@ -289,7 +289,7 @@ func unregister_assignable_event(base_event_type: Script, callback: Callable) ->
 ## [br]
 ## @param callback: 回调函数，签名为 func(payload: Variant)。
 func register_simple_event(event_id: StringName, callback: Callable) -> void:
-	var machine := _get_machine()
+	var machine: GFStateMachine = _get_machine()
 	if machine != null:
 		machine.register_simple_event_owned(self, event_id, callback)
 
@@ -302,7 +302,7 @@ func register_simple_event(event_id: StringName, callback: Callable) -> void:
 ## [br]
 ## @param callback: 要移除的回调函数。
 func unregister_simple_event(event_id: StringName, callback: Callable) -> void:
-	var machine := _get_machine()
+	var machine: GFStateMachine = _get_machine()
 	if machine != null:
 		machine.unregister_simple_event(event_id, callback)
 
@@ -311,7 +311,7 @@ func unregister_simple_event(event_id: StringName, callback: Callable) -> void:
 ## [br]
 ## @api public
 func unregister_owner_events() -> void:
-	var machine := _get_machine()
+	var machine: GFStateMachine = _get_machine()
 	if machine != null:
 		machine.unregister_owner_events(self)
 
@@ -326,7 +326,7 @@ func unregister_owner_events() -> void:
 ## [br]
 ## @schema msg: Dictionary state transition payload.
 func change_state(state_name: StringName, msg: Dictionary = {}) -> void:
-	var machine := _get_machine()
+	var machine: GFStateMachine = _get_machine()
 	if machine != null:
 		machine.change_state(state_name, msg)
 
@@ -343,7 +343,7 @@ func change_state(state_name: StringName, msg: Dictionary = {}) -> void:
 ## [br]
 ## @schema payload: Variant state event payload.
 func dispatch_state_event(event_id: StringName, payload: Variant = null) -> bool:
-	var machine := _get_machine()
+	var machine: GFStateMachine = _get_machine()
 	if machine == null:
 		return false
 	return machine.dispatch_state_event(event_id, payload)
@@ -355,7 +355,7 @@ func dispatch_state_event(event_id: StringName, payload: Variant = null) -> bool
 ## [br]
 ## @return 父状态名；未绑定状态机或没有父级时返回空 StringName。
 func get_parent_state_name() -> StringName:
-	var machine := _get_machine()
+	var machine: GFStateMachine = _get_machine()
 	if machine == null:
 		return &""
 	return machine.get_parent_state_name(_state_name)
@@ -369,7 +369,7 @@ func get_parent_state_name() -> StringName:
 ## [br]
 ## @return 处于激活路径中返回 true。
 func is_in_state(state_name: StringName) -> bool:
-	var machine := _get_machine()
+	var machine: GFStateMachine = _get_machine()
 	if machine == null:
 		return false
 	return machine.is_in_state(state_name)
@@ -383,7 +383,7 @@ func is_in_state(state_name: StringName) -> bool:
 ## [br]
 ## @schema return: Dictionary shared blackboard.
 func get_blackboard() -> Dictionary:
-	var machine := _get_machine()
+	var machine: GFStateMachine = _get_machine()
 	if machine == null:
 		return {}
 	return machine.get_blackboard()
@@ -394,4 +394,8 @@ func get_blackboard() -> Dictionary:
 func _get_machine() -> GFStateMachine:
 	if _machine_ref == null:
 		return null
-	return _machine_ref.get_ref() as GFStateMachine
+	var machine_value: Variant = _machine_ref.get_ref()
+	if machine_value is GFStateMachine:
+		var machine: GFStateMachine = machine_value
+		return machine
+	return null

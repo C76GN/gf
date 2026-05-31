@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFShakePreset" path="addons/gf/extensions/feedback/resources/gf_shake_preset.gd" module="extensions/feedback" extends="Resource" classDigest="3c6858e59a68a2b9f0b9a27aa4a84d14399704885528cdb23bb25445a834b599">
+<class name="GFShakePreset" path="addons/gf/extensions/feedback/resources/gf_shake_preset.gd" module="extensions/feedback" extends="Resource" classDigest="3d3fef6d7a4a946ce99c9007b0b29a990bd262ee1f66663867b8378e08c8cf4e">
 	<description>GFShakePreset: 通用反馈采样预设。
 描述一段可采样的位移、旋转和缩放偏移，不绑定相机、角色、UI 或业务事件。</description>
 	<tags>
@@ -82,8 +82,8 @@
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="seed" decorators="@export">
-			<signature>var seed: int = 1</signature>
+		<member kind="property" name="sample_seed" decorators="@export">
+			<signature>var sample_seed: int = 1</signature>
 			<description>确定性采样种子。</description>
 			<tags>
 				<tag name="api">public</tag>

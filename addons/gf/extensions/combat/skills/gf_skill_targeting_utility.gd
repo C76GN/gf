@@ -33,7 +33,7 @@ func find_targets(p_center: Vector2, p_rule: GFSkillTargetingRule, p_available_e
 
 	var targets: Array[Object] = []
 
-	for entity in p_available_entities:
+	for entity: Object in p_available_entities:
 		if not is_instance_valid(entity):
 			continue
 
@@ -59,12 +59,12 @@ func find_targets(p_center: Vector2, p_rule: GFSkillTargetingRule, p_available_e
 # --- 私有/辅助方法 ---
 
 func _is_entity_in_shape(p_entity: Object, p_center: Vector2, p_rule: GFSkillTargetingRule) -> bool:
-	var pos := _get_entity_position(p_entity)
-	var offset := pos - p_center
+	var pos: Vector2 = _get_entity_position(p_entity)
+	var offset: Vector2 = pos - p_center
 
 	match p_rule.shape:
 		GFSkillTargetingRule.Shape.RECTANGLE:
-			var half_size := p_rule.rectangle_size * 0.5
+			var half_size: Vector2 = p_rule.rectangle_size * 0.5
 			return absf(offset.x) <= half_size.x and absf(offset.y) <= half_size.y
 
 		GFSkillTargetingRule.Shape.CIRCLE, GFSkillTargetingRule.Shape.SINGLE:
@@ -77,11 +77,11 @@ func _is_entity_in_shape(p_entity: Object, p_center: Vector2, p_rule: GFSkillTar
 			if offset == Vector2.ZERO:
 				return true
 
-			var forward := p_rule.forward_direction
+			var forward: Vector2 = p_rule.forward_direction
 			if forward == Vector2.ZERO:
 				forward = Vector2.RIGHT
 
-			var half_angle_radians := deg_to_rad(clampf(p_rule.sector_angle_degrees, 0.0, 360.0) * 0.5)
+			var half_angle_radians: float = deg_to_rad(clampf(p_rule.sector_angle_degrees, 0.0, 360.0) * 0.5)
 			if half_angle_radians >= PI:
 				return true
 
@@ -95,16 +95,16 @@ func _check_tags(p_entity: Object, p_rule: GFSkillTargetingRule) -> bool:
 	if not p_entity.has_method(&"get_tag_component"):
 		return p_rule.require_tags.is_empty()
 
-	var tc := p_entity.call(&"get_tag_component") as GFTagComponent
-	if tc == null:
+	var tag_component: GFTagComponent = _get_tag_component_value(p_entity.call(&"get_tag_component"))
+	if tag_component == null:
 		return p_rule.require_tags.is_empty()
 
-	for tag in p_rule.require_tags:
-		if not tc.has_tag(tag):
+	for tag: StringName in p_rule.require_tags:
+		if not tag_component.has_tag(tag):
 			return false
 
-	for tag in p_rule.ignore_tags:
-		if tc.has_tag(tag):
+	for tag: StringName in p_rule.ignore_tags:
+		if tag_component.has_tag(tag):
 			return false
 
 	return true
@@ -114,19 +114,19 @@ func _check_tags(p_entity: Object, p_rule: GFSkillTargetingRule) -> bool:
 func _sort_targets(p_targets: Array[Object], p_center: Vector2, p_rule: GFSkillTargetingRule) -> void:
 	match p_rule.sort_rule:
 		GFSkillTargetingRule.SortRule.DISTANCE_CLOSEST:
-			p_targets.sort_custom(func(a, b):
+			p_targets.sort_custom(func(a: Object, b: Object) -> bool:
 				return p_center.distance_squared_to(_get_entity_position(a)) < p_center.distance_squared_to(_get_entity_position(b))
 			)
 		GFSkillTargetingRule.SortRule.DISTANCE_FURTHEST:
-			p_targets.sort_custom(func(a, b):
+			p_targets.sort_custom(func(a: Object, b: Object) -> bool:
 				return p_center.distance_squared_to(_get_entity_position(a)) > p_center.distance_squared_to(_get_entity_position(b))
 			)
 		GFSkillTargetingRule.SortRule.ATTRIBUTE_LOWEST:
-			p_targets.sort_custom(func(a, b):
+			p_targets.sort_custom(func(a: Object, b: Object) -> bool:
 				return _get_entity_attribute_value(a, p_rule.sort_attribute_name) < _get_entity_attribute_value(b, p_rule.sort_attribute_name)
 			)
 		GFSkillTargetingRule.SortRule.ATTRIBUTE_HIGHEST:
-			p_targets.sort_custom(func(a, b):
+			p_targets.sort_custom(func(a: Object, b: Object) -> bool:
 				return _get_entity_attribute_value(a, p_rule.sort_attribute_name) > _get_entity_attribute_value(b, p_rule.sort_attribute_name)
 			)
 		GFSkillTargetingRule.SortRule.RANDOM:
@@ -135,8 +135,9 @@ func _sort_targets(p_targets: Array[Object], p_center: Vector2, p_rule: GFSkillT
 
 # 获取实体坐标位置。
 func _get_entity_position(p_entity: Object) -> Vector2:
-	if "global_position" in p_entity:
-		return p_entity.global_position
+	var position: Variant = GFObjectPropertyTools.read_property(p_entity, NodePath("global_position"))
+	if position is Vector2:
+		return position
 
 	return Vector2.ZERO
 
@@ -144,13 +145,26 @@ func _get_entity_position(p_entity: Object) -> Vector2:
 # 获取实体属性值。
 func _get_entity_attribute_value(p_entity: Object, p_attr_name: StringName) -> float:
 	if p_entity.has_method(&"get_attribute"):
-		var attr := p_entity.call(&"get_attribute", p_attr_name) as GFModifiedAttribute
-		if attr != null:
-			return attr.current_value.get_value()
+		var attribute: GFModifiedAttribute = _get_modified_attribute_value(p_entity.call(&"get_attribute", p_attr_name))
+		if attribute != null:
+			return attribute.current_value.get_value()
 
-	if p_attr_name in p_entity:
-		var val = p_entity.get(p_attr_name)
-		if val is float or val is int:
-			return float(val)
+	var value: Variant = GFObjectPropertyTools.read_property(p_entity, NodePath(String(p_attr_name)))
+	if value is float or value is int:
+		return GFVariantData.to_float(value)
 
 	return 0.0
+
+
+func _get_tag_component_value(value: Variant) -> GFTagComponent:
+	if value is GFTagComponent:
+		var tag_component: GFTagComponent = value
+		return tag_component
+	return null
+
+
+func _get_modified_attribute_value(value: Variant) -> GFModifiedAttribute:
+	if value is GFModifiedAttribute:
+		var attribute: GFModifiedAttribute = value
+		return attribute
+	return null

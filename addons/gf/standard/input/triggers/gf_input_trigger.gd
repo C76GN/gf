@@ -89,4 +89,8 @@ func update(raw_active: bool, _value: Variant, _delta: float, _state: Dictionary
 ## [br]
 ## @return 触发器副本。
 func duplicate_trigger() -> GFInputTrigger:
-	return duplicate(true) as GFInputTrigger
+	var trigger: Resource = duplicate(true)
+	if trigger is GFInputTrigger:
+		var input_trigger: GFInputTrigger = trigger
+		return input_trigger
+	return null

@@ -44,7 +44,7 @@ func get_physics_scaled_delta_steps(delta: float) -> Array[float]:
 ## [br]
 ## @return 需要拆分时返回 true。
 func should_substep_physics(delta: float) -> bool:
-	return false
+	return get_physics_scaled_delta_steps(delta).size() > 1
 
 
 ## 检查当前时间提供者是否处于全局暂停状态。

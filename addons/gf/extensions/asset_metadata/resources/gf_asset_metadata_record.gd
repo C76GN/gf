@@ -103,7 +103,7 @@ func get_value(key: StringName, default_value: Variant = null) -> Variant:
 	if metadata.has(key):
 		return GFVariantData.duplicate_variant(metadata[key])
 
-	var key_text := String(key)
+	var key_text: String = String(key)
 	if metadata.has(key_text):
 		return GFVariantData.duplicate_variant(metadata[key_text])
 	return GFVariantData.duplicate_variant(default_value)
@@ -133,11 +133,10 @@ func to_dict() -> Dictionary:
 ## [br]
 ## @schema data: Dictionary，可包含 source_path、subject_path、subject_kind 与 metadata 字段。
 func apply_dict(data: Dictionary) -> void:
-	source_path = String(data.get("source_path", source_path))
-	subject_path = NodePath(String(data.get("subject_path", String(subject_path))))
-	subject_kind = StringName(String(data.get("subject_kind", subject_kind)))
-	var metadata_value: Variant = data.get("metadata", metadata)
-	metadata = (metadata_value as Dictionary).duplicate(true) if metadata_value is Dictionary else {}
+	source_path = GFVariantData.get_option_string(data, "source_path", source_path)
+	subject_path = NodePath(GFVariantData.get_option_string(data, "subject_path", String(subject_path)))
+	subject_kind = GFVariantData.get_option_string_name(data, "subject_kind", subject_kind)
+	metadata = GFVariantData.get_option_dictionary(data, "metadata", metadata)
 
 
 ## 创建记录深拷贝。
@@ -146,7 +145,10 @@ func apply_dict(data: Dictionary) -> void:
 ## [br]
 ## @return 新记录。
 func duplicate_record() -> GFAssetMetadataRecord:
-	var record := get_script().new() as GFAssetMetadataRecord
+	var script: Script = _get_script_value(get_script())
+	var record: GFAssetMetadataRecord = _get_record_value(script.call("new") if script != null else null)
+	if record == null:
+		record = GFAssetMetadataRecord.new()
 	record.apply_dict(to_dict())
 	return record
 
@@ -161,6 +163,22 @@ func duplicate_record() -> GFAssetMetadataRecord:
 ## [br]
 ## @return 新记录。
 static func from_dict(data: Dictionary) -> GFAssetMetadataRecord:
-	var record := GFAssetMetadataRecord.new()
+	var record: GFAssetMetadataRecord = GFAssetMetadataRecord.new()
 	record.apply_dict(data)
 	return record
+
+
+# --- 私有/辅助方法 ---
+
+func _get_record_value(value: Variant) -> GFAssetMetadataRecord:
+	if value is GFAssetMetadataRecord:
+		var record: GFAssetMetadataRecord = value
+		return record
+	return null
+
+
+func _get_script_value(value: Variant) -> Script:
+	if value is Script:
+		var script: Script = value
+		return script
+	return null

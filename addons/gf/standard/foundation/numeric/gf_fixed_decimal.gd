@@ -76,7 +76,7 @@ func _init(p_raw_value: int = 0, p_decimal_places: int = 2) -> void:
 ## [br]
 ## @return 定点数实例。
 static func from_int(value: int, p_decimal_places: int = 2) -> GFFixedDecimal:
-	var places := _normalize_decimal_places(p_decimal_places)
+	var places: int = _normalize_decimal_places(p_decimal_places)
 	return GFFixedDecimal.new(
 		_checked_multiply(value, _pow10_int(places), "from_int"),
 		places
@@ -99,17 +99,17 @@ static func from_float(
 	p_decimal_places: int = 2,
 	rounding_mode: RoundingMode = RoundingMode.HALF_UP
 ) -> GFFixedDecimal:
-	var places := _normalize_decimal_places(p_decimal_places)
+	var places: int = _normalize_decimal_places(p_decimal_places)
 	if is_nan(value) or is_inf(value):
 		push_error("[GFFixedDecimal] from_float 收到非法浮点值。")
 		return GFFixedDecimal.new(0, places)
 
-	var scaled_value := value * _pow10_float(places)
+	var scaled_value: float = value * _pow10_float(places)
 	if is_nan(scaled_value) or is_inf(scaled_value) or absf(scaled_value) >= float(_MAX_INT_VALUE):
 		push_error("[GFFixedDecimal] from_float 缩放后超出可表示范围。")
 		return GFFixedDecimal.new(0, places)
 
-	var rounded := _round_scaled_float(scaled_value, rounding_mode)
+	var rounded: int = _round_scaled_float(scaled_value, rounding_mode)
 	return GFFixedDecimal.new(rounded, places)
 
 
@@ -129,8 +129,8 @@ static func from_string(
 	p_decimal_places: int = 2,
 	rounding_mode: RoundingMode = RoundingMode.HALF_UP
 ) -> GFFixedDecimal:
-	var places := _normalize_decimal_places(p_decimal_places)
-	var trimmed := value.strip_edges().replace("_", "").replace(",", "")
+	var places: int = _normalize_decimal_places(p_decimal_places)
+	var trimmed: String = value.strip_edges().replace("_", "").replace(",", "")
 	if trimmed.is_empty():
 		return GFFixedDecimal.new(0, places)
 
@@ -140,26 +140,26 @@ static func from_string(
 			return GFFixedDecimal.new(0, places)
 		return GFFixedDecimal.from_float(trimmed.to_float(), places, rounding_mode)
 
-	var sign := 1
+	var sign_multiplier: int = 1
 	if trimmed.begins_with("-"):
-		sign = -1
+		sign_multiplier = -1
 		trimmed = trimmed.substr(1)
 	elif trimmed.begins_with("+"):
 		trimmed = trimmed.substr(1)
 
-	var decimal_index := trimmed.find(".")
-	var integer_part := trimmed
-	var fractional_part := ""
+	var decimal_index: int = trimmed.find(".")
+	var integer_part: String = trimmed
+	var fractional_part: String = ""
 	if decimal_index != -1:
 		integer_part = trimmed.substr(0, decimal_index)
 		fractional_part = trimmed.substr(decimal_index + 1)
 
-	if not _DECIMAL_STRING_FORMATTER.is_valid_decimal_parts(integer_part, fractional_part, decimal_index != -1):
+	if not _decimal_parts_are_valid(integer_part, fractional_part, decimal_index != -1):
 		push_error("[GFFixedDecimal] 无法解析数字字符串：%s" % value)
 		return GFFixedDecimal.new(0, places)
 
 	return GFFixedDecimal.new(
-		_parse_decimal_to_raw(integer_part, fractional_part, sign, places, rounding_mode),
+		_parse_decimal_to_raw(integer_part, fractional_part, sign_multiplier, places, rounding_mode),
 		places
 	)
 
@@ -213,7 +213,7 @@ func rescaled(
 	target_decimal_places: int,
 	rounding_mode: RoundingMode = RoundingMode.HALF_UP
 ) -> GFFixedDecimal:
-	var target_places := _normalize_decimal_places(target_decimal_places)
+	var target_places: int = _normalize_decimal_places(target_decimal_places)
 	if target_places == decimal_places:
 		return clone()
 
@@ -234,9 +234,9 @@ func compare_to(other: GFFixedDecimal) -> int:
 	if other == null:
 		return 1
 
-	var target_places := maxi(decimal_places, other.decimal_places)
-	var self_raw := _align_raw_for_compare(target_places)
-	var other_raw := other._align_raw_for_compare(target_places)
+	var target_places: int = maxi(decimal_places, other.decimal_places)
+	var self_raw: int = _align_raw_for_compare(target_places)
+	var other_raw: int = other._align_raw_for_compare(target_places)
 
 	if self_raw == other_raw:
 		return 0
@@ -255,9 +255,9 @@ func add(other: GFFixedDecimal) -> GFFixedDecimal:
 	if other == null:
 		return clone()
 
-	var target_places := maxi(decimal_places, other.decimal_places)
-	var left_raw := _align_raw_for_compare(target_places)
-	var right_raw := other._align_raw_for_compare(target_places)
+	var target_places: int = maxi(decimal_places, other.decimal_places)
+	var left_raw: int = _align_raw_for_compare(target_places)
+	var right_raw: int = other._align_raw_for_compare(target_places)
 	return GFFixedDecimal.new(_checked_add(left_raw, right_raw, "add"), target_places)
 
 
@@ -294,9 +294,9 @@ func multiply(
 	if other == null:
 		return clone()
 
-	var product_raw := _checked_multiply(raw_value, other.raw_value, "multiply")
-	var product_places := decimal_places + other.decimal_places
-	var result_places := target_decimal_places
+	var product_raw: int = _checked_multiply(raw_value, other.raw_value, "multiply")
+	var product_places: int = decimal_places + other.decimal_places
+	var result_places: int = target_decimal_places
 	if result_places < 0:
 		result_places = maxi(decimal_places, other.decimal_places)
 	else:
@@ -323,27 +323,27 @@ func divide(
 ) -> GFFixedDecimal:
 	if other == null or other.raw_value == 0:
 		push_error("[GFFixedDecimal] 尝试除以空值或零值。")
-		var fallback_places := decimal_places if target_decimal_places < 0 else _normalize_decimal_places(target_decimal_places)
+		var fallback_places: int = decimal_places if target_decimal_places < 0 else _normalize_decimal_places(target_decimal_places)
 		return GFFixedDecimal.new(0, fallback_places)
 
-	var result_places := target_decimal_places
+	var result_places: int = target_decimal_places
 	if result_places < 0:
 		result_places = maxi(decimal_places, other.decimal_places)
 	else:
 		result_places = _normalize_decimal_places(result_places)
 
-	var shift := result_places + other.decimal_places - decimal_places
-	var numerator := raw_value
-	var denominator := other.raw_value
+	var shift: int = result_places + other.decimal_places - decimal_places
+	var numerator: int = raw_value
+	var denominator: int = other.raw_value
 	if shift > MAX_DECIMAL_PLACES:
-		var scaled_raw := _divide_with_scaled_float(numerator, denominator, shift, rounding_mode)
+		var scaled_raw: int = _divide_with_scaled_float(numerator, denominator, shift, rounding_mode)
 		return GFFixedDecimal.new(scaled_raw, result_places)
 	if shift >= 0:
 		numerator = _checked_multiply(numerator, _pow10_int(shift), "divide")
 	else:
 		denominator = _checked_multiply(denominator, _pow10_int(-shift), "divide")
 
-	var divided_raw := _divide_with_rounding(numerator, denominator, rounding_mode)
+	var divided_raw: int = _divide_with_rounding(numerator, denominator, rounding_mode)
 	return GFFixedDecimal.new(divided_raw, result_places)
 
 
@@ -362,7 +362,7 @@ func to_float() -> float:
 ## [br]
 ## @return 对应的大数值对象。
 func to_big_number() -> GFBigNumber:
-	return _BIG_NUMBER_SCRIPT.from_string(to_decimal_string(false))
+	return _make_big_number_from_string(to_decimal_string(false))
 
 
 ## 转换为普通字符串。
@@ -376,16 +376,16 @@ func to_decimal_string(trim_zeroes: bool = false) -> String:
 	if decimal_places == 0:
 		return str(raw_value)
 
-	var sign_text := ""
-	var abs_raw := raw_value
+	var sign_text: String = ""
+	var abs_raw: int = raw_value
 	if raw_value < 0:
 		sign_text = "-"
 		abs_raw = _abs_int(raw_value)
 
-	var scale := _pow10_int(decimal_places)
-	var integer_part := int(abs_raw / scale)
-	var fractional_part := abs_raw % scale
-	var fractional_text := _left_pad(str(fractional_part), decimal_places, "0")
+	var scale: int = _pow10_int(decimal_places)
+	var integer_part: int = _divide_truncated(abs_raw, scale)
+	var fractional_part: int = abs_raw % scale
+	var fractional_text: String = _left_pad(str(fractional_part), decimal_places, "0")
 	if trim_zeroes:
 		while fractional_text.ends_with("0"):
 			fractional_text = fractional_text.left(fractional_text.length() - 1)
@@ -397,6 +397,35 @@ func to_decimal_string(trim_zeroes: bool = false) -> String:
 
 
 # --- 私有/辅助方法 ---
+
+static func _make_big_number_from_string(value: String) -> GFBigNumber:
+	var result: Variant = _BIG_NUMBER_SCRIPT.call(&"from_string", value)
+	if result is GFBigNumber:
+		return result
+	return GFBigNumber.zero()
+
+
+static func _decimal_parts_are_valid(
+	integer_part: String,
+	fractional_part: String,
+	has_decimal_point: bool
+) -> bool:
+	var result: Variant = _DECIMAL_STRING_FORMATTER.call(
+		&"is_valid_decimal_parts",
+		integer_part,
+		fractional_part,
+		has_decimal_point
+	)
+	if result is bool:
+		return result
+	return false
+
+
+static func _append_packed_string(target: PackedStringArray, value: String) -> void:
+	var appended: bool = target.append(value)
+	if appended:
+		return
+
 
 func _align_raw_for_compare(target_decimal_places: int) -> int:
 	if target_decimal_places <= decimal_places:
@@ -417,7 +446,7 @@ static func _rescale_raw(
 	if to_places > from_places:
 		return _checked_multiply(value, _pow10_int(to_places - from_places), "rescaled")
 
-	var divisor := _pow10_int(from_places - to_places)
+	var divisor: int = _pow10_int(from_places - to_places)
 	return _divide_with_rounding(value, divisor, rounding_mode)
 
 
@@ -430,19 +459,19 @@ static func _divide_with_rounding(
 		push_error("[GFFixedDecimal] 尝试进行零除。")
 		return 0
 
-	var negative := (numerator < 0) != (denominator < 0)
-	var abs_numerator := _abs_int(numerator)
-	var abs_denominator := _abs_int(denominator)
-	var quotient := int(abs_numerator / abs_denominator)
-	var remainder := abs_numerator % abs_denominator
-	var adjusted := quotient
+	var negative: bool = (numerator < 0) != (denominator < 0)
+	var abs_numerator: int = _abs_int(numerator)
+	var abs_denominator: int = _abs_int(denominator)
+	var quotient: int = _divide_truncated(abs_numerator, abs_denominator)
+	var remainder: int = abs_numerator % abs_denominator
+	var adjusted: int = quotient
 
 	match rounding_mode:
 		RoundingMode.HALF_UP:
 			if _compare_twice_remainder(remainder, abs_denominator) >= 0:
 				adjusted = _checked_add(adjusted, 1, "divide")
 		RoundingMode.HALF_EVEN:
-			var half_compare := _compare_twice_remainder(remainder, abs_denominator)
+			var half_compare: int = _compare_twice_remainder(remainder, abs_denominator)
 			if half_compare > 0:
 				adjusted = _checked_add(adjusted, 1, "divide")
 			elif half_compare == 0 and quotient % 2 != 0:
@@ -462,35 +491,42 @@ static func _divide_with_rounding(
 static func _round_scaled_float(value: float, rounding_mode: RoundingMode) -> int:
 	match rounding_mode:
 		RoundingMode.FLOOR:
-			return int(floor(value))
+			var floored_value: float = floor(value)
+			return int(floored_value)
 		RoundingMode.CEIL:
-			return int(ceil(value))
+			var ceiled_value: float = ceil(value)
+			return int(ceiled_value)
 		RoundingMode.TRUNCATE:
 			if value >= 0.0:
-				return int(floor(value))
-			return int(ceil(value))
+				var positive_truncated: float = floor(value)
+				return int(positive_truncated)
+			var negative_truncated: float = ceil(value)
+			return int(negative_truncated)
 		RoundingMode.HALF_UP:
 			if value >= 0.0:
-				return int(floor(value + 0.5))
-			return int(ceil(value - 0.5))
+				var positive_rounded: float = floor(value + 0.5)
+				return int(positive_rounded)
+			var negative_rounded: float = ceil(value - 0.5)
+			return int(negative_rounded)
 		RoundingMode.HALF_EVEN:
-			var sign := 1
-			var abs_value: float = value
+			var sign_multiplier: int = 1
+			var absolute_value: float = value
 			if value < 0.0:
-				sign = -1
-				abs_value = -value
+				sign_multiplier = -1
+				absolute_value = -value
 
-			var integer_part: float = floor(abs_value)
-			var fraction: float = abs_value - integer_part
-			var rounded := int(integer_part)
+			var integer_part: float = floor(absolute_value)
+			var fraction: float = absolute_value - integer_part
+			var rounded: int = int(integer_part)
 			if fraction > 0.5:
 				rounded += 1
 			elif is_equal_approx(fraction, 0.5) and rounded % 2 != 0:
 				rounded += 1
 
-			return rounded * sign
+			return rounded * sign_multiplier
 
-	return int(round(value))
+	var fallback_rounded: float = round(value)
+	return int(fallback_rounded)
 
 
 static func _divide_with_scaled_float(
@@ -503,21 +539,24 @@ static func _divide_with_scaled_float(
 		push_error("[GFFixedDecimal] 尝试进行零除。")
 		return 0
 
-	var negative := (numerator < 0) != (denominator < 0)
-	var numerator_digits := str(_abs_int(numerator)) + _repeat_character("0", shift)
-	var denominator_digits := str(_abs_int(denominator))
-	var division := _divide_decimal_strings(numerator_digits, denominator_digits)
-	var quotient_text := division["quotient"] as String
-	var remainder_text := division["remainder"] as String
-	var adjusted_text := quotient_text
-	var has_remainder := remainder_text != "0"
+	var negative: bool = (numerator < 0) != (denominator < 0)
+	var numerator_digits: String = str(_abs_int(numerator)) + _repeat_character("0", shift)
+	var denominator_digits: String = str(_abs_int(denominator))
+	var division: Dictionary = _divide_decimal_strings(numerator_digits, denominator_digits)
+	var quotient_text: String = GFVariantData.get_option_string(division, "quotient", "0")
+	var remainder_text: String = GFVariantData.get_option_string(division, "remainder", "0")
+	var adjusted_text: String = quotient_text
+	var has_remainder: bool = remainder_text != "0"
 
 	match rounding_mode:
 		RoundingMode.HALF_UP:
 			if _compare_decimal_strings(_multiply_decimal_string_by_digit(remainder_text, 2), denominator_digits) >= 0:
 				adjusted_text = _add_one_decimal_string(adjusted_text)
 		RoundingMode.HALF_EVEN:
-			var half_compare := _compare_decimal_strings(_multiply_decimal_string_by_digit(remainder_text, 2), denominator_digits)
+			var half_compare: int = _compare_decimal_strings(
+				_multiply_decimal_string_by_digit(remainder_text, 2),
+				denominator_digits
+			)
 			if half_compare > 0:
 				adjusted_text = _add_one_decimal_string(adjusted_text)
 			elif half_compare == 0 and _decimal_string_is_odd(adjusted_text):
@@ -537,38 +576,38 @@ static func _divide_with_scaled_float(
 static func _parse_decimal_to_raw(
 	integer_part: String,
 	fractional_part: String,
-	sign: int,
+	sign_multiplier: int,
 	places: int,
 	rounding_mode: RoundingMode
 ) -> int:
-	var integer_digits := integer_part
+	var integer_digits: String = integer_part
 	if integer_digits.is_empty():
 		integer_digits = "0"
 
-	var kept_fraction := fractional_part
-	var discarded_fraction := ""
+	var kept_fraction: String = fractional_part
+	var discarded_fraction: String = ""
 	if kept_fraction.length() > places:
 		discarded_fraction = kept_fraction.substr(places)
 		kept_fraction = kept_fraction.left(places)
 	else:
 		kept_fraction += _repeat_character("0", places - kept_fraction.length())
 
-	var parsed_raw := _parse_signed_digits(integer_digits + kept_fraction, sign)
-	if _should_round_discarded(discarded_fraction, _abs_int(parsed_raw), sign, rounding_mode):
-		parsed_raw = _checked_add(parsed_raw, sign, "from_string")
+	var parsed_raw: int = _parse_signed_digits(integer_digits + kept_fraction, sign_multiplier)
+	if _should_round_discarded(discarded_fraction, _abs_int(parsed_raw), sign_multiplier, rounding_mode):
+		parsed_raw = _checked_add(parsed_raw, sign_multiplier, "from_string")
 	return parsed_raw
 
 
 static func _should_round_discarded(
 	discarded: String,
 	kept_abs_raw: int,
-	sign: int,
+	sign_multiplier: int,
 	rounding_mode: RoundingMode
 ) -> bool:
 	if discarded.is_empty() or not _has_non_zero_digit(discarded):
 		return false
 
-	var first_digit := discarded.substr(0, 1).to_int()
+	var first_digit: int = discarded.substr(0, 1).to_int()
 	match rounding_mode:
 		RoundingMode.HALF_UP:
 			return first_digit >= 5
@@ -579,9 +618,9 @@ static func _should_round_discarded(
 				return false
 			return _has_non_zero_digit(discarded.substr(1)) or kept_abs_raw % 2 != 0
 		RoundingMode.FLOOR:
-			return sign < 0
+			return sign_multiplier < 0
 		RoundingMode.CEIL:
-			return sign > 0
+			return sign_multiplier > 0
 		RoundingMode.TRUNCATE:
 			return false
 
@@ -589,33 +628,33 @@ static func _should_round_discarded(
 
 
 static func _has_non_zero_digit(text: String) -> bool:
-	for i in range(text.length()):
+	for i: int in range(text.length()):
 		if text.substr(i, 1) != "0":
 			return true
 	return false
 
 
 static func _divide_decimal_strings(numerator_digits: String, denominator_digits: String) -> Dictionary:
-	var numerator_text := _normalize_decimal_string(numerator_digits)
-	var denominator_text := _normalize_decimal_string(denominator_digits)
+	var numerator_text: String = _normalize_decimal_string(numerator_digits)
+	var denominator_text: String = _normalize_decimal_string(denominator_digits)
 	if denominator_text == "0":
 		return {
 			"quotient": "0",
 			"remainder": "0",
 		}
 
-	var quotient_parts := PackedStringArray()
-	var remainder := "0"
-	for i in range(numerator_text.length()):
+	var quotient_parts: PackedStringArray = PackedStringArray()
+	var remainder: String = "0"
+	for i: int in range(numerator_text.length()):
 		remainder = _normalize_decimal_string(remainder + numerator_text.substr(i, 1))
-		var quotient_digit := 0
-		for candidate in range(9, -1, -1):
-			var product := _multiply_decimal_string_by_digit(denominator_text, candidate)
+		var quotient_digit: int = 0
+		for candidate: int in range(9, -1, -1):
+			var product: String = _multiply_decimal_string_by_digit(denominator_text, candidate)
 			if _compare_decimal_strings(product, remainder) <= 0:
 				quotient_digit = candidate
 				remainder = _subtract_decimal_strings(remainder, product)
 				break
-		quotient_parts.append(str(quotient_digit))
+		_append_packed_string(quotient_parts, str(quotient_digit))
 
 	return {
 		"quotient": _normalize_decimal_string("".join(quotient_parts)),
@@ -624,7 +663,7 @@ static func _divide_decimal_strings(numerator_digits: String, denominator_digits
 
 
 static func _normalize_decimal_string(text: String) -> String:
-	var result := text
+	var result: String = text
 	while result.length() > 1 and result.begins_with("0"):
 		result = result.substr(1)
 	if result.is_empty():
@@ -633,8 +672,8 @@ static func _normalize_decimal_string(text: String) -> String:
 
 
 static func _compare_decimal_strings(left: String, right: String) -> int:
-	var normalized_left := _normalize_decimal_string(left)
-	var normalized_right := _normalize_decimal_string(right)
+	var normalized_left: String = _normalize_decimal_string(left)
+	var normalized_right: String = _normalize_decimal_string(right)
 	if normalized_left.length() > normalized_right.length():
 		return 1
 	if normalized_left.length() < normalized_right.length():
@@ -645,15 +684,15 @@ static func _compare_decimal_strings(left: String, right: String) -> int:
 
 
 static func _subtract_decimal_strings(left: String, right: String) -> String:
-	var left_text := _normalize_decimal_string(left)
-	var right_text := _normalize_decimal_string(right)
-	var result_parts := PackedStringArray()
-	var borrow := 0
-	var left_index := left_text.length() - 1
-	var right_index := right_text.length() - 1
+	var left_text: String = _normalize_decimal_string(left)
+	var right_text: String = _normalize_decimal_string(right)
+	var result_parts: PackedStringArray = PackedStringArray()
+	var borrow: int = 0
+	var left_index: int = left_text.length() - 1
+	var right_index: int = right_text.length() - 1
 	while left_index >= 0:
-		var left_digit := left_text.substr(left_index, 1).to_int() - borrow
-		var right_digit := 0
+		var left_digit: int = left_text.substr(left_index, 1).to_int() - borrow
+		var right_digit: int = 0
 		if right_index >= 0:
 			right_digit = right_text.substr(right_index, 1).to_int()
 		if left_digit < right_digit:
@@ -661,7 +700,7 @@ static func _subtract_decimal_strings(left: String, right: String) -> String:
 			borrow = 1
 		else:
 			borrow = 0
-		result_parts.append(str(left_digit - right_digit))
+		_append_packed_string(result_parts, str(left_digit - right_digit))
 		left_index -= 1
 		right_index -= 1
 	result_parts.reverse()
@@ -674,41 +713,41 @@ static func _multiply_decimal_string_by_digit(text: String, digit: int) -> Strin
 	if digit == 1:
 		return _normalize_decimal_string(text)
 
-	var normalized_text := _normalize_decimal_string(text)
-	var result_parts := PackedStringArray()
-	var carry := 0
-	for i in range(normalized_text.length() - 1, -1, -1):
-		var product := normalized_text.substr(i, 1).to_int() * digit + carry
-		result_parts.append(str(product % 10))
-		carry = int(product / 10)
+	var normalized_text: String = _normalize_decimal_string(text)
+	var result_parts: PackedStringArray = PackedStringArray()
+	var carry: int = 0
+	for i: int in range(normalized_text.length() - 1, -1, -1):
+		var product: int = normalized_text.substr(i, 1).to_int() * digit + carry
+		_append_packed_string(result_parts, str(product % 10))
+		carry = _divide_truncated(product, 10)
 	while carry > 0:
-		result_parts.append(str(carry % 10))
-		carry = int(carry / 10)
+		_append_packed_string(result_parts, str(carry % 10))
+		carry = _divide_truncated(carry, 10)
 	result_parts.reverse()
 	return _normalize_decimal_string("".join(result_parts))
 
 
 static func _add_one_decimal_string(text: String) -> String:
-	var result := _normalize_decimal_string(text)
-	var carry := 1
-	for i in range(result.length() - 1, -1, -1):
-		var digit := result.substr(i, 1).to_int() + carry
-		var prefix := result.left(i)
-		var suffix := result.substr(i + 1)
+	var result: String = _normalize_decimal_string(text)
+	var carry: int = 1
+	for i: int in range(result.length() - 1, -1, -1):
+		var digit: int = result.substr(i, 1).to_int() + carry
+		var prefix: String = result.left(i)
+		var suffix: String = result.substr(i + 1)
 		result = prefix + str(digit % 10) + suffix
-		carry = int(digit / 10)
+		carry = _divide_truncated(digit, 10)
 		if carry == 0:
 			return result
 	return "1" + result
 
 
 static func _decimal_string_is_odd(text: String) -> bool:
-	var normalized_text := _normalize_decimal_string(text)
+	var normalized_text: String = _normalize_decimal_string(text)
 	return normalized_text.substr(normalized_text.length() - 1, 1).to_int() % 2 != 0
 
 
 static func _decimal_string_to_int_saturated(text: String, is_negative: bool) -> int:
-	var normalized_text := _normalize_decimal_string(text)
+	var normalized_text: String = _normalize_decimal_string(text)
 	if normalized_text.length() > 19 or (
 		normalized_text.length() == 19
 		and normalized_text > _MAX_INT_DIGITS
@@ -716,8 +755,8 @@ static func _decimal_string_to_int_saturated(text: String, is_negative: bool) ->
 		push_error("[GFFixedDecimal] divide 结果超出可表示范围，已钳制。")
 		return _get_saturated_int(is_negative)
 
-	var result := 0
-	for i in range(normalized_text.length()):
+	var result: int = 0
+	for i: int in range(normalized_text.length()):
 		result = _checked_multiply(result, 10, "divide")
 		result = _checked_add(result, normalized_text.substr(i, 1).to_int(), "divide")
 
@@ -725,16 +764,16 @@ static func _decimal_string_to_int_saturated(text: String, is_negative: bool) ->
 
 
 static func _repeat_character(character: String, count: int) -> String:
-	var result := ""
-	for _i in range(maxi(count, 0)):
+	var result: String = ""
+	for _i: int in range(maxi(count, 0)):
 		result += character
 	return result
 
 
 static func _pow10_int(power: int) -> int:
-	var safe_power := _normalize_decimal_places(power)
-	var result := 1
-	for _i in range(safe_power):
+	var safe_power: int = _normalize_decimal_places(power)
+	var result: int = 1
+	for _i: int in range(safe_power):
 		result *= 10
 	return result
 
@@ -744,7 +783,7 @@ static func _pow10_float(power: int) -> float:
 
 
 static func _left_pad(text: String, width: int, fill_char: String) -> String:
-	var result := text
+	var result: String = text
 	while result.length() < width:
 		result = fill_char + result
 	return result
@@ -759,8 +798,8 @@ static func _normalize_decimal_places(value: int) -> int:
 	return value
 
 
-static func _parse_signed_digits(digits: String, sign: int) -> int:
-	var significant_digits := digits
+static func _parse_signed_digits(digits: String, sign_multiplier: int) -> int:
+	var significant_digits: String = digits
 	while significant_digits.length() > 1 and significant_digits.begins_with("0"):
 		significant_digits = significant_digits.substr(1)
 
@@ -769,14 +808,14 @@ static func _parse_signed_digits(digits: String, sign: int) -> int:
 		and significant_digits > _MAX_INT_DIGITS
 	):
 		push_error("[GFFixedDecimal] 数字超出可表示范围。")
-		return _get_saturated_int(sign < 0)
+		return _get_saturated_int(sign_multiplier < 0)
 
-	var result := 0
-	for i in range(significant_digits.length()):
+	var result: int = 0
+	for i: int in range(significant_digits.length()):
 		result = _checked_multiply(result, 10, "from_string")
 		result = _checked_add(result, significant_digits.substr(i, 1).to_int(), "from_string")
 
-	if sign < 0:
+	if sign_multiplier < 0:
 		return _checked_multiply(result, -1, "from_string")
 	return result
 
@@ -785,13 +824,18 @@ static func _checked_multiply(left: int, right: int, context: String) -> int:
 	if left == 0 or right == 0:
 		return 0
 
-	var abs_left := _abs_int(left)
-	var abs_right := _abs_int(right)
-	var negative := (left < 0) != (right < 0)
-	if abs_left > int(_MAX_INT_VALUE / abs_right):
+	var abs_left: int = _abs_int(left)
+	var abs_right: int = _abs_int(right)
+	var negative: bool = (left < 0) != (right < 0)
+	if abs_left > _divide_truncated(_MAX_INT_VALUE, abs_right):
 		push_error("[GFFixedDecimal] %s 结果超出可表示范围，已钳制。" % context)
 		return _get_saturated_int(negative)
 	return left * right
+
+
+static func _divide_truncated(numerator: int, denominator: int) -> int:
+	@warning_ignore("integer_division")
+	return numerator / denominator
 
 
 static func _checked_add(left: int, right: int, context: String) -> int:
@@ -813,7 +857,7 @@ static func _abs_int(value: int) -> int:
 
 
 static func _compare_twice_remainder(remainder: int, denominator: int) -> int:
-	var complement := denominator - remainder
+	var complement: int = denominator - remainder
 	if remainder > complement:
 		return 1
 	if remainder < complement:

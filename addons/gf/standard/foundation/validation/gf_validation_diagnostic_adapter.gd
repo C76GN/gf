@@ -17,17 +17,17 @@ extends RefCounted
 ## 校验问题脚本基类。
 ## [br]
 ## @api framework_internal
-const GF_VALIDATION_ISSUE_BASE: Script = preload("res://addons/gf/standard/foundation/validation/gf_validation_issue.gd")
+const GF_VALIDATION_ISSUE_BASE = preload("res://addons/gf/standard/foundation/validation/gf_validation_issue.gd")
 
 ## 校验报告脚本基类。
 ## [br]
 ## @api framework_internal
-const GF_VALIDATION_REPORT_BASE: Script = preload("res://addons/gf/standard/foundation/validation/gf_validation_report.gd")
+const GF_VALIDATION_REPORT_BASE = preload("res://addons/gf/standard/foundation/validation/gf_validation_report.gd")
 
 ## 源码范围脚本基类。
 ## [br]
 ## @api framework_internal
-const GF_SOURCE_SPAN_BASE: Script = preload("res://addons/gf/standard/foundation/validation/gf_source_span.gd")
+const GF_SOURCE_SPAN_BASE = preload("res://addons/gf/standard/foundation/validation/gf_source_span.gd")
 
 
 # --- 公共方法 ---
@@ -48,28 +48,28 @@ const GF_SOURCE_SPAN_BASE: Script = preload("res://addons/gf/standard/foundation
 ## [br]
 ## @schema return: Dictionary editor diagnostic record.
 static func issue_to_diagnostic(issue: Variant, options: Dictionary = {}) -> Dictionary:
-	var issue_data := _issue_to_dict(issue, bool(options.get("include_empty_source_span", false)))
+	var issue_data: Dictionary = _issue_to_dict(issue, GFVariantData.get_option_bool(options, "include_empty_source_span", false))
 	if issue_data.is_empty():
 		return {}
 
-	var source_span := _source_span_from_dict(_make_span_data(issue_data, options))
-	var severity: String = GF_VALIDATION_ISSUE_BASE.severity_to_string(issue_data.get("severity", "error"))
-	var kind_key := _get_issue_kind(issue_data)
-	var source_path := String(source_span.get("source_path"))
-	var line := int(source_span.get("line"))
-	var column := int(source_span.get("column"))
-	var length := int(source_span.get("length"))
-	var end_line := int(source_span.get("end_line"))
-	var end_column := int(source_span.get("end_column"))
-	var preview := String(source_span.get("preview"))
-	var location := String(source_span.call("get_location_text"))
-	var source_span_dict: Variant = source_span.call("to_dict", false, true)
-	var diagnostic := {
+	var source_span: GFSourceSpan = _source_span_from_dict(_make_span_data(issue_data, options))
+	var severity: String = GFValidationIssue.severity_to_string(GFVariantData.get_option_value(issue_data, "severity", "error"))
+	var kind_key: String = _get_issue_kind(issue_data)
+	var source_path: String = source_span.source_path
+	var line: int = source_span.line
+	var column: int = source_span.column
+	var length: int = source_span.length
+	var end_line: int = source_span.end_line
+	var end_column: int = source_span.end_column
+	var preview: String = source_span.preview
+	var location: String = source_span.get_location_text()
+	var source_span_dict: Dictionary = source_span.to_dict(false, true)
+	var diagnostic: Dictionary = {
 		"severity": severity,
 		"kind": kind_key,
-		"message": String(issue_data.get("message", "")),
-		"key": GFVariantData.duplicate_variant(issue_data.get("key", null)),
-		"path": String(issue_data.get("path", "")),
+		"message": GFVariantData.get_option_string(issue_data, "message"),
+		"key": GFVariantData.duplicate_variant(GFVariantData.get_option_value(issue_data, "key")),
+		"path": GFVariantData.get_option_string(issue_data, "path"),
 		"source_path": source_path,
 		"line": line,
 		"column": column,
@@ -80,7 +80,7 @@ static func issue_to_diagnostic(issue: Variant, options: Dictionary = {}) -> Dic
 		"line_index": line - 1 if line > 0 else -1,
 		"column_index": column - 1 if column > 0 else -1,
 		"location": location,
-		"source_span": source_span_dict as Dictionary if source_span_dict is Dictionary else {},
+		"source_span": source_span_dict,
 		"metadata": _read_dictionary(issue_data, "metadata"),
 	}
 	diagnostic["display_text"] = make_display_text(diagnostic)
@@ -105,15 +105,15 @@ static func issue_to_diagnostic(issue: Variant, options: Dictionary = {}) -> Dic
 ## @schema return: Array of Dictionary editor diagnostic records.
 static func report_to_diagnostics(source: Variant, options: Dictionary = {}) -> Array[Dictionary]:
 	var diagnostics: Array[Dictionary] = []
-	var source_filter := String(options.get("source_path", ""))
-	var include_positionless := bool(options.get("include_positionless", true))
+	var source_filter: String = GFVariantData.get_option_string(options, "source_path")
+	var include_positionless: bool = GFVariantData.get_option_bool(options, "include_positionless", true)
 	for issue: Variant in _get_source_issues(source):
-		var diagnostic := issue_to_diagnostic(issue, options)
+		var diagnostic: Dictionary = issue_to_diagnostic(issue, options)
 		if diagnostic.is_empty():
 			continue
-		if not source_filter.is_empty() and String(diagnostic.get("source_path", "")) != source_filter:
+		if not source_filter.is_empty() and GFVariantData.get_option_string(diagnostic, "source_path") != source_filter:
 			continue
-		if not include_positionless and int(diagnostic.get("line", 0)) <= 0:
+		if not include_positionless and GFVariantData.get_option_int(diagnostic, "line") <= 0:
 			continue
 		diagnostics.append(diagnostic)
 	return diagnostics
@@ -133,10 +133,9 @@ static func report_to_diagnostics(source: Variant, options: Dictionary = {}) -> 
 static func group_by_source(diagnostics: Array[Dictionary]) -> Dictionary:
 	var result: Dictionary = {}
 	for diagnostic: Dictionary in diagnostics:
-		var source_path := String(diagnostic.get("source_path", ""))
-		if not result.has(source_path):
-			result[source_path] = []
-		(result[source_path] as Array).append(diagnostic.duplicate(true))
+		var source_path: String = GFVariantData.get_option_string(diagnostic, "source_path")
+		var group: Array = _get_group_array(result, source_path)
+		group.append(diagnostic.duplicate(true))
 	return result
 
 
@@ -157,20 +156,21 @@ static func group_by_source(diagnostics: Array[Dictionary]) -> Dictionary:
 ## @schema return: Array of Dictionary line records.
 static func make_line_records(diagnostics: Array[Dictionary], options: Dictionary = {}) -> Array[Dictionary]:
 	var records: Array[Dictionary] = []
-	var include_positionless := bool(options.get("include_positionless", false))
+	var include_positionless: bool = GFVariantData.get_option_bool(options, "include_positionless", false)
 	for diagnostic: Dictionary in diagnostics:
-		var line_number := int(diagnostic.get("line", 0))
+		var line_number: int = GFVariantData.get_option_int(diagnostic, "line")
 		if line_number <= 0 and not include_positionless:
 			continue
+		var column_number: int = GFVariantData.get_option_int(diagnostic, "column")
 		records.append({
-			"source_path": String(diagnostic.get("source_path", "")),
+			"source_path": GFVariantData.get_option_string(diagnostic, "source_path"),
 			"line": line_number,
 			"line_index": line_number - 1 if line_number > 0 else -1,
-			"column": int(diagnostic.get("column", 0)),
-			"column_index": int(diagnostic.get("column", 0)) - 1 if int(diagnostic.get("column", 0)) > 0 else -1,
-			"severity": String(diagnostic.get("severity", "error")),
-			"kind": String(diagnostic.get("kind", "")),
-			"message": String(diagnostic.get("message", "")),
+			"column": column_number,
+			"column_index": column_number - 1 if column_number > 0 else -1,
+			"severity": GFVariantData.get_option_string(diagnostic, "severity", "error"),
+			"kind": GFVariantData.get_option_string(diagnostic, "kind"),
+			"message": GFVariantData.get_option_string(diagnostic, "message"),
 			"tooltip": make_tooltip(diagnostic),
 			"diagnostic": diagnostic.duplicate(true),
 		})
@@ -187,14 +187,14 @@ static func make_line_records(diagnostics: Array[Dictionary], options: Dictionar
 ## [br]
 ## @return 显示文本。
 static func make_display_text(diagnostic: Dictionary) -> String:
-	var message := String(diagnostic.get("message", ""))
-	var kind := String(diagnostic.get("kind", ""))
+	var message: String = GFVariantData.get_option_string(diagnostic, "message")
+	var kind: String = GFVariantData.get_option_string(diagnostic, "kind")
 	if message.is_empty():
 		message = kind
 	if message.is_empty():
 		message = "Validation issue"
 
-	var location := String(diagnostic.get("location", ""))
+	var location: String = GFVariantData.get_option_string(diagnostic, "location")
 	if location.is_empty() or location == "source":
 		return message
 	return "%s: %s" % [location, message]
@@ -210,77 +210,85 @@ static func make_display_text(diagnostic: Dictionary) -> String:
 ## [br]
 ## @return 工具提示文本。
 static func make_tooltip(diagnostic: Dictionary) -> String:
-	var lines := PackedStringArray()
-	var severity := String(diagnostic.get("severity", "error"))
-	var kind := String(diagnostic.get("kind", ""))
-	var message := String(diagnostic.get("message", ""))
-	var location := String(diagnostic.get("location", ""))
-	lines.append("[%s] %s" % [severity, kind if not kind.is_empty() else "validation"])
+	var lines: PackedStringArray = PackedStringArray()
+	var severity: String = GFVariantData.get_option_string(diagnostic, "severity", "error")
+	var kind: String = GFVariantData.get_option_string(diagnostic, "kind")
+	var message: String = GFVariantData.get_option_string(diagnostic, "message")
+	var location: String = GFVariantData.get_option_string(diagnostic, "location")
+	_append_packed_string(lines, "[%s] %s" % [severity, kind if not kind.is_empty() else "validation"])
 	if not message.is_empty():
-		lines.append(message)
+		_append_packed_string(lines, message)
 	if not location.is_empty() and location != "source":
-		lines.append(location)
-	var preview := String(diagnostic.get("preview", ""))
+		_append_packed_string(lines, location)
+	var preview: String = GFVariantData.get_option_string(diagnostic, "preview")
 	if not preview.is_empty():
-		lines.append(preview)
+		_append_packed_string(lines, preview)
 	return "\n".join(lines)
 
 
 # --- 私有/辅助方法 ---
 
 static func _issue_to_dict(issue: Variant, include_empty_fields: bool = false) -> Dictionary:
-	if issue is GF_VALIDATION_ISSUE_BASE:
-		var issue_dict: Variant = (issue as RefCounted).call("to_dict", include_empty_fields)
-		return issue_dict as Dictionary if issue_dict is Dictionary else {}
-	if issue is Dictionary:
-		var issue_data := issue as Dictionary
-		if issue_data.is_empty():
-			return {}
-		var normalized_issue := GF_VALIDATION_ISSUE_BASE.new() as RefCounted
-		normalized_issue.call("apply_dict", issue_data)
-		var normalized_dict: Variant = normalized_issue.call("to_dict", include_empty_fields)
-		return normalized_dict as Dictionary if normalized_dict is Dictionary else {}
-	return {}
+	return GFValidationReportDictionary.issue_to_dict(issue, include_empty_fields)
 
 
 static func _get_source_issues(source: Variant) -> Array:
-	if source is GF_VALIDATION_REPORT_BASE:
-		var issues := (source as RefCounted).get("issues") as Array
-		return issues.duplicate() if issues != null else []
+	if source is GFValidationReport:
+		var validation_report: GFValidationReport = source
+		return validation_report.issues.duplicate()
 	if source is Dictionary:
-		var source_issues := (source as Dictionary).get("issues", []) as Array
-		return source_issues.duplicate() if source_issues != null else []
+		var source_report: Dictionary = source
+		return GFVariantData.as_array(GFVariantData.get_option_value(source_report, "issues", [])).duplicate()
 	if source is Array:
-		return (source as Array).duplicate()
+		var source_issues: Array = source
+		return source_issues.duplicate()
 	return []
 
 
 static func _make_span_data(issue_data: Dictionary, options: Dictionary) -> Dictionary:
 	var span_data: Dictionary = {}
-	if issue_data.get("source_span") is Dictionary:
-		span_data = (issue_data.get("source_span") as Dictionary).duplicate(true)
+	var source_span_value: Variant = GFVariantData.get_option_value(issue_data, "source_span")
+	if source_span_value is Dictionary:
+		var source_span_data: Dictionary = GFVariantData.as_dictionary(source_span_value)
+		span_data = source_span_data.duplicate(true)
 
 	for field_name: String in ["source_path", "source", "line", "column", "length", "end_line", "end_column", "preview"]:
 		if issue_data.has(field_name):
 			span_data[field_name] = GFVariantData.duplicate_variant(issue_data[field_name])
 
-	if String(span_data.get("source_path", "")).is_empty() and bool(options.get("use_path_as_source", false)):
-		span_data["source_path"] = String(issue_data.get("path", ""))
+	if GFVariantData.get_option_string(span_data, "source_path").is_empty() and GFVariantData.get_option_bool(options, "use_path_as_source", false):
+		span_data["source_path"] = GFVariantData.get_option_string(issue_data, "path")
 	return span_data
 
 
-static func _source_span_from_dict(data: Dictionary) -> RefCounted:
-	var span := GF_SOURCE_SPAN_BASE.new() as RefCounted
-	span.call("apply_dict", data)
+static func _source_span_from_dict(data: Dictionary) -> GFSourceSpan:
+	var span: GFSourceSpan = GFSourceSpan.new()
+	span.apply_dict(data)
 	return span
 
 
 static func _get_issue_kind(issue_data: Dictionary) -> String:
-	var kind_value: Variant = issue_data.get("kind", "unknown")
-	var kind_text := String(kind_value)
+	var kind_value: Variant = GFVariantData.get_option_value(issue_data, "kind", "unknown")
+	var kind_text: String = GFVariantData.to_text(kind_value)
 	return kind_text if not kind_text.is_empty() else "unknown"
 
 
 static func _read_dictionary(data: Dictionary, field_name: String) -> Dictionary:
-	var value: Variant = data.get(field_name, {})
-	return (value as Dictionary).duplicate(true) if value is Dictionary else {}
+	return GFVariantData.to_dictionary(GFVariantData.get_option_value(data, field_name, {}))
+
+
+static func _get_group_array(target: Dictionary, source_path: String) -> Array:
+	var value: Variant = GFVariantData.get_option_value(target, source_path, [])
+	if value is Array:
+		var group: Array = value
+		target[source_path] = group
+		return group
+	var empty_group: Array = []
+	target[source_path] = empty_group
+	return empty_group
+
+
+static func _append_packed_string(target: PackedStringArray, value: String) -> void:
+	var appended: bool = target.append(value)
+	if appended:
+		return

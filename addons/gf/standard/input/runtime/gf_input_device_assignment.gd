@@ -63,7 +63,7 @@ enum DeviceType {
 ## [br]
 ## @return 新的设备映射。
 func duplicate_assignment() -> GFInputDeviceAssignment:
-	var assignment := GFInputDeviceAssignment.new()
+	var assignment: GFInputDeviceAssignment = GFInputDeviceAssignment.new()
 	assignment.player_index = player_index
 	assignment.device_type = device_type
 	assignment.device_id = device_id

@@ -56,7 +56,7 @@ func cleanup(plugin: EditorPlugin) -> void:
 # --- 私有/辅助方法 ---
 
 func _add_import_plugin(plugin: EditorPlugin, script_path: String) -> void:
-	var import_plugin := _load_import_plugin(script_path)
+	var import_plugin: EditorImportPlugin = _load_import_plugin(script_path)
 	if import_plugin == null:
 		return
 
@@ -65,14 +65,30 @@ func _add_import_plugin(plugin: EditorPlugin, script_path: String) -> void:
 
 
 func _load_import_plugin(script_path: String) -> EditorImportPlugin:
-	var import_script := load(script_path) as Script
+	var import_script: Script = _load_script(script_path)
 	if import_script == null or not import_script.can_instantiate():
 		push_error("[GF Framework] 导入插件脚本加载失败：%s" % script_path)
 		return null
 
-	var import_plugin := import_script.new() as EditorImportPlugin
+	var import_plugin: EditorImportPlugin = _instantiate_import_plugin(import_script)
 	if import_plugin == null:
 		push_error("[GF Framework] 导入插件实例化失败：%s" % script_path)
 		return null
 
 	return import_plugin
+
+
+func _load_script(script_path: String) -> Script:
+	var resource: Resource = load(script_path)
+	if resource is Script:
+		var script: Script = resource
+		return script
+	return null
+
+
+func _instantiate_import_plugin(script: Script) -> EditorImportPlugin:
+	var instance: Variant = script.call("new")
+	if instance is EditorImportPlugin:
+		var import_plugin: EditorImportPlugin = instance
+		return import_plugin
+	return null

@@ -41,7 +41,7 @@ enum ValueKind {
 
 # --- 常量 ---
 
-const _OBJECT_PROPERTY_TOOLS: Script = preload("res://addons/gf/kernel/core/gf_object_property_tools.gd")
+const _OBJECT_PROPERTY_TOOLS = preload("res://addons/gf/kernel/core/gf_object_property_tools.gd")
 
 
 # --- 导出变量 ---
@@ -241,8 +241,8 @@ func write_value(target: Object, value: Variant) -> bool:
 	if read_only or not is_instance_valid(target):
 		return false
 
-	var normalized_value := normalize_value(value)
-	if validator.is_valid() and not bool(validator.call(target, self, normalized_value)):
+	var normalized_value: Variant = normalize_value(value)
+	if validator.is_valid() and not GFVariantData.to_bool(validator.call(target, self, normalized_value)):
 		return false
 	if setter.is_valid():
 		setter.call(target, self, normalized_value)
@@ -250,7 +250,7 @@ func write_value(target: Object, value: Variant) -> bool:
 	if property_name.is_empty():
 		return false
 	var result: Dictionary = _OBJECT_PROPERTY_TOOLS.write_property(target, property_name, normalized_value)
-	return bool(result.get("ok", false))
+	return GFVariantData.get_option_bool(result, "ok", false)
 
 
 ## 根据 schema 归一化写入值。
@@ -268,15 +268,15 @@ func normalize_value(value: Variant) -> Variant:
 	var normalized: Variant = value
 	match value_kind:
 		ValueKind.BOOL:
-			normalized = bool(value)
+			normalized = GFVariantData.to_bool(value)
 		ValueKind.INT:
 			normalized = _normalize_int(value)
 		ValueKind.FLOAT:
 			normalized = _normalize_float(value)
 		ValueKind.STRING:
-			normalized = String(value)
+			normalized = GFVariantData.to_text(value)
 		ValueKind.STRING_NAME:
-			normalized = StringName(String(value))
+			normalized = StringName(GFVariantData.to_text(value))
 		ValueKind.VECTOR2:
 			normalized = value if value is Vector2 else Vector2.ZERO
 		ValueKind.VECTOR3:
@@ -320,7 +320,7 @@ func to_schema() -> Dictionary:
 # --- 私有/辅助方法 ---
 
 func _normalize_int(value: Variant) -> int:
-	var number := int(value)
+	var number: int = GFVariantData.to_int(value)
 	if has_min_value:
 		number = maxi(number, int(min_value))
 	if has_max_value:
@@ -329,7 +329,7 @@ func _normalize_int(value: Variant) -> int:
 
 
 func _normalize_float(value: Variant) -> float:
-	var number := float(value)
+	var number: float = GFVariantData.to_float(value)
 	if has_min_value:
 		number = maxf(number, min_value)
 	if has_max_value:

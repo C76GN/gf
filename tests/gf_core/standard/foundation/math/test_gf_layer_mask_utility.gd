@@ -4,29 +4,29 @@ extends GutTest
 
 # --- 常量 ---
 
-const GF_LAYER_MASK_UTILITY := preload("res://addons/gf/standard/foundation/math/gf_layer_mask_utility.gd")
+const GF_LAYER_MASK_UTILITY = preload("res://addons/gf/standard/foundation/math/gf_layer_mask_utility.gd")
 
 
 # --- 测试 ---
 
 func test_names_to_mask_uses_layer_name_order() -> void:
-	var layer_names := ["Player", "Enemy", "World", "Projectile"]
-	var mask := GF_LAYER_MASK_UTILITY.names_to_mask(["Player", "World"], layer_names)
+	var layer_names: Array[String] = ["Player", "Enemy", "World", "Projectile"]
+	var mask: int = GF_LAYER_MASK_UTILITY.names_to_mask(["Player", "World"], layer_names)
 
 	assert_eq(mask, 5, "第 1 层和第 3 层应生成 bitmask 0b0101。")
 
 
 func test_mask_to_names_returns_enabled_names_in_layer_order() -> void:
-	var layer_names := ["Player", "Enemy", "World", "Projectile"]
-	var names := GF_LAYER_MASK_UTILITY.mask_to_names(10, layer_names)
+	var layer_names: Array[String] = ["Player", "Enemy", "World", "Projectile"]
+	var names: PackedStringArray = GF_LAYER_MASK_UTILITY.mask_to_names(10, layer_names)
 
 	assert_eq(names, PackedStringArray(["Enemy", "Projectile"]), "bitmask 应按层索引还原层名。")
 
 
 func test_case_insensitive_lookup_and_missing_names() -> void:
-	var layer_names := ["Player", "Enemy", "World"]
-	var mask := GF_LAYER_MASK_UTILITY.names_to_mask(["player", "WORLD"], layer_names, false)
-	var missing := GF_LAYER_MASK_UTILITY.get_missing_names(
+	var layer_names: Array[String] = ["Player", "Enemy", "World"]
+	var mask: int = GF_LAYER_MASK_UTILITY.names_to_mask(["player", "WORLD"], layer_names, false)
+	var missing: PackedStringArray = GF_LAYER_MASK_UTILITY.get_missing_names(
 		["enemy", "Unknown", "unknown"],
 		layer_names,
 		false
@@ -45,7 +45,7 @@ func test_layer_index_to_mask_rejects_invalid_indices() -> void:
 
 
 func test_mask_to_names_can_include_default_names_for_unnamed_layers() -> void:
-	var names := GF_LAYER_MASK_UTILITY.mask_to_names(1 << 4, [], true)
+	var names: PackedStringArray = GF_LAYER_MASK_UTILITY.mask_to_names(1 << 4, [], true)
 
 	assert_eq(names, PackedStringArray(["Layer 5"]), "启用 include_unnamed 时应返回默认层名。")
 

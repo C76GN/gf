@@ -155,7 +155,7 @@ func set_header(key: String, value: String) -> GFHttpRequestBuilder:
 ## [br]
 ## @return 当前构建器。
 func remove_header(key: String) -> GFHttpRequestBuilder:
-	_headers.erase(key.strip_edges())
+	var _erase_result_158: Variant = _headers.erase(key.strip_edges())
 	return self
 
 
@@ -192,7 +192,7 @@ func add_query_parameter(key: String, value: Variant) -> GFHttpRequestBuilder:
 func set_text_body(text: String, content_type: String = "text/plain; charset=utf-8") -> GFHttpRequestBuilder:
 	_body_text = text
 	if not content_type.is_empty():
-		set_header("Content-Type", content_type)
+		var _set_header_result_195: Variant = set_header("Content-Type", content_type)
 	return self
 
 
@@ -207,7 +207,7 @@ func set_text_body(text: String, content_type: String = "text/plain; charset=utf
 ## @schema value: Variant，兼容 JSON.stringify 的请求体载荷。
 func set_json_body(value: Variant) -> GFHttpRequestBuilder:
 	_body_text = JSON.stringify(value)
-	set_header("Content-Type", "application/json")
+	var _set_header_result_210: Variant = set_header("Content-Type", "application/json")
 	return self
 
 
@@ -220,14 +220,14 @@ func build_url() -> String:
 	if _query_parameters.is_empty():
 		return url
 
-	var pairs := PackedStringArray()
+	var pairs: PackedStringArray = PackedStringArray()
 	for parameter: Dictionary in _query_parameters:
-		pairs.append("%s=%s" % [
-			String(parameter.get("key", "")).uri_encode(),
-			str(parameter.get("value", "")).uri_encode(),
+		var _pair_appended: bool = pairs.append("%s=%s" % [
+			GFVariantData.get_option_string(parameter, "key", "").uri_encode(),
+			str(GFVariantData.get_option_value(parameter, "value", "")).uri_encode(),
 		])
 
-	var separator := "&" if url.contains("?") else "?"
+	var separator: String = "&" if url.contains("?") else "?"
 	return "%s%s%s" % [url, separator, "&".join(pairs)]
 
 
@@ -237,9 +237,9 @@ func build_url() -> String:
 ## [br]
 ## @return Header 数组。
 func build_headers() -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	for key: String in _headers.keys():
-		result.append("%s: %s" % [key, String(_headers[key])])
+		var _header_appended: bool = result.append("%s: %s" % [key, GFVariantData.to_text(_headers[key])])
 	return result
 
 
@@ -276,12 +276,12 @@ func execute(parent: Node = null) -> GFHttpResponse:
 	response.url = build_url()
 	response.metadata = metadata.duplicate(true)
 
-	var host := parent if parent != null else _resolve_default_parent()
+	var host: Node = parent if parent != null else _resolve_default_parent()
 	if host == null:
 		response.complete_failure("missing_request_parent")
 		return response
 
-	var request_node := HTTPRequest.new()
+	var request_node: HTTPRequest = HTTPRequest.new()
 	request_node.timeout = timeout_seconds
 	host.add_child(request_node)
 	response.cancel_callback = func() -> void:
@@ -289,7 +289,7 @@ func execute(parent: Node = null) -> GFHttpResponse:
 			request_node.cancel_request()
 			request_node.queue_free()
 
-	request_node.request_completed.connect(
+	var _completion_connect_error: Error = request_node.request_completed.connect(
 		func(
 			result_code: int,
 			status_code: int,
@@ -297,10 +297,10 @@ func execute(parent: Node = null) -> GFHttpResponse:
 			body: PackedByteArray
 		) -> void:
 			_complete_response(response, request_node, result_code, status_code, response_headers, body),
-		CONNECT_ONE_SHOT
-	)
+		CONNECT_ONE_SHOT as Object.ConnectFlags
+	) as Error
 
-	var error := request_node.request(build_url(), build_headers(), _to_http_client_method(method), _body_text)
+	var error: Error = request_node.request(build_url(), build_headers(), _to_http_client_method(method), _body_text)
 	if error != OK:
 		request_node.queue_free()
 		response.complete_failure(error_string(error), {
@@ -319,7 +319,7 @@ func execute(parent: Node = null) -> GFHttpResponse:
 ## [br]
 ## @schema return: Dictionary，包含 ok、text、data 和可选 error。
 func parse_body(body: PackedByteArray) -> Dictionary:
-	var text := body.get_string_from_utf8()
+	var text: String = body.get_string_from_utf8()
 	match parse_mode:
 		ParseMode.NONE:
 			return {
@@ -374,15 +374,15 @@ func _complete_response(
 	if is_instance_valid(request_node):
 		request_node.queue_free()
 
-	var parsed := parse_body(body)
-	var fields := {
+	var parsed: Dictionary = parse_body(body)
+	var fields: Dictionary = {
 		"url": response.url,
 		"result_code": result_code,
 		"status_code": status_code,
 		"headers": response_headers,
 		"body": body,
-		"text": String(parsed.get("text", "")),
-		"data": parsed.get("data"),
+		"text": GFVariantData.get_option_string(parsed, "text", ""),
+		"data": GFVariantData.get_option_value(parsed, "data"),
 		"metadata": response.metadata,
 	}
 	if result_code != HTTPRequest.RESULT_SUCCESS:
@@ -391,14 +391,17 @@ func _complete_response(
 	if status_code < 200 or status_code >= 300:
 		response.complete_failure("http_status_%d" % status_code, fields)
 		return
-	if not bool(parsed.get("ok", false)):
-		response.complete_failure(String(parsed.get("error", "parse_failed")), fields)
+	if not GFVariantData.get_option_bool(parsed, "ok", false):
+		response.complete_failure(GFVariantData.get_option_string(parsed, "error", "parse_failed"), fields)
 		return
 	response.complete_success(fields)
 
 
 func _resolve_default_parent() -> Node:
-	var tree := Engine.get_main_loop() as SceneTree
+	var main_loop: MainLoop = Engine.get_main_loop()
+	if not (main_loop is SceneTree):
+		return null
+	var tree: SceneTree = main_loop
 	if tree == null:
 		return null
 	return tree.root

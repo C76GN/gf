@@ -87,14 +87,13 @@ enum Resolution {
 ## [br]
 ## @schema data: Dictionary，包含 file_name、key、local_value、remote_value、resolved_value、resolution 和 metadata。
 func apply_dict(data: Dictionary) -> void:
-	file_name = String(data.get("file_name", file_name))
-	key = String(data.get("key", key))
-	local_value = data.get("local_value", local_value)
-	remote_value = data.get("remote_value", remote_value)
-	resolved_value = data.get("resolved_value", resolved_value)
-	resolution = clampi(int(data.get("resolution", resolution)), Resolution.UNRESOLVED, Resolution.SKIPPED) as Resolution
-	var metadata_value: Variant = data.get("metadata", metadata)
-	metadata = (metadata_value as Dictionary).duplicate(true) if metadata_value is Dictionary else {}
+	file_name = GFVariantData.get_option_string(data, "file_name", file_name)
+	key = GFVariantData.get_option_string(data, "key", key)
+	local_value = GFVariantData.get_option_value(data, "local_value", local_value)
+	remote_value = GFVariantData.get_option_value(data, "remote_value", remote_value)
+	resolved_value = GFVariantData.get_option_value(data, "resolved_value", resolved_value)
+	resolution = _to_resolution(GFVariantData.get_option_int(data, "resolution", resolution))
+	metadata = GFVariantData.get_option_dictionary(data, "metadata", metadata)
 
 
 ## 转换为字典。
@@ -122,7 +121,7 @@ func to_dict() -> Dictionary:
 ## [br]
 ## @return 新报告实例。
 func duplicate_report() -> GFStorageConflictReport:
-	var report := GFStorageConflictReport.new()
+	var report: GFStorageConflictReport = GFStorageConflictReport.new()
 	report.apply_dict(to_dict())
 	return report
 
@@ -146,6 +145,22 @@ func is_resolved() -> bool:
 ## [br]
 ## @return 新报告实例。
 static func from_dict(data: Dictionary) -> GFStorageConflictReport:
-	var report := GFStorageConflictReport.new()
+	var report: GFStorageConflictReport = GFStorageConflictReport.new()
 	report.apply_dict(data)
 	return report
+
+
+# --- 私有/辅助方法 ---
+
+static func _to_resolution(value: int) -> Resolution:
+	match clampi(value, Resolution.UNRESOLVED, Resolution.SKIPPED):
+		Resolution.USE_LOCAL:
+			return Resolution.USE_LOCAL
+		Resolution.USE_REMOTE:
+			return Resolution.USE_REMOTE
+		Resolution.MERGED:
+			return Resolution.MERGED
+		Resolution.SKIPPED:
+			return Resolution.SKIPPED
+		_:
+			return Resolution.UNRESOLVED

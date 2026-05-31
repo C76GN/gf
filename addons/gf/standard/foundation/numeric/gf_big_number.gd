@@ -23,7 +23,7 @@ const _ADDITION_DROP_THRESHOLD: int = 18
 # to_plain_string() 默认保留的小数位数。
 const _DEFAULT_PLAIN_DECIMALS: int = 6
 
-const _DECIMAL_STRING_FORMATTER: Script = preload("res://addons/gf/standard/foundation/formatting/gf_decimal_string_formatter.gd")
+const _DECIMAL_STRING_FORMATTER = preload("res://addons/gf/standard/foundation/formatting/gf_decimal_string_formatter.gd")
 
 
 # --- 公共变量 ---
@@ -101,14 +101,14 @@ static func from_float(value: float) -> GFBigNumber:
 ## [br]
 ## @return 解析后的大数实例。
 static func from_string(value: String) -> GFBigNumber:
-	var trimmed := value.strip_edges().replace("_", "").replace(",", "")
+	var trimmed: String = value.strip_edges().replace("_", "").replace(",", "")
 	if trimmed.is_empty():
 		return GFBigNumber.zero()
 
 	var exponent_offset: int = 0
-	var scientific_index := maxi(trimmed.find("e"), trimmed.find("E"))
+	var scientific_index: int = maxi(trimmed.find("e"), trimmed.find("E"))
 	if scientific_index != -1:
-		var exponent_text := trimmed.substr(scientific_index + 1)
+		var exponent_text: String = trimmed.substr(scientific_index + 1)
 		trimmed = trimmed.substr(0, scientific_index)
 		if exponent_text.is_valid_int():
 			exponent_offset = exponent_text.to_int()
@@ -116,16 +116,16 @@ static func from_string(value: String) -> GFBigNumber:
 			push_error("[GFBigNumber] 无法解析科学计数法指数：%s" % value)
 			return GFBigNumber.zero()
 
-	var sign: float = 1.0
+	var sign_multiplier: float = 1.0
 	if trimmed.begins_with("-"):
-		sign = -1.0
+		sign_multiplier = -1.0
 		trimmed = trimmed.substr(1)
 	elif trimmed.begins_with("+"):
 		trimmed = trimmed.substr(1)
 
-	var decimal_index := trimmed.find(".")
-	var integer_part := trimmed
-	var fractional_part := ""
+	var decimal_index: int = trimmed.find(".")
+	var integer_part: String = trimmed
+	var fractional_part: String = ""
 	if decimal_index != -1:
 		integer_part = trimmed.substr(0, decimal_index)
 		fractional_part = trimmed.substr(decimal_index + 1)
@@ -134,9 +134,9 @@ static func from_string(value: String) -> GFBigNumber:
 		push_error("[GFBigNumber] 无法解析数字字符串：%s" % value)
 		return GFBigNumber.zero()
 
-	var digits := integer_part + fractional_part
-	var first_non_zero := -1
-	for i in range(digits.length()):
+	var digits: String = integer_part + fractional_part
+	var first_non_zero: int = -1
+	for i: int in range(digits.length()):
 		if digits.substr(i, 1) != "0":
 			first_non_zero = i
 			break
@@ -144,14 +144,14 @@ static func from_string(value: String) -> GFBigNumber:
 	if first_non_zero == -1:
 		return GFBigNumber.zero()
 
-	var significant_digits := digits.substr(first_non_zero)
-	var mantissa_digits := significant_digits.substr(0, mini(16, significant_digits.length()))
-	var mantissa_text := mantissa_digits.substr(0, 1)
+	var significant_digits: String = digits.substr(first_non_zero)
+	var mantissa_digits: String = significant_digits.substr(0, mini(16, significant_digits.length()))
+	var mantissa_text: String = mantissa_digits.substr(0, 1)
 	if mantissa_digits.length() > 1:
 		mantissa_text += "." + mantissa_digits.substr(1)
 
-	var mantissa_value := mantissa_text.to_float() * sign
-	var normalized_exponent := integer_part.length() - first_non_zero - 1 + exponent_offset
+	var mantissa_value: float = mantissa_text.to_float() * sign_multiplier
+	var normalized_exponent: int = integer_part.length() - first_non_zero - 1 + exponent_offset
 	return GFBigNumber.new(mantissa_value, normalized_exponent)
 
 
@@ -166,21 +166,25 @@ static func from_string(value: String) -> GFBigNumber:
 ## @return 对应的大数实例。
 static func from_variant(value: Variant) -> GFBigNumber:
 	if value is GFBigNumber:
-		return (value as GFBigNumber).clone()
+		var big_number: GFBigNumber = value
+		return big_number.clone()
 
-	if _is_fixed_decimal(value):
-		return GFBigNumber.from_string(value.to_decimal_string(false))
+	if value is GFFixedDecimal:
+		var fixed_decimal: GFFixedDecimal = value
+		return GFBigNumber.from_string(fixed_decimal.to_decimal_string(false))
 
-	match typeof(value):
-		TYPE_INT:
-			return GFBigNumber.from_int(value)
-		TYPE_FLOAT:
-			return GFBigNumber.from_float(value)
-		TYPE_STRING:
-			return GFBigNumber.from_string(value)
-		_:
-			push_error("[GFBigNumber] from_variant 收到不支持的值类型。")
-			return GFBigNumber.zero()
+	if value is int:
+		var int_value: int = value
+		return GFBigNumber.from_int(int_value)
+	if value is float:
+		var float_value: float = value
+		return GFBigNumber.from_float(float_value)
+	if value is String:
+		var string_value: String = value
+		return GFBigNumber.from_string(string_value)
+
+	push_error("[GFBigNumber] from_variant 收到不支持的值类型。")
+	return GFBigNumber.zero()
 
 
 ## 克隆当前大数。
@@ -242,8 +246,8 @@ func compare_to(other: GFBigNumber) -> int:
 	if is_zero() and other.is_zero():
 		return 0
 
-	var self_sign := _get_sign(mantissa)
-	var other_sign := _get_sign(other.mantissa)
+	var self_sign: int = _get_sign(mantissa)
+	var other_sign: int = _get_sign(other.mantissa)
 	if self_sign != other_sign:
 		return 1 if self_sign > other_sign else -1
 
@@ -272,7 +276,7 @@ func add(other: GFBigNumber) -> GFBigNumber:
 	if is_zero():
 		return other.clone()
 
-	var exponent_diff := exponent - other.exponent
+	var exponent_diff: int = exponent - other.exponent
 	if exponent_diff >= _ADDITION_DROP_THRESHOLD:
 		return clone()
 
@@ -373,8 +377,8 @@ func powf(power: float) -> GFBigNumber:
 
 		return GFBigNumber.zero()
 
-	var integer_power := round(power)
-	var is_integer_power := is_equal_approx(power, integer_power)
+	var integer_power: float = round(power)
+	var is_integer_power: bool = is_equal_approx(power, integer_power)
 	if is_negative() and not is_integer_power:
 		push_error("[GFBigNumber] 负数不能执行非整数次幂。")
 		return GFBigNumber.zero()
@@ -383,10 +387,11 @@ func powf(power: float) -> GFBigNumber:
 	if is_negative() and int(integer_power) % 2 != 0:
 		sign_multiplier = -1.0
 
-	var abs_mantissa := absf(mantissa)
-	var power_log10 := (log(abs_mantissa) / log(10.0) + float(exponent)) * power
-	var power_exponent := int(floor(power_log10))
-	var power_mantissa := pow(10.0, power_log10 - power_exponent) * sign_multiplier
+	var abs_mantissa: float = absf(mantissa)
+	var power_log10: float = (log(abs_mantissa) / log(10.0) + float(exponent)) * power
+	var power_log10_floor: float = floor(power_log10)
+	var power_exponent: int = int(power_log10_floor)
+	var power_mantissa: float = pow(10.0, power_log10 - power_exponent) * sign_multiplier
 	return GFBigNumber.new(power_mantissa, power_exponent)
 
 
@@ -440,8 +445,8 @@ func to_scientific_string(
 	if is_zero():
 		return "0"
 
-	var output_mantissa := mantissa
-	var output_exponent := exponent
+	var output_mantissa: float = mantissa
+	var output_exponent: int = exponent
 	var mantissa_text: String = _DECIMAL_STRING_FORMATTER.format_decimal_value(output_mantissa, decimal_places, trim_zeroes, use_truncation)
 	if absf(mantissa_text.to_float()) >= 10.0:
 		output_mantissa /= 10.0
@@ -459,8 +464,9 @@ func _normalize() -> void:
 		exponent = 0
 		return
 
-	var abs_mantissa := absf(mantissa)
-	var shift := int(floor(log(abs_mantissa) / log(10.0)))
+	var abs_mantissa: float = absf(mantissa)
+	var shift_floor: float = floor(log(abs_mantissa) / log(10.0))
+	var shift: int = int(shift_floor)
 	mantissa /= pow(10.0, shift)
 	exponent += shift
 
@@ -485,14 +491,3 @@ static func _get_sign(value: float) -> int:
 		return -1
 
 	return 0
-
-
-static func _is_fixed_decimal(value: Variant) -> bool:
-	if not is_instance_valid(value):
-		return false
-
-	var script := value.get_script() as Script
-	if script == null:
-		return false
-
-	return script.resource_path == "res://addons/gf/standard/foundation/numeric/gf_fixed_decimal.gd"

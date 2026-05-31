@@ -57,7 +57,7 @@ func resolve_source(root: Node) -> Object:
 ## [br]
 ## @return 有效信号；无法解析时返回空 Signal。
 func get_signal(root: Node) -> Signal:
-	var source := resolve_source(root)
+	var source: Object = resolve_source(root)
 	if source == null or signal_name == &"":
 		return Signal()
 	if not source.has_signal(signal_name):
@@ -84,15 +84,15 @@ func is_valid_for(root: Node) -> bool:
 ## [br]
 ## @return 参数数量；无法确定时返回 -1。
 func get_signal_argument_count(root: Node) -> int:
-	var source := resolve_source(root)
+	var source: Object = resolve_source(root)
 	if source == null or signal_name == &"":
 		return -1
 
 	for signal_info: Dictionary in source.get_signal_list():
-		if StringName(signal_info.get("name", &"")) != signal_name:
+		if GFVariantData.get_option_string_name(signal_info, "name") != signal_name:
 			continue
 
-		var args: Array = signal_info.get("args", [])
+		var args: Array = GFVariantData.get_option_array(signal_info, "args")
 		return args.size()
 	return -1
 

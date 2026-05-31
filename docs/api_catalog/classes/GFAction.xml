@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFAction" path="addons/gf/extensions/action_queue/core/gf_action.gd" module="extensions/action_queue" extends="RefCounted" classDigest="85284589057aa93e82c03b1574d455fee6f0b99dd6b1b76ca2552599eb45aacc">
+<class name="GFAction" path="addons/gf/extensions/action_queue/core/gf_action.gd" module="extensions/action_queue" extends="RefCounted" classDigest="8661b8edbe1c71fe9c334d72a48c81a6da86e4fd357303fd4643eac6966a383d">
 	<description>GFAction: 动作队列常用工厂。
 提供轻量、静态的动作创建入口，让项目用更少样板组合 ActionQueue。
 它只创建通用动作，不隐含任何项目业务流程。</description>
@@ -56,14 +56,14 @@
 			</tags>
 		</member>
 		<member kind="method" name="callback">
-			<signature>static func callback(callback: Callable, args: Array = []) -&gt; GFCallableAction:</signature>
+			<signature>static func callback(action_callback: Callable, args: Array = []) -&gt; GFCallableAction:</signature>
 			<description>创建回调动作。</description>
 			<tags>
 				<tag name="api">public</tag>
-				<tag name="param">callback: 要执行的回调。</tag>
+				<tag name="param">action_callback: 要执行的回调。</tag>
 				<tag name="param">args: 回调参数。</tag>
 				<tag name="return">回调动作。</tag>
-				<tag name="schema">args: Array，传给 callback.callv() 的参数列表。</tag>
+				<tag name="schema">args: Array，传给 action_callback.callv() 的参数列表。</tag>
 			</tags>
 		</member>
 		<member kind="method" name="repeat">

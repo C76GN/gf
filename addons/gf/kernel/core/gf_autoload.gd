@@ -20,6 +20,8 @@ extends RefCounted
 ## @api framework_internal
 const AUTOLOAD_NAME: StringName = &"Gf"
 
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
+
 
 # --- 公共方法 ---
 
@@ -29,15 +31,15 @@ const AUTOLOAD_NAME: StringName = &"Gf"
 ## [br]
 ## @return Gf AutoLoad 节点。
 static func get_singleton_or_null() -> Node:
-	var main_loop := Engine.get_main_loop()
+	var main_loop: MainLoop = Engine.get_main_loop()
 	if main_loop == null or not (main_loop is SceneTree):
 		return null
 
-	var scene_tree := main_loop as SceneTree
+	var scene_tree: SceneTree = main_loop
 	if scene_tree.root == null:
 		return null
 
-	return scene_tree.root.get_node_or_null(NodePath(String(AUTOLOAD_NAME))) as Node
+	return scene_tree.root.get_node_or_null(NodePath(String(AUTOLOAD_NAME)))
 
 
 ## 检查全局 Gf 是否已经持有架构实例。
@@ -46,10 +48,10 @@ static func get_singleton_or_null() -> Node:
 ## [br]
 ## @return 架构存在时返回 true。
 static func has_architecture() -> bool:
-	var singleton := get_singleton_or_null()
+	var singleton: Node = get_singleton_or_null()
 	if singleton == null or not singleton.has_method("has_architecture"):
 		return false
-	return bool(singleton.call("has_architecture"))
+	return _GF_VARIANT_ACCESS_SCRIPT.to_bool(singleton.call("has_architecture"))
 
 
 ## 获取全局架构实例；AutoLoad 不可用或尚未创建架构时返回 null。
@@ -59,14 +61,18 @@ static func has_architecture() -> bool:
 ## [br]
 ## @return 当前全局架构实例。
 static func get_architecture_or_null() -> GFArchitecture:
-	var singleton := get_singleton_or_null()
+	var singleton: Node = get_singleton_or_null()
 	if singleton == null:
 		return null
 	if not singleton.has_method("has_architecture") or not singleton.has_method("get_architecture"):
 		return null
-	if not bool(singleton.call("has_architecture")):
+	if not _GF_VARIANT_ACCESS_SCRIPT.to_bool(singleton.call("has_architecture")):
 		return null
-	return singleton.call("get_architecture") as GFArchitecture
+	var architecture: Variant = singleton.call("get_architecture")
+	if architecture is GFArchitecture:
+		var typed_architecture: GFArchitecture = architecture
+		return typed_architecture
+	return null
 
 
 ## 获取已完成初始化的全局架构；AutoLoad 不可用、尚未创建架构或架构未 ready 时返回 null。
@@ -75,7 +81,7 @@ static func get_architecture_or_null() -> GFArchitecture:
 ## [br]
 ## @return 已完成初始化的全局架构实例。
 static func get_ready_architecture_or_null() -> GFArchitecture:
-	var architecture := get_architecture_or_null()
+	var architecture: GFArchitecture = get_architecture_or_null()
 	if architecture == null or not architecture.is_inited():
 		return null
 	return architecture
@@ -87,7 +93,7 @@ static func get_ready_architecture_or_null() -> GFArchitecture:
 ## [br]
 ## @return 当前全局架构实例。
 static func get_architecture() -> GFArchitecture:
-	var architecture := get_architecture_or_null()
+	var architecture: GFArchitecture = get_architecture_or_null()
 	if architecture == null:
 		push_error("[GFAutoload] Gf AutoLoad 未就绪或架构尚未初始化，请先启用 GF 插件并注册架构。")
 	return architecture
@@ -99,7 +105,7 @@ static func get_architecture() -> GFArchitecture:
 ## [br]
 ## @return 已完成初始化的全局架构实例。
 static func get_ready_architecture() -> GFArchitecture:
-	var architecture := get_ready_architecture_or_null()
+	var architecture: GFArchitecture = get_ready_architecture_or_null()
 	if architecture == null:
 		push_error("[GFAutoload] Gf AutoLoad 未就绪或架构尚未完成初始化，请先完成 Gf.init() 或 Gf.set_architecture()。")
 	return architecture

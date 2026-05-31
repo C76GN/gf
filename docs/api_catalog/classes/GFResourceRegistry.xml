@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFResourceRegistry" path="addons/gf/standard/utilities/assets/gf_resource_registry.gd" module="standard" extends="Resource" classDigest="2cc6ad7e0803c3efa24139736cd23ea75d0c4abf9250579864efbfb4e148ee94">
+<class name="GFResourceRegistry" path="addons/gf/standard/utilities/assets/gf_resource_registry.gd" module="standard" extends="Resource" classDigest="55b546611f1f60883431b883e53f9903d000c856614eff037174790a6a63cff9">
 	<description>GFResourceRegistry: 通用资源注册表。
 通过稳定 ID 管理资源路径、类型提示和字段索引，便于项目用统一方式查询、
 预加载或加载资源定义。注册表只描述资源位置和通用字段，不规定物品、技能、
@@ -14,7 +14,7 @@
 	<constants />
 	<properties>
 		<member kind="property" name="entries" decorators="@export">
-			<signature>var entries: Array[Resource] = []</signature>
+			<signature>var entries: Array[GFResourceRegistryEntry] = []</signature>
 			<description>注册表条目列表。重复 ID 会以后出现的有效条目为准。</description>
 			<tags>
 				<tag name="api">public</tag>

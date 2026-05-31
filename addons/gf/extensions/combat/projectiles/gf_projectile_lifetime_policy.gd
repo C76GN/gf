@@ -44,10 +44,10 @@ func setup(projectile: Node, projectile_context: Dictionary = {}) -> void:
 	if not projectile_context.has("impact_count"):
 		projectile_context["impact_count"] = 0
 	if projectile is Node2D:
-		var node_2d := projectile as Node2D
+		var node_2d: Node2D = projectile
 		projectile_context["spawn_position_2d"] = node_2d.global_position if node_2d.is_inside_tree() else node_2d.position
 	elif projectile is Node3D:
-		var node_3d := projectile as Node3D
+		var node_3d: Node3D = projectile
 		projectile_context["spawn_position_3d"] = node_3d.global_position if node_3d.is_inside_tree() else node_3d.position
 	_setup(projectile, projectile_context)
 
@@ -70,7 +70,7 @@ func should_finish(projectile: Node, elapsed_seconds: float, projectile_context:
 		return true
 	if max_distance > 0.0 and _get_travel_distance(projectile, projectile_context) >= max_distance:
 		return true
-	if max_impacts > 0 and int(projectile_context.get("impact_count", 0)) >= max_impacts:
+	if max_impacts > 0 and GFVariantData.get_option_int(projectile_context, "impact_count", 0) >= max_impacts:
 		return true
 	return _should_finish(projectile, elapsed_seconds, projectile_context)
 
@@ -115,13 +115,13 @@ func _should_finish(
 
 func _get_travel_distance(projectile: Node, projectile_context: Dictionary) -> float:
 	if projectile is Node2D and projectile_context.has("spawn_position_2d"):
-		var node_2d := projectile as Node2D
-		var current_position_2d := node_2d.global_position if node_2d.is_inside_tree() else node_2d.position
-		var spawn_position_2d := projectile_context["spawn_position_2d"] as Vector2
+		var node_2d: Node2D = projectile
+		var current_position_2d: Vector2 = node_2d.global_position if node_2d.is_inside_tree() else node_2d.position
+		var spawn_position_2d: Vector2 = GFVariantData.get_option_vector2(projectile_context, "spawn_position_2d")
 		return current_position_2d.distance_to(spawn_position_2d)
 	if projectile is Node3D and projectile_context.has("spawn_position_3d"):
-		var node_3d := projectile as Node3D
-		var current_position_3d := node_3d.global_position if node_3d.is_inside_tree() else node_3d.position
-		var spawn_position_3d := projectile_context["spawn_position_3d"] as Vector3
+		var node_3d: Node3D = projectile
+		var current_position_3d: Vector3 = node_3d.global_position if node_3d.is_inside_tree() else node_3d.position
+		var spawn_position_3d: Vector3 = GFVariantData.get_option_vector3(projectile_context, "spawn_position_3d")
 		return current_position_3d.distance_to(spawn_position_3d)
 	return 0.0

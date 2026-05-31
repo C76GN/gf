@@ -130,7 +130,7 @@ var _is_replaying: bool = false
 func init() -> void:
 	ignore_pause = true
 	if auto_load_on_init:
-		load_queue()
+		var _load_error: Error = load_queue()
 
 
 ## 按配置保存队列并清理运行时状态。
@@ -138,7 +138,7 @@ func init() -> void:
 ## @api public
 func dispose() -> void:
 	if auto_persist:
-		save_queue()
+		var _save_error: Error = save_queue()
 	_queue.clear()
 	_failed_requests.clear()
 	_is_replaying = false
@@ -172,7 +172,7 @@ func enqueue_request(
 	headers: PackedStringArray = PackedStringArray(),
 	metadata: Dictionary = {}
 ) -> GFRequestEnvelope:
-	var envelope := GFRequestEnvelope.new(method, url, body, headers, metadata)
+	var envelope: GFRequestEnvelope = GFRequestEnvelope.new(method, url, body, headers, metadata)
 	envelope.max_attempts = default_max_attempts
 	return envelope if enqueue(envelope) else null
 
@@ -211,7 +211,7 @@ func enqueue(envelope: GFRequestEnvelope) -> bool:
 ## [br]
 ## @schema return: Dictionary，包含 ok、processed、succeeded、failed、skipped、pending、failed_stored 和 reason。
 func replay(max_count: int = 0) -> Dictionary:
-	var report := {
+	var report: Dictionary = {
 		"ok": true,
 		"processed": 0,
 		"succeeded": 0,
@@ -231,23 +231,23 @@ func replay(max_count: int = 0) -> Dictionary:
 		return report
 
 	_is_replaying = true
-	var now_msec := Time.get_ticks_msec()
-	var index := 0
+	var now_msec: int = Time.get_ticks_msec()
+	var index: int = 0
 	while index < _queue.size():
-		if max_count > 0 and int(report["processed"]) >= max_count:
+		if max_count > 0 and _get_report_count(report, "processed") >= max_count:
 			break
 
-		var envelope := _queue[index]
+		var envelope: GFRequestEnvelope = _queue[index]
 		if not _can_replay_envelope(envelope, now_msec):
-			report["skipped"] = int(report["skipped"]) + 1
+			_increment_report_count(report, "skipped")
 			index += 1
 			continue
 
-		report["processed"] = int(report["processed"]) + 1
+		_increment_report_count(report, "processed")
 		request_started.emit(envelope)
 		envelope.mark_attempt()
 		var result: Dictionary = await _call_transport(envelope)
-		var queue_index := _find_queue_index(envelope)
+		var queue_index: int = _find_queue_index(envelope)
 		if _is_success_result(result):
 			envelope.mark_success()
 			if queue_index >= 0:
@@ -255,12 +255,15 @@ func replay(max_count: int = 0) -> Dictionary:
 				index = queue_index
 			else:
 				index = mini(index, _queue.size())
-			report["succeeded"] = int(report["succeeded"]) + 1
+			_increment_report_count(report, "succeeded")
 			request_completed.emit(envelope, result)
 			continue
 
-		report["failed"] = int(report["failed"]) + 1
-		envelope.mark_failure(String(result.get("error", result.get("reason", "request_failed"))), _get_retry_delay_msec(envelope.attempt_count))
+		_increment_report_count(report, "failed")
+		envelope.mark_failure(
+			_get_result_error_text(result),
+			_get_retry_delay_msec(envelope.attempt_count)
+		)
 		request_failed.emit(envelope, result)
 		if envelope.is_exhausted():
 			if queue_index >= 0:
@@ -369,19 +372,19 @@ func save_queue() -> Error:
 	if storage_path.is_empty():
 		return ERR_INVALID_PARAMETER
 
-	var base_dir := storage_path.get_base_dir()
+	var base_dir: String = storage_path.get_base_dir()
 	if not base_dir.is_empty() and base_dir != "user://":
-		var dir_error := DirAccess.make_dir_recursive_absolute(base_dir)
+		var dir_error: Error = DirAccess.make_dir_recursive_absolute(base_dir)
 		if dir_error != OK:
 			return dir_error
 
-	var file := FileAccess.open(storage_path, FileAccess.WRITE)
+	var file: FileAccess = FileAccess.open(storage_path, FileAccess.WRITE)
 	if file == null:
 		return FileAccess.get_open_error()
 
-	var data := GFVariantJsonCodec.variant_to_json_compatible(_to_storage_dict())
-	file.store_string(JSON.stringify(data, "\t"))
-	var error := file.get_error()
+	var data: Variant = GFVariantJsonCodec.variant_to_json_compatible(_to_storage_dict())
+	_store_string_checked(file, JSON.stringify(data, "\t"))
+	var error: Error = file.get_error()
 	file.close()
 	return error
 
@@ -398,12 +401,12 @@ func load_queue() -> Error:
 		queue_changed.emit(get_debug_snapshot())
 		return OK
 
-	var file := FileAccess.open(storage_path, FileAccess.READ)
+	var file: FileAccess = FileAccess.open(storage_path, FileAccess.READ)
 	if file == null:
 		return FileAccess.get_open_error()
 
-	var text := file.get_as_text()
-	var error := file.get_error()
+	var text: String = file.get_as_text()
+	var error: Error = file.get_error()
 	file.close()
 	if error != OK:
 		return error
@@ -413,7 +416,8 @@ func load_queue() -> Error:
 	if not (data_value is Dictionary):
 		return ERR_PARSE_ERROR
 
-	_apply_storage_dict(data_value as Dictionary)
+	var data: Dictionary = GFVariantData.as_dictionary(data_value)
+	_apply_storage_dict(data)
 	queue_changed.emit(get_debug_snapshot())
 	return OK
 
@@ -441,48 +445,70 @@ func get_debug_snapshot() -> Dictionary:
 
 # --- 私有/辅助方法 ---
 
+func _get_report_count(report: Dictionary, key: String) -> int:
+	return GFVariantData.get_option_int(report, key)
+
+
+func _increment_report_count(report: Dictionary, key: String) -> void:
+	report[key] = _get_report_count(report, key) + 1
+
+
+func _get_result_ok(result: Dictionary) -> bool:
+	return GFVariantData.get_option_bool(result, "ok")
+
+
+func _get_result_success(result: Dictionary) -> bool:
+	return GFVariantData.get_option_bool(result, "success")
+
+
+func _get_result_error_text(result: Dictionary) -> String:
+	var fallback: String = GFVariantData.get_option_string(result, "reason", "request_failed")
+	return GFVariantData.get_option_string(result, "error", fallback)
+
+
 func _can_replay_envelope(envelope: GFRequestEnvelope, now_msec: int) -> bool:
 	if envelope == null or not envelope.can_attempt(now_msec):
 		return false
 	if replay_filter.is_valid():
-		return bool(replay_filter.call(envelope))
+		return GFVariantData.to_bool(replay_filter.call(envelope))
 	return true
 
 
 func _call_transport(envelope: GFRequestEnvelope) -> Dictionary:
 	var value: Variant = transport_callback.call(envelope)
 	if value is Signal:
-		value = await (value as Signal)
+		var transport_signal: Signal = value
+		value = await transport_signal
 	return _normalize_transport_result(value)
 
 
 func _normalize_transport_result(value: Variant) -> Dictionary:
 	if value is Array:
-		var values := value as Array
+		var values: Array = GFVariantData.as_array(value)
 		if values.is_empty():
 			return { "ok": false, "error": "empty_transport_result" }
-		var result := _normalize_transport_result(values[0])
+		var result: Dictionary = _normalize_transport_result(values[0])
 		if values.size() > 1:
 			result["signal_args"] = GFVariantData.duplicate_variant(values)
 		return result
 	if value is Dictionary:
-		var result := GFVariantData.duplicate_variant(value) as Dictionary
+		var result: Dictionary = GFVariantData.as_dictionary(GFVariantData.duplicate_variant(value))
 		if not result.has("ok") and result.has("success"):
-			result["ok"] = bool(result["success"])
+			result["ok"] = _get_result_success(result)
 		return result
 	if value is bool:
-		return { "ok": bool(value) }
+		return { "ok": GFVariantData.to_bool(value) }
 	if value is int:
-		var error := int(value)
+		var error: int = GFVariantData.to_int(value)
 		return { "ok": error == OK, "error_code": error, "error": error_string(error) }
 	return { "ok": value != null }
 
 
 func _is_success_result(result: Dictionary) -> bool:
 	if result.has("ok"):
-		return bool(result["ok"])
+		return _get_result_ok(result)
 	if result.has("success"):
-		return bool(result["success"])
+		return _get_result_success(result)
 	return false
 
 
@@ -496,7 +522,7 @@ func _find_queue_index(envelope: GFRequestEnvelope) -> int:
 func _get_retry_delay_msec(attempt_count: int) -> int:
 	if retry_delays_msec.is_empty():
 		return 0
-	var index := clampi(attempt_count - 1, 0, retry_delays_msec.size() - 1)
+	var index: int = clampi(attempt_count - 1, 0, retry_delays_msec.size() - 1)
 	return maxi(retry_delays_msec[index], 0)
 
 
@@ -510,7 +536,7 @@ func _store_failed_request(envelope: GFRequestEnvelope) -> void:
 
 func _persist_and_emit_changed() -> void:
 	if auto_persist:
-		save_queue()
+		var _save_error: Error = save_queue()
 	queue_changed.emit(get_debug_snapshot())
 
 
@@ -531,25 +557,31 @@ func _to_storage_dict() -> Dictionary:
 
 
 func _apply_storage_dict(data: Dictionary) -> void:
-	for entry_value: Variant in data.get("pending", []):
+	for entry_value: Variant in GFVariantData.get_option_array(data, "pending"):
 		if entry_value is Dictionary:
-			var envelope := GFRequestEnvelope.from_dict(entry_value as Dictionary)
+			var envelope: GFRequestEnvelope = GFRequestEnvelope.from_dict(GFVariantData.as_dictionary(entry_value))
 			if envelope.is_valid():
 				_queue.append(envelope)
 
-	for entry_value: Variant in data.get("failed", []):
+	for entry_value: Variant in GFVariantData.get_option_array(data, "failed"):
 		if entry_value is Dictionary:
-			var envelope := GFRequestEnvelope.from_dict(entry_value as Dictionary)
+			var envelope: GFRequestEnvelope = GFRequestEnvelope.from_dict(GFVariantData.as_dictionary(entry_value))
 			if envelope.is_valid():
 				_failed_requests.append(envelope)
 
 
 func _get_request_ids(requests: Array[GFRequestEnvelope]) -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	for envelope: GFRequestEnvelope in requests:
-		result.append(String(envelope.request_id))
+		var _appended: bool = result.append(String(envelope.request_id))
 	return result
 
 
 func _generate_request_id() -> String:
 	return "req_%d_%d" % [Time.get_unix_time_from_system(), randi()]
+
+
+func _store_string_checked(file: FileAccess, value: String) -> void:
+	var store_result: Variant = file.store_string(value)
+	if store_result != null:
+		return

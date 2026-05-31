@@ -133,8 +133,8 @@ static func transform_local_cell(cell: Vector2i, source_size: Vector2i, transfor
 	if not _is_size_positive(source_size) or not is_transform_valid(transform):
 		return cell
 
-	var max_x := source_size.x - 1
-	var max_y := source_size.y - 1
+	var max_x: int = source_size.x - 1
+	var max_y: int = source_size.y - 1
 	match transform:
 		Transform.IDENTITY:
 			return cell
@@ -176,7 +176,7 @@ static func transform_cell(
 ) -> Vector2i:
 	if not _is_size_positive(source_rect.size) or not is_transform_valid(transform):
 		return cell
-	var local_cell := cell - source_rect.position
+	var local_cell: Vector2i = cell - source_rect.position
 	return target_origin + transform_local_cell(local_cell, source_rect.size, transform)
 
 
@@ -261,7 +261,7 @@ static func transform_point(
 ) -> Vector2:
 	if not _is_vector_size_positive(source_rect.size) or not is_transform_valid(transform):
 		return point
-	var local_point := point - source_rect.position
+	var local_point: Vector2 = point - source_rect.position
 	return target_origin + transform_local_point(local_point, source_rect.size, transform)
 
 

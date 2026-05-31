@@ -64,6 +64,8 @@ const GFBindingLifetimesBase = preload("res://addons/gf/kernel/core/gf_binding_l
 ## [br]
 ## @layer kernel/core
 const GFTimeProviderBase = preload("res://addons/gf/kernel/base/gf_time_provider.gd")
+const _GF_ASYNC_CALL_SCRIPT = preload("res://addons/gf/kernel/core/gf_async_call.gd")
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
 
 ## 声明式依赖聚合 Hook 名称。
 ## [br]
@@ -89,7 +91,6 @@ const HOOK_GET_REQUIRED_UTILITIES: StringName = &"get_required_utilities"
 ## [br]
 ## @api public
 const HOOK_GET_REQUIRED_FACTORIES: StringName = &"get_required_factories"
-const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
 
 
 # --- 公共变量 ---
@@ -122,9 +123,9 @@ var last_initialization_error: String = ""
 
 # --- 私有变量 ---
 
-var _system_registry := ModuleRegistry.new("System")
-var _model_registry := ModuleRegistry.new("Model")
-var _utility_registry := ModuleRegistry.new("Utility")
+var _system_registry: ModuleRegistry = ModuleRegistry.new("System")
+var _model_registry: ModuleRegistry = ModuleRegistry.new("Model")
+var _utility_registry: ModuleRegistry = ModuleRegistry.new("Utility")
 var _systems: Dictionary = _system_registry.instances
 var _models: Dictionary = _model_registry.instances
 var _utilities: Dictionary = _utility_registry.instances
@@ -205,7 +206,7 @@ func is_module_ready(instance: Object) -> bool:
 ## [br]
 ## @param reason: 初始化失败原因。
 func fail_initialization(reason: String) -> void:
-	var failure_reason := reason
+	var failure_reason: String = reason
 	if failure_reason.is_empty():
 		failure_reason = "[GFArchitecture] 初始化失败。"
 	_fail_initialization(failure_reason, _lifecycle_serial)
@@ -268,7 +269,7 @@ func begin_project_installers() -> bool:
 ## [br]
 ## @api public
 func mark_project_installers_applied() -> void:
-	var was_running := _project_installers_running
+	var was_running: bool = _project_installers_running
 	_project_installers_applied = true
 	_project_installers_running = false
 	if was_running:
@@ -288,8 +289,8 @@ func finish_project_installers() -> void:
 ## [br]
 ## @return 绑定到当前架构的装配器。
 ## [br]
-## @schema return: GFBindBuilder-compatible binder owned by this architecture.
-func create_binder() -> Variant:
+## @schema return: GFBinder owned by this architecture.
+func create_binder() -> GFBinder:
 	return GFBinderBase.new(self)
 
 
@@ -304,13 +305,13 @@ func init() -> void:
 		return
 
 	if _is_initializing:
-		var waiting_serial := _lifecycle_serial
+		var waiting_serial: int = _lifecycle_serial
 		while _is_initializing and waiting_serial == _lifecycle_serial:
 			await initialization_finished
 		return
 
 	_lifecycle_serial += 1
-	var current_serial := _lifecycle_serial
+	var current_serial: int = _lifecycle_serial
 	_is_initializing = true
 	_initialization_failed = false
 	last_initialization_error = ""
@@ -335,7 +336,7 @@ func init() -> void:
 ## [br]
 ## @api public
 func dispose() -> void:
-	var was_initializing := _is_initializing
+	var was_initializing: bool = _is_initializing
 	_lifecycle_serial += 1
 	_is_initializing = false
 
@@ -344,9 +345,9 @@ func dispose() -> void:
 	_dispose_module_registry(_model_registry)
 	_dispose_module_registry(_utility_registry)
 	for binding_variant: Variant in _factories.values():
-		var binding := binding_variant as Object
-		if binding != null and binding.has_method("dispose_cached_instance"):
-			binding.call("dispose_cached_instance")
+		var binding: GFBinding = _variant_to_binding(binding_variant)
+		if binding != null:
+			binding.dispose_cached_instance()
 	_model_registry._clear()
 	_system_registry._clear()
 	_utility_registry._clear()
@@ -375,15 +376,15 @@ func dispose() -> void:
 func tick(delta: float) -> void:
 	if not _inited:
 		return
-	var time_provider := _get_time_provider()
+	var time_provider: Object = _get_time_provider()
 	var scaled_delta: float = _get_scaled_delta(delta, time_provider)
 	_is_iterating_tick_caches = true
 	for system: Object in _tick_systems:
 		if is_instance_valid(system) and _is_module_ready_for_tick(system):
-			system.tick(_get_module_delta(system, delta, scaled_delta, time_provider))
+			_call_module_void(system, &"tick", [_get_module_delta(system, delta, scaled_delta, time_provider)])
 	for utility: Object in _tick_utilities:
 		if is_instance_valid(utility) and _is_module_ready_for_tick(utility):
-			utility.tick(_get_module_delta(utility, delta, scaled_delta, time_provider))
+			_call_module_void(utility, &"tick", [_get_module_delta(utility, delta, scaled_delta, time_provider)])
 	_is_iterating_tick_caches = false
 	_flush_tick_cache_refresh()
 
@@ -400,14 +401,17 @@ func tick(delta: float) -> void:
 func physics_tick(delta: float) -> void:
 	if not _inited:
 		return
-	var time_provider := _get_time_provider()
-	if time_provider != null and bool(time_provider.call("should_substep_physics", delta)):
-		var scaled_steps: Array = time_provider.call("get_physics_scaled_delta_steps", delta) as Array
+	var time_provider: Object = _get_time_provider()
+	if time_provider != null and _GF_VARIANT_ACCESS_SCRIPT.to_bool(time_provider.call("should_substep_physics", delta)):
+		var raw_scaled_steps: Variant = time_provider.call("get_physics_scaled_delta_steps", delta)
+		if not raw_scaled_steps is Array:
+			return
+		var scaled_steps: Array = raw_scaled_steps
 		if scaled_steps.is_empty():
 			return
-		var raw_step := delta / float(scaled_steps.size())
+		var raw_step: float = delta / float(scaled_steps.size())
 		for scaled_step_variant: Variant in scaled_steps:
-			_drive_physics_tick_step(raw_step, float(scaled_step_variant), time_provider)
+			_drive_physics_tick_step(raw_step, _GF_VARIANT_ACCESS_SCRIPT.to_float(scaled_step_variant), time_provider)
 		return
 
 	var scaled_delta: float = _get_scaled_delta(delta, time_provider)
@@ -431,7 +435,7 @@ func send_command(command: Object) -> Variant:
 
 	_inject_dependencies_if_needed(command)
 	if command.has_method("execute"):
-		return command.execute()
+		return command.call("execute")
 	push_warning("[GFArchitecture] send_command 失败：command 缺少 execute() 方法，已忽略。")
 	return null
 
@@ -453,7 +457,7 @@ func send_query(query: Object) -> Variant:
 
 	_inject_dependencies_if_needed(query)
 	if query.has_method("execute"):
-		return query.execute()
+		return query.call("execute")
 	push_warning("[GFArchitecture] send_query 失败：query 缺少 execute() 方法，已忽略。")
 	return null
 
@@ -864,7 +868,7 @@ func replace_factory_instance(script_cls: Script, instance: Object) -> void:
 ## @param script_cls: 要移除的脚本类型。
 func unregister_factory(script_cls: Script) -> void:
 	_clear_factory_binding(script_cls)
-	_factories.erase(script_cls)
+	var _removed_factory: bool = _factories.erase(script_cls)
 
 
 ## 检查当前架构或父级架构是否注册了指定工厂。
@@ -927,9 +931,8 @@ func register_system_instance(instance: Object) -> void:
 	if instance == null:
 		push_error("[GFArchitecture] register_system_instance 失败：实例为空。")
 		return
-	var script := instance.get_script() as Script
+	var script: Script = _get_instance_script_or_null(instance, "register_system_instance")
 	if script == null:
-		push_error("[GFArchitecture] register_system_instance 失败：实例未附加脚本。")
 		return
 	await register_system(script, instance)
 
@@ -943,9 +946,8 @@ func register_model_instance(instance: Object) -> void:
 	if instance == null:
 		push_error("[GFArchitecture] register_model_instance 失败：实例为空。")
 		return
-	var script := instance.get_script() as Script
+	var script: Script = _get_instance_script_or_null(instance, "register_model_instance")
 	if script == null:
-		push_error("[GFArchitecture] register_model_instance 失败：实例未附加脚本。")
 		return
 	await register_model(script, instance)
 
@@ -959,9 +961,8 @@ func register_utility_instance(instance: Object) -> void:
 	if instance == null:
 		push_error("[GFArchitecture] register_utility_instance 失败：实例为空。")
 		return
-	var script := instance.get_script() as Script
+	var script: Script = _get_instance_script_or_null(instance, "register_utility_instance")
 	if script == null:
-		push_error("[GFArchitecture] register_utility_instance 失败：实例未附加脚本。")
 		return
 	await register_utility(script, instance)
 
@@ -974,7 +975,7 @@ func register_utility_instance(instance: Object) -> void:
 ## [br]
 ## @param alias_cls: 额外查询脚本类。
 func register_system_instance_as(instance: Object, alias_cls: Script) -> void:
-	var script := _get_instance_script_or_null(instance, "register_system_instance_as")
+	var script: Script = _get_instance_script_or_null(instance, "register_system_instance_as")
 	if script == null:
 		return
 
@@ -991,7 +992,7 @@ func register_system_instance_as(instance: Object, alias_cls: Script) -> void:
 ## [br]
 ## @param alias_cls: 额外查询脚本类。
 func register_model_instance_as(instance: Object, alias_cls: Script) -> void:
-	var script := _get_instance_script_or_null(instance, "register_model_instance_as")
+	var script: Script = _get_instance_script_or_null(instance, "register_model_instance_as")
 	if script == null:
 		return
 
@@ -1008,7 +1009,7 @@ func register_model_instance_as(instance: Object, alias_cls: Script) -> void:
 ## [br]
 ## @param alias_cls: 额外查询脚本类。
 func register_utility_instance_as(instance: Object, alias_cls: Script) -> void:
-	var script := _get_instance_script_or_null(instance, "register_utility_instance_as")
+	var script: Script = _get_instance_script_or_null(instance, "register_utility_instance_as")
 	if script == null:
 		return
 
@@ -1033,7 +1034,7 @@ func unregister_system(script_cls: Script) -> void:
 ## [br]
 ## @param script_cls: 模型的脚本类。
 func unregister_model(script_cls: Script) -> void:
-	_unregister_module(_model_registry, script_cls)
+	var _unregistered: bool = _unregister_module(_model_registry, script_cls)
 
 
 ## 注销 Utility 实例。
@@ -1059,7 +1060,7 @@ func unregister_utility(script_cls: Script) -> void:
 ## [br]
 ## @return 系统实例，如果未找到则返回 null。
 func get_system(script_cls: Script, require_ready: bool = false) -> Object:
-	var instance := _get_local_registered_instance(_system_registry, script_cls)
+	var instance: Object = _get_local_registered_instance(_system_registry, script_cls)
 	if instance != null:
 		return instance if not require_ready or _is_module_ready_for_lookup(instance) else null
 	if _parent_architecture != null and not strict_dependency_lookup and not _has_assignable_instance(_system_registry, script_cls):
@@ -1079,7 +1080,7 @@ func get_system(script_cls: Script, require_ready: bool = false) -> Object:
 ## [br]
 ## @return 模型实例，如果未找到则返回 null。
 func get_model(script_cls: Script, require_ready: bool = false) -> Object:
-	var instance := _get_local_registered_instance(_model_registry, script_cls)
+	var instance: Object = _get_local_registered_instance(_model_registry, script_cls)
 	if instance != null:
 		return instance if not require_ready or _is_module_ready_for_lookup(instance) else null
 	if _parent_architecture != null and not strict_dependency_lookup and not _has_assignable_instance(_model_registry, script_cls):
@@ -1099,7 +1100,7 @@ func get_model(script_cls: Script, require_ready: bool = false) -> Object:
 ## [br]
 ## @return 工具实例，如果未找到则返回 null。
 func get_utility(script_cls: Script, require_ready: bool = false) -> Object:
-	var instance := _get_local_registered_instance(_utility_registry, script_cls)
+	var instance: Object = _get_local_registered_instance(_utility_registry, script_cls)
 	if instance != null:
 		return instance if not require_ready or _is_module_ready_for_lookup(instance) else null
 	if _parent_architecture != null and not strict_dependency_lookup and not _has_assignable_instance(_utility_registry, script_cls):
@@ -1119,7 +1120,7 @@ func get_utility(script_cls: Script, require_ready: bool = false) -> Object:
 ## [br]
 ## @return 当前架构中的系统实例，如果未找到则返回 null。
 func get_local_system(script_cls: Script, require_ready: bool = false) -> Object:
-	var instance := _get_local_registered_instance(_system_registry, script_cls)
+	var instance: Object = _get_local_registered_instance(_system_registry, script_cls)
 	return instance if not require_ready or _is_module_ready_for_lookup(instance) else null
 
 
@@ -1133,7 +1134,7 @@ func get_local_system(script_cls: Script, require_ready: bool = false) -> Object
 ## [br]
 ## @return 当前架构中的模型实例，如果未找到则返回 null。
 func get_local_model(script_cls: Script, require_ready: bool = false) -> Object:
-	var instance := _get_local_registered_instance(_model_registry, script_cls)
+	var instance: Object = _get_local_registered_instance(_model_registry, script_cls)
 	return instance if not require_ready or _is_module_ready_for_lookup(instance) else null
 
 
@@ -1147,7 +1148,7 @@ func get_local_model(script_cls: Script, require_ready: bool = false) -> Object:
 ## [br]
 ## @return 当前架构中的工具实例，如果未找到则返回 null。
 func get_local_utility(script_cls: Script, require_ready: bool = false) -> Object:
-	var instance := _get_local_registered_instance(_utility_registry, script_cls)
+	var instance: Object = _get_local_registered_instance(_utility_registry, script_cls)
 	return instance if not require_ready or _is_module_ready_for_lookup(instance) else null
 
 
@@ -1200,12 +1201,12 @@ func inject_node_tree(node: Node) -> void:
 func get_all_models_state() -> Dictionary:
 	var state: Dictionary = {}
 	for script_cls: Script in _models:
-		var model: Variant = _models[script_cls]
+		var model: Object = _get_dictionary_object(_models, script_cls)
 		if model.has_method("to_dict"):
-			var class_name_key: String = _get_model_key(script_cls, model as Object)
+			var class_name_key: String = _get_model_key(script_cls, model)
 			if class_name_key.is_empty():
 				continue
-			state[class_name_key] = model.to_dict()
+			state[class_name_key] = model.call("to_dict")
 	return state
 
 
@@ -1218,13 +1219,13 @@ func get_all_models_state() -> Dictionary:
 ## @schema data: Dictionary keyed by stable model save key, storing serialized model data.
 func restore_all_models_state(data: Dictionary) -> void:
 	for script_cls: Script in _models:
-		var model := _models[script_cls] as Object
+		var model: Object = _get_dictionary_object(_models, script_cls)
 		var class_name_key: String = _get_model_key(script_cls, model)
 		if class_name_key.is_empty():
 			continue
 		if data.has(class_name_key):
 			if model.has_method("from_dict"):
-				model.from_dict(data[class_name_key])
+				var _restore_result: Variant = model.call("from_dict", data[class_name_key])
 
 
 ## 获取整个框架的全局快照，包含所有 Model 状态以及可选命令历史记录。
@@ -1241,7 +1242,7 @@ func get_global_snapshot() -> Dictionary:
 	snapshot["models"] = get_all_models_state()
 	
 	# 打包命令操作历史（如果有）
-	var history_util := _get_command_history_store()
+	var history_util: Object = _get_command_history_store()
 	if history_util != null:
 		snapshot["command_history"] = history_util.call("serialize_full_history")
 		
@@ -1262,12 +1263,12 @@ func restore_global_snapshot(data: Dictionary, command_builder: Callable = Calla
 	if data.has("models"):
 		var models_data: Variant = data["models"]
 		if typeof(models_data) == TYPE_DICTIONARY:
-			restore_all_models_state(models_data)
+			restore_all_models_state(_GF_VARIANT_ACCESS_SCRIPT.as_dictionary(models_data))
 		else:
 			push_warning("[GFArchitecture] restore_global_snapshot：models 必须是 Dictionary，已跳过 Model 恢复。")
 		
 	if data.has("command_history"):
-		var history_util := _get_command_history_store()
+		var history_util: Object = _get_command_history_store()
 		if history_util != null:
 			if command_builder.is_valid():
 				var history_data: Variant = data["command_history"]
@@ -1321,9 +1322,9 @@ func get_debug_lifecycle_state() -> Dictionary:
 ## [br]
 ## @schema return: Dictionary dependency diagnostics report with modules, resolved_dependencies, missing_dependencies, issue counts, and next_action.
 func get_dependency_diagnostics(options: Dictionary = {}) -> Dictionary:
-	var include_parent_lookup := bool(options.get("include_parent_lookup", not strict_dependency_lookup))
-	var include_factories := bool(options.get("include_factories", true))
-	var report := DependencyDiagnosticsReport.new("Architecture dependencies")
+	var include_parent_lookup: bool = _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(options, "include_parent_lookup", not strict_dependency_lookup)
+	var include_factories: bool = _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(options, "include_factories", true)
+	var report: DependencyDiagnosticsReport = DependencyDiagnosticsReport.new("Architecture dependencies")
 	var modules: Array[Dictionary] = []
 	var resolved_dependencies: Array[Dictionary] = []
 	var missing_dependencies: Array[Dictionary] = []
@@ -1400,7 +1401,7 @@ func _on_dispose() -> void:
 func _collect_registry_dependency_diagnostics(
 	module_kind: String,
 	module_registry: ModuleRegistry,
-	report: Variant,
+	report: DependencyDiagnosticsReport,
 	include_parent_lookup: bool,
 	include_factories: bool,
 	modules: Array[Dictionary],
@@ -1408,15 +1409,15 @@ func _collect_registry_dependency_diagnostics(
 	missing_dependencies: Array[Dictionary]
 ) -> void:
 	for script_cls: Script in module_registry.instances.keys():
-		var instance := module_registry.instances[script_cls] as Object
-		var module_key := _get_script_debug_key(script_cls, instance)
-		var declared_dependencies := _collect_declared_dependencies(
+		var instance: Object = _get_dictionary_object(module_registry.instances, script_cls)
+		var module_key: String = _get_script_debug_key(script_cls, instance)
+		var declared_dependencies: Dictionary = _collect_declared_dependencies(
 			instance,
 			report,
 			module_key,
 			include_factories
 		)
-		var module_record := {
+		var module_record: Dictionary = {
 			"kind": module_kind,
 			"script": module_key,
 			"instance": _get_instance_debug_key(instance),
@@ -1440,11 +1441,11 @@ func _collect_registry_dependency_diagnostics(
 
 func _collect_declared_dependencies(
 	instance: Object,
-	report: Variant,
+	report: DependencyDiagnosticsReport,
 	module_key: String,
 	include_factories: bool
 ) -> Dictionary:
-	var dependencies := _make_dependency_map()
+	var dependencies: Dictionary = _make_dependency_map()
 	if instance == null:
 		return dependencies
 
@@ -1460,21 +1461,21 @@ func _collect_declared_dependencies(
 		)
 
 	_append_dependency_hook_array(
-		dependencies["models"] as Array[Script],
+		_get_dependency_script_array(dependencies, "models"),
 		instance,
 		HOOK_GET_REQUIRED_MODELS,
 		report,
 		module_key
 	)
 	_append_dependency_hook_array(
-		dependencies["systems"] as Array[Script],
+		_get_dependency_script_array(dependencies, "systems"),
 		instance,
 		HOOK_GET_REQUIRED_SYSTEMS,
 		report,
 		module_key
 	)
 	_append_dependency_hook_array(
-		dependencies["utilities"] as Array[Script],
+		_get_dependency_script_array(dependencies, "utilities"),
 		instance,
 		HOOK_GET_REQUIRED_UTILITIES,
 		report,
@@ -1482,7 +1483,7 @@ func _collect_declared_dependencies(
 	)
 	if include_factories:
 		_append_dependency_hook_array(
-			dependencies["factories"] as Array[Script],
+			_get_dependency_script_array(dependencies, "factories"),
 			instance,
 			HOOK_GET_REQUIRED_FACTORIES,
 			report,
@@ -1495,7 +1496,7 @@ func _collect_dependency_resolution_records(
 	module_kind: String,
 	module_key: String,
 	declared_dependencies: Dictionary,
-	report: Variant,
+	report: DependencyDiagnosticsReport,
 	include_parent_lookup: bool,
 	include_factories: bool,
 	module_record: Dictionary,
@@ -1506,9 +1507,12 @@ func _collect_dependency_resolution_records(
 		if dependency_kind == "factories" and not include_factories:
 			continue
 
-		var dependency_scripts := declared_dependencies[dependency_kind] as Array[Script]
-		for dependency_script: Script in dependency_scripts:
-			var dependency_record := _make_dependency_diagnostic_record(
+		var dependency_scripts: Array = _get_dependency_script_array(declared_dependencies, dependency_kind)
+		for dependency_variant: Variant in dependency_scripts:
+			if not dependency_variant is Script:
+				continue
+			var dependency_script: Script = dependency_variant
+			var dependency_record: Dictionary = _make_dependency_diagnostic_record(
 				module_kind,
 				module_key,
 				dependency_kind,
@@ -1516,14 +1520,20 @@ func _collect_dependency_resolution_records(
 				include_parent_lookup,
 				include_factories
 			)
-			if bool(dependency_record.get("resolved", false)):
-				(module_record["resolved_dependencies"] as Array).append(dependency_record)
+			if _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(dependency_record, "resolved", false):
+				var resolved_records: Array = _GF_VARIANT_ACCESS_SCRIPT.as_array(
+					_GF_VARIANT_ACCESS_SCRIPT.get_option_value(module_record, "resolved_dependencies")
+				)
+				resolved_records.append(dependency_record)
 				resolved_dependencies.append(dependency_record)
 				continue
 
-			(module_record["missing_dependencies"] as Array).append(dependency_record)
+			var missing_records: Array = _GF_VARIANT_ACCESS_SCRIPT.as_array(
+				_GF_VARIANT_ACCESS_SCRIPT.get_option_value(module_record, "missing_dependencies")
+			)
+			missing_records.append(dependency_record)
 			missing_dependencies.append(dependency_record)
-			report.add_error(
+			var _missing_issue: Dictionary = report.add_error(
 				StringName("missing_%s_dependency" % _dependency_kind_to_singular(dependency_kind)),
 				"Architecture module declares a missing %s dependency." % _dependency_kind_to_singular(dependency_kind),
 				module_key,
@@ -1543,7 +1553,7 @@ func _make_dependency_diagnostic_record(
 	include_parent_lookup: bool,
 	include_factories: bool
 ) -> Dictionary:
-	var status := _resolve_dependency_diagnostic_status(
+	var status: Dictionary = _resolve_dependency_diagnostic_status(
 		dependency_kind,
 		dependency_script,
 		include_parent_lookup,
@@ -1554,9 +1564,9 @@ func _make_dependency_diagnostic_record(
 		"module": module_key,
 		"kind": dependency_kind,
 		"script": _get_script_debug_key(dependency_script),
-		"resolved": bool(status.get("resolved", false)),
-		"scope": String(status.get("scope", "missing")),
-		"architecture_depth": int(status.get("architecture_depth", -1)),
+		"resolved": _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(status, "resolved", false),
+		"scope": _GF_VARIANT_ACCESS_SCRIPT.get_option_string(status, "scope", "missing"),
+		"architecture_depth": _GF_VARIANT_ACCESS_SCRIPT.get_option_int(status, "architecture_depth", -1),
 	}
 
 
@@ -1574,7 +1584,7 @@ func _resolve_dependency_diagnostic_status(
 			"architecture_depth": architecture_depth,
 		}
 
-	var local_resolved := false
+	var local_resolved: bool = false
 	match dependency_kind:
 		"models":
 			local_resolved = _get_local_registered_instance(_model_registry, dependency_script) != null
@@ -1611,7 +1621,7 @@ func _resolve_dependency_diagnostic_status(
 func _merge_dependency_dictionary(
 	dependencies: Dictionary,
 	raw_dependencies: Variant,
-	report: Variant,
+	report: DependencyDiagnosticsReport,
 	module_key: String,
 	hook_name: String,
 	include_factories: bool
@@ -1619,7 +1629,7 @@ func _merge_dependency_dictionary(
 	if raw_dependencies == null:
 		return
 	if not raw_dependencies is Dictionary:
-		report.add_warning(
+		var _invalid_return_issue: Dictionary = report.add_warning(
 			&"invalid_dependency_hook_return",
 			"%s() must return a Dictionary." % hook_name,
 			module_key,
@@ -1628,25 +1638,25 @@ func _merge_dependency_dictionary(
 		)
 		return
 
-	var source := raw_dependencies as Dictionary
+	var source: Dictionary = raw_dependencies
 	for raw_key: Variant in source.keys():
-		var dependency_kind := _normalize_dependency_kind_key(String(raw_key))
+		var dependency_kind: String = _normalize_dependency_kind_key(_GF_VARIANT_ACCESS_SCRIPT.to_text(raw_key))
 		if dependency_kind.is_empty():
-			report.add_warning(
+			var _invalid_kind_issue: Dictionary = report.add_warning(
 				&"invalid_dependency_kind",
 				"Dependency declaration contains an unknown dependency kind.",
 				module_key,
 				"",
 				{
 					"hook": hook_name,
-					"dependency_kind": String(raw_key),
+					"dependency_kind": _GF_VARIANT_ACCESS_SCRIPT.to_text(raw_key),
 				}
 			)
 			continue
 		if dependency_kind == "factories" and not include_factories:
 			continue
 		_append_dependency_items(
-			dependencies[dependency_kind] as Array[Script],
+			_get_dependency_script_array(dependencies, dependency_kind),
 			source[raw_key],
 			report,
 			module_key,
@@ -1654,11 +1664,19 @@ func _merge_dependency_dictionary(
 		)
 
 
+func _get_dependency_script_array(dependencies: Dictionary, dependency_kind: String) -> Array:
+	var raw_value: Variant = _GF_VARIANT_ACCESS_SCRIPT.get_option_value(dependencies, dependency_kind, [])
+	if raw_value is Array:
+		var dependency_scripts: Array = raw_value
+		return dependency_scripts
+	return []
+
+
 func _append_dependency_hook_array(
-	target: Array[Script],
+	target: Array,
 	instance: Object,
 	hook_name: StringName,
-	report: Variant,
+	report: DependencyDiagnosticsReport,
 	module_key: String
 ) -> void:
 	if instance == null or not instance.has_method(hook_name):
@@ -1669,16 +1687,16 @@ func _append_dependency_hook_array(
 
 
 func _append_dependency_items(
-	target: Array[Script],
+	target: Array,
 	raw_value: Variant,
-	report: Variant,
+	report: DependencyDiagnosticsReport,
 	module_key: String,
 	hook_name: String
 ) -> void:
 	if raw_value == null:
 		return
 	if not raw_value is Array:
-		report.add_warning(
+		var _invalid_return_issue: Dictionary = report.add_warning(
 			&"invalid_dependency_hook_return",
 			"%s() must return an Array of Script values." % hook_name,
 			module_key,
@@ -1689,9 +1707,10 @@ func _append_dependency_items(
 
 	for dependency_variant: Variant in raw_value:
 		if dependency_variant is Script:
-			_append_unique_script(target, dependency_variant as Script)
+			var dependency_script: Script = dependency_variant
+			_append_unique_script(target, dependency_script)
 		elif dependency_variant != null:
-			report.add_warning(
+			var _invalid_type_issue: Dictionary = report.add_warning(
 				&"invalid_dependency_type",
 				"Dependency declaration contains a non-Script value.",
 				module_key,
@@ -1705,33 +1724,110 @@ func _append_dependency_items(
 
 func _make_dependency_map() -> Dictionary:
 	return {
-		"models": [] as Array[Script],
-		"systems": [] as Array[Script],
-		"utilities": [] as Array[Script],
-		"factories": [] as Array[Script],
+		"models": [],
+		"systems": [],
+		"utilities": [],
+		"factories": [],
 	}
+
+
+func _variant_to_object(value: Variant) -> Object:
+	if value is Object:
+		var object_value: Object = value
+		return object_value
+	return null
+
+
+func _variant_to_binding(value: Variant) -> GFBinding:
+	if value is GFBinding:
+		var binding: GFBinding = value
+		return binding
+	return null
+
+
+func _variant_to_script(value: Variant) -> Script:
+	if value is Script:
+		var script_value: Script = value
+		return script_value
+	return null
+
+
+func _get_dictionary_object(source: Dictionary, field_name: Variant) -> Object:
+	return _variant_to_object(_GF_VARIANT_ACCESS_SCRIPT.get_option_value(source, field_name))
+
+
+func _get_dictionary_binding(source: Dictionary, field_name: Variant) -> GFBinding:
+	return _variant_to_binding(_GF_VARIANT_ACCESS_SCRIPT.get_option_value(source, field_name))
+
+
+func _get_dictionary_script(source: Dictionary, field_name: Variant) -> Script:
+	return _variant_to_script(_GF_VARIANT_ACCESS_SCRIPT.get_option_value(source, field_name))
+
+
+func _get_object_int_property(instance: Object, property_name: StringName, default_value: int) -> int:
+	return _GF_VARIANT_ACCESS_SCRIPT.to_int(_get_object_property(instance, property_name, default_value), default_value)
+
+
+func _get_object_bool_property(instance: Object, property_name: StringName, default_value: bool = false) -> bool:
+	return _GF_VARIANT_ACCESS_SCRIPT.to_bool(_get_object_property(instance, property_name, default_value), default_value)
+
+
+func _get_object_property(instance: Object, property_name: StringName, default_value: Variant = null) -> Variant:
+	if instance == null:
+		return default_value
+	if not String(property_name) in instance:
+		return default_value
+	return instance.get_indexed(NodePath(String(property_name)))
+
+
+func _get_instance_script(instance: Object) -> Script:
+	if instance == null:
+		return null
+	var raw_script: Variant = instance.get_script()
+	return _variant_to_script(raw_script)
+
+
+func _get_scene_tree_or_null() -> SceneTree:
+	var main_loop: Variant = Engine.get_main_loop()
+	if main_loop is SceneTree:
+		var scene_tree: SceneTree = main_loop
+		return scene_tree
+	return null
 
 
 func _dependency_map_to_keys(dependencies: Dictionary) -> Dictionary:
 	return {
-		"models": _script_array_to_debug_keys(dependencies["models"] as Array[Script]),
-		"systems": _script_array_to_debug_keys(dependencies["systems"] as Array[Script]),
-		"utilities": _script_array_to_debug_keys(dependencies["utilities"] as Array[Script]),
-		"factories": _script_array_to_debug_keys(dependencies["factories"] as Array[Script]),
+		"models": _script_array_to_debug_keys(_get_dependency_script_array(dependencies, "models")),
+		"systems": _script_array_to_debug_keys(_get_dependency_script_array(dependencies, "systems")),
+		"utilities": _script_array_to_debug_keys(_get_dependency_script_array(dependencies, "utilities")),
+		"factories": _script_array_to_debug_keys(_get_dependency_script_array(dependencies, "factories")),
 	}
 
 
-func _script_array_to_debug_keys(scripts: Array[Script]) -> PackedStringArray:
-	var result := PackedStringArray()
-	for script: Script in scripts:
-		result.append(_get_script_debug_key(script))
+func _script_array_to_debug_keys(scripts: Array) -> PackedStringArray:
+	var result: PackedStringArray = PackedStringArray()
+	for script_variant: Variant in scripts:
+		if not script_variant is Script:
+			continue
+		var script: Script = script_variant
+		_append_packed_string(result, _get_script_debug_key(script))
 	result.sort()
 	return result
 
 
-func _append_unique_script(target: Array[Script], script: Script) -> void:
+func _append_unique_script(target: Array, script: Script) -> void:
 	if script != null and not target.has(script):
 		target.append(script)
+
+
+func _append_packed_string(target: PackedStringArray, value: String) -> void:
+	var _added: bool = target.append(value)
+
+
+func _call_module_void(instance: Object, method_name: StringName, arguments: Array = []) -> void:
+	if instance == null or not instance.has_method(method_name):
+		return
+	var _result: Variant = instance.callv(method_name, arguments)
 
 
 func _normalize_dependency_kind_key(key: String) -> String:
@@ -1777,13 +1873,13 @@ func _get_dependency_diagnostics_next_actions() -> Dictionary:
 		"missing_utility_dependency": "Register the required Utility locally or in an allowed parent architecture.",
 		"missing_factory_dependency": "Register the required factory before the dependent module requests it.",
 		"invalid_dependency_hook_return": "Return a Dictionary or Array shape that matches the dependency hook contract.",
-		"invalid_dependency_type": "Only Script values should be listed as declared dependencies.",
-		"invalid_dependency_kind": "Use models, systems, utilities, or factories as dependency declaration keys.",
+		"invalid_dependency_type": "Declared dependencies should contain only Script values.",
+		"invalid_dependency_kind": "Use models, systems, utilities, or factories for dependency declaration keys.",
 	}
 
 
 func _reset_project_installers() -> void:
-	var was_running := _project_installers_running
+	var was_running: bool = _project_installers_running
 	_project_installers_applied = false
 	_project_installers_running = false
 	if was_running:
@@ -1805,11 +1901,11 @@ func _assign_parent_architecture(parent_architecture: GFArchitecture, context: S
 
 func _parent_chain_contains(parent_architecture: GFArchitecture, expected: GFArchitecture) -> bool:
 	var visited: Dictionary = {}
-	var current := parent_architecture
+	var current: GFArchitecture = parent_architecture
 	while current != null:
 		if current == expected:
 			return true
-		var instance_id := current.get_instance_id()
+		var instance_id: int = current.get_instance_id()
 		if visited.has(instance_id):
 			return false
 		visited[instance_id] = true
@@ -1821,17 +1917,17 @@ func _parent_chain_contains(parent_architecture: GFArchitecture, expected: GFArc
 func _get_scaled_delta(delta: float, time_provider: Object) -> float:
 	if time_provider == null:
 		return delta
-	return float(time_provider.call("get_scaled_delta", delta))
+	return _GF_VARIANT_ACCESS_SCRIPT.to_float(time_provider.call("get_scaled_delta", delta), delta)
 
 
 func _drive_physics_tick_step(raw_delta: float, scaled_delta: float, time_provider: Object) -> void:
 	_is_iterating_tick_caches = true
 	for system: Object in _physics_systems:
 		if is_instance_valid(system) and _is_module_ready_for_tick(system):
-			system.physics_tick(_get_module_delta(system, raw_delta, scaled_delta, time_provider))
+			_call_module_void(system, &"physics_tick", [_get_module_delta(system, raw_delta, scaled_delta, time_provider)])
 	for utility: Object in _physics_utilities:
 		if is_instance_valid(utility) and _is_module_ready_for_tick(utility):
-			utility.physics_tick(_get_module_delta(utility, raw_delta, scaled_delta, time_provider))
+			_call_module_void(utility, &"physics_tick", [_get_module_delta(utility, raw_delta, scaled_delta, time_provider)])
 	_is_iterating_tick_caches = false
 	_flush_tick_cache_refresh()
 
@@ -1841,9 +1937,9 @@ func _get_module_delta(instance: Object, raw_delta: float, scaled_delta: float, 
 	if time_provider == null:
 		return raw_delta
 
-	var ignores_pause: bool = "ignore_pause" in instance and instance.get("ignore_pause") == true
-	var ignores_time_scale: bool = "ignore_time_scale" in instance and instance.get("ignore_time_scale") == true
-	if bool(time_provider.call("is_time_paused")):
+	var ignores_pause: bool = _get_object_bool_property(instance, &"ignore_pause")
+	var ignores_time_scale: bool = _get_object_bool_property(instance, &"ignore_time_scale")
+	if _GF_VARIANT_ACCESS_SCRIPT.to_bool(time_provider.call("is_time_paused")):
 		return raw_delta if ignores_pause else 0.0
 
 	if ignores_time_scale:
@@ -1853,7 +1949,7 @@ func _get_module_delta(instance: Object, raw_delta: float, scaled_delta: float, 
 
 func _get_modules_by_lifecycle_priority(registry: Dictionary, reverse: bool = false) -> Array[Object]:
 	var entries: Array[Dictionary] = []
-	var order := 0
+	var order: int = 0
 	for instance: Object in registry.values():
 		entries.append({
 			"instance": instance,
@@ -1863,18 +1959,18 @@ func _get_modules_by_lifecycle_priority(registry: Dictionary, reverse: bool = fa
 		order += 1
 
 	entries.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
-		var left_priority := int(left.get("priority", 0))
-		var right_priority := int(right.get("priority", 0))
+		var left_priority: int = _GF_VARIANT_ACCESS_SCRIPT.get_option_int(left, "priority", 0)
+		var right_priority: int = _GF_VARIANT_ACCESS_SCRIPT.get_option_int(right, "priority", 0)
 		if left_priority == right_priority:
-			var left_order := int(left.get("order", 0))
-			var right_order := int(right.get("order", 0))
+			var left_order: int = _GF_VARIANT_ACCESS_SCRIPT.get_option_int(left, "order", 0)
+			var right_order: int = _GF_VARIANT_ACCESS_SCRIPT.get_option_int(right, "order", 0)
 			return left_order > right_order if reverse else left_order < right_order
 		return left_priority < right_priority if reverse else left_priority > right_priority
 	)
 
 	var result: Array[Object] = []
 	for entry: Dictionary in entries:
-		var instance := entry.get("instance") as Object
+		var instance: Object = _get_dictionary_object(entry, "instance")
 		if instance != null:
 			result.append(instance)
 	return result
@@ -1883,7 +1979,7 @@ func _get_modules_by_lifecycle_priority(registry: Dictionary, reverse: bool = fa
 func _sort_modules_for_tick(modules: Array[Object], priority_property: StringName) -> void:
 	var entries: Array[Dictionary] = []
 	for index: int in range(modules.size()):
-		var instance := modules[index]
+		var instance: Object = modules[index]
 		entries.append({
 			"instance": instance,
 			"priority": _get_module_priority(instance, priority_property),
@@ -1891,16 +1987,16 @@ func _sort_modules_for_tick(modules: Array[Object], priority_property: StringNam
 		})
 
 	entries.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
-		var left_priority := int(left.get("priority", 0))
-		var right_priority := int(right.get("priority", 0))
+		var left_priority: int = _GF_VARIANT_ACCESS_SCRIPT.get_option_int(left, "priority", 0)
+		var right_priority: int = _GF_VARIANT_ACCESS_SCRIPT.get_option_int(right, "priority", 0)
 		if left_priority == right_priority:
-			return int(left.get("order", 0)) < int(right.get("order", 0))
+			return _GF_VARIANT_ACCESS_SCRIPT.get_option_int(left, "order", 0) < _GF_VARIANT_ACCESS_SCRIPT.get_option_int(right, "order", 0)
 		return left_priority > right_priority
 	)
 
 	modules.clear()
 	for entry: Dictionary in entries:
-		var instance := entry.get("instance") as Object
+		var instance: Object = _get_dictionary_object(entry, "instance")
 		if instance != null:
 			modules.append(instance)
 
@@ -1909,24 +2005,22 @@ func _get_module_priority(instance: Object, property_name: StringName) -> int:
 	if instance == null:
 		return 0
 	if String(property_name) in instance:
-		return int(instance.get(property_name))
+		return _get_object_int_property(instance, property_name, 0)
 	return 0
 
 
 func _collect_module_debug_state(registry: Dictionary) -> Dictionary:
 	var result: Dictionary = {}
 	for script_cls: Script in registry.keys():
-		var instance := registry[script_cls] as Object
-		var stage: int = _module_lifecycle_stages.get(instance, 0)
+		var instance: Object = _get_dictionary_object(registry, script_cls)
+		var stage: int = _GF_VARIANT_ACCESS_SCRIPT.get_option_int(_module_lifecycle_stages, instance, 0)
 		var ignores_pause: bool = (
 			instance != null
-			and "ignore_pause" in instance
-			and instance.get("ignore_pause") == true
+			and _get_object_bool_property(instance, &"ignore_pause")
 		)
 		var ignores_time_scale: bool = (
 			instance != null
-			and "ignore_time_scale" in instance
-			and instance.get("ignore_time_scale") == true
+			and _get_object_bool_property(instance, &"ignore_time_scale")
 		)
 		result[_get_script_debug_key(script_cls, instance)] = {
 			"stage": stage,
@@ -1949,9 +2043,9 @@ func _clear_factory_binding(script_cls: Script) -> void:
 	if script_cls == null or not _factories.has(script_cls):
 		return
 
-	var binding := _factories[script_cls] as Object
-	if binding != null and binding.has_method("dispose_cached_instance"):
-		binding.call("dispose_cached_instance")
+	var binding: GFBinding = _get_dictionary_binding(_factories, script_cls)
+	if binding != null:
+		binding.dispose_cached_instance()
 
 
 func _clear_failed_initialization_state() -> void:
@@ -1959,9 +2053,9 @@ func _clear_failed_initialization_state() -> void:
 	_dispose_module_registry(_model_registry)
 	_dispose_module_registry(_utility_registry)
 	for binding_variant: Variant in _factories.values():
-		var binding := binding_variant as Object
-		if binding != null and binding.has_method("dispose_cached_instance"):
-			binding.call("dispose_cached_instance")
+		var binding: GFBinding = _variant_to_binding(binding_variant)
+		if binding != null:
+			binding.dispose_cached_instance()
 
 	_model_registry._clear()
 	_system_registry._clear()
@@ -1976,10 +2070,10 @@ func _clear_failed_initialization_state() -> void:
 func _collect_factory_debug_state() -> Dictionary:
 	var result: Dictionary = {}
 	for script_cls: Script in _factories.keys():
-		var binding := _factories[script_cls] as Object
-		var lifetime := -1
+		var binding: Object = _get_dictionary_object(_factories, script_cls)
+		var lifetime: int = -1
 		if binding != null and "lifetime" in binding:
-			lifetime = int(binding.get("lifetime"))
+			lifetime = _get_object_int_property(binding, &"lifetime", -1)
 		result[_get_script_debug_key(script_cls)] = {
 			"lifetime": lifetime,
 			"lifetime_name": _get_binding_lifetime_name(lifetime),
@@ -2031,7 +2125,7 @@ func _get_script_debug_key(script_cls: Script, instance: Object = null) -> Strin
 		if not script_cls.resource_path.is_empty():
 			return script_cls.resource_path
 	if instance != null:
-		var instance_script := instance.get_script() as Script
+		var instance_script: Script = _get_instance_script(instance)
 		if instance_script != null and not instance_script.resource_path.is_empty():
 			return instance_script.resource_path
 		return "Instance:%d" % instance.get_instance_id()
@@ -2041,7 +2135,7 @@ func _get_script_debug_key(script_cls: Script, instance: Object = null) -> Strin
 func _get_instance_debug_key(instance: Object) -> String:
 	if instance == null:
 		return "null"
-	var script := instance.get_script() as Script
+	var script: Script = _get_instance_script(instance)
 	if script != null:
 		return _get_script_debug_key(script, instance)
 	return "Instance:%d" % instance.get_instance_id()
@@ -2053,7 +2147,7 @@ func _get_model_key(script_cls: Script, model: Object = null) -> String:
 	if model != null and model.has_method("get_save_key"):
 		var raw_save_key: Variant = model.call("get_save_key")
 		if typeof(raw_save_key) == TYPE_STRING or typeof(raw_save_key) == TYPE_STRING_NAME:
-			var save_key := String(raw_save_key)
+			var save_key: String = _GF_VARIANT_ACCESS_SCRIPT.to_text(raw_save_key)
 			if not save_key.is_empty():
 				return save_key
 
@@ -2069,14 +2163,14 @@ func _get_model_key(script_cls: Script, model: Object = null) -> String:
 func _initialize_registered_module(module_registry: ModuleRegistry, instance: Object) -> void:
 	if instance == null:
 		return
-	var current_serial := _lifecycle_serial
+	var current_serial: int = _lifecycle_serial
 	await _advance_module_to_stage(module_registry, instance, 3, current_serial)
 
 
 func _create_instance_for_requester(script_cls: Script, requesting_architecture: GFArchitecture) -> Object:
 	if _factories.has(script_cls):
-		var binding: RefCounted = _factories[script_cls] as RefCounted
-		if binding == null or not binding.has_method("get_instance"):
+		var binding: GFBinding = _get_dictionary_binding(_factories, script_cls)
+		if binding == null:
 			push_error("[GFArchitecture] create_instance 失败：工厂绑定无效。")
 			return null
 		return binding.get_instance(requesting_architecture)
@@ -2092,7 +2186,7 @@ func _create_instance_for_requester(script_cls: Script, requesting_architecture:
 
 
 func _advance_all_modules_to_stage(target_stage: int, lifecycle_serial: int) -> void:
-	var pass_count := 0
+	var pass_count: int = 0
 	while true:
 		if not _is_lifecycle_current(lifecycle_serial) or _initialization_failed:
 			return
@@ -2126,9 +2220,9 @@ func _advance_module_registry_to_stage(module_registry: ModuleRegistry, target_s
 		if not _module_registry_contains_instance(module_registry, instance):
 			continue
 
-		var current_stage: int = _module_lifecycle_stages.get(instance, 0)
+		var current_stage: int = _GF_VARIANT_ACCESS_SCRIPT.get_option_int(_module_lifecycle_stages, instance, 0)
 		if current_stage < target_stage:
-			var advanced := await _advance_module_to_stage(module_registry, instance, target_stage, lifecycle_serial)
+			var advanced: bool = await _advance_module_to_stage(module_registry, instance, target_stage, lifecycle_serial)
 			if advanced:
 				progressed = true
 	return progressed
@@ -2143,8 +2237,8 @@ func _advance_module_to_stage(
 	if instance == null:
 		return false
 
-	var current_stage: int = _module_lifecycle_stages.get(instance, 0)
-	var advanced := false
+	var current_stage: int = _GF_VARIANT_ACCESS_SCRIPT.get_option_int(_module_lifecycle_stages, instance, 0)
+	var advanced: bool = false
 	while current_stage < target_stage:
 		if not _is_lifecycle_current(lifecycle_serial) or _initialization_failed:
 			return advanced
@@ -2155,15 +2249,15 @@ func _advance_module_to_stage(
 		match current_stage:
 			1:
 				if instance.has_method("init"):
-					instance.init()
+					_call_module_void(instance, &"init")
 			2:
 				if instance.has_method("async_init"):
-					var async_completed := await _await_module_async_init(instance, lifecycle_serial)
+					var async_completed: bool = await _await_module_async_init(instance, lifecycle_serial)
 					if not async_completed:
 						return advanced
 			3:
 				if instance.has_method("ready"):
-					instance.ready()
+					_call_module_void(instance, &"ready")
 
 		if not _is_lifecycle_current(lifecycle_serial) or _initialization_failed:
 			return advanced
@@ -2177,22 +2271,22 @@ func _advance_module_to_stage(
 
 func _await_module_async_init(instance: Object, lifecycle_serial: int) -> bool:
 	if module_async_init_timeout_seconds <= 0.0:
-		await instance.async_init()
+		await instance.call("async_init")
 		return _is_lifecycle_current(lifecycle_serial) and not _initialization_failed
 
-	var scene_tree := Engine.get_main_loop() as SceneTree
+	var scene_tree: SceneTree = _get_scene_tree_or_null()
 	if scene_tree == null:
-		await instance.async_init()
+		await instance.call("async_init")
 		return _is_lifecycle_current(lifecycle_serial) and not _initialization_failed
 
-	var completion_state := { "done": false }
-	_complete_module_async_init(instance, completion_state)
-	var start_msec := Time.get_ticks_msec()
-	var timeout_msec := int(module_async_init_timeout_seconds * 1000.0)
-	while not bool(completion_state.get("done", false)):
+	var completion_state: Dictionary = { "done": false }
+	_GF_ASYNC_CALL_SCRIPT.run_detached(Callable(self, &"_complete_module_async_init"), [instance, completion_state])
+	var start_msec: int = Time.get_ticks_msec()
+	var timeout_msec: int = int(module_async_init_timeout_seconds * 1000.0)
+	while not _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(completion_state, "done", false):
 		if not _is_lifecycle_current(lifecycle_serial) or _initialization_failed:
 			return false
-		var elapsed_msec := Time.get_ticks_msec() - start_msec
+		var elapsed_msec: int = Time.get_ticks_msec() - start_msec
 		if elapsed_msec >= timeout_msec:
 			_fail_initialization(
 				"[GFArchitecture] async_init 超时：%s 超过 %.2f 秒。" % [
@@ -2207,14 +2301,14 @@ func _await_module_async_init(instance: Object, lifecycle_serial: int) -> bool:
 
 
 func _complete_module_async_init(instance: Object, completion_state: Dictionary) -> void:
-	await instance.async_init()
+	await instance.call("async_init")
 	completion_state["done"] = true
 
 
 func _dispose_module_registry(module_registry: ModuleRegistry) -> void:
-	for instance in _get_modules_by_lifecycle_priority(module_registry.instances, true):
+	for instance: Object in _get_modules_by_lifecycle_priority(module_registry.instances, true):
 		if instance.has_method("dispose"):
-			instance.dispose()
+			_call_module_void(instance, &"dispose")
 		_clear_injected_scope(instance)
 
 
@@ -2256,8 +2350,8 @@ func _register_module(module_registry: ModuleRegistry, script_cls: Script, insta
 	if not _validate_registration(script_cls, instance, module_registry.label):
 		return false
 	if module_registry._has_direct(script_cls):
-		var method_name := "register_%s" % module_registry._label_key()
-		var replacement_name := "replace_%s" % module_registry._label_key()
+		var method_name: String = "register_%s" % module_registry._label_key()
+		var replacement_name: String = "replace_%s" % module_registry._label_key()
 		push_warning("[GFArchitecture] %s：类型已注册，已忽略重复注册。启用扩展的 Installer 会先于项目 Installer 自动装配其模块；项目通常只注册自身模块。若需要替换，请使用 %s()。" % [
 			method_name,
 			replacement_name,
@@ -2279,21 +2373,21 @@ func _can_mutate_registration_state(context: String) -> bool:
 
 
 func _unregister_module(module_registry: ModuleRegistry, script_cls: Script) -> bool:
-	var registered_key := _resolve_registered_key(module_registry, script_cls)
+	var registered_key: Script = _resolve_registered_key(module_registry, script_cls)
 	if registered_key != null and module_registry._has_direct(registered_key):
-		var instance := module_registry.instances[registered_key] as Object
+		var instance: Object = _get_dictionary_object(module_registry.instances, registered_key)
 		if instance != null and instance.has_method("dispose"):
-			instance.dispose()
+			_call_module_void(instance, &"dispose")
 		if instance != null:
 			_event_system.unregister_owner(instance)
 			_clear_injected_scope(instance)
-		_module_lifecycle_stages.erase(instance)
-		module_registry.instances.erase(registered_key)
+		var _removed_stage: bool = _module_lifecycle_stages.erase(instance)
+		var _removed_instance: bool = module_registry.instances.erase(registered_key)
 		_remove_aliases_for(module_registry, registered_key)
 		module_registry._clear_assignable_cache()
 		return true
 
-	module_registry.aliases.erase(script_cls)
+	var _removed_alias: bool = module_registry.aliases.erase(script_cls)
 	module_registry._clear_assignable_cache()
 	return false
 
@@ -2302,9 +2396,9 @@ func _inject_dependencies_if_needed(instance: Object) -> void:
 	if instance != null and instance.has_method("_gf_set_dependency_scope"):
 		instance.call("_gf_set_dependency_scope", self)
 	if instance != null and instance.has_method("inject_dependencies"):
-		instance.inject_dependencies(self)
+		var _inject_dependencies_result: Variant = instance.call("inject_dependencies", self)
 	if instance != null and instance.has_method("inject"):
-		instance.inject(self)
+		var _inject_result: Variant = instance.call("inject", self)
 
 
 func _clear_injected_scope(instance: Object) -> void:
@@ -2315,7 +2409,7 @@ func _clear_injected_scope(instance: Object) -> void:
 
 
 func _stop_project_installers_after_failure() -> void:
-	var was_running := _project_installers_running
+	var was_running: bool = _project_installers_running
 	_project_installers_running = false
 	if was_running:
 		project_installers_finished.emit()
@@ -2338,11 +2432,11 @@ func _validate_registration(script_cls: Script, instance: Object, label: String)
 		push_error("[GFArchitecture] register_%s 失败：实例类型必须继承 GF%s。" % [label.to_lower(), label])
 		return false
 
-	var instance_script := instance.get_script() as Script
+	var instance_script: Script = _get_instance_script(instance)
 	if instance_script == null:
 		push_error("[GFArchitecture] register_%s 失败：实例未附加脚本。" % label.to_lower())
 		return false
-	if not _SCRIPT_TYPE_INSPECTOR.script_extends_or_equals(instance_script, script_cls):
+	if not GFScriptTypeInspector.script_extends_or_equals(instance_script, script_cls):
 		push_error("[GFArchitecture] register_%s 失败：实例脚本必须继承或等于注册脚本类型。" % label.to_lower())
 		return false
 
@@ -2354,7 +2448,7 @@ func _get_instance_script_or_null(instance: Object, context: String) -> Script:
 		push_error("[GFArchitecture] %s 失败：实例为空。" % context)
 		return null
 
-	var script := instance.get_script() as Script
+	var script: Script = _get_instance_script(instance)
 	if script == null:
 		push_error("[GFArchitecture] %s 失败：实例未附加脚本。" % context)
 		return null
@@ -2392,7 +2486,7 @@ func _get_time_provider() -> Object:
 
 
 func _get_command_history_store() -> Object:
-	var history_store := _find_local_utility_with_methods(PackedStringArray([
+	var history_store: Object = _find_local_utility_with_methods(PackedStringArray([
 		"serialize_full_history",
 	]))
 	if history_store != null:
@@ -2461,7 +2555,7 @@ func _is_lifecycle_current(lifecycle_serial: int) -> bool:
 
 
 func _is_module_ready_for_tick(instance: Object) -> bool:
-	return int(_module_lifecycle_stages.get(instance, 0)) >= 3
+	return _GF_VARIANT_ACCESS_SCRIPT.get_option_int(_module_lifecycle_stages, instance, 0) >= 3
 
 
 func _is_module_ready_for_lookup(instance: Object) -> bool:
@@ -2469,7 +2563,7 @@ func _is_module_ready_for_lookup(instance: Object) -> bool:
 		instance != null
 		and _inited
 		and not _initialization_failed
-		and int(_module_lifecycle_stages.get(instance, 0)) >= 3
+		and _GF_VARIANT_ACCESS_SCRIPT.get_option_int(_module_lifecycle_stages, instance, 0) >= 3
 	)
 
 
@@ -2489,13 +2583,13 @@ func _get_module_bool(instance: Object, property_name: StringName) -> bool:
 	if instance == null:
 		return false
 	if String(property_name) in instance:
-		return bool(instance.get(property_name))
+		return _get_object_bool_property(instance, property_name)
 	return false
 
 
 func _script_chain_declares_method_before_framework_base(instance: Object, method_name: StringName) -> bool:
-	var script := instance.get_script() as Script
-	var framework_method_count := _get_framework_module_method_count(instance, method_name)
+	var script: Script = _get_instance_script(instance)
+	var framework_method_count: int = _get_framework_module_method_count(instance, method_name)
 	while script != null:
 		if _is_framework_module_base_script(script):
 			return false
@@ -2518,9 +2612,9 @@ func _get_framework_module_method_count(instance: Object, method_name: StringNam
 
 
 func _count_script_methods(script: Script, method_name: StringName) -> int:
-	var count := 0
+	var count: int = 0
 	for method: Dictionary in script.get_script_method_list():
-		if String(method.get("name", "")) == String(method_name):
+		if _GF_VARIANT_ACCESS_SCRIPT.get_option_string(method, "name", "") == String(method_name):
 			count += 1
 	return count
 
@@ -2531,7 +2625,7 @@ func _register_module_alias(module_registry: ModuleRegistry, alias_cls: Script, 
 	if alias_cls == null or target_cls == null:
 		push_error("[GFArchitecture] register_%s_alias 失败：alias 或 target 为空。" % module_registry._label_key())
 		return
-	if not _SCRIPT_TYPE_INSPECTOR.script_extends_or_equals(target_cls, alias_cls):
+	if not GFScriptTypeInspector.script_extends_or_equals(target_cls, alias_cls):
 		push_error("[GFArchitecture] register_%s_alias 失败：target 必须继承或等于 alias。" % module_registry._label_key())
 		return
 	if not module_registry._has_direct(target_cls):
@@ -2546,23 +2640,23 @@ func _resolve_registered_key(module_registry: ModuleRegistry, script_cls: Script
 	if module_registry._has_direct(script_cls):
 		return script_cls
 	if module_registry.aliases.has(script_cls):
-		var target_cls := module_registry.aliases[script_cls] as Script
+		var target_cls: Script = _get_dictionary_script(module_registry.aliases, script_cls)
 		if target_cls != null and module_registry._has_direct(target_cls):
 			return target_cls
 	return null
 
 
 func _get_local_registered_instance(module_registry: ModuleRegistry, script_cls: Script) -> Object:
-	var registered_key := _resolve_registered_key(module_registry, script_cls)
+	var registered_key: Script = _resolve_registered_key(module_registry, script_cls)
 	if registered_key != null:
-		return module_registry.instances.get(registered_key)
+		return _get_dictionary_object(module_registry.instances, registered_key)
 	registered_key = _resolve_assignable_cached_key(module_registry, script_cls)
 	if registered_key != null:
-		return module_registry.instances.get(registered_key)
+		return _get_dictionary_object(module_registry.instances, registered_key)
 	registered_key = _find_assignable_registered_key(module_registry, script_cls)
 	if registered_key != null:
 		module_registry.assignable_cache[script_cls] = registered_key
-		return module_registry.instances.get(registered_key)
+		return _get_dictionary_object(module_registry.instances, registered_key)
 	return null
 
 
@@ -2579,16 +2673,16 @@ func _remove_aliases_for(module_registry: ModuleRegistry, registered_key: Script
 		if module_registry.aliases[alias_cls] == registered_key:
 			keys_to_remove.append(alias_cls)
 	for alias_cls: Script in keys_to_remove:
-		module_registry.aliases.erase(alias_cls)
+		var _removed_alias: bool = module_registry.aliases.erase(alias_cls)
 
 
 func _resolve_assignable_cached_key(module_registry: ModuleRegistry, script_cls: Script) -> Script:
 	if script_cls == null or not module_registry.assignable_cache.has(script_cls):
 		return null
-	var cached_key := module_registry.assignable_cache[script_cls] as Script
+	var cached_key: Script = _get_dictionary_script(module_registry.assignable_cache, script_cls)
 	if cached_key != null and module_registry._has_direct(cached_key):
 		return cached_key
-	module_registry.assignable_cache.erase(script_cls)
+	var _removed_cached_key: bool = module_registry.assignable_cache.erase(script_cls)
 	return null
 
 
@@ -2597,7 +2691,7 @@ func _find_assignable_registered_key(module_registry: ModuleRegistry, script_cls
 		return null
 	var matches: Array[Script] = []
 	for registered_script: Script in module_registry.instances:
-		if _SCRIPT_TYPE_INSPECTOR.script_extends_or_equals(registered_script, script_cls):
+		if GFScriptTypeInspector.script_extends_or_equals(registered_script, script_cls):
 			matches.append(registered_script)
 	if matches.size() == 1:
 		return matches[0]
@@ -2613,7 +2707,7 @@ func _has_assignable_instance(module_registry: ModuleRegistry, script_cls: Scrip
 	if script_cls == null:
 		return false
 	for registered_script: Script in module_registry.instances:
-		if _SCRIPT_TYPE_INSPECTOR.script_extends_or_equals(registered_script, script_cls):
+		if GFScriptTypeInspector.script_extends_or_equals(registered_script, script_cls):
 			return true
 	return false
 
@@ -2627,6 +2721,8 @@ func _has_assignable_instance(module_registry: ModuleRegistry, script_cls: Scrip
 ## @layer kernel/core
 class DependencyDiagnosticsReport:
 	extends RefCounted
+
+	const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
 
 	## 诊断报告主体名称。
 	## [br]
@@ -2719,13 +2815,13 @@ class DependencyDiagnosticsReport:
 	## [br]
 	## @schema return: Dictionary containing ok, healthy, counts, summary, next_action, and issues.
 	func to_dict(additional_fields: Dictionary = {}, options: Dictionary = {}) -> Dictionary:
-		var result := additional_fields.duplicate(true)
-		var error_count := 0
-		var warning_count := 0
-		var info_count := 0
+		var result: Dictionary = additional_fields.duplicate(true)
+		var error_count: int = 0
+		var warning_count: int = 0
+		var info_count: int = 0
 		var issue_counts_by_kind: Dictionary = {}
 		for issue: Dictionary in issues:
-			var severity := String(issue.get("severity", "error"))
+			var severity: String = _GF_VARIANT_ACCESS_SCRIPT.get_option_string(issue, "severity", "error")
 			match severity:
 				"error":
 					error_count += 1
@@ -2734,11 +2830,11 @@ class DependencyDiagnosticsReport:
 				"info":
 					info_count += 1
 
-			var kind_key := String(issue.get("kind", "unknown"))
-			issue_counts_by_kind[kind_key] = int(issue_counts_by_kind.get(kind_key, 0)) + 1
+			var kind_key: String = _GF_VARIANT_ACCESS_SCRIPT.get_option_string(issue, "kind", "unknown")
+			issue_counts_by_kind[kind_key] = _GF_VARIANT_ACCESS_SCRIPT.get_option_int(issue_counts_by_kind, kind_key, 0) + 1
 
-		var include_info_count := _get_option_bool(options, "include_info_count", true)
-		var include_issue_count := _get_option_bool(options, "include_issue_count", true)
+		var include_info_count: bool = _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(options, "include_info_count", true)
+		var include_issue_count: bool = _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(options, "include_issue_count", true)
 		result["ok"] = error_count == 0
 		result["healthy"] = error_count == 0 and warning_count == 0
 		result["error_count"] = error_count
@@ -2761,7 +2857,7 @@ class DependencyDiagnosticsReport:
 		path: String,
 		metadata: Dictionary
 	) -> Dictionary:
-		var issue := {
+		var issue: Dictionary = {
 			"severity": severity,
 			"kind": String(kind),
 			"message": message,
@@ -2776,7 +2872,7 @@ class DependencyDiagnosticsReport:
 		return issue
 
 	func _make_summary(error_count: int, warning_count: int) -> String:
-		var label := subject
+		var label: String = subject
 		if label.is_empty():
 			label = "Validation report"
 		if error_count > 0:
@@ -2786,37 +2882,30 @@ class DependencyDiagnosticsReport:
 		return "%s is healthy." % label
 
 	func _get_next_action(options: Dictionary) -> String:
-		var next_actions := options.get("next_actions", {}) as Dictionary
-		if next_actions == null:
-			next_actions = {}
-		var fallback_action := String(options.get("fallback_action", "Review the first reported issue."))
-		var no_action := String(options.get("no_action", "No action required."))
-		var issue := _get_first_issue_by_priority()
+		var next_actions: Dictionary = _GF_VARIANT_ACCESS_SCRIPT.get_option_dictionary(options, "next_actions", {})
+		var fallback_action: String = _GF_VARIANT_ACCESS_SCRIPT.get_option_string(options, "fallback_action", "Review the first reported issue.")
+		var no_action: String = _GF_VARIANT_ACCESS_SCRIPT.get_option_string(options, "no_action", "No action required.")
+		var issue: Dictionary = _get_first_issue_by_priority()
 		if issue.is_empty():
 			return no_action
-		var kind_key := String(issue.get("kind", "unknown"))
+		var kind_key: String = _GF_VARIANT_ACCESS_SCRIPT.get_option_string(issue, "kind", "unknown")
 		if next_actions.has(kind_key):
-			return String(next_actions[kind_key])
-		var kind_name := StringName(kind_key)
+			return _GF_VARIANT_ACCESS_SCRIPT.to_text(next_actions[kind_key])
+		var kind_name: StringName = StringName(kind_key)
 		if next_actions.has(kind_name):
-			return String(next_actions[kind_name])
+			return _GF_VARIANT_ACCESS_SCRIPT.to_text(next_actions[kind_name])
 		return fallback_action
 
 	func _get_first_issue_by_priority() -> Dictionary:
 		for issue: Dictionary in issues:
-			if String(issue.get("severity", "")) == "error":
+			if _GF_VARIANT_ACCESS_SCRIPT.get_option_string(issue, "severity", "") == "error":
 				return issue
 		for issue: Dictionary in issues:
-			if String(issue.get("severity", "")) == "warning":
+			if _GF_VARIANT_ACCESS_SCRIPT.get_option_string(issue, "severity", "") == "warning":
 				return issue
 		if not issues.is_empty():
 			return issues[0]
 		return {}
-
-	static func _get_option_bool(options: Dictionary, field_name: String, default_value: bool) -> bool:
-		if not options.has(field_name):
-			return default_value
-		return bool(options[field_name])
 
 
 ## ModuleRegistry: 架构模块注册表。

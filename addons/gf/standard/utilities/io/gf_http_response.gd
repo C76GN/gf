@@ -143,7 +143,7 @@ func complete_success(fields: Dictionary = {}) -> void:
 
 	_apply_fields(fields)
 	state = State.COMPLETED
-	error = String(fields.get("error", error))
+	error = GFVariantData.get_option_string(fields, "error", error)
 	cancel_callback = Callable()
 	completed.emit(self)
 
@@ -177,7 +177,7 @@ func cancel(reason: String = "cancelled") -> void:
 	if is_finished():
 		return
 
-	var callback := cancel_callback
+	var callback: Callable = cancel_callback
 	cancel_callback = Callable()
 	if callback.is_valid():
 		callback.call()
@@ -215,18 +215,32 @@ func to_dictionary() -> Dictionary:
 
 func _apply_fields(fields: Dictionary) -> void:
 	if fields.has("url"):
-		url = String(fields["url"])
+		url = GFVariantData.get_option_string(fields, "url", url)
 	if fields.has("status_code"):
-		status_code = int(fields["status_code"])
+		status_code = GFVariantData.get_option_int(fields, "status_code", status_code)
 	if fields.has("result_code"):
-		result_code = int(fields["result_code"])
+		result_code = GFVariantData.get_option_int(fields, "result_code", result_code)
 	if fields.has("headers"):
-		headers = fields["headers"] as PackedStringArray
+		headers = _variant_to_packed_string_array(GFVariantData.get_option_value(fields, "headers", headers))
 	if fields.has("text"):
-		text = String(fields["text"])
+		text = GFVariantData.get_option_string(fields, "text", text)
 	if fields.has("body"):
-		body = fields["body"] as PackedByteArray
+		body = _variant_to_packed_byte_array(GFVariantData.get_option_value(fields, "body", body))
 	if fields.has("data"):
-		data = fields["data"]
+		data = GFVariantData.get_option_value(fields, "data")
 	if fields.has("metadata") and fields["metadata"] is Dictionary:
-		metadata = (fields["metadata"] as Dictionary).duplicate(true)
+		metadata = GFVariantData.to_dictionary(GFVariantData.get_option_value(fields, "metadata", metadata))
+
+
+func _variant_to_packed_string_array(value: Variant) -> PackedStringArray:
+	if value is PackedStringArray:
+		var packed: PackedStringArray = value
+		return packed
+	return PackedStringArray()
+
+
+func _variant_to_packed_byte_array(value: Variant) -> PackedByteArray:
+	if value is PackedByteArray:
+		var packed: PackedByteArray = value
+		return packed
+	return PackedByteArray()

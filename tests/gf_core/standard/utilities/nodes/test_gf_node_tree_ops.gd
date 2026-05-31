@@ -2,16 +2,12 @@
 extends GutTest
 
 
-class CustomNode extends Node:
-	pass
-
-
 func test_add_child_with_owner_sets_scene_owner() -> void:
-	var root := Node.new()
+	var root: Node = Node.new()
 	add_child_autofree(root)
-	var child := Node.new()
+	var child: Node = Node.new()
 
-	var added := GFNodeTreeOps.add_child_with_owner(root, child)
+	var added: bool = GFNodeTreeOps.add_child_with_owner(root, child)
 
 	assert_true(added, "应能添加无父节点的子节点。")
 	assert_eq(child.get_parent(), root, "子节点应挂到目标父节点。")
@@ -19,14 +15,14 @@ func test_add_child_with_owner_sets_scene_owner() -> void:
 
 
 func test_reparent_node_moves_child_and_updates_owner() -> void:
-	var first_parent := Node.new()
-	var second_parent := Node.new()
+	var first_parent: Node = Node.new()
+	var second_parent: Node = Node.new()
 	add_child_autofree(first_parent)
 	add_child_autofree(second_parent)
-	var child := Node.new()
+	var child: Node = Node.new()
 	first_parent.add_child(child)
 
-	var moved := GFNodeTreeOps.reparent_node(child, second_parent)
+	var moved: bool = GFNodeTreeOps.reparent_node(child, second_parent)
 
 	assert_true(moved, "应能把节点移动到新父节点。")
 	assert_eq(child.get_parent(), second_parent, "子节点应移动到新父节点。")
@@ -34,17 +30,17 @@ func test_reparent_node_moves_child_and_updates_owner() -> void:
 
 
 func test_replace_child_preserves_index() -> void:
-	var parent := Node.new()
+	var parent: Node = Node.new()
 	add_child_autofree(parent)
-	var first := Node.new()
-	var old_child := Node.new()
-	var last := Node.new()
-	var replacement := Node.new()
+	var first: Node = Node.new()
+	var old_child: Node = Node.new()
+	var last: Node = Node.new()
+	var replacement: Node = Node.new()
 	parent.add_child(first)
 	parent.add_child(old_child)
 	parent.add_child(last)
 
-	var replaced := GFNodeTreeOps.replace_child(parent, old_child, replacement)
+	var replaced: bool = GFNodeTreeOps.replace_child(parent, old_child, replacement)
 
 	assert_true(replaced, "应能替换父节点下的子节点。")
 	assert_eq(replacement.get_parent(), parent, "新节点应挂到父节点下。")
@@ -54,10 +50,10 @@ func test_replace_child_preserves_index() -> void:
 
 
 func test_find_and_collect_nodes_by_type() -> void:
-	var root := Node.new()
+	var root: Node = Node.new()
 	add_child_autofree(root)
-	var branch := Node.new()
-	var custom := CustomNode.new()
+	var branch: Node = Node.new()
+	var custom: CustomNode = CustomNode.new()
 	root.add_child(branch)
 	branch.add_child(custom)
 
@@ -72,14 +68,14 @@ func test_find_and_collect_nodes_by_type() -> void:
 		"向上查找应支持原生类名。"
 	)
 
-	var collected := GFNodeTreeOps.collect_node_tree(root, CustomNode)
+	var collected: Array[Node] = GFNodeTreeOps.collect_node_tree(root, CustomNode)
 	assert_eq(collected, [custom], "收集节点树时应按类型过滤。")
 
 
 func test_find_nodes_by_gdscript_class_name_string() -> void:
-	var root := Node.new()
+	var root: Node = Node.new()
 	add_child_autofree(root)
-	var machine := GFNodeStateMachine.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
 	root.add_child(machine)
 
 	assert_eq(
@@ -90,14 +86,14 @@ func test_find_nodes_by_gdscript_class_name_string() -> void:
 
 
 func test_free_children_queues_direct_children() -> void:
-	var parent := Node.new()
+	var parent: Node = Node.new()
 	add_child_autofree(parent)
-	var first := Node.new()
-	var second := Node.new()
+	var first: Node = Node.new()
+	var second: Node = Node.new()
 	parent.add_child(first)
 	parent.add_child(second)
 
-	var count := GFNodeTreeOps.free_children(parent)
+	var count: int = GFNodeTreeOps.free_children(parent)
 
 	assert_eq(count, 2, "应返回进入释放队列的子节点数量。")
 	assert_eq(parent.get_child_count(), 0, "释放子节点时应立即从父节点移除。")
@@ -107,3 +103,9 @@ func test_free_children_queues_direct_children() -> void:
 	await get_tree().process_frame
 	assert_false(is_instance_valid(first), "下一帧第一个子节点应完成释放。")
 	assert_false(is_instance_valid(second), "下一帧第二个子节点应完成释放。")
+
+
+# --- 内部类 ---
+
+class CustomNode extends Node:
+	pass

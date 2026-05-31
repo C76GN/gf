@@ -11,7 +11,7 @@ const _SETTING_CONTRACT_PATHS: String = "gf/network/contract_paths"
 const _SETTING_CONTRACT_OUTPUT_DIR: String = "gf/network/contract_output_dir"
 const _DEFAULT_OUTPUT_DIR: String = "res://gf/generated/network"
 const _DIAGNOSTIC_DIALOG_MIN_SIZE: Vector2 = Vector2(720.0, 460.0)
-const _GF_NETWORK_CONTRACT_GENERATOR_SCRIPT: Script = preload("res://addons/gf/extensions/network/editor/gf_network_contract_generator.gd")
+const _GF_NETWORK_CONTRACT_GENERATOR_SCRIPT = preload("res://addons/gf/extensions/network/editor/gf_network_contract_generator.gd")
 
 
 # --- 私有变量 ---
@@ -70,7 +70,7 @@ func cleanup() -> void:
 # --- 私有/辅助方法 ---
 
 func _generate_contract_accessors() -> void:
-	var contract_paths := _read_contract_paths()
+	var contract_paths: PackedStringArray = _read_contract_paths()
 	if contract_paths.is_empty():
 		_show_diagnostic_dialog(
 			"GF Network Contracts",
@@ -78,63 +78,63 @@ func _generate_contract_accessors() -> void:
 		)
 		return
 
-	var output_dir := String(ProjectSettings.get_setting(_SETTING_CONTRACT_OUTPUT_DIR, _DEFAULT_OUTPUT_DIR)).strip_edges()
+	var output_dir: String = GFVariantData.to_text(ProjectSettings.get_setting(_SETTING_CONTRACT_OUTPUT_DIR, _DEFAULT_OUTPUT_DIR)).strip_edges()
 	if output_dir.is_empty():
 		output_dir = _DEFAULT_OUTPUT_DIR
 
-	var generator: Variant = _GF_NETWORK_CONTRACT_GENERATOR_SCRIPT.new()
+	var generator: GFNetworkContractGenerator = _GF_NETWORK_CONTRACT_GENERATOR_SCRIPT.new()
 	var report: Dictionary = generator.generate_many(contract_paths, output_dir)
-	var lines := PackedStringArray()
-	lines.append("Output: %s" % output_dir)
-	lines.append("Generated: %d" % int(report.get("generated_count", 0)))
-	lines.append("")
-	for item_variant: Variant in report.get("generated", []):
-		var item := item_variant as Dictionary
-		if item == null:
+	var lines: PackedStringArray = PackedStringArray()
+	var _append_result_88: Variant = lines.append("Output: %s" % output_dir)
+	var _append_result_89: Variant = lines.append("Generated: %d" % GFVariantData.get_option_int(report, "generated_count"))
+	var _append_result_90: Variant = lines.append("")
+	for item_variant: Variant in GFVariantData.get_option_array(report, "generated"):
+		if not (item_variant is Dictionary):
 			continue
-		lines.append("- %s -> %s (%s)" % [
-			String(item.get("contract_path", "")),
-			String(item.get("output_path", "")),
-			String(item.get("error_name", "")),
+		var item: Dictionary = GFVariantData.as_dictionary(item_variant)
+		var _append_result_95: Variant = lines.append("- %s -> %s (%s)" % [
+			GFVariantData.get_option_string(item, "contract_path"),
+			GFVariantData.get_option_string(item, "output_path"),
+			GFVariantData.get_option_string(item, "error_name"),
 		])
-	for issue_variant: Variant in report.get("issues", []):
-		var issue := issue_variant as Dictionary
-		if issue == null:
+	for issue_variant: Variant in GFVariantData.get_option_array(report, "issues"):
+		if not (issue_variant is Dictionary):
 			continue
-		lines.append("! %s %s: %s" % [
-			String(issue.get("kind", "")),
-			String(issue.get("path", "")),
-			String(issue.get("message", "")),
+		var issue: Dictionary = GFVariantData.as_dictionary(issue_variant)
+		var _append_result_104: Variant = lines.append("! %s %s: %s" % [
+			GFVariantData.get_option_string(issue, "kind"),
+			GFVariantData.get_option_string(issue, "path"),
+			GFVariantData.get_option_string(issue, "message"),
 		])
 	_show_diagnostic_dialog("GF Network Contracts", "\n".join(lines))
 
 
 func _read_contract_paths() -> PackedStringArray:
 	var value: Variant = ProjectSettings.get_setting(_SETTING_CONTRACT_PATHS, PackedStringArray())
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	if value is PackedStringArray:
 		for path: String in value:
 			_append_contract_path(result, path)
 	elif value is Array:
 		for path_variant: Variant in value:
-			_append_contract_path(result, String(path_variant))
+			_append_contract_path(result, GFVariantData.to_text(path_variant))
 	elif value is String:
-		for path: String in String(value).split(",", false):
+		for path: String in GFVariantData.to_text(value).split(",", false):
 			_append_contract_path(result, path)
 	return result
 
 
 func _append_contract_path(result: PackedStringArray, path: String) -> void:
-	var normalized_path := path.strip_edges()
+	var normalized_path: String = path.strip_edges()
 	if normalized_path.is_empty() or result.has(normalized_path):
 		return
-	result.append(normalized_path)
+	var _append_result_131: Variant = result.append(normalized_path)
 
 
 func _show_diagnostic_dialog(title: String, text: String) -> void:
 	if not is_instance_valid(_diagnostic_dialog):
 		_diagnostic_dialog = AcceptDialog.new()
-		var dialog_min_size := Vector2i(
+		var dialog_min_size: Vector2i = Vector2i(
 			int(_DIAGNOSTIC_DIALOG_MIN_SIZE.x),
 			int(_DIAGNOSTIC_DIALOG_MIN_SIZE.y)
 		)

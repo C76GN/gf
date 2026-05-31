@@ -3,18 +3,18 @@ extends GutTest
 
 
 func test_pointer_activity_tracks_mouse_drag_and_idle() -> void:
-	var utility := GFPointerActivityUtility.new()
+	var utility: GFPointerActivityUtility = GFPointerActivityUtility.new()
 	utility.drag_threshold_pixels = 4.0
 	utility.idle_threshold_seconds = 0.1
 	watch_signals(utility)
 
-	var press := InputEventMouseButton.new()
+	var press: InputEventMouseButton = InputEventMouseButton.new()
 	press.button_index = MOUSE_BUTTON_LEFT
 	press.pressed = true
 	press.position = Vector2(0.0, 0.0)
-	var motion := InputEventMouseMotion.new()
+	var motion: InputEventMouseMotion = InputEventMouseMotion.new()
 	motion.position = Vector2(8.0, 0.0)
-	var release := InputEventMouseButton.new()
+	var release: InputEventMouseButton = InputEventMouseButton.new()
 	release.button_index = MOUSE_BUTTON_LEFT
 	release.pressed = false
 	release.position = Vector2(8.0, 0.0)
@@ -37,8 +37,8 @@ func test_pointer_activity_tracks_mouse_drag_and_idle() -> void:
 
 
 func test_pointer_activity_ignores_non_primary_mouse_button() -> void:
-	var utility := GFPointerActivityUtility.new()
-	var press := InputEventMouseButton.new()
+	var utility: GFPointerActivityUtility = GFPointerActivityUtility.new()
+	var press: InputEventMouseButton = InputEventMouseButton.new()
 	press.button_index = MOUSE_BUTTON_RIGHT
 	press.pressed = true
 	press.position = Vector2.ONE
@@ -48,12 +48,12 @@ func test_pointer_activity_ignores_non_primary_mouse_button() -> void:
 
 
 func test_pointer_activity_tracks_single_touch_pointer() -> void:
-	var utility := GFPointerActivityUtility.new()
-	var first_touch := InputEventScreenTouch.new()
+	var utility: GFPointerActivityUtility = GFPointerActivityUtility.new()
+	var first_touch: InputEventScreenTouch = InputEventScreenTouch.new()
 	first_touch.index = 1
 	first_touch.pressed = true
 	first_touch.position = Vector2(2.0, 3.0)
-	var second_touch := InputEventScreenTouch.new()
+	var second_touch: InputEventScreenTouch = InputEventScreenTouch.new()
 	second_touch.index = 2
 	second_touch.pressed = true
 	second_touch.position = Vector2(5.0, 6.0)

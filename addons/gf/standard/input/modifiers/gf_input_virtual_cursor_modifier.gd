@@ -79,10 +79,10 @@ var _last_ticks_msec: int = 0
 ## @return 更新后的虚拟光标位置。
 func modify(value: Vector2, _event: InputEvent = null, _action: GFInputAction = null) -> Vector2:
 	_ensure_initialized()
-	var input_value := value
+	var input_value: Vector2 = value
 	if input_value.length() <= idle_threshold:
 		if reset_when_idle:
-			reset_position()
+			var _reset_position_result_85: Variant = reset_position()
 		_update_ticks()
 		return position
 
@@ -104,7 +104,7 @@ func modify(value: Vector2, _event: InputEvent = null, _action: GFInputAction = 
 ## [br]
 ## @return 包含虚拟光标 X/Y 和原 Z 分量的三维值。
 func modify_3d(value: Vector3, event: InputEvent = null, action: GFInputAction = null) -> Vector3:
-	var cursor_position := modify(Vector2(value.x, value.y), event, action)
+	var cursor_position: Vector2 = modify(Vector2(value.x, value.y), event, action)
 	return Vector3(cursor_position.x, cursor_position.y, value.z)
 
 
@@ -126,7 +126,9 @@ func reset_position() -> GFInputVirtualCursorModifier:
 ## [br]
 ## @return 修饰器副本。
 func duplicate_modifier() -> GFInputModifier:
-	var modifier := duplicate(true) as GFInputVirtualCursorModifier
+	var modifier: GFInputVirtualCursorModifier = _duplicate_virtual_cursor_modifier()
+	if modifier == null:
+		return null
 	modifier.position = modifier.initial_position
 	modifier._initialized = false
 	modifier._last_ticks_msec = 0
@@ -148,8 +150,8 @@ func _get_step_delta() -> float:
 		_update_ticks()
 		return 1.0
 
-	var now := Time.get_ticks_msec()
-	var delta := 0.0
+	var now: int = Time.get_ticks_msec()
+	var delta: float = 0.0
 	if _last_ticks_msec > 0:
 		delta = float(now - _last_ticks_msec) / 1000.0
 	_last_ticks_msec = now
@@ -161,8 +163,16 @@ func _update_ticks() -> void:
 
 
 func _clamp_position(value: Vector2) -> Vector2:
-	var rect := clamp_rect.abs()
+	var rect: Rect2 = clamp_rect.abs()
 	return Vector2(
 		clampf(value.x, rect.position.x, rect.end.x),
 		clampf(value.y, rect.position.y, rect.end.y)
 	)
+
+
+func _duplicate_virtual_cursor_modifier() -> GFInputVirtualCursorModifier:
+	var modifier: Resource = duplicate(true)
+	if modifier is GFInputVirtualCursorModifier:
+		var cursor_modifier: GFInputVirtualCursorModifier = modifier
+		return cursor_modifier
+	return null

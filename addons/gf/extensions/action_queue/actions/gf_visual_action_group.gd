@@ -39,7 +39,8 @@ enum ParallelCompletionPolicy {
 
 # --- 常量 ---
 
-const _ACTION_PROTOCOL: Script = preload("res://addons/gf/extensions/action_queue/core/gf_action_protocol.gd")
+const _ACTION_PROTOCOL = preload("res://addons/gf/extensions/action_queue/core/gf_action_protocol.gd")
+const _GF_ASYNC_CALL_SCRIPT = preload("res://addons/gf/kernel/core/gf_async_call.gd")
 
 
 # --- 公共变量 ---
@@ -90,7 +91,7 @@ func _init(
 ) -> void:
 	actions.clear()
 	for action: Variant in actions_list:
-		var action_object := action as Object
+		var action_object: Object = _get_object_value(action)
 		if action_object != null:
 			actions.append(action_object)
 	is_parallel = parallel
@@ -188,7 +189,7 @@ func _do_parallel_async(current_serial: int) -> void:
 	if current_serial != _execution_serial:
 		return
 
-	var pending_state := {
+	var pending_state: Dictionary = {
 		"count": 0,
 		"completed_count": 0,
 		"launching": true,
@@ -205,12 +206,15 @@ func _do_parallel_async(current_serial: int) -> void:
 
 		var result: Variant = _ACTION_PROTOCOL.execute(action)
 		if _ACTION_PROTOCOL.should_wait_for_result(action, result):
-			pending_state["count"] = int(pending_state["count"]) + 1
-			var pending_actions := pending_state["actions"] as Array
+			pending_state["count"] = GFVariantData.get_option_int(pending_state, "count") + 1
+			var pending_actions: Array = _get_pending_actions(pending_state)
 			pending_actions.append(action)
-			_wait_parallel_action(action, result, pending_state, current_serial)
+			_GF_ASYNC_CALL_SCRIPT.run_detached(
+				Callable(self, &"_wait_parallel_action"),
+				[action, result, pending_state, current_serial]
+			)
 		elif _active_parallel_completion_policy == ParallelCompletionPolicy.FIRST_COMPLETED:
-			pending_state["completed_count"] = int(pending_state["completed_count"]) + 1
+			pending_state["completed_count"] = GFVariantData.get_option_int(pending_state, "completed_count") + 1
 
 	pending_state["launching"] = false
 	_try_emit_parallel_completed(pending_state, current_serial)
@@ -253,8 +257,8 @@ func _wait_parallel_action(
 	if current_serial != _execution_serial:
 		return
 	if not is_instance_valid(action):
-		pending_state["count"] = int(pending_state["count"]) - 1
-		pending_state["completed_count"] = int(pending_state["completed_count"]) + 1
+		pending_state["count"] = GFVariantData.get_option_int(pending_state, "count") - 1
+		pending_state["completed_count"] = GFVariantData.get_option_int(pending_state, "completed_count") + 1
 		_try_emit_parallel_completed(pending_state, current_serial)
 		return
 
@@ -268,8 +272,8 @@ func _wait_parallel_action(
 	if current_serial != _execution_serial:
 		return
 
-	pending_state["count"] = int(pending_state["count"]) - 1
-	pending_state["completed_count"] = int(pending_state["completed_count"]) + 1
+	pending_state["count"] = GFVariantData.get_option_int(pending_state, "count") - 1
+	pending_state["completed_count"] = GFVariantData.get_option_int(pending_state, "completed_count") + 1
 	_try_emit_parallel_completed(pending_state, current_serial, action)
 
 
@@ -284,17 +288,17 @@ func _try_emit_parallel_completed(
 ) -> void:
 	if current_serial != _execution_serial:
 		return
-	if bool(pending_state.get("launching", false)):
+	if GFVariantData.get_option_bool(pending_state, "launching"):
 		return
-	if bool(pending_state.get("emitted", false)):
+	if GFVariantData.get_option_bool(pending_state, "emitted"):
 		return
 
 	if _active_parallel_completion_policy == ParallelCompletionPolicy.WAIT_FOR_ALL:
-		if int(pending_state.get("count", 0)) > 0:
+		if GFVariantData.get_option_int(pending_state, "count") > 0:
 			return
 	else:
-		var completed_count := int(pending_state.get("completed_count", 0))
-		var pending_count := int(pending_state.get("count", 0))
+		var completed_count: int = GFVariantData.get_option_int(pending_state, "completed_count")
+		var pending_count: int = GFVariantData.get_option_int(pending_state, "count")
 		if completed_count <= 0 and pending_count > 0:
 			return
 
@@ -308,12 +312,10 @@ func _try_emit_parallel_completed(
 
 
 func _cancel_pending_parallel_actions(pending_state: Dictionary, completed_action: Object = null) -> void:
-	var pending_actions := pending_state.get("actions", []) as Array
-	if pending_actions == null:
-		return
+	var pending_actions: Array = _get_pending_actions(pending_state)
 
 	for action_variant: Variant in pending_actions:
-		var action := action_variant as Object
+		var action: Object = _get_object_value(action_variant)
 		if action == null or action == completed_action:
 			continue
 		if is_instance_valid(action):
@@ -333,3 +335,14 @@ func _emit_active_completion() -> void:
 		_parallel_completed.emit()
 	else:
 		_sequence_completed.emit()
+
+
+func _get_pending_actions(pending_state: Dictionary) -> Array:
+	return GFVariantData.as_array(GFVariantData.get_option_value(pending_state, "actions", []))
+
+
+func _get_object_value(value: Variant) -> Object:
+	if value is Object:
+		var object: Object = value
+		return object
+	return null

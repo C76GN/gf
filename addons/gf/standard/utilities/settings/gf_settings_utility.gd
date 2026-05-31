@@ -95,7 +95,7 @@ var _batch_save_requested: bool = false
 ## @api public
 func init() -> void:
 	if auto_load_on_init:
-		load_settings()
+		var _loaded_data: Dictionary = load_settings()
 	else:
 		_apply_defaults_to_missing()
 
@@ -104,7 +104,7 @@ func init() -> void:
 ## [br]
 ## @api public
 func dispose() -> void:
-	flush_pending_save()
+	var _flush_error: Error = flush_pending_save()
 	_definitions.clear()
 	_values.clear()
 	_save_queued = false
@@ -128,7 +128,7 @@ func register_definition(definition: GFSettingDefinition, apply_default: bool = 
 		push_error("[GFSettingsUtility] register_definition 失败：definition 为空。")
 		return
 
-	var key := definition.get_setting_key()
+	var key: StringName = definition.get_setting_key()
 	if key == &"":
 		push_error("[GFSettingsUtility] register_definition 失败：设置键为空。")
 		return
@@ -166,7 +166,7 @@ func register_setting(
 	persistent: bool = true,
 	metadata: Dictionary = {}
 ) -> GFSettingDefinition:
-	var definition := GFSettingDefinition.new()
+	var definition: GFSettingDefinition = GFSettingDefinition.new()
 	definition.key = key
 	definition.default_value = default_value
 	definition.value_type = value_type
@@ -194,7 +194,7 @@ func register_definitions(definitions: Array[GFSettingDefinition]) -> void:
 ## [br]
 ## @return 设置定义；不存在时返回 null。
 func get_definition(key: StringName) -> GFSettingDefinition:
-	var definition := _definitions.get(key) as GFSettingDefinition
+	var definition: GFSettingDefinition = _get_definition(key)
 	if definition == null:
 		return null
 	return definition.duplicate_definition()
@@ -243,11 +243,11 @@ func set_value(key: StringName, value: Variant, save_after_change: bool = true) 
 ## [br]
 ## @schema return: Dictionary with ok, healthy, applied_count, changed_count, reset_count, skipped_count, error_count, warning_count, issue_count, and issues: Array[Dictionary].
 func apply_values(values: Dictionary, options: Dictionary = {}) -> Dictionary:
-	var report := _make_apply_values_report()
-	var save_after_change := bool(options.get("save_after_change", true))
-	var emit_changes := bool(options.get("emit_changes", true))
-	var reset_missing := bool(options.get("reset_missing", false))
-	var scope := _normalize_apply_scope(options.get("scope", []))
+	var report: Dictionary = _make_apply_values_report()
+	var save_after_change: bool = GFVariantData.get_option_bool(options, "save_after_change", true)
+	var emit_changes: bool = GFVariantData.get_option_bool(options, "emit_changes", true)
+	var reset_missing: bool = GFVariantData.get_option_bool(options, "reset_missing", false)
+	var scope: Dictionary = _normalize_apply_scope(GFVariantData.get_option_value(options, "scope", []))
 	if reset_missing and scope.is_empty():
 		_add_apply_values_issue(
 			report,
@@ -261,7 +261,7 @@ func apply_values(values: Dictionary, options: Dictionary = {}) -> Dictionary:
 
 	var normalized_values: Dictionary = {}
 	for key_variant: Variant in values.keys():
-		var key := StringName(str(key_variant))
+		var key: StringName = GFVariantData.to_string_name(key_variant)
 		if key == &"":
 			_add_apply_values_issue(
 				report,
@@ -272,7 +272,7 @@ func apply_values(values: Dictionary, options: Dictionary = {}) -> Dictionary:
 			)
 			continue
 		if not scope.is_empty() and not scope.has(key):
-			report["skipped_count"] = int(report["skipped_count"]) + 1
+			_increment_report_count(report, "skipped_count")
 			_add_apply_values_issue(
 				report,
 				"warning",
@@ -288,9 +288,9 @@ func apply_values(values: Dictionary, options: Dictionary = {}) -> Dictionary:
 		var old_value: Variant = get_value(key)
 		_set_value_internal(key, normalized_values[key], emit_changes, save_after_change)
 		var new_value: Variant = get_value(key)
-		report["applied_count"] = int(report["applied_count"]) + 1
+		_increment_report_count(report, "applied_count")
 		if old_value != new_value:
-			report["changed_count"] = int(report["changed_count"]) + 1
+			_increment_report_count(report, "changed_count")
 
 	if reset_missing:
 		for key: StringName in scope.keys():
@@ -299,9 +299,9 @@ func apply_values(values: Dictionary, options: Dictionary = {}) -> Dictionary:
 			var old_value: Variant = get_value(key)
 			_reset_value_internal(key, emit_changes, save_after_change)
 			var new_value: Variant = get_value(key)
-			report["reset_count"] = int(report["reset_count"]) + 1
+			_increment_report_count(report, "reset_count")
 			if old_value != new_value:
-				report["changed_count"] = int(report["changed_count"]) + 1
+				_increment_report_count(report, "changed_count")
 
 	end_batch(save_after_change)
 	_finalize_apply_values_report(report)
@@ -340,7 +340,7 @@ func end_batch(save_after_change: bool = true) -> void:
 ## @api public
 func queue_save() -> void:
 	if save_debounce_seconds <= 0.0:
-		save_settings()
+		var _save_error: Error = save_settings()
 		return
 
 	_save_queued = true
@@ -357,7 +357,7 @@ func flush_pending_save() -> Error:
 	if not _save_queued:
 		return OK
 
-	var target_file_name := _save_queued_file_name
+	var target_file_name: String = _save_queued_file_name
 	_save_queued = false
 	_save_elapsed_seconds = 0.0
 	_save_queued_file_name = ""
@@ -381,7 +381,7 @@ func get_value(key: StringName, fallback: Variant = null) -> Variant:
 	if _values.has(key):
 		return _values[key]
 
-	var definition := _definitions.get(key) as GFSettingDefinition
+	var definition: GFSettingDefinition = _get_definition(key)
 	if definition != null:
 		return definition.coerce_value(definition.default_value)
 
@@ -416,14 +416,14 @@ func reset_value(key: StringName, save_after_change: bool = true) -> void:
 ## [br]
 ## @param save_after_change: 是否保存。
 func reset_all(save_after_change: bool = true) -> void:
-	var previous_values := _values.duplicate(true)
+	var previous_values: Dictionary = _values.duplicate(true)
 	_values.clear()
 	_apply_defaults_to_missing()
 
 	for key_variant: Variant in previous_values.keys():
-		var key := key_variant as StringName
+		var key: StringName = GFVariantData.to_string_name(key_variant)
 		var old_value: Variant = previous_values[key]
-		var new_value: Variant = _values.get(key, null)
+		var new_value: Variant = GFVariantData.get_option_value(_values, key)
 		if old_value != new_value:
 			setting_changed.emit(key, old_value, new_value)
 
@@ -447,7 +447,7 @@ func reset_all(save_after_change: bool = true) -> void:
 func to_dict(persistent_only: bool = true) -> Dictionary:
 	var result: Dictionary = {}
 	for key: StringName in _values.keys():
-		var definition := _definitions.get(key) as GFSettingDefinition
+		var definition: GFSettingDefinition = _get_definition(key)
 		if persistent_only and definition != null and not definition.persistent:
 			continue
 		result[String(key)] = _serialize_value(_values[key])
@@ -465,7 +465,7 @@ func to_dict(persistent_only: bool = true) -> Dictionary:
 ## @param emit_changes: 变化时是否发出 setting_changed。
 func from_dict(data: Dictionary, emit_changes: bool = true) -> void:
 	for key_variant: Variant in data.keys():
-		var key := StringName(str(key_variant))
+		var key: StringName = GFVariantData.to_string_name(key_variant)
 		_set_value_internal(key, _deserialize_value(data[key_variant]), emit_changes, false)
 	_apply_defaults_to_missing()
 
@@ -480,9 +480,9 @@ func from_dict(data: Dictionary, emit_changes: bool = true) -> void:
 ## [br]
 ## @schema return: Dictionary[String, Variant] loaded persisted settings data.
 func load_settings(file_name: String = "") -> Dictionary:
-	var target_file_name := storage_file_name if file_name.is_empty() else file_name
+	var target_file_name: String = storage_file_name if file_name.is_empty() else file_name
 	_clear_pending_save(target_file_name)
-	var data := _read_persisted_data(target_file_name)
+	var data: Dictionary = _read_persisted_data(target_file_name)
 	from_dict(data, false)
 	settings_loaded.emit(data)
 	return data
@@ -496,9 +496,9 @@ func load_settings(file_name: String = "") -> Dictionary:
 ## [br]
 ## @return Godot 错误码。
 func save_settings(file_name: String = "") -> Error:
-	var target_file_name := storage_file_name if file_name.is_empty() else file_name
-	var data := to_dict(true)
-	var error := _write_persisted_data(target_file_name, data)
+	var target_file_name: String = storage_file_name if file_name.is_empty() else file_name
+	var data: Dictionary = to_dict(true)
+	var error: Error = _write_persisted_data(target_file_name, data)
 	_clear_pending_save(target_file_name)
 	if error == OK:
 		settings_saved.emit(data)
@@ -516,7 +516,7 @@ func tick(delta: float = 0.0) -> void:
 
 	_save_elapsed_seconds += maxf(delta, 0.0)
 	if _save_elapsed_seconds >= maxf(save_debounce_seconds, 0.0):
-		flush_pending_save()
+		var _flush_error: Error = flush_pending_save()
 
 
 # --- 可重写钩子 / 虚方法 ---
@@ -531,20 +531,20 @@ func tick(delta: float = 0.0) -> void:
 ## [br]
 ## @schema return: Dictionary[String, Variant] persisted settings data.
 func _read_persisted_data(file_name: String) -> Dictionary:
-	var storage := _get_storage_utility()
+	var storage: GFStorageUtility = _get_storage_utility()
 	if storage != null:
 		return storage.load_data(file_name)
 
-	var path := _get_fallback_path(file_name)
+	var path: String = _get_fallback_path(file_name)
 	if not FileAccess.file_exists(path):
 		return {}
 
-	var content := FileAccess.get_file_as_string(path)
+	var content: String = FileAccess.get_file_as_string(path)
 	if content.is_empty():
 		return {}
 
 	var parsed: Variant = JSON.parse_string(content)
-	return parsed as Dictionary if parsed is Dictionary else {}
+	return GFVariantData.as_dictionary(parsed)
 
 
 ## 写入持久化设置数据。子类可覆盖该钩子以接入自定义存储后端。
@@ -559,20 +559,22 @@ func _read_persisted_data(file_name: String) -> Dictionary:
 ## [br]
 ## @return Godot 错误码。
 func _write_persisted_data(file_name: String, data: Dictionary) -> Error:
-	var storage := _get_storage_utility()
+	var storage: GFStorageUtility = _get_storage_utility()
 	if storage != null:
 		return storage.save_data(file_name, data)
 
-	var path := _get_fallback_path(file_name)
-	var base_dir := path.get_base_dir()
+	var path: String = _get_fallback_path(file_name)
+	var base_dir: String = path.get_base_dir()
 	if not base_dir.is_empty():
-		DirAccess.make_dir_recursive_absolute(base_dir)
+		var dir_error: Error = DirAccess.make_dir_recursive_absolute(base_dir)
+		if dir_error != OK:
+			return dir_error
 
-	var file := FileAccess.open(path, FileAccess.WRITE)
+	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
 		return FileAccess.get_open_error()
 
-	file.store_string(JSON.stringify(data, "\t"))
+	_store_string_checked(file, JSON.stringify(data, "\t"))
 	file.close()
 	return OK
 
@@ -580,7 +582,7 @@ func _write_persisted_data(file_name: String, data: Dictionary) -> Error:
 # --- 私有/辅助方法 ---
 
 func _reset_value_internal(key: StringName, emit_change: bool, save_after_change: bool) -> void:
-	var definition := _definitions.get(key) as GFSettingDefinition
+	var definition: GFSettingDefinition = _get_definition(key)
 	if definition != null:
 		_set_value_internal(key, definition.default_value, emit_change, save_after_change)
 		return
@@ -589,7 +591,7 @@ func _reset_value_internal(key: StringName, emit_change: bool, save_after_change
 		return
 
 	var old_value: Variant = _values[key]
-	_values.erase(key)
+	var _erased: bool = _values.erase(key)
 	if emit_change:
 		setting_changed.emit(key, old_value, null)
 	if save_after_change and auto_save_on_change:
@@ -606,9 +608,9 @@ func _set_value_internal(
 		push_error("[GFSettingsUtility] set_value 失败：设置键为空。")
 		return
 
-	var definition := _definitions.get(key) as GFSettingDefinition
+	var definition: GFSettingDefinition = _get_definition(key)
 	var next_value: Variant = definition.coerce_value(value) if definition != null else value
-	var old_value: Variant = _values.get(key, null)
+	var old_value: Variant = GFVariantData.get_option_value(_values, key)
 	if _values.has(key) and old_value == next_value:
 		return
 
@@ -642,8 +644,8 @@ func _add_apply_values_issue(
 	key: StringName,
 	message: String
 ) -> void:
-	var issues := report["issues"] as Array
-	var issue := {
+	var issues: Array = _get_report_issues(report)
+	var issue: Dictionary = {
 		"severity": severity,
 		"kind": kind,
 		"message": message,
@@ -652,21 +654,22 @@ func _add_apply_values_issue(
 		issue["key"] = key
 	issues.append(issue)
 	if severity == "error":
-		report["error_count"] = int(report["error_count"]) + 1
+		_increment_report_count(report, "error_count")
 	elif severity == "warning":
-		report["warning_count"] = int(report["warning_count"]) + 1
+		_increment_report_count(report, "warning_count")
 
 
 func _finalize_apply_values_report(report: Dictionary) -> void:
-	report["issue_count"] = (report["issues"] as Array).size()
-	report["ok"] = int(report["error_count"]) == 0
-	report["healthy"] = int(report["error_count"]) == 0 and int(report["warning_count"]) == 0
+	report["issue_count"] = _get_report_issues(report).size()
+	report["ok"] = GFVariantData.get_option_int(report, "error_count", 0) == 0
+	report["healthy"] = GFVariantData.get_option_int(report, "error_count", 0) == 0 and GFVariantData.get_option_int(report, "warning_count", 0) == 0
 
 
 func _normalize_apply_scope(scope_value: Variant) -> Dictionary:
 	var result: Dictionary = {}
 	if scope_value is Dictionary:
-		for key_variant: Variant in (scope_value as Dictionary).keys():
+		var scope_dictionary: Dictionary = scope_value
+		for key_variant: Variant in scope_dictionary.keys():
 			_add_scope_key(result, key_variant)
 		return result
 	if scope_value is PackedStringArray:
@@ -683,7 +686,7 @@ func _normalize_apply_scope(scope_value: Variant) -> Dictionary:
 
 
 func _add_scope_key(scope: Dictionary, key_value: Variant) -> void:
-	var key := StringName(str(key_value))
+	var key: StringName = GFVariantData.to_string_name(key_value)
 	if key != &"":
 		scope[key] = true
 
@@ -697,7 +700,7 @@ func _queue_auto_save() -> void:
 
 
 func _clear_pending_save(file_name: String) -> void:
-	var target_file_name := storage_file_name if file_name.is_empty() else file_name
+	var target_file_name: String = storage_file_name if file_name.is_empty() else file_name
 	if _save_queued and _save_queued_file_name == target_file_name:
 		_save_queued = false
 		_save_elapsed_seconds = 0.0
@@ -705,7 +708,7 @@ func _clear_pending_save(file_name: String) -> void:
 
 
 func _should_persist(key: StringName) -> bool:
-	var definition := _definitions.get(key) as GFSettingDefinition
+	var definition: GFSettingDefinition = _get_definition(key)
 	return definition == null or definition.persistent
 
 
@@ -713,15 +716,48 @@ func _apply_defaults_to_missing() -> void:
 	for key: StringName in _definitions.keys():
 		if _values.has(key):
 			continue
-		var definition := _definitions[key] as GFSettingDefinition
-		_values[key] = definition.coerce_value(definition.default_value)
+		var definition: GFSettingDefinition = _get_definition(key)
+		if definition != null:
+			_values[key] = definition.coerce_value(definition.default_value)
 
 
 func _get_storage_utility() -> GFStorageUtility:
-	var arch := _get_architecture_or_null()
+	var arch: GFArchitecture = _get_architecture_or_null()
 	if arch == null:
 		return null
-	return arch.get_utility(GFStorageUtility) as GFStorageUtility
+	var utility: Variant = arch.get_utility(GFStorageUtility)
+	if utility is GFStorageUtility:
+		return utility
+	return null
+
+
+func _get_definition(key: StringName) -> GFSettingDefinition:
+	var value: Variant = GFVariantData.get_option_value(_definitions, key)
+	if value is GFSettingDefinition:
+		var definition: GFSettingDefinition = value
+		return definition
+	return null
+
+
+func _get_report_issues(report: Dictionary) -> Array:
+	var issues_value: Variant = GFVariantData.get_option_value(report, "issues", [])
+	if issues_value is Array:
+		var existing_issues: Array = issues_value
+		return existing_issues
+
+	var new_issues: Array = []
+	report["issues"] = new_issues
+	return new_issues
+
+
+func _increment_report_count(report: Dictionary, key: String) -> void:
+	report[key] = GFVariantData.get_option_int(report, key, 0) + 1
+
+
+func _store_string_checked(file: FileAccess, value: String) -> void:
+	var store_result: Variant = file.store_string(value)
+	if store_result != null:
+		return
 
 
 func _get_fallback_path(file_name: String) -> String:
@@ -732,21 +768,21 @@ func _get_fallback_path(file_name: String) -> String:
 
 func _serialize_value(value: Variant) -> Variant:
 	if value is Vector2:
-		var vector2 := value as Vector2
+		var vector2: Vector2 = value
 		return {
 			_SETTING_TYPE_KEY: "Vector2",
 			"x": vector2.x,
 			"y": vector2.y,
 		}
 	if value is Vector2i:
-		var vector2i := value as Vector2i
+		var vector2i: Vector2i = value
 		return {
 			_SETTING_TYPE_KEY: "Vector2i",
 			"x": vector2i.x,
 			"y": vector2i.y,
 		}
 	if value is Color:
-		var color := value as Color
+		var color: Color = value
 		return {
 			_SETTING_TYPE_KEY: "Color",
 			"r": color.r,
@@ -757,52 +793,54 @@ func _serialize_value(value: Variant) -> Variant:
 	if typeof(value) == TYPE_STRING_NAME:
 		return {
 			_SETTING_TYPE_KEY: "StringName",
-			_SETTING_VALUE_KEY: String(value),
+			_SETTING_VALUE_KEY: GFVariantData.to_text(value),
 		}
 	if value is Array:
-		var result: Array = []
-		for item: Variant in value:
-			result.append(_serialize_value(item))
-		return result
+		var source_array: Array = value
+		var array_result: Array = []
+		for item: Variant in source_array:
+			array_result.append(_serialize_value(item))
+		return array_result
 	if value is Dictionary:
-		var result: Dictionary = {}
-		for key_variant: Variant in value.keys():
-			result[str(key_variant)] = _serialize_value(value[key_variant])
-		return result
+		var source_dictionary: Dictionary = value
+		var dictionary_result: Dictionary = {}
+		for key_variant: Variant in source_dictionary.keys():
+			dictionary_result[str(key_variant)] = _serialize_value(source_dictionary[key_variant])
+		return dictionary_result
 	return GFVariantJsonCodec.variant_to_json_compatible(value)
 
 
 func _deserialize_value(value: Variant) -> Variant:
 	if value is Array:
-		var result: Array = []
+		var array_result: Array = []
 		for item: Variant in value:
-			result.append(_deserialize_value(item))
-		return result
+			array_result.append(_deserialize_value(item))
+		return array_result
 
 	if not value is Dictionary:
 		return value
 
-	var data := value as Dictionary
+	var data: Dictionary = value
 	if data.size() == 1 and data.has(GFVariantJsonCodec.JSON_MARKER_KEY):
 		return GFVariantJsonCodec.json_compatible_to_variant(data)
 
 	if data.has(_SETTING_TYPE_KEY):
 		match str(data[_SETTING_TYPE_KEY]):
 			"Vector2":
-				return Vector2(float(data.get("x", 0.0)), float(data.get("y", 0.0)))
+				return Vector2(GFVariantData.get_option_float(data, "x", 0.0), GFVariantData.get_option_float(data, "y", 0.0))
 			"Vector2i":
-				return Vector2i(int(data.get("x", 0)), int(data.get("y", 0)))
+				return Vector2i(GFVariantData.get_option_int(data, "x", 0), GFVariantData.get_option_int(data, "y", 0))
 			"Color":
 				return Color(
-					float(data.get("r", 1.0)),
-					float(data.get("g", 1.0)),
-					float(data.get("b", 1.0)),
-					float(data.get("a", 1.0))
+					GFVariantData.get_option_float(data, "r", 1.0),
+					GFVariantData.get_option_float(data, "g", 1.0),
+					GFVariantData.get_option_float(data, "b", 1.0),
+					GFVariantData.get_option_float(data, "a", 1.0)
 				)
 			"StringName":
-				return StringName(str(data.get(_SETTING_VALUE_KEY, "")))
+				return GFVariantData.get_option_string_name(data, _SETTING_VALUE_KEY, &"")
 
-	var result: Dictionary = {}
+	var dictionary_result: Dictionary = {}
 	for key_variant: Variant in data.keys():
-		result[key_variant] = _deserialize_value(data[key_variant])
-	return result
+		dictionary_result[key_variant] = _deserialize_value(data[key_variant])
+	return dictionary_result

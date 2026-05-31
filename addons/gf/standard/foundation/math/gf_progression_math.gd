@@ -48,11 +48,14 @@ const _DEFAULT_SOFT_CAP_POWER: float = 0.5
 ## @return 对应等级的曲线值。
 static func evaluate_curve(level: int, curve_config: Dictionary) -> GFBigNumber:
 	var target_level: int = maxi(level, 0)
-	var override_value: Variant = _find_override_value(target_level, curve_config.get("overrides", {}))
+	var override_value: Variant = _find_override_value(
+		target_level,
+		GFVariantData.get_option_value(curve_config, "overrides", {})
+	)
 	if override_value != null:
 		return _to_big_number(override_value)
 
-	var phases: Array = curve_config.get("phases", [])
+	var phases: Array = GFVariantData.get_option_array(curve_config, "phases")
 	if not phases.is_empty():
 		return _evaluate_piecewise_curve(target_level, phases, curve_config)
 
@@ -78,16 +81,16 @@ static func apply_milestone_multipliers(value: Variant, level: int, milestones: 
 	var result: GFBigNumber = _to_big_number(value)
 	var target_level: int = maxi(level, 0)
 
-	for milestone_variant in milestones:
-		if typeof(milestone_variant) != TYPE_DICTIONARY:
+	for milestone_variant: Variant in milestones:
+		if not (milestone_variant is Dictionary):
 			continue
 
 		var milestone: Dictionary = milestone_variant
-		var required_level: int = int(milestone.get("level", 0))
+		var required_level: int = GFVariantData.get_option_int(milestone, "level", 0)
 		if target_level < required_level:
 			continue
 
-		var multiplier: float = _to_float(milestone.get("multiplier", 1.0))
+		var multiplier: float = _get_option_progression_float(milestone, "multiplier", 1.0)
 		result = result.multiply(_to_big_number(multiplier))
 
 	return result
@@ -155,30 +158,30 @@ static func settle_offline_progress(
 	var requested_seconds: float = maxf(offline_seconds, 0.0)
 	var settled_seconds: float = requested_seconds
 	if options.has("max_seconds"):
-		settled_seconds = minf(settled_seconds, maxf(_to_float(options.get("max_seconds", 0.0)), 0.0))
+		settled_seconds = minf(settled_seconds, maxf(_get_option_progression_float(options, "max_seconds", 0.0), 0.0))
 
 	var total_produced: GFBigNumber = _to_big_number(0)
 	var consumed_seconds: float = 0.0
 	var storage_capped: bool = false
-	var segments: Array = options.get("segments", [])
+	var segments: Array = GFVariantData.get_option_array(options, "segments")
 	var remaining_seconds: float = settled_seconds
 	var has_storage_limit: bool = options.has("storage_remaining")
 	var storage_remaining: GFBigNumber = null
 
 	if has_storage_limit:
-		storage_remaining = _to_big_number(options.get("storage_remaining", 0))
+		storage_remaining = _to_big_number(GFVariantData.get_option_value(options, "storage_remaining", 0))
 		if storage_remaining.compare_to(zero_value) <= 0:
 			storage_remaining = zero_value
 
-	for segment_variant in segments:
+	for segment_variant: Variant in segments:
 		if remaining_seconds <= 0.0 or storage_capped:
 			break
 
-		if typeof(segment_variant) != TYPE_DICTIONARY:
+		if not (segment_variant is Dictionary):
 			continue
 
 		var segment: Dictionary = segment_variant
-		var configured_duration: float = maxf(_to_float(segment.get("duration_seconds", 0.0)), 0.0)
+		var configured_duration: float = maxf(_get_option_progression_float(segment, "duration_seconds", 0.0), 0.0)
 		if configured_duration <= 0.0:
 			continue
 
@@ -189,16 +192,17 @@ static func settle_offline_progress(
 			segment,
 			storage_remaining
 		)
-		total_produced = total_produced.add(segment_result["produced"])
-		consumed_seconds += float(segment_result["consumed_seconds"])
+		var segment_produced: GFBigNumber = _get_option_big_number(segment_result, "produced")
+		total_produced = total_produced.add(segment_produced)
+		consumed_seconds += _get_option_progression_float(segment_result, "consumed_seconds", 0.0)
 		remaining_seconds -= run_seconds
 
 		if has_storage_limit:
-			storage_remaining = storage_remaining.subtract(segment_result["produced"])
+			storage_remaining = storage_remaining.subtract(segment_produced)
 			if storage_remaining.compare_to(zero_value) <= 0:
 				storage_remaining = zero_value
 
-		if bool(segment_result["storage_capped"]):
+		if GFVariantData.get_option_bool(segment_result, "storage_capped"):
 			storage_capped = true
 
 	if remaining_seconds > 0.0 and not storage_capped:
@@ -208,10 +212,10 @@ static func settle_offline_progress(
 			{},
 			storage_remaining
 		)
-		total_produced = total_produced.add(default_result["produced"])
-		consumed_seconds += float(default_result["consumed_seconds"])
+		total_produced = total_produced.add(_get_option_big_number(default_result, "produced"))
+		consumed_seconds += _get_option_progression_float(default_result, "consumed_seconds", 0.0)
 
-		if bool(default_result["storage_capped"]):
+		if GFVariantData.get_option_bool(default_result, "storage_capped"):
 			storage_capped = true
 
 	var expired_seconds: float = requested_seconds - settled_seconds
@@ -235,7 +239,7 @@ static func settle_offline_progress(
 # --- 私有/辅助方法 ---
 
 static func _evaluate_single_curve(level: int, curve_config: Dictionary) -> GFBigNumber:
-	var start_level: int = int(curve_config.get("start_level", 0))
+	var start_level: int = GFVariantData.get_option_int(curve_config, "start_level", 0)
 	var anchor_value: GFBigNumber = _resolve_anchor_value(curve_config, curve_config, null)
 	return _evaluate_phase(level, curve_config, anchor_value, start_level)
 
@@ -246,20 +250,20 @@ static func _evaluate_piecewise_curve(level: int, phases: Array, curve_config: D
 		return _evaluate_single_curve(level, curve_config)
 
 	var current_index: int = 0
-	for i in range(sorted_phases.size()):
-		var phase_start: int = int(sorted_phases[i].get("start_level", 0))
+	for i: int in range(sorted_phases.size()):
+		var phase_start: int = GFVariantData.get_option_int(sorted_phases[i], "start_level", 0)
 		if phase_start <= level:
 			current_index = i
 		else:
 			break
 
-	var anchor_level: int = int(sorted_phases[0].get("start_level", 0))
+	var anchor_level: int = GFVariantData.get_option_int(sorted_phases[0], "start_level", 0)
 	var anchor_value: GFBigNumber = _resolve_anchor_value(sorted_phases[0], curve_config, null)
 	var current_phase: Dictionary = sorted_phases[0]
 
-	for i in range(1, current_index + 1):
+	for i: int in range(1, current_index + 1):
 		var next_phase: Dictionary = sorted_phases[i]
-		var next_start: int = int(next_phase.get("start_level", 0))
+		var next_start: int = GFVariantData.get_option_int(next_phase, "start_level", 0)
 		var inherited_value: GFBigNumber = _evaluate_phase(next_start, current_phase, anchor_value, anchor_level)
 		anchor_value = _resolve_anchor_value(next_phase, curve_config, inherited_value)
 		anchor_level = next_start
@@ -275,18 +279,18 @@ static func _evaluate_phase(
 	anchor_level: int
 ) -> GFBigNumber:
 	var delta_levels: int = maxi(level - anchor_level, 0)
-	var curve_mode: CurveMode = _parse_curve_mode(phase_config.get("mode", CurveMode.CONSTANT))
+	var curve_mode: CurveMode = _parse_curve_mode(GFVariantData.get_option_value(phase_config, "mode", CurveMode.CONSTANT))
 
 	match curve_mode:
 		CurveMode.CONSTANT:
 			return anchor_value.clone()
 
 		CurveMode.LINEAR:
-			var per_level: GFBigNumber = _to_big_number(phase_config.get("per_level", 0))
+			var per_level: GFBigNumber = _to_big_number(GFVariantData.get_option_value(phase_config, "per_level", 0))
 			return anchor_value.add(per_level.multiply(_to_big_number(delta_levels)))
 
 		CurveMode.EXPONENTIAL:
-			var multiplier: float = _to_float(phase_config.get("multiplier", 1.0))
+			var multiplier: float = _get_option_progression_float(phase_config, "multiplier", 1.0)
 			if multiplier <= 0.0:
 				push_error("[GFProgressionMath] 指数曲线 multiplier 必须大于 0。")
 				return anchor_value.clone()
@@ -341,13 +345,13 @@ static func _settle_segment(
 static func _resolve_segment_rate(base_rate: GFBigNumber, segment: Dictionary) -> GFBigNumber:
 	var rate: GFBigNumber = base_rate.clone()
 	if segment.has("rate_per_second"):
-		rate = _to_big_number(segment.get("rate_per_second"))
+		rate = _to_big_number(GFVariantData.get_option_value(segment, "rate_per_second"))
 
-	var multiplier: float = _to_float(segment.get("multiplier", 1.0))
+	var multiplier: float = _get_option_progression_float(segment, "multiplier", 1.0)
 	rate = rate.multiply(_to_big_number(multiplier))
 
 	if segment.has("bonus_per_second"):
-		rate = rate.add(_to_big_number(segment.get("bonus_per_second", 0)))
+		rate = rate.add(_to_big_number(GFVariantData.get_option_value(segment, "bonus_per_second", 0)))
 
 	return rate
 
@@ -358,27 +362,27 @@ static func _resolve_anchor_value(
 	inherited_value: GFBigNumber
 ) -> GFBigNumber:
 	if phase_config.has("base_value"):
-		return _to_big_number(phase_config.get("base_value"))
+		return _to_big_number(GFVariantData.get_option_value(phase_config, "base_value"))
 
 	if inherited_value != null:
 		return inherited_value
 
 	if curve_config.has("base_value"):
-		return _to_big_number(curve_config.get("base_value"))
+		return _to_big_number(GFVariantData.get_option_value(curve_config, "base_value"))
 
 	push_error("[GFProgressionMath] 曲线配置缺少 base_value。")
 	return _to_big_number(0)
 
 
 static func _find_override_value(level: int, overrides: Variant) -> Variant:
-	if typeof(overrides) != TYPE_DICTIONARY:
+	if not (overrides is Dictionary):
 		return null
 
 	var override_dict: Dictionary = overrides
 	if override_dict.has(level):
 		return override_dict[level]
 
-	var level_key := str(level)
+	var level_key: String = str(level)
 	if override_dict.has(level_key):
 		return override_dict[level_key]
 
@@ -388,18 +392,18 @@ static func _find_override_value(level: int, overrides: Variant) -> Variant:
 static func _sort_phase_configs(phases: Array) -> Array[Dictionary]:
 	var sorted: Array[Dictionary] = []
 
-	for phase_variant in phases:
-		if typeof(phase_variant) != TYPE_DICTIONARY:
+	for phase_variant: Variant in phases:
+		if not (phase_variant is Dictionary):
 			continue
 
 		var phase: Dictionary = phase_variant
-		var phase_start: int = int(phase.get("start_level", 0))
+		var phase_start: int = GFVariantData.get_option_int(phase, "start_level", 0)
 		var inserted: bool = false
 
-		for i in range(sorted.size()):
-			var current_start: int = int(sorted[i].get("start_level", 0))
+		for i: int in range(sorted.size()):
+			var current_start: int = GFVariantData.get_option_int(sorted[i], "start_level", 0)
 			if phase_start < current_start:
-				sorted.insert(i, phase)
+				var _insert_result_406: Variant = sorted.insert(i, phase)
 				inserted = true
 				break
 
@@ -419,7 +423,7 @@ static func _parse_curve_mode(mode_value: Variant) -> CurveMode:
 			return CurveMode.CONSTANT
 
 		TYPE_STRING, TYPE_STRING_NAME:
-			var mode_text := str(mode_value).to_lower()
+			var mode_text: String = GFVariantData.to_text(mode_value).to_lower()
 			if mode_text == "linear":
 				return CurveMode.LINEAR
 			if mode_text == "exponential":
@@ -433,16 +437,22 @@ static func _to_big_number(value: Variant) -> GFBigNumber:
 	return GFBigNumber.from_variant(value)
 
 
-static func _to_float(value: Variant) -> float:
-	match typeof(value):
-		TYPE_INT:
-			return float(value)
-		TYPE_FLOAT:
-			return value
-		TYPE_STRING, TYPE_STRING_NAME:
-			return str(value).to_float()
-		_:
-			if is_instance_valid(value) and value.has_method("to_float"):
-				return value.to_float()
+static func _get_option_big_number(options: Dictionary, key: Variant) -> GFBigNumber:
+	return _to_big_number(GFVariantData.get_option_value(options, key, 0))
 
-	return 0.0
+
+static func _get_option_progression_float(
+	options: Dictionary,
+	key: Variant,
+	default_value: float = 0.0
+) -> float:
+	return _to_progression_float(GFVariantData.get_option_value(options, key, default_value), default_value)
+
+
+static func _to_progression_float(value: Variant, default_value: float = 0.0) -> float:
+	if value is Object:
+		var object: Object = value
+		if is_instance_valid(object) and object.has_method("to_float"):
+			return GFVariantData.to_float(object.call("to_float"), default_value)
+
+	return GFVariantData.to_float(value, default_value)

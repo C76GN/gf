@@ -71,10 +71,10 @@ func init() -> void:
 ## [br]
 ## @api public
 func dispose() -> void:
-	cancel_transition()
+	var _cancel_transition_result_74: Variant = cancel_transition()
 	_finished_callback = Callable()
 	if is_instance_valid(_overlay_layer):
-		var parent := _overlay_layer.get_parent()
+		var parent: Node = _overlay_layer.get_parent()
 		if parent != null:
 			parent.remove_child(_overlay_layer)
 		_overlay_layer.queue_free()
@@ -92,7 +92,7 @@ func tick(delta: float) -> void:
 		return
 
 	_elapsed_seconds += maxf(delta, 0.0)
-	var progress := _active_effect.sample_weight(_elapsed_seconds)
+	var progress: float = _active_effect.sample_weight(_elapsed_seconds)
 	_apply_effect_visuals(progress)
 	transition_progressed.emit(progress, get_overlay_alpha())
 	if progress >= 1.0:
@@ -115,7 +115,7 @@ func play(effect: GFScreenTransitionEffect, on_finished: Callable = Callable()) 
 		return ERR_INVALID_PARAMETER
 
 	if _transition_active:
-		cancel_transition()
+		var _cancel_transition_result_118: Variant = cancel_transition()
 
 	_ensure_overlay()
 	if not is_instance_valid(_overlay_rect):
@@ -150,8 +150,8 @@ func fade_out(
 	color: Color = Color.BLACK,
 	on_finished: Callable = Callable()
 ) -> Error:
-	var effect := GFScreenTransitionEffect.new()
-	effect.configure(duration_seconds, 0.0, 1.0, color)
+	var effect: GFScreenTransitionEffect = GFScreenTransitionEffect.new()
+	var _configure_result_154: Variant = effect.configure(duration_seconds, 0.0, 1.0, color)
 	return play(effect, on_finished)
 
 
@@ -171,8 +171,8 @@ func fade_in(
 	color: Color = Color.BLACK,
 	on_finished: Callable = Callable()
 ) -> Error:
-	var effect := GFScreenTransitionEffect.new()
-	effect.configure(duration_seconds, 1.0, 0.0, color)
+	var effect: GFScreenTransitionEffect = GFScreenTransitionEffect.new()
+	var _configure_result_175: Variant = effect.configure(duration_seconds, 1.0, 0.0, color)
 	return play(effect, on_finished)
 
 
@@ -188,7 +188,7 @@ func set_overlay_alpha(alpha: float, color: Color = Color.BLACK) -> void:
 	if not is_instance_valid(_overlay_rect):
 		return
 
-	var next_color := color
+	var next_color: Color = color
 	next_color.a = clampf(alpha, 0.0, 1.0)
 	_overlay_rect.material = null
 	_overlay_rect.color = next_color
@@ -250,7 +250,7 @@ func cancel_transition() -> bool:
 	if not _transition_active:
 		return false
 
-	var cancelled_effect := _active_effect
+	var cancelled_effect: GFScreenTransitionEffect = _active_effect
 	_transition_active = false
 	_active_effect = null
 	_finished_callback = Callable()
@@ -297,7 +297,7 @@ func _ensure_overlay() -> void:
 	_overlay_rect.color = Color(0.0, 0.0, 0.0, 0.0)
 	_overlay_layer.add_child(_overlay_rect)
 
-	var tree := Engine.get_main_loop() as SceneTree
+	var tree: SceneTree = _get_scene_tree()
 	if tree != null:
 		tree.root.call_deferred("add_child", _overlay_layer)
 
@@ -306,8 +306,8 @@ func _apply_effect_visuals(progress: float) -> void:
 	if _active_effect == null or not is_instance_valid(_overlay_rect):
 		return
 
-	var alpha := _active_effect.sample_alpha(progress)
-	var next_color := _active_effect.color
+	var alpha: float = _active_effect.sample_alpha(progress)
+	var next_color: Color = _active_effect.color
 	next_color.a = alpha
 	_overlay_layer.layer = _active_effect.layer
 	_overlay_rect.mouse_filter = Control.MOUSE_FILTER_STOP if _active_effect.block_input else Control.MOUSE_FILTER_IGNORE
@@ -322,8 +322,8 @@ func _apply_effect_visuals(progress: float) -> void:
 
 
 func _finish_transition() -> void:
-	var finished_effect := _active_effect
-	var callback := _finished_callback
+	var finished_effect: GFScreenTransitionEffect = _active_effect
+	var callback: Callable = _finished_callback
 	_transition_active = false
 	_active_effect = null
 	_finished_callback = Callable()
@@ -334,3 +334,11 @@ func _finish_transition() -> void:
 		transition_finished.emit(finished_effect)
 	if callback.is_valid():
 		callback.call()
+
+
+func _get_scene_tree() -> SceneTree:
+	var main_loop: MainLoop = Engine.get_main_loop()
+	if not (main_loop is SceneTree):
+		return null
+	var tree: SceneTree = main_loop
+	return tree

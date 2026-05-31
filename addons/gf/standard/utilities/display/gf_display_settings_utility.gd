@@ -119,26 +119,26 @@ func dispose() -> void:
 ## [br]
 ## @api public
 func register_default_settings() -> void:
-	var settings := _get_settings_utility()
+	var settings: GFSettingsUtility = _get_settings_utility()
 	if settings == null:
 		return
 
-	settings.register_setting(
+	var _register_setting_result_126: Variant = settings.register_setting(
 		WINDOW_MODE_KEY,
 		int(DisplayServer.window_get_mode()),
 		GFSettingDefinition.ValueType.INT
 	)
-	settings.register_setting(
+	var _register_setting_result_131: Variant = settings.register_setting(
 		WINDOW_SIZE_KEY,
 		DisplayServer.window_get_size(),
 		GFSettingDefinition.ValueType.VECTOR2I
 	)
-	settings.register_setting(
+	var _register_setting_result_136: Variant = settings.register_setting(
 		VSYNC_MODE_KEY,
 		int(DisplayServer.window_get_vsync_mode()),
 		GFSettingDefinition.ValueType.INT
 	)
-	settings.register_setting(
+	var _register_setting_result_141: Variant = settings.register_setting(
 		LOCALE_KEY,
 		OS.get_locale_language(),
 		GFSettingDefinition.ValueType.STRING
@@ -172,7 +172,11 @@ func set_window_mode(mode: DisplayServer.WindowMode) -> void:
 ## [br]
 ## @return 窗口模式。
 func get_window_mode() -> DisplayServer.WindowMode:
-	return int(_get_setting_value(WINDOW_MODE_KEY, int(DisplayServer.window_get_mode()))) as DisplayServer.WindowMode
+	var mode_value: int = GFVariantData.to_int(
+		_get_setting_value(WINDOW_MODE_KEY, int(DisplayServer.window_get_mode())),
+		int(DisplayServer.window_get_mode())
+	)
+	return _to_window_mode(mode_value)
 
 
 ## 设置是否全屏。
@@ -188,7 +192,7 @@ func set_fullscreen(enabled: bool) -> void:
 ## [br]
 ## @api public
 func toggle_fullscreen() -> void:
-	var current_mode := get_window_mode()
+	var current_mode: DisplayServer.WindowMode = get_window_mode()
 	set_fullscreen(current_mode != DisplayServer.WINDOW_MODE_FULLSCREEN)
 
 
@@ -196,7 +200,7 @@ func toggle_fullscreen() -> void:
 ## [br]
 ## @api public
 func apply_window_mode() -> void:
-	var mode := get_window_mode()
+	var mode: DisplayServer.WindowMode = get_window_mode()
 	DisplayServer.window_set_mode(mode)
 	display_setting_applied.emit(WINDOW_MODE_KEY, int(mode))
 
@@ -223,9 +227,10 @@ func set_window_size(size: Vector2i) -> void:
 func get_window_size() -> Vector2i:
 	var value: Variant = _get_setting_value(WINDOW_SIZE_KEY, DisplayServer.window_get_size())
 	if value is Vector2i:
-		return value as Vector2i
+		var size_2i: Vector2i = value
+		return size_2i
 	if value is Vector2:
-		var vector2 := value as Vector2
+		var vector2: Vector2 = value
 		return Vector2i(roundi(vector2.x), roundi(vector2.y))
 	return DisplayServer.window_get_size()
 
@@ -234,7 +239,7 @@ func get_window_size() -> Vector2i:
 ## [br]
 ## @api public
 func apply_window_size() -> void:
-	var size := get_window_size()
+	var size: Vector2i = get_window_size()
 	if size.x <= 0 or size.y <= 0:
 		return
 
@@ -258,14 +263,18 @@ func set_vsync_mode(mode: DisplayServer.VSyncMode) -> void:
 ## [br]
 ## @return VSync 模式。
 func get_vsync_mode() -> DisplayServer.VSyncMode:
-	return int(_get_setting_value(VSYNC_MODE_KEY, int(DisplayServer.window_get_vsync_mode()))) as DisplayServer.VSyncMode
+	var mode_value: int = GFVariantData.to_int(
+		_get_setting_value(VSYNC_MODE_KEY, int(DisplayServer.window_get_vsync_mode())),
+		int(DisplayServer.window_get_vsync_mode())
+	)
+	return _to_vsync_mode(mode_value)
 
 
 ## 应用垂直同步设置。
 ## [br]
 ## @api public
 func apply_vsync_mode() -> void:
-	var mode := get_vsync_mode()
+	var mode: DisplayServer.VSyncMode = get_vsync_mode()
 	DisplayServer.window_set_vsync_mode(mode)
 	display_setting_applied.emit(VSYNC_MODE_KEY, int(mode))
 
@@ -286,14 +295,14 @@ func set_locale(locale: String) -> void:
 ## [br]
 ## @return 语言代码。
 func get_locale() -> String:
-	return String(_get_setting_value(LOCALE_KEY, OS.get_locale_language()))
+	return GFVariantData.to_text(_get_setting_value(LOCALE_KEY, OS.get_locale_language()), OS.get_locale_language())
 
 
 ## 应用语言设置。
 ## [br]
 ## @api public
 func apply_locale() -> void:
-	var locale := get_locale()
+	var locale: String = get_locale()
 	if locale.is_empty():
 		return
 
@@ -309,11 +318,11 @@ func apply_locale() -> void:
 ## [br]
 ## @param default_linear: 默认线性音量，范围 0 到 1。
 func register_audio_bus_volume(bus_name: String, default_linear: float = 1.0) -> void:
-	var settings := _get_settings_utility()
+	var settings: GFSettingsUtility = _get_settings_utility()
 	if settings == null:
 		return
 
-	settings.register_setting(
+	var _register_setting_result_325: Variant = settings.register_setting(
 		_get_audio_bus_volume_key(bus_name),
 		clampf(default_linear, 0.0, 1.0),
 		GFSettingDefinition.ValueType.FLOAT
@@ -328,7 +337,7 @@ func register_audio_bus_volume(bus_name: String, default_linear: float = 1.0) ->
 ## [br]
 ## @param volume_linear: 线性音量，范围 0 到 1。
 func set_audio_bus_volume(bus_name: String, volume_linear: float) -> void:
-	var clamped_volume := clampf(volume_linear, 0.0, 1.0)
+	var clamped_volume: float = clampf(volume_linear, 0.0, 1.0)
 	_set_setting_value(_get_audio_bus_volume_key(bus_name), clamped_volume)
 	apply_audio_bus_volume(bus_name)
 
@@ -343,7 +352,7 @@ func set_audio_bus_volume(bus_name: String, volume_linear: float) -> void:
 ## [br]
 ## @return 线性音量。
 func get_audio_bus_volume(bus_name: String, fallback: float = 1.0) -> float:
-	return clampf(float(_get_setting_value(_get_audio_bus_volume_key(bus_name), fallback)), 0.0, 1.0)
+	return clampf(GFVariantData.to_float(_get_setting_value(_get_audio_bus_volume_key(bus_name), fallback), fallback), 0.0, 1.0)
 
 
 ## 应用指定音频总线音量。
@@ -352,12 +361,12 @@ func get_audio_bus_volume(bus_name: String, fallback: float = 1.0) -> float:
 ## [br]
 ## @param bus_name: 音频总线名。
 func apply_audio_bus_volume(bus_name: String) -> void:
-	var volume := get_audio_bus_volume(bus_name)
-	var audio := _get_audio_utility()
+	var volume: float = get_audio_bus_volume(bus_name)
+	var audio: GFAudioUtility = _get_audio_utility()
 	if audio != null:
 		audio.set_bus_volume(bus_name, volume)
 	else:
-		var bus_index := AudioServer.get_bus_index(bus_name)
+		var bus_index: int = AudioServer.get_bus_index(bus_name)
 		if bus_index >= 0:
 			AudioServer.set_bus_volume_db(bus_index, linear_to_db(maxf(volume, 0.0001)))
 
@@ -368,22 +377,22 @@ func apply_audio_bus_volume(bus_name: String) -> void:
 ## [br]
 ## @api public
 func apply_registered_audio_bus_volumes() -> void:
-	var settings := _get_settings_utility()
+	var settings: GFSettingsUtility = _get_settings_utility()
 	if settings == null:
 		return
 
-	var prefix := "%s/" % String(audio_setting_prefix)
+	var prefix: String = "%s/" % String(audio_setting_prefix)
 	for definition: GFSettingDefinition in settings.get_definitions():
-		var key := String(definition.get_setting_key())
+		var key: String = String(definition.get_setting_key())
 		if key.begins_with(prefix) and key.ends_with("/volume"):
-			var bus_name := key.trim_prefix(prefix).trim_suffix("/volume")
+			var bus_name: String = key.trim_prefix(prefix).trim_suffix("/volume")
 			apply_audio_bus_volume(bus_name)
 
 
 # --- 私有/辅助方法 ---
 
 func _set_setting_value(key: StringName, value: Variant) -> void:
-	var settings := _get_settings_utility()
+	var settings: GFSettingsUtility = _get_settings_utility()
 	if settings != null:
 		_internal_setting_write_depth += 1
 		settings.set_value(key, value, persist_changes)
@@ -393,24 +402,32 @@ func _set_setting_value(key: StringName, value: Variant) -> void:
 
 
 func _get_setting_value(key: StringName, fallback: Variant = null) -> Variant:
-	var settings := _get_settings_utility()
+	var settings: GFSettingsUtility = _get_settings_utility()
 	if settings == null:
-		return _runtime_values.get(key, fallback)
+		return GFVariantData.get_option_value(_runtime_values, key, fallback)
 	return settings.get_value(key, fallback)
 
 
 func _get_settings_utility() -> GFSettingsUtility:
-	var arch := _get_architecture_or_null()
+	var arch: GFArchitecture = _get_architecture_or_null()
 	if arch == null:
 		return null
-	return arch.get_utility(GFSettingsUtility) as GFSettingsUtility
+	var utility: Object = arch.get_utility(GFSettingsUtility)
+	if utility is GFSettingsUtility:
+		var settings: GFSettingsUtility = utility
+		return settings
+	return null
 
 
 func _get_audio_utility() -> GFAudioUtility:
-	var arch := _get_architecture_or_null()
+	var arch: GFArchitecture = _get_architecture_or_null()
 	if arch == null:
 		return null
-	return arch.get_utility(GFAudioUtility) as GFAudioUtility
+	var utility: Object = arch.get_utility(GFAudioUtility)
+	if utility is GFAudioUtility:
+		var audio: GFAudioUtility = utility
+		return audio
+	return null
 
 
 func _get_audio_bus_volume_key(bus_name: String) -> StringName:
@@ -418,14 +435,14 @@ func _get_audio_bus_volume_key(bus_name: String) -> StringName:
 
 
 func _connect_settings_changed() -> void:
-	var settings := _get_settings_utility()
+	var settings: GFSettingsUtility = _get_settings_utility()
 	if settings == null or settings == _connected_settings:
 		return
 
 	_disconnect_settings_changed()
 	_connected_settings = settings
 	if not _connected_settings.setting_changed.is_connected(_on_setting_changed):
-		_connected_settings.setting_changed.connect(_on_setting_changed)
+		var _settings_changed_connected: int = _connected_settings.setting_changed.connect(_on_setting_changed)
 
 
 func _disconnect_settings_changed() -> void:
@@ -434,6 +451,32 @@ func _disconnect_settings_changed() -> void:
 	if _connected_settings.setting_changed.is_connected(_on_setting_changed):
 		_connected_settings.setting_changed.disconnect(_on_setting_changed)
 	_connected_settings = null
+
+
+func _to_window_mode(value: int) -> DisplayServer.WindowMode:
+	match value:
+		DisplayServer.WINDOW_MODE_MINIMIZED:
+			return DisplayServer.WINDOW_MODE_MINIMIZED
+		DisplayServer.WINDOW_MODE_MAXIMIZED:
+			return DisplayServer.WINDOW_MODE_MAXIMIZED
+		DisplayServer.WINDOW_MODE_FULLSCREEN:
+			return DisplayServer.WINDOW_MODE_FULLSCREEN
+		DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN:
+			return DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN
+		_:
+			return DisplayServer.WINDOW_MODE_WINDOWED
+
+
+func _to_vsync_mode(value: int) -> DisplayServer.VSyncMode:
+	match value:
+		DisplayServer.VSYNC_DISABLED:
+			return DisplayServer.VSYNC_DISABLED
+		DisplayServer.VSYNC_ADAPTIVE:
+			return DisplayServer.VSYNC_ADAPTIVE
+		DisplayServer.VSYNC_MAILBOX:
+			return DisplayServer.VSYNC_MAILBOX
+		_:
+			return DisplayServer.VSYNC_ENABLED
 
 
 # --- 信号处理函数 ---
@@ -452,8 +495,8 @@ func _on_setting_changed(key: StringName, _old_value: Variant, _new_value: Varia
 		LOCALE_KEY:
 			apply_locale()
 		_:
-			var key_text := String(key)
-			var prefix := "%s/" % String(audio_setting_prefix)
+			var key_text: String = String(key)
+			var prefix: String = "%s/" % String(audio_setting_prefix)
 			if key_text.begins_with(prefix) and key_text.ends_with("/volume"):
-				var bus_name := key_text.trim_prefix(prefix).trim_suffix("/volume")
+				var bus_name: String = key_text.trim_prefix(prefix).trim_suffix("/volume")
 				apply_audio_bus_volume(bus_name)

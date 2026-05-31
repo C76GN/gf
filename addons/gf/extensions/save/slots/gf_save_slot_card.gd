@@ -86,17 +86,30 @@ func configure_from_slot_summary(
 	fallback_slot_id: StringName = &"",
 	active_slot_index: int = -1
 ) -> GFSaveSlotCard:
-	var summary_metadata := summary.get("metadata", {}) as Dictionary
-	metadata = summary_metadata.duplicate(true) if summary_metadata != null else {}
+	metadata = GFVariantData.get_option_dictionary(summary, "metadata")
 	slot_index = _get_summary_slot_index(summary, metadata, fallback_slot_id)
-	slot_id = StringName(metadata.get("slot_id", fallback_slot_id if fallback_slot_id != &"" else str(slot_index)))
-	display_name = String(metadata.get("display_name", ""))
-	description = String(metadata.get("description", ""))
-	modified_time = int(summary.get("modified_time", metadata.get("updated_at_unix", 0)))
+	var fallback_slot_text: String = String(fallback_slot_id) if fallback_slot_id != &"" else str(slot_index)
+	slot_id = GFVariantData.get_option_string_name(metadata, "slot_id", StringName(fallback_slot_text))
+	display_name = GFVariantData.get_option_string(metadata, "display_name")
+	description = GFVariantData.get_option_string(metadata, "description")
+	modified_time = GFVariantData.get_option_int(
+		summary,
+		"modified_time",
+		GFVariantData.get_option_int(metadata, "updated_at_unix")
+	)
 	is_empty = false
 	is_active = active_slot_index >= 0 and slot_index == active_slot_index
-	is_compatible = bool(summary.get("is_compatible", metadata.get("is_compatible", true)))
-	compatibility_errors = _to_string_array(summary.get("compatibility_errors", metadata.get("compatibility_errors", [])))
+	is_compatible = GFVariantData.get_option_bool(
+		summary,
+		"is_compatible",
+		GFVariantData.get_option_bool(metadata, "is_compatible", true)
+	)
+	var compatibility_error_value: Variant = GFVariantData.get_option_value(
+		summary,
+		"compatibility_errors",
+		GFVariantData.get_option_value(metadata, "compatibility_errors", [])
+	)
+	compatibility_errors = PackedStringArray(GFVariantData.to_string_array(compatibility_error_value))
 	return self
 
 
@@ -163,16 +176,6 @@ static func from_slot_summary(
 
 # --- 私有/辅助方法 ---
 
-func _to_string_array(value: Variant) -> PackedStringArray:
-	if value is PackedStringArray:
-		return value
-
-	var result := PackedStringArray()
-	if value is Array:
-		for item: Variant in value:
-			result.append(String(item))
-	return result
-
 
 func _get_summary_slot_index(
 	summary: Dictionary,
@@ -180,15 +183,15 @@ func _get_summary_slot_index(
 	fallback_slot_id: StringName
 ) -> int:
 	if summary.has("slot_index"):
-		return int(summary.get("slot_index", -1))
+		return GFVariantData.get_option_int(summary, "slot_index", -1)
 
 	var candidates: Array = [
-		summary.get("slot_id", null),
-		summary_metadata.get("slot_id", null),
+		GFVariantData.get_option_value(summary, "slot_id"),
+		GFVariantData.get_option_value(summary_metadata, "slot_id"),
 		fallback_slot_id,
 	]
 	for candidate: Variant in candidates:
-		var parsed := _parse_slot_index(candidate)
+		var parsed: int = _parse_slot_index(candidate)
 		if parsed >= 0:
 			return parsed
 	return slot_index
@@ -198,15 +201,15 @@ func _parse_slot_index(value: Variant) -> int:
 	if value == null:
 		return -1
 	if value is int or value is float:
-		return int(value)
+		return GFVariantData.to_int(value)
 
-	var text := String(value)
+	var text: String = GFVariantData.to_text(value)
 	if text.is_valid_int():
 		return text.to_int()
 
-	var digits := ""
+	var digits: String = ""
 	for index: int in range(text.length() - 1, -1, -1):
-		var character := text.substr(index, 1)
+		var character: String = text.substr(index, 1)
 		if not character.is_valid_int():
 			break
 		digits = character + digits

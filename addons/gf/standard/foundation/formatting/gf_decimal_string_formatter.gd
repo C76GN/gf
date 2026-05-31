@@ -26,7 +26,7 @@ static func apply_decimal_places(value: float, decimal_places: int, use_truncati
 			return floor(value) if value >= 0.0 else ceil(value)
 		return round(value)
 
-	var scale := pow(10.0, decimal_places)
+	var scale: float = pow(10.0, decimal_places)
 	if use_truncation:
 		if value >= 0.0:
 			return floor(value * scale) / scale
@@ -54,11 +54,11 @@ static func format_decimal_value(
 	trim_zeroes: bool,
 	use_truncation: bool
 ) -> String:
-	var adjusted_value := apply_decimal_places(value, decimal_places, use_truncation)
+	var adjusted_value: float = apply_decimal_places(value, decimal_places, use_truncation)
 	if decimal_places <= 0:
 		return str(int(adjusted_value))
 
-	var text := ("%." + str(decimal_places) + "f") % adjusted_value
+	var text: String = ("%." + str(decimal_places) + "f") % adjusted_value
 	if trim_zeroes:
 		text = trim_trailing_zeroes(text)
 	return text
@@ -72,7 +72,7 @@ static func format_decimal_value(
 ## [br]
 ## @return 裁剪后的文本。
 static func trim_trailing_zeroes(text: String) -> String:
-	var result := text
+	var result: String = text
 	while result.ends_with("0"):
 		result = result.left(result.length() - 1)
 
@@ -105,8 +105,8 @@ static func is_valid_decimal_parts(
 		return false
 	if integer_part.is_empty() and fractional_part.is_empty():
 		return false
-	var integer_valid := integer_part.is_empty() or contains_only_digits(integer_part)
-	var fractional_valid := fractional_part.is_empty() or contains_only_digits(fractional_part)
+	var integer_valid: bool = integer_part.is_empty() or contains_only_digits(integer_part)
+	var fractional_valid: bool = fractional_part.is_empty() or contains_only_digits(fractional_part)
 	return integer_valid and fractional_valid
 
 
@@ -121,7 +121,7 @@ static func contains_only_digits(text: String) -> bool:
 	if text.is_empty():
 		return false
 	for i: int in range(text.length()):
-		var character := text.substr(i, 1)
+		var character: String = text.substr(i, 1)
 		if character < "0" or character > "9":
 			return false
 	return true

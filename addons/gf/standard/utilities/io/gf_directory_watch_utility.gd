@@ -35,9 +35,6 @@ const DEFAULT_MAX_SCAN_DEPTH: int = 32
 ## @api public
 const DEFAULT_MAX_FILE_COUNT: int = 10000
 
-const _GF_DIRECTORY_CHANGE_SET_BASE: Script = preload("res://addons/gf/standard/utilities/io/gf_directory_change_set.gd")
-
-
 # --- 公共变量 ---
 
 ## 是否递归扫描子目录。
@@ -119,10 +116,10 @@ func configure(options: Dictionary = {}) -> GFDirectoryWatchUtility:
 ## [br]
 ## @param path: 要监听的目录路径。
 func watch_path(path: String) -> void:
-	var normalized := _normalize_dir_path(path)
+	var normalized: String = _normalize_dir_path(path)
 	if normalized.is_empty() or _watch_paths.has(normalized):
 		return
-	_watch_paths.append(normalized)
+	var _appended: bool = _watch_paths.append(normalized)
 	_watch_paths.sort()
 
 
@@ -134,8 +131,8 @@ func watch_path(path: String) -> void:
 ## [br]
 ## @return 成功移除时返回 true。
 func unwatch_path(path: String) -> bool:
-	var normalized := _normalize_dir_path(path)
-	var index := _watch_paths.find(normalized)
+	var normalized: String = _normalize_dir_path(path)
+	var index: int = _watch_paths.find(normalized)
 	if index < 0:
 		return false
 	_watch_paths.remove_at(index)
@@ -174,9 +171,9 @@ func reset_snapshot() -> void:
 ## [br]
 ## @return 本次变化集。
 func poll() -> GFDirectoryChangeSet:
-	var scan_state := _make_scan_state()
-	var next_snapshot := _scan_watch_paths(scan_state)
-	var change_set := _make_change_set(next_snapshot, scan_state)
+	var scan_state: Dictionary = _make_scan_state()
+	var next_snapshot: Dictionary = _scan_watch_paths(scan_state)
+	var change_set: GFDirectoryChangeSet = _make_change_set(next_snapshot, scan_state)
 	_snapshot = next_snapshot
 
 	if not _has_snapshot:
@@ -244,12 +241,12 @@ func _scan_directory_recursive(
 	if _is_excluded_path(dir_path):
 		return
 
-	var dir := DirAccess.open(dir_path)
+	var dir: DirAccess = DirAccess.open(dir_path)
 	if dir == null:
 		return
 
-	dir.list_dir_begin()
-	var entry := dir.get_next()
+	var _list_dir_begin_result_248: Variant = dir.list_dir_begin()
+	var entry: String = dir.get_next()
 	while not entry.is_empty():
 		if _is_truncated(scan_state):
 			break
@@ -258,45 +255,45 @@ func _scan_directory_recursive(
 			entry = dir.get_next()
 			continue
 
-		var child_path := dir_path.path_join(entry)
+		var child_path: String = dir_path.path_join(entry)
 		if dir.current_is_dir():
 			if recursive and _can_scan_deeper(child_path, depth, scan_state):
 				_scan_directory_recursive(child_path, result, depth + 1, scan_state)
 		elif _can_include_file(entry):
 			result[child_path] = int(FileAccess.get_modified_time(child_path))
-			scan_state["scanned_count"] = int(scan_state.get("scanned_count", 0)) + 1
-			if max_file_count > 0 and int(scan_state.get("scanned_count", 0)) >= max_file_count:
+			scan_state["scanned_count"] = GFVariantData.get_option_int(scan_state, "scanned_count") + 1
+			if max_file_count > 0 and GFVariantData.get_option_int(scan_state, "scanned_count") >= max_file_count:
 				scan_state["truncated"] = true
 		entry = dir.get_next()
 	dir.list_dir_end()
 
 
 func _make_change_set(next_snapshot: Dictionary, scan_state: Dictionary) -> GFDirectoryChangeSet:
-	var created := PackedStringArray()
-	var modified := PackedStringArray()
-	var deleted := PackedStringArray()
+	var created: PackedStringArray = PackedStringArray()
+	var modified: PackedStringArray = PackedStringArray()
+	var deleted: PackedStringArray = PackedStringArray()
 
 	for path: String in next_snapshot.keys():
 		if not _snapshot.has(path):
-			created.append(path)
-		elif int(_snapshot[path]) != int(next_snapshot[path]):
-			modified.append(path)
+			var _appended: bool = created.append(path)
+		elif GFVariantData.to_int(_snapshot[path]) != GFVariantData.to_int(next_snapshot[path]):
+			var _appended: bool = modified.append(path)
 
 	for path: String in _snapshot.keys():
 		if not next_snapshot.has(path):
-			deleted.append(path)
+			var _appended: bool = deleted.append(path)
 
 	created.sort()
 	modified.sort()
 	deleted.sort()
-	return (_GF_DIRECTORY_CHANGE_SET_BASE.new() as GFDirectoryChangeSet).configure(
+	return GFDirectoryChangeSet.new().configure(
 		get_watch_paths(),
 		created,
 		modified,
 		deleted,
-		int(scan_state.get("scanned_count", 0)),
+		GFVariantData.get_option_int(scan_state, "scanned_count"),
 		next_snapshot.size(),
-		bool(scan_state.get("truncated", false))
+		GFVariantData.get_option_bool(scan_state, "truncated")
 	)
 
 
@@ -308,7 +305,7 @@ func _make_scan_state() -> Dictionary:
 
 
 func _is_truncated(scan_state: Dictionary) -> bool:
-	return bool(scan_state.get("truncated", false))
+	return GFVariantData.get_option_bool(scan_state, "truncated")
 
 
 func _can_scan_deeper(_path: String, current_depth: int, scan_state: Dictionary) -> bool:
@@ -325,36 +322,36 @@ func _can_include_file(path: String) -> bool:
 
 
 func _normalize_extensions(values: PackedStringArray) -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	for value: String in values:
-		var extension := value.strip_edges().to_lower()
+		var extension: String = value.strip_edges().to_lower()
 		if extension.begins_with("."):
 			extension = extension.substr(1)
 		if not extension.is_empty() and not result.has(extension):
-			result.append(extension)
+			var _appended: bool = result.append(extension)
 	return result
 
 
 func _normalize_paths(values: PackedStringArray) -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	for value: String in values:
-		var path := _normalize_dir_path(value)
+		var path: String = _normalize_dir_path(value)
 		if not path.is_empty() and not result.has(path):
-			result.append(path)
+			var _appended: bool = result.append(path)
 	return result
 
 
 func _normalize_dir_path(path: String) -> String:
-	var normalized := path.replace("\\", "/").strip_edges()
+	var normalized: String = path.replace("\\", "/").strip_edges()
 	while normalized.ends_with("/") and not normalized.ends_with("://"):
 		normalized = normalized.substr(0, normalized.length() - 1)
 	return normalized
 
 
 func _is_excluded_path(path: String) -> bool:
-	var normalized_path := _normalize_dir_path(path)
+	var normalized_path: String = _normalize_dir_path(path)
 	for excluded_path: String in excluded_paths:
-		var normalized_excluded := _normalize_dir_path(excluded_path)
+		var normalized_excluded: String = _normalize_dir_path(excluded_path)
 		if normalized_path == normalized_excluded or normalized_path.begins_with(normalized_excluded + "/"):
 			return true
 	return false

@@ -14,8 +14,8 @@ extends Resource
 
 # --- 常量 ---
 
-const _GF_SAVE_SLOT_CARD_SCRIPT: Script = preload("res://addons/gf/extensions/save/slots/gf_save_slot_card.gd")
-const _GF_SAVE_SLOT_METADATA_SCRIPT: Script = preload("res://addons/gf/extensions/save/slots/gf_save_slot_metadata.gd")
+const _GF_SAVE_SLOT_CARD_SCRIPT = preload("res://addons/gf/extensions/save/slots/gf_save_slot_card.gd")
+const _GF_SAVE_SLOT_METADATA_SCRIPT = preload("res://addons/gf/extensions/save/slots/gf_save_slot_metadata.gd")
 
 
 # --- 导出变量 ---
@@ -79,7 +79,7 @@ func select_slot_index(index: int) -> StringName:
 ## @param slot_id: 逻辑标识。
 func set_slot_id_override(index: int, slot_id: StringName) -> void:
 	if slot_id == &"":
-		_slot_id_overrides.erase(index)
+		var _erased: bool = _slot_id_overrides.erase(index)
 		return
 	_slot_id_overrides[index] = slot_id
 
@@ -118,7 +118,7 @@ func get_active_storage_slot_id() -> int:
 ## @return 槽位标识。
 func get_slot_id_for_index(index: int) -> StringName:
 	if _slot_id_overrides.has(index):
-		return _slot_id_overrides[index]
+		return GFVariantData.to_string_name(_slot_id_overrides[index])
 	return StringName(slot_id_template.replace("{index}", str(index)))
 
 
@@ -169,16 +169,16 @@ func build_slot_metadata(
 	display_name: String = "",
 	custom_metadata: Dictionary = {}
 ) -> GFSaveSlotMetadata:
-	var metadata := _new_metadata()
+	var metadata: GFSaveSlotMetadata = _new_metadata()
 	metadata.slot_id = get_slot_id_for_index(index)
-	var resolved_display_name := display_name
+	var resolved_display_name: String = display_name
 	if resolved_display_name.is_empty():
 		resolved_display_name = get_empty_display_name_for_index(index)
 	metadata.display_name = resolved_display_name
 	metadata.custom_metadata = custom_metadata.duplicate(true)
 	if slot_role != &"":
 		metadata.custom_metadata["slot_role"] = slot_role
-	var now := int(Time.get_unix_time_from_system())
+	var now: int = int(Time.get_unix_time_from_system())
 	metadata.created_at_unix = now
 	metadata.updated_at_unix = now
 	return metadata
@@ -192,7 +192,7 @@ func build_slot_metadata(
 ## [br]
 ## @return 卡片资源。
 func build_empty_card(index: int) -> GFSaveSlotCard:
-	var card := _new_card()
+	var card: GFSaveSlotCard = _new_card()
 	card.slot_index = index
 	card.slot_id = get_slot_id_for_index(index)
 	card.display_name = get_empty_display_name_for_index(index)
@@ -222,9 +222,9 @@ func build_card_for_index(
 	if summary.is_empty():
 		return build_empty_card(index)
 
-	var card := _new_card()
-	var selected_index := active_slot_index if p_active_slot_index < 0 else p_active_slot_index
-	card.configure_from_slot_summary(summary, get_slot_id_for_index(index), selected_index)
+	var card: GFSaveSlotCard = _new_card()
+	var selected_index: int = active_slot_index if p_active_slot_index < 0 else p_active_slot_index
+	var _configure_from_slot_summary_result_227: Variant = card.configure_from_slot_summary(summary, get_slot_id_for_index(index), selected_index)
 	if card.slot_index < 0:
 		card.slot_index = index
 	if card.slot_id == &"":
@@ -248,12 +248,14 @@ func build_card_for_index(
 ## [br]
 ## @schema summaries: Array，每项为 GFStorageUtility.list_slots() 风格的 Dictionary 摘要。
 func build_cards_for_indices(indices: Array, summaries: Array = []) -> Array[GFSaveSlotCard]:
-	var summary_index := _index_summaries(summaries)
+	var summary_index: Dictionary = _index_summaries(summaries)
 	var result: Array[GFSaveSlotCard] = []
 	for index_variant: Variant in indices:
-		var index := int(index_variant)
-		var summary := summary_index.get(index, {}) as Dictionary
-		result.append(build_card_for_index(index, summary if summary != null else {}))
+		var index: int = GFVariantData.to_int(index_variant, -1)
+		if index < 0:
+			continue
+		var summary: Dictionary = GFVariantData.as_dictionary(GFVariantData.get_option_value(summary_index, index, {}))
+		result.append(build_card_for_index(index, summary))
 	return result
 
 
@@ -272,11 +274,11 @@ func build_cards_from_storage(storage: GFStorageUtility, indices: Array = []) ->
 	if storage == null:
 		return []
 
-	var summaries := storage.list_slots()
-	var target_indices := indices.duplicate()
+	var summaries: Array = storage.list_slots()
+	var target_indices: Array = indices.duplicate()
 	if target_indices.is_empty():
 		for summary: Dictionary in summaries:
-			var summary_index := _get_summary_slot_index(summary)
+			var summary_index: int = _get_summary_slot_index(summary)
 			if summary_index >= 0:
 				target_indices.append(summary_index)
 	return build_cards_for_indices(target_indices, summaries)
@@ -285,26 +287,28 @@ func build_cards_from_storage(storage: GFStorageUtility, indices: Array = []) ->
 # --- 私有/辅助方法 ---
 
 func _new_metadata() -> GFSaveSlotMetadata:
-	var metadata: Variant = metadata_script.new() if metadata_script != null else GFSaveSlotMetadata.new()
+	var metadata: Variant = metadata_script.call("new") if metadata_script != null else GFSaveSlotMetadata.new()
 	if metadata is GFSaveSlotMetadata:
-		return metadata as GFSaveSlotMetadata
+		var typed_metadata: GFSaveSlotMetadata = metadata
+		return typed_metadata
 	return GFSaveSlotMetadata.new()
 
 
 func _new_card() -> GFSaveSlotCard:
-	var card: Variant = card_script.new() if card_script != null else GFSaveSlotCard.new()
+	var card: Variant = card_script.call("new") if card_script != null else GFSaveSlotCard.new()
 	if card is GFSaveSlotCard:
-		return card as GFSaveSlotCard
+		var typed_card: GFSaveSlotCard = card
+		return typed_card
 	return GFSaveSlotCard.new()
 
 
 func _index_summaries(summaries: Array) -> Dictionary:
 	var result: Dictionary = {}
 	for summary_variant: Variant in summaries:
-		var summary := summary_variant as Dictionary
-		if summary == null:
+		if not (summary_variant is Dictionary):
 			continue
-		var index := _get_summary_slot_index(summary)
+		var summary: Dictionary = GFVariantData.as_dictionary(summary_variant)
+		var index: int = _get_summary_slot_index(summary)
 		if index >= 0:
 			result[index] = summary
 	return result
@@ -312,34 +316,34 @@ func _index_summaries(summaries: Array) -> Dictionary:
 
 func _get_summary_slot_index(summary: Dictionary) -> int:
 	if summary.has("slot_index"):
-		return int(summary.get("slot_index", -1))
+		return GFVariantData.get_option_int(summary, "slot_index", -1)
 
-	var slot_id: Variant = summary.get("slot_id", null)
+	var slot_id: Variant = GFVariantData.get_option_value(summary, "slot_id")
 	if slot_id == null:
 		return -1
 	if slot_id is int or slot_id is float:
-		return int(slot_id)
+		return GFVariantData.to_int(slot_id)
 
-	var slot_id_text := String(slot_id)
+	var slot_id_text: String = GFVariantData.to_text(slot_id)
 	if slot_id_text.is_valid_int():
 		return slot_id_text.to_int()
 	return _parse_slot_index_from_id(slot_id_text)
 
 
 func _parse_slot_index_from_id(slot_id: String) -> int:
-	var marker := "{index}"
-	var marker_index := slot_id_template.find(marker)
+	var marker: String = "{index}"
+	var marker_index: int = slot_id_template.find(marker)
 	if marker_index >= 0:
-		var prefix := slot_id_template.substr(0, marker_index)
-		var suffix := slot_id_template.substr(marker_index + marker.length())
+		var prefix: String = slot_id_template.substr(0, marker_index)
+		var suffix: String = slot_id_template.substr(marker_index + marker.length())
 		if slot_id.begins_with(prefix) and slot_id.ends_with(suffix):
-			var index_text := slot_id.trim_prefix(prefix).trim_suffix(suffix)
+			var index_text: String = slot_id.trim_prefix(prefix).trim_suffix(suffix)
 			if index_text.is_valid_int():
 				return index_text.to_int()
 
-	var digits := ""
-	for i in range(slot_id.length() - 1, -1, -1):
-		var character := slot_id.substr(i, 1)
+	var digits: String = ""
+	for i: int in range(slot_id.length() - 1, -1, -1):
+		var character: String = slot_id.substr(i, 1)
 		if not character.is_valid_int():
 			break
 		digits = character + digits

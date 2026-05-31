@@ -13,14 +13,14 @@ extends Window
 ## @api framework_internal
 ## [br]
 ## @layer kernel/editor
-const DEFAULT_WINDOW_SIZE := Vector2i(1180, 760)
+const DEFAULT_WINDOW_SIZE: Vector2i = Vector2i(1180, 760)
 
 ## 最小窗口尺寸。
 ## [br]
 ## @api framework_internal
 ## [br]
 ## @layer kernel/editor
-const MIN_WINDOW_SIZE := Vector2i(900, 560)
+const MIN_WINDOW_SIZE: Vector2i = Vector2i(900, 560)
 
 ## 窗口标题。
 ## [br]
@@ -35,6 +35,7 @@ const WINDOW_TITLE: String = "GF Workspace"
 ## [br]
 ## @layer kernel/editor
 const GFEditorWorkspaceDockBase = preload("res://addons/gf/kernel/editor/gf_editor_workspace_dock.gd")
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
 
 
 # --- 私有变量 ---
@@ -53,7 +54,7 @@ func _init() -> void:
 	exclusive = false
 	wrap_controls = true
 	visible = false
-	close_requested.connect(_on_close_requested)
+	var _connect_result_57: Variant = close_requested.connect(_on_close_requested)
 	_build_ui()
 
 
@@ -82,7 +83,7 @@ func setup(dock_records: Array[Dictionary]) -> void:
 func popup_workspace() -> void:
 	if size.x <= 0 or size.y <= 0:
 		size = DEFAULT_WINDOW_SIZE
-	var restore_always_on_top := always_on_top
+	var restore_always_on_top: bool = always_on_top
 	if restore_always_on_top:
 		always_on_top = false
 		_prepare_always_on_top_window()
@@ -111,7 +112,7 @@ func hide_workspace() -> void:
 ## @return 页面数量。
 func get_page_count() -> int:
 	if _workspace != null and _workspace.has_method("get_page_count"):
-		return int(_workspace.call("get_page_count"))
+		return _GF_VARIANT_ACCESS_SCRIPT.to_int(_workspace.call("get_page_count"))
 	return 0
 
 
@@ -124,7 +125,10 @@ func get_page_count() -> int:
 ## @return 页面标题。
 func get_page_titles() -> PackedStringArray:
 	if _workspace != null and _workspace.has_method("get_page_titles"):
-		return _workspace.call("get_page_titles") as PackedStringArray
+		var titles: Variant = _workspace.call("get_page_titles")
+		if titles is PackedStringArray:
+			var packed_titles: PackedStringArray = titles
+			return packed_titles
 	return PackedStringArray()
 
 

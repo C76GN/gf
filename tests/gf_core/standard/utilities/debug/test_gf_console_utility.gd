@@ -24,9 +24,9 @@ func after_each() -> void:
 
 
 func test_register_command() -> void:
-	var called := {"count": 0}
-	var cb := func(_args: PackedStringArray) -> void:
-		called["count"] += 1
+	var called: CommandCallState = CommandCallState.new()
+	var cb: Callable = func(_args: PackedStringArray) -> void:
+		called.count += 1
 
 	_console.register_command("test_cmd", cb, "测试指令。")
 	assert_true(_console.has_command("test_cmd"), "register_command 后应记录命令。")
@@ -41,15 +41,16 @@ func test_builtin_clear_registered() -> void:
 
 
 func test_builtin_scene_commands_registered_as_observe() -> void:
-	var catalog := _console.get_command_catalog()
+	var catalog: Dictionary = _console.get_command_catalog()
+	var scene_tree_entry: Dictionary = GFVariantData.get_option_dictionary(catalog, "scene.tree")
 
 	assert_true(_console.has_command("scene.tree"), "init 后应注册只读场景树指令。")
 	assert_true(_console.has_command("scene.node"), "init 后应注册只读节点查看指令。")
-	assert_eq(catalog["scene.tree"]["tier"], GFConsoleUtility.CommandTier.OBSERVE, "scene.tree 应是观察级命令。")
+	assert_eq(GFVariantData.get_option_int(scene_tree_entry, "tier"), GFConsoleUtility.CommandTier.OBSERVE, "scene.tree 应是观察级命令。")
 
 
 func test_unregister_command() -> void:
-	var cb := func(_args: PackedStringArray) -> void:
+	var cb: Callable = func(_args: PackedStringArray) -> void:
 		pass
 
 	_console.register_command("temp_cmd", cb, "临时指令。")
@@ -60,24 +61,24 @@ func test_unregister_command() -> void:
 
 
 func test_get_command_names_returns_sorted_names() -> void:
-	var cb := func(_args: PackedStringArray) -> void:
+	var cb: Callable = func(_args: PackedStringArray) -> void:
 		pass
 
 	_console.register_command("zeta", cb, "Z。")
 	_console.register_command("alpha", cb, "A。")
-	var names := _console.get_command_names()
+	var names: PackedStringArray = _console.get_command_names()
 
 	assert_true(names.find("alpha") < names.find("zeta"), "命令名应按字典序返回。")
 
 
 func test_suggest_commands_filters_by_prefix() -> void:
-	var cb := func(_args: PackedStringArray) -> void:
+	var cb: Callable = func(_args: PackedStringArray) -> void:
 		pass
 
 	_console.register_command("teleport", cb, "传送。")
 	_console.register_command("time_scale", cb, "时间。")
 	_console.register_command("spawn", cb, "生成。")
-	var suggestions := _console.suggest_commands("t")
+	var suggestions: PackedStringArray = _console.suggest_commands("t")
 
 	assert_true(suggestions.has("teleport"), "前缀匹配应返回 teleport。")
 	assert_true(suggestions.has("time_scale"), "前缀匹配应返回 time_scale。")
@@ -85,37 +86,37 @@ func test_suggest_commands_filters_by_prefix() -> void:
 
 
 func test_suggest_similar_commands_returns_likely_matches() -> void:
-	var cb := func(_args: PackedStringArray) -> void:
+	var cb: Callable = func(_args: PackedStringArray) -> void:
 		pass
 
 	_console.register_command("teleport", cb, "传送。")
 	_console.register_command("time_scale", cb, "时间。")
-	var suggestions := _console.suggest_similar_commands("teleprt")
+	var suggestions: PackedStringArray = _console.suggest_similar_commands("teleprt")
 
 	assert_gt(suggestions.size(), 0, "拼写接近已注册命令时应返回候选。")
 	assert_eq(suggestions[0], "teleport", "最接近的命令应排在第一位。")
 
 
 func test_execute_command_calls_callback() -> void:
-	var called := {"count": 0}
-	var cb := func(_args: PackedStringArray) -> void:
-		called["count"] += 1
+	var called: CommandCallState = CommandCallState.new()
+	var cb: Callable = func(_args: PackedStringArray) -> void:
+		called.count += 1
 
 	_console.register_command("inc", cb, "递增计数器。")
 	var result: bool = _console.execute_command("inc")
 
 	assert_true(result, "已注册指令执行后应返回 true。")
-	assert_eq(called["count"], 1, "回调应被调用一次。")
+	assert_eq(called.count, 1, "回调应被调用一次。")
 
 
 func test_execute_command_passes_args() -> void:
-	var captured_args := PackedStringArray()
-	var cb := func(args: PackedStringArray) -> void:
+	var captured_args: PackedStringArray = PackedStringArray()
+	var cb: Callable = func(args: PackedStringArray) -> void:
 		for a: String in args:
-			captured_args.append(a)
+			var _append_result_116: Variant = captured_args.append(a)
 
 	_console.register_command("echo", cb, "回显参数。")
-	_console.execute_command("echo hello world")
+	var _execute_command_result_119: Variant = _console.execute_command("echo hello world")
 
 	assert_eq(captured_args.size(), 2, "参数数量应为 2。")
 	assert_eq(captured_args[0], "hello", "第一个参数应为 hello。")
@@ -123,22 +124,22 @@ func test_execute_command_passes_args() -> void:
 
 
 func test_execute_command_supports_quotes_and_escapes() -> void:
-	var captured_args := PackedStringArray()
-	var cb := func(args: PackedStringArray) -> void:
+	var captured_args: PackedStringArray = PackedStringArray()
+	var cb: Callable = func(args: PackedStringArray) -> void:
 		for a: String in args:
-			captured_args.append(a)
+			var _append_result_130: Variant = captured_args.append(a)
 
 	_console.register_command("echo", cb, "回显参数。")
-	_console.execute_command("echo \"red potion\" path\\ with\\ spaces ''")
+	var _execute_command_result_133: Variant = _console.execute_command("echo \"red potion\" path\\ with\\ spaces ''")
 
 	assert_eq(captured_args, PackedStringArray(["red potion", "path with spaces", ""]), "命令解析应支持引号、转义空格和空字符串参数。")
 
 
 func test_danger_command_requires_tier_and_confirmation() -> void:
-	var called := { "count": 0, "args": PackedStringArray() }
-	var cb := func(args: PackedStringArray) -> void:
-		called["count"] += 1
-		called["args"] = args
+	var called: CommandCallState = CommandCallState.new()
+	var cb: Callable = func(args: PackedStringArray) -> void:
+		called.count += 1
+		called.args = args
 
 	_console.register_command("wipe", cb, "危险指令。", { "tier": GFConsoleUtility.CommandTier.DANGER })
 
@@ -146,23 +147,23 @@ func test_danger_command_requires_tier_and_confirmation() -> void:
 	_console.max_command_tier = GFConsoleUtility.CommandTier.DANGER
 	assert_false(_console.execute_command("wipe"), "DANGER 指令缺少确认参数时不应执行。")
 	assert_true(_console.execute_command("wipe --confirm slot_1"), "DANGER 指令带确认参数后应执行。")
-	assert_eq(called["count"], 1, "危险指令只应成功执行一次。")
-	assert_eq(called["args"], PackedStringArray(["slot_1"]), "确认参数不应传入业务回调。")
+	assert_eq(called.count, 1, "危险指令只应成功执行一次。")
+	assert_eq(called.args, PackedStringArray(["slot_1"]), "确认参数不应传入业务回调。")
 
 
 func test_register_command_definition_registers_aliases() -> void:
-	var definition := GFConsoleCommandDefinition.new()
+	var definition: GFConsoleCommandDefinition = GFConsoleCommandDefinition.new()
 	definition.command_name = "primary"
 	definition.aliases = PackedStringArray(["alias"])
-	var called := { "count": 0 }
-	var cb := func(_args: PackedStringArray) -> void:
-		called["count"] += 1
+	var called: CommandCallState = CommandCallState.new()
+	var cb: Callable = func(_args: PackedStringArray) -> void:
+		called.count += 1
 
 	_console.register_command_definition(definition, cb)
-	var result := _console.execute_command("alias")
+	var result: bool = _console.execute_command("alias")
 
 	assert_true(result, "资源化命令别名应可执行。")
-	assert_eq(called["count"], 1, "别名应调用同一回调。")
+	assert_eq(called.count, 1, "别名应调用同一回调。")
 
 
 func test_execute_unknown_command_returns_false() -> void:
@@ -186,7 +187,7 @@ func test_console_output_keeps_max_lines() -> void:
 	_console.append_output_line("line-2")
 	_console.append_output_line("line-3")
 	_console.flush_output()
-	var output_lines := _get_console_output_lines()
+	var output_lines: PackedStringArray = _get_console_output_lines()
 
 	assert_eq(output_lines.size(), 2, "控制台输出应按上限裁剪。")
 	assert_eq(output_lines[0], "line-2", "控制台应丢弃最旧输出。")
@@ -199,17 +200,17 @@ func test_console_output_batches_until_flush() -> void:
 	assert_eq(_get_console_output_lines().size(), 0, "批量刷新前不应立即重绘输出。")
 
 	_console.flush_output()
-	var output_lines := _get_console_output_lines()
+	var output_lines: PackedStringArray = _get_console_output_lines()
 
 	assert_eq(output_lines.size(), 1, "flush 后应写入待输出行。")
 	assert_eq(output_lines[0], "batched", "flush 后应保留待输出内容。")
 
 
 func test_scene_tree_command_outputs_readonly_summary() -> void:
-	var previous_scene := get_tree().current_scene
-	var root := Node.new()
+	var previous_scene: Node = get_tree().current_scene
+	var root: Node = Node.new()
 	root.name = "ConsoleSceneRoot"
-	var child := Node.new()
+	var child: Node = Node.new()
 	child.name = "Child"
 	root.add_child(child)
 	get_tree().root.add_child(root)
@@ -217,7 +218,7 @@ func test_scene_tree_command_outputs_readonly_summary() -> void:
 
 	assert_true(_console.execute_command("scene.tree 1 10"), "scene.tree 指令应可执行。")
 	_console.flush_output()
-	var output := "\n".join(_get_console_output_lines())
+	var output: String = "\n".join(_get_console_output_lines())
 
 	assert_true(output.contains("ConsoleSceneRoot"), "场景树输出应包含当前场景根节点。")
 	assert_true(output.contains("Child"), "场景树输出应包含子节点。")
@@ -227,10 +228,10 @@ func test_scene_tree_command_outputs_readonly_summary() -> void:
 
 
 func test_scene_node_command_outputs_node_summary() -> void:
-	var previous_scene := get_tree().current_scene
-	var root := Node.new()
+	var previous_scene: Node = get_tree().current_scene
+	var root: Node = Node.new()
 	root.name = "ConsoleNodeRoot"
-	var child := Node.new()
+	var child: Node = Node.new()
 	child.name = "Target"
 	root.add_child(child)
 	get_tree().root.add_child(root)
@@ -238,7 +239,7 @@ func test_scene_node_command_outputs_node_summary() -> void:
 
 	assert_true(_console.execute_command("scene.node Target"), "scene.node 指令应可执行。")
 	_console.flush_output()
-	var output := "\n".join(_get_console_output_lines())
+	var output: String = "\n".join(_get_console_output_lines())
 
 	assert_true(output.contains("Target"), "节点摘要应包含目标节点路径或名称。")
 	assert_true(output.contains("type:"), "节点摘要应包含类型字段。")
@@ -250,7 +251,7 @@ func test_scene_node_command_outputs_node_summary() -> void:
 func test_console_escapes_log_bbcode_and_handles_negative_level() -> void:
 	_console._on_log_emitted(-1, "[tag]", "[b]message[/b]")
 	_console.flush_output()
-	var line := String(_get_console_output_lines()[0])
+	var line: String = String(_get_console_output_lines()[0])
 
 	assert_true(line.contains("UNKNOWN"), "非法日志等级应显示为 UNKNOWN。")
 	assert_false(line.contains("[b]message[/b]"), "日志正文中的 BBCode 不应被原样注入 RichText。")
@@ -270,47 +271,47 @@ func test_console_history_keeps_max_entries() -> void:
 func test_console_background_alpha_updates_gui() -> void:
 	_console.background_alpha = 0.42
 
-	var gui_snapshot := _get_console_gui_snapshot()
+	var gui_snapshot: Dictionary = _get_console_gui_snapshot()
 	assert_almost_eq(_console.background_alpha, 0.42, 0.001, "控制台透明度配置应保存在工具上。")
-	assert_almost_eq(float(gui_snapshot["background_alpha"]), 0.42, 0.001, "控制台透明度配置应同步到 GUI。")
-	assert_almost_eq(float(gui_snapshot["panel_background_alpha"]), 0.42, 0.001, "GUI 背景样式应立即应用透明度。")
+	assert_almost_eq(GFVariantData.get_option_float(gui_snapshot, "background_alpha"), 0.42, 0.001, "控制台透明度配置应同步到 GUI。")
+	assert_almost_eq(GFVariantData.get_option_float(gui_snapshot, "panel_background_alpha"), 0.42, 0.001, "GUI 背景样式应立即应用透明度。")
 
 
 func test_console_background_alpha_is_clamped() -> void:
 	_console.background_alpha = 2.0
 
-	var gui_snapshot := _get_console_gui_snapshot()
+	var gui_snapshot: Dictionary = _get_console_gui_snapshot()
 	assert_almost_eq(_console.background_alpha, 1.0, 0.001, "透明度上限应被钳制为 1。")
-	assert_almost_eq(float(gui_snapshot["panel_background_alpha"]), 1.0, 0.001, "GUI 样式透明度也应应用钳制结果。")
+	assert_almost_eq(GFVariantData.get_option_float(gui_snapshot, "panel_background_alpha"), 1.0, 0.001, "GUI 样式透明度也应应用钳制结果。")
 
 
 func test_console_windowed_mode_uses_panel_layout_and_resize_handle() -> void:
 	_console.windowed = true
-	var gui_snapshot := _get_console_gui_snapshot()
+	var gui_snapshot: Dictionary = _get_console_gui_snapshot()
 
-	assert_true(bool(gui_snapshot["windowed"]), "窗口模式配置应同步到 GUI。")
-	assert_true(bool(gui_snapshot["resize_handle_visible"]), "窗口模式应显示缩放手柄。")
-	var panel_size := gui_snapshot["panel_size"] as Vector2
+	assert_true(GFVariantData.get_option_bool(gui_snapshot, "windowed"), "窗口模式配置应同步到 GUI。")
+	assert_true(GFVariantData.get_option_bool(gui_snapshot, "resize_handle_visible"), "窗口模式应显示缩放手柄。")
+	var panel_size: Vector2 = GFVariantData.get_option_vector2(gui_snapshot, "panel_size")
 	assert_gt(panel_size.x, 0.0, "窗口模式应给面板设置有效宽度。")
 	assert_gt(panel_size.y, 0.0, "窗口模式应给面板设置有效高度。")
 
 
 func test_console_keep_topmost_updates_layer() -> void:
 	_console.keep_topmost = false
-	assert_eq(_get_console_gui_snapshot()["layer"], 1, "关闭 keep_topmost 后应使用普通层级。")
+	assert_eq(GFVariantData.get_option_int(_get_console_gui_snapshot(), "layer"), 1, "关闭 keep_topmost 后应使用普通层级。")
 
 	_console.keep_topmost = true
-	assert_eq(_get_console_gui_snapshot()["layer"], 150, "开启 keep_topmost 后应使用高层级。")
+	assert_eq(GFVariantData.get_option_int(_get_console_gui_snapshot(), "layer"), 150, "开启 keep_topmost 后应使用高层级。")
 
 
 func test_console_is_debug_only_by_default() -> void:
-	var console := GFConsoleUtility.new()
+	var console: GFConsoleUtility = GFConsoleUtility.new()
 
 	assert_true(console.debug_only, "控制台默认应只在 debug 构建启用。")
 
 
 func test_dispose_detaches_console_gui_immediately() -> void:
-	var gui := _console._console_gui
+	var gui: CanvasLayer = _console._console_gui
 
 	_console.dispose()
 	_console = null
@@ -322,31 +323,46 @@ func test_dispose_detaches_console_gui_immediately() -> void:
 
 
 func test_dispose_disconnects_log_signal() -> void:
-	var arch := GFArchitecture.new()
-	var log_util := GFLogUtility.new()
-	var console := GFConsoleUtility.new()
+	var arch: GFArchitecture = GFArchitecture.new()
+	var log_util: GFLogUtility = GFLogUtility.new()
+	var console: GFConsoleUtility = GFConsoleUtility.new()
 
-	arch.register_utility_instance(log_util)
-	arch.register_utility_instance(console)
+	await arch.register_utility_instance(log_util)
+	await arch.register_utility_instance(console)
 	await Gf.set_architecture(arch)
 
-	var log_callable := Callable(console, "_on_log_emitted")
+	var log_callable: Callable = Callable(console, "_on_log_emitted")
 	assert_true(log_util.log_emitted.is_connected(log_callable), "ready 后控制台应连接日志信号。")
 
-	arch.unregister_utility(console.get_script() as Script)
+	arch.unregister_utility(_script_from_object(console))
 	assert_false(log_util.log_emitted.is_connected(log_callable), "dispose 后应断开日志信号，避免悬挂监听。")
 
 
 func _get_console_gui_snapshot() -> Dictionary:
-	var snapshot := _console.get_debug_snapshot()
-	return snapshot.get("gui", {}) as Dictionary
+	var snapshot: Dictionary = _console.get_debug_snapshot()
+	return GFVariantData.get_option_dictionary(snapshot, "gui")
 
 
 func _get_console_output_lines() -> PackedStringArray:
-	var gui_snapshot := _get_console_gui_snapshot()
-	return gui_snapshot.get("output_lines", PackedStringArray()) as PackedStringArray
+	var gui_snapshot: Dictionary = _get_console_gui_snapshot()
+	return GFVariantData.get_option_packed_string_array(gui_snapshot, "output_lines")
 
 
 func _get_console_command_history() -> PackedStringArray:
-	var gui_snapshot := _get_console_gui_snapshot()
-	return gui_snapshot.get("command_history", PackedStringArray()) as PackedStringArray
+	var gui_snapshot: Dictionary = _get_console_gui_snapshot()
+	return GFVariantData.get_option_packed_string_array(gui_snapshot, "command_history")
+
+
+func _script_from_object(object: Object) -> Script:
+	var script_value: Variant = object.get_script()
+	if script_value is Script:
+		var script: Script = script_value
+		return script
+	return null
+
+
+# --- 内部类 ---
+
+class CommandCallState:
+	var count: int = 0
+	var args: PackedStringArray = PackedStringArray()

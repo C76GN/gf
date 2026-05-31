@@ -131,7 +131,7 @@ func _exit_tree() -> void:
 func get_target_node() -> Node3D:
 	if target_path.is_empty():
 		return null
-	return get_node_or_null(target_path) as Node3D
+	return _get_node_3d_value(get_node_or_null(target_path))
 
 
 ## 获取朝向目标。
@@ -142,7 +142,7 @@ func get_target_node() -> Node3D:
 func get_look_at_target_node() -> Node3D:
 	if look_at_target_path.is_empty():
 		return null
-	return get_node_or_null(look_at_target_path) as Node3D
+	return _get_node_3d_value(get_node_or_null(look_at_target_path))
 
 
 ## 获取当前期望相机 Transform。
@@ -151,24 +151,24 @@ func get_look_at_target_node() -> Node3D:
 ## [br]
 ## @return 期望全局 Transform。
 func get_camera_transform() -> Transform3D:
-	var target := get_target_node()
-	var transform := global_transform
+	var target: Node3D = get_target_node()
+	var camera_transform: Transform3D = global_transform
 	if target != null:
-		transform.origin = target.global_transform.origin
+		camera_transform.origin = target.global_transform.origin
 		if use_target_rotation:
-			transform.basis = target.global_transform.basis
+			camera_transform.basis = target.global_transform.basis
 
-	var effective_offset := transform.basis * offset if offset_follows_rotation else offset
-	transform.origin += effective_offset
+	var effective_offset: Vector3 = camera_transform.basis * offset if offset_follows_rotation else offset
+	camera_transform.origin += effective_offset
 	if look_at_enabled:
-		var look_at_target := get_look_at_target_node()
-		if look_at_target != null and not transform.origin.is_equal_approx(look_at_target.global_position):
-			transform = transform.looking_at(look_at_target.global_position, _get_safe_up_axis())
+		var look_at_target: Node3D = get_look_at_target_node()
+		if look_at_target != null and not camera_transform.origin.is_equal_approx(look_at_target.global_position):
+			camera_transform = camera_transform.looking_at(look_at_target.global_position, _get_safe_up_axis())
 	if rotation_degrees_offset != Vector3.ZERO:
-		transform.basis = transform.basis.rotated(transform.basis.x.normalized(), deg_to_rad(rotation_degrees_offset.x))
-		transform.basis = transform.basis.rotated(transform.basis.y.normalized(), deg_to_rad(rotation_degrees_offset.y))
-		transform.basis = transform.basis.rotated(transform.basis.z.normalized(), deg_to_rad(rotation_degrees_offset.z))
-	return transform
+		camera_transform.basis = camera_transform.basis.rotated(camera_transform.basis.x.normalized(), deg_to_rad(rotation_degrees_offset.x))
+		camera_transform.basis = camera_transform.basis.rotated(camera_transform.basis.y.normalized(), deg_to_rad(rotation_degrees_offset.y))
+		camera_transform.basis = camera_transform.basis.rotated(camera_transform.basis.z.normalized(), deg_to_rad(rotation_degrees_offset.z))
+	return camera_transform
 
 
 ## 检查 Rig 是否可被选择。
@@ -186,3 +186,10 @@ func _get_safe_up_axis() -> Vector3:
 	if up_axis.length_squared() <= 0.000001:
 		return Vector3.UP
 	return up_axis.normalized()
+
+
+func _get_node_3d_value(value: Variant) -> Node3D:
+	if value is Node3D:
+		var node: Node3D = value
+		return node
+	return null

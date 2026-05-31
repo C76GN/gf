@@ -100,7 +100,5 @@ func get_actor_value(actor: Object, key: StringName, fallback: Variant = null) -
 	if actor.has_method("get_turn_value"):
 		return actor.call("get_turn_value", key, fallback)
 
-	var property_name := String(key)
-	if property_name in actor:
-		return actor.get(property_name)
-	return fallback
+	var property_name: StringName = key
+	return GFObjectPropertyTools.read_property(actor, NodePath(String(property_name)), fallback)

@@ -22,7 +22,7 @@ const _NOISY_UNCONNECTED_SIGNAL_NAMES: Array[StringName] = [
 	&"draw",
 ]
 const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
-const _EDITOR_WORKSPACE_UI := preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
+const _EDITOR_WORKSPACE_UI = preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
 
 
 # --- 私有变量 ---
@@ -80,7 +80,7 @@ func set_graph_source(root: Node) -> void:
 ## @param root: 可选根节点；为空时使用 set_graph_source() 或当前编辑场景根节点。
 func refresh(root: Node = null) -> void:
 	_build_ui()
-	var target_root := root if root != null else _resolve_root()
+	var target_root: Node = root if root != null else _resolve_root()
 	if target_root == null:
 		_last_graph = {
 			"ok": false,
@@ -151,7 +151,7 @@ func get_recent_events() -> Array[Dictionary]:
 func get_debug_snapshot() -> Dictionary:
 	_build_ui()
 	_render_events()
-	var root_box: Control = (get_child(0) as Control) if get_child_count() > 0 else null
+	var root_box: Control = _get_root_control()
 	return {
 		"graph": get_last_graph(),
 		"recent_events": get_recent_events(),
@@ -177,20 +177,38 @@ func get_debug_snapshot() -> Dictionary:
 
 # --- 私有/辅助方法 ---
 
+func _get_root_control() -> Control:
+	if get_child_count() <= 0:
+		return null
+	var child: Node = get_child(0)
+	if child is Control:
+		var control: Control = child
+		return control
+	return null
+
+
+func _get_main_scene_tree() -> SceneTree:
+	var main_loop: MainLoop = Engine.get_main_loop()
+	if main_loop is SceneTree:
+		var tree: SceneTree = main_loop
+		return tree
+	return null
+
+
 func _build_ui() -> void:
 	if _tree != null:
 		return
 
 	_EDITOR_WORKSPACE_UI.apply_page_root(self)
 
-	var root_box := VBoxContainer.new()
+	var root_box: VBoxContainer = VBoxContainer.new()
 	root_box.clip_contents = true
 	root_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	root_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	add_child(root_box)
 	root_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
-	var toolbar := _EDITOR_WORKSPACE_UI.make_toolbar()
+	var toolbar: HBoxContainer = _EDITOR_WORKSPACE_UI.make_toolbar()
 	root_box.add_child(toolbar)
 
 	toolbar.add_child(_EDITOR_WORKSPACE_UI.make_button("刷新", "重新读取当前场景信号连接。", refresh))
@@ -199,19 +217,19 @@ func _build_ui() -> void:
 	_persistent_only_check.text = "保存连接"
 	_persistent_only_check.tooltip_text = "只显示场景文件中保存的信号连接。"
 	_persistent_only_check.button_pressed = true
-	_persistent_only_check.toggled.connect(_on_option_toggled)
+	_connect_signal(_persistent_only_check.toggled, _on_option_toggled)
 	toolbar.add_child(_persistent_only_check)
 
 	_include_empty_check = CheckBox.new()
 	_include_empty_check.text = "未连接信号"
 	_include_empty_check.tooltip_text = "没有连接目标的节点信号也显示出来。"
-	_include_empty_check.toggled.connect(_on_option_toggled)
+	_connect_signal(_include_empty_check.toggled, _on_option_toggled)
 	toolbar.add_child(_include_empty_check)
 
 	_live_check = CheckBox.new()
 	_live_check.text = "追踪发射"
 	_live_check.tooltip_text = "开启后记录连接页当前可见信号的发射。"
-	_live_check.toggled.connect(_on_live_toggled)
+	_connect_signal(_live_check.toggled, _on_live_toggled)
 	toolbar.add_child(_live_check)
 
 	_clear_events_button = _EDITOR_WORKSPACE_UI.make_button("清空记录", "清空信号发射记录。", _on_clear_events_pressed)
@@ -221,12 +239,12 @@ func _build_ui() -> void:
 	_filter_edit = LineEdit.new()
 	_filter_edit.placeholder_text = "筛选节点、信号或方法"
 	_filter_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_filter_edit.text_changed.connect(_on_filter_text_changed)
+	_connect_signal(_filter_edit.text_changed, _on_filter_text_changed)
 	toolbar.add_child(_filter_edit)
 
 	_details_toggle = CheckBox.new()
 	_details_toggle.text = "详情"
-	_details_toggle.toggled.connect(_on_details_toggled)
+	_connect_signal(_details_toggle.toggled, _on_details_toggled)
 	toolbar.add_child(_details_toggle)
 
 	_summary_label = _EDITOR_WORKSPACE_UI.make_summary_label()
@@ -241,7 +259,7 @@ func _build_ui() -> void:
 	_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root_box.add_child(_tabs)
 
-	var connection_page := VBoxContainer.new()
+	var connection_page: VBoxContainer = VBoxContainer.new()
 	connection_page.name = "连接"
 	connection_page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	connection_page.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -254,10 +272,10 @@ func _build_ui() -> void:
 	connection_page.add_child(_empty_state_label)
 
 	_tree = _make_tree(["来源", "信号", "目标", "方法"])
-	_tree.item_selected.connect(_on_tree_item_selected)
+	_connect_signal(_tree.item_selected, _on_tree_item_selected)
 	connection_page.add_child(_tree)
 
-	var event_page := VBoxContainer.new()
+	var event_page: VBoxContainer = VBoxContainer.new()
 	event_page.name = "发射记录"
 	event_page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	event_page.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -268,7 +286,7 @@ func _build_ui() -> void:
 	event_page.add_child(_event_empty_state_label)
 
 	_event_tree = _make_tree(["时间", "来源", "信号", "参数"])
-	_event_tree.item_selected.connect(_on_event_tree_item_selected)
+	_connect_signal(_event_tree.item_selected, _on_event_tree_item_selected)
 	event_page.add_child(_event_tree)
 
 	_details = _EDITOR_WORKSPACE_UI.make_details_output()
@@ -277,7 +295,7 @@ func _build_ui() -> void:
 
 
 func _make_tree(titles: Array[String]) -> Tree:
-	var tree := Tree.new()
+	var tree: Tree = Tree.new()
 	tree.columns = titles.size()
 	tree.hide_root = true
 	tree.column_titles_visible = true
@@ -292,17 +310,17 @@ func _make_tree(titles: Array[String]) -> Tree:
 
 func _resolve_root() -> Node:
 	if _root_ref != null:
-		var existing: Node = _INSTANCE_GUARD._get_live_node_from_ref(_root_ref)
+		var existing: Node = _get_live_node_from_ref(_root_ref)
 		if existing != null:
 			return existing
 
 	if Engine.is_editor_hint():
-		var edited_root := EditorInterface.get_edited_scene_root()
+		var edited_root: Node = EditorInterface.get_edited_scene_root()
 		if edited_root != null:
 			return edited_root
 		return _resolve_selected_scene_node()
 
-	var tree := Engine.get_main_loop() as SceneTree
+	var tree: SceneTree = _get_main_scene_tree()
 	if tree == null:
 		return null
 	return tree.current_scene if tree.current_scene != null else tree.root
@@ -313,8 +331,12 @@ func _render_graph() -> void:
 		return
 
 	_tree.clear()
-	if not bool(_last_graph.get("ok", false)):
-		_EDITOR_WORKSPACE_UI.set_status(_summary_label, String(_last_graph.get("message", "信号图不可用。")), _EDITOR_WORKSPACE_UI.WARNING_TEXT_COLOR)
+	if not GFVariantData.get_option_bool(_last_graph, "ok", false):
+		_EDITOR_WORKSPACE_UI.set_status(
+			_summary_label,
+			GFVariantData.get_option_string(_last_graph, "message", "信号图不可用。"),
+			_EDITOR_WORKSPACE_UI.WARNING_TEXT_COLOR
+		)
 		_tree.visible = false
 		_empty_state_label.visible = true
 		_empty_state_label.text = "打开一个场景，或在场景树中选中节点后点击刷新。"
@@ -322,10 +344,10 @@ func _render_graph() -> void:
 		_render_events()
 		return
 
-	var connection_total := int(_last_graph.get("connection_count", 0))
-	var signal_total := int(_last_graph.get("signal_count", 0))
+	var connection_total: int = GFVariantData.get_option_int(_last_graph, "connection_count", 0)
+	var signal_total: int = GFVariantData.get_option_int(_last_graph, "signal_count", 0)
 	_summary_label.text = "节点：%d  信号：%d  连接：%d  发射记录：%d" % [
-		int(_last_graph.get("node_count", 0)),
+		GFVariantData.get_option_int(_last_graph, "node_count", 0),
 		signal_total,
 		connection_total,
 		_last_events.size(),
@@ -340,28 +362,28 @@ func _render_graph() -> void:
 		_render_events()
 		return
 
-	var root_item := _tree.create_item()
-	var visible_count := 0
-	for connection_variant: Variant in _last_graph.get("connections", []):
-		var connection := connection_variant as Dictionary
-		if connection == null or not _matches_filter(connection):
+	var root_item: TreeItem = _tree.create_item()
+	var visible_count: int = 0
+	for connection_variant: Variant in GFVariantData.get_option_array(_last_graph, "connections"):
+		var connection: Dictionary = GFVariantData.as_dictionary(connection_variant)
+		if connection.is_empty() or not _matches_filter(connection):
 			continue
-		var item := _tree.create_item(root_item)
-		item.set_text(0, String(connection.get("source_node_path", "")))
-		item.set_text(1, String(connection.get("signal_name", "")))
-		item.set_text(2, String(connection.get("target_node_path", "")))
-		item.set_text(3, String(connection.get("method_name", "")))
+		var item: TreeItem = _tree.create_item(root_item)
+		item.set_text(0, GFVariantData.get_option_string(connection, "source_node_path", ""))
+		item.set_text(1, GFVariantData.get_option_string(connection, "signal_name", ""))
+		item.set_text(2, GFVariantData.get_option_string(connection, "target_node_path", ""))
+		item.set_text(3, GFVariantData.get_option_string(connection, "method_name", ""))
 		item.set_metadata(0, connection.duplicate(true))
 		visible_count += 1
 
 	if connection_total == 0:
-		for signal_variant: Variant in _last_graph.get("signals", []):
-			var signal_entry := signal_variant as Dictionary
-			if signal_entry == null or not _matches_filter(signal_entry):
+		for signal_variant: Variant in GFVariantData.get_option_array(_last_graph, "signals"):
+			var signal_entry: Dictionary = GFVariantData.as_dictionary(signal_variant)
+			if signal_entry.is_empty() or not _matches_filter(signal_entry):
 				continue
-			var signal_item := _tree.create_item(root_item)
-			signal_item.set_text(0, String(signal_entry.get("node_path", "")))
-			signal_item.set_text(1, String(signal_entry.get("signal_name", "")))
+			var signal_item: TreeItem = _tree.create_item(root_item)
+			signal_item.set_text(0, GFVariantData.get_option_string(signal_entry, "node_path", ""))
+			signal_item.set_text(1, GFVariantData.get_option_string(signal_entry, "signal_name", ""))
 			signal_item.set_text(2, "-")
 			signal_item.set_text(3, "-")
 			signal_item.set_metadata(0, signal_entry.duplicate(true))
@@ -380,17 +402,17 @@ func _render_events() -> void:
 
 	_event_tree.clear()
 	_clear_events_button.disabled = _last_events.is_empty()
-	var root_item := _event_tree.create_item()
-	var visible_count := 0
+	var root_item: TreeItem = _event_tree.create_item()
+	var visible_count: int = 0
 	for i: int in range(_last_events.size() - 1, -1, -1):
-		var event := _last_events[i]
+		var event: Dictionary = _last_events[i]
 		if not _matches_filter(event):
 			continue
-		var item := _event_tree.create_item(root_item)
-		item.set_text(0, str(event.get("timestamp_msec", 0)))
-		item.set_text(1, String(event.get("source_node_path", "")))
-		item.set_text(2, String(event.get("signal_name", "")))
-		item.set_text(3, _format_arguments(event.get("arguments", [])))
+		var item: TreeItem = _event_tree.create_item(root_item)
+		item.set_text(0, str(GFVariantData.get_option_int(event, "timestamp_msec", 0)))
+		item.set_text(1, GFVariantData.get_option_string(event, "source_node_path", ""))
+		item.set_text(2, GFVariantData.get_option_string(event, "signal_name", ""))
+		item.set_text(3, _format_arguments(GFVariantData.get_option_array(event, "arguments")))
 		item.set_metadata(0, event.duplicate(true))
 		visible_count += 1
 
@@ -404,15 +426,15 @@ func _resolve_selected_scene_node() -> Node:
 	if not Engine.is_editor_hint():
 		return null
 
-	var selection := EditorInterface.get_selection()
+	var selection: EditorSelection = EditorInterface.get_selection()
 	if selection == null:
 		return null
 
-	var selected_nodes := selection.get_selected_nodes()
+	var selected_nodes: Array = selection.get_selected_nodes()
 	if selected_nodes.is_empty():
 		return null
 
-	var node := selected_nodes[0] as Node
+	var node: Node = _variant_to_node(selected_nodes[0])
 	if node == null:
 		return null
 	while node.owner != null:
@@ -429,7 +451,7 @@ func _restart_live_probe_if_enabled() -> void:
 
 func _start_live_probe() -> void:
 	_stop_live_probe()
-	var target_root := _resolve_root()
+	var target_root: Node = _resolve_root()
 	if target_root == null:
 		return
 
@@ -439,14 +461,14 @@ func _start_live_probe() -> void:
 
 	_probe = GFSignalRuntimeProbe.new()
 	_probe.max_events = _MAX_EVENT_COUNT
-	_probe.signal_emitted.connect(_on_probe_signal_emitted)
-	var report := _probe.watch_tree(target_root, {
+	_connect_signal(_probe.signal_emitted, _on_probe_signal_emitted)
+	var report: Dictionary = _probe.watch_tree(target_root, {
 		"recursive": true,
 		"include_internal": false,
 		"include_signals": _live_signal_names,
 		"max_argument_count": 8,
 	})
-	_live_watch_count = int(report.get("watched_count", 0))
+	_live_watch_count = GFVariantData.get_option_int(report, "watched_count", 0)
 
 
 func _stop_live_probe() -> void:
@@ -456,7 +478,7 @@ func _stop_live_probe() -> void:
 		return
 	if _probe.signal_emitted.is_connected(_on_probe_signal_emitted):
 		_probe.signal_emitted.disconnect(_on_probe_signal_emitted)
-	_probe.unwatch_all()
+	var _removed_count: int = _probe.unwatch_all()
 	_probe = null
 
 
@@ -464,7 +486,7 @@ func _matches_filter(entry: Dictionary) -> bool:
 	if _filter_edit == null or _filter_edit.text.strip_edges().is_empty():
 		return true
 
-	var needle := _filter_edit.text.strip_edges().to_lower()
+	var needle: String = _filter_edit.text.strip_edges().to_lower()
 	for value: Variant in entry.values():
 		if str(value).to_lower().contains(needle):
 			return true
@@ -475,12 +497,12 @@ func _format_arguments(arguments: Variant) -> String:
 	if not arguments is Array:
 		return ""
 
-	var parts := PackedStringArray()
-	for argument: Variant in arguments:
-		var text := str(argument)
+	var parts: PackedStringArray = PackedStringArray()
+	for argument: Variant in GFVariantData.as_array(arguments):
+		var text: String = str(argument)
 		if text.length() > _MAX_DISPLAY_ARGUMENT_LENGTH:
 			text = text.substr(0, _MAX_DISPLAY_ARGUMENT_LENGTH) + "..."
-		parts.append(text)
+		_append_packed_string(parts, text)
 	return ", ".join(parts)
 
 
@@ -489,20 +511,30 @@ func _safe_json(value: Variant) -> String:
 
 
 func _collect_live_signal_names() -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	var seen: Dictionary = {}
-	for connection_variant: Variant in _last_graph.get("connections", []):
-		var connection := connection_variant as Dictionary
-		if connection == null or not _matches_filter(connection):
+	for connection_variant: Variant in GFVariantData.get_option_array(_last_graph, "connections"):
+		var connection: Dictionary = GFVariantData.as_dictionary(connection_variant)
+		if connection.is_empty() or not _matches_filter(connection):
 			continue
-		_append_live_signal_name(result, seen, StringName(connection.get("signal_name", "")), false)
+		_append_live_signal_name(
+			result,
+			seen,
+			GFVariantData.get_option_string_name(connection, "signal_name", &""),
+			false
+		)
 
 	if result.is_empty() and _include_empty_check != null and _include_empty_check.button_pressed:
-		for signal_variant: Variant in _last_graph.get("signals", []):
-			var signal_entry := signal_variant as Dictionary
-			if signal_entry == null or not _matches_filter(signal_entry):
+		for signal_variant: Variant in GFVariantData.get_option_array(_last_graph, "signals"):
+			var signal_entry: Dictionary = GFVariantData.as_dictionary(signal_variant)
+			if signal_entry.is_empty() or not _matches_filter(signal_entry):
 				continue
-			_append_live_signal_name(result, seen, StringName(signal_entry.get("signal_name", "")), true)
+			_append_live_signal_name(
+				result,
+				seen,
+				GFVariantData.get_option_string_name(signal_entry, "signal_name", &""),
+				true
+			)
 	return result
 
 
@@ -516,11 +548,38 @@ func _append_live_signal_name(
 		return
 	if from_unconnected_signal and _NOISY_UNCONNECTED_SIGNAL_NAMES.has(signal_name):
 		return
-	var key := String(signal_name)
+	var key: String = String(signal_name)
 	if seen.has(key):
 		return
 	seen[key] = true
-	result.append(key)
+	_append_packed_string(result, key)
+
+
+static func _connect_signal(source_signal: Signal, callback: Callable) -> void:
+	var error: int = source_signal.connect(callback)
+	if error != OK:
+		return
+
+
+static func _get_live_node_from_ref(source_ref: WeakRef) -> Node:
+	var result: Variant = _INSTANCE_GUARD.call("_get_live_node_from_ref", source_ref)
+	if result is Node:
+		var node: Node = result
+		return node
+	return null
+
+
+static func _variant_to_node(value: Variant) -> Node:
+	if value is Node:
+		var node: Node = value
+		return node
+	return null
+
+
+static func _append_packed_string(target: PackedStringArray, value: String) -> void:
+	var appended: bool = target.append(value)
+	if appended:
+		return
 
 
 func _get_connection_empty_text() -> String:
@@ -537,18 +596,21 @@ func _get_event_empty_text() -> String:
 
 func _sanitize_for_display(value: Variant) -> Variant:
 	if value is Dictionary:
+		var dictionary_value: Dictionary = value
 		var result: Dictionary = {}
-		for key: Variant in value.keys():
-			result[str(key)] = _sanitize_for_display(value[key])
+		for key: Variant in dictionary_value.keys():
+			result[str(key)] = _sanitize_for_display(dictionary_value[key])
 		return result
 	if value is Array:
+		var array_value: Array = value
 		var array_result: Array = []
-		for item: Variant in value:
+		for item: Variant in array_value:
 			array_result.append(_sanitize_for_display(item))
 		return array_result
 	if value is PackedStringArray:
+		var packed_value: PackedStringArray = value
 		var string_array: Array[String] = []
-		for item: String in value:
+		for item: String in packed_value:
 			string_array.append(item)
 		return string_array
 	if value is Object:
@@ -591,21 +653,21 @@ func _on_details_toggled(pressed: bool) -> void:
 
 
 func _on_tree_item_selected() -> void:
-	var item := _tree.get_selected()
+	var item: TreeItem = _tree.get_selected()
 	if item == null:
 		return
 
-	var metadata := item.get_metadata(0)
+	var metadata: Variant = item.get_metadata(0)
 	if metadata is Dictionary:
 		_details.text = _safe_json(metadata)
 
 
 func _on_event_tree_item_selected() -> void:
-	var item := _event_tree.get_selected()
+	var item: TreeItem = _event_tree.get_selected()
 	if item == null:
 		return
 
-	var metadata := item.get_metadata(0)
+	var metadata: Variant = item.get_metadata(0)
 	if metadata is Dictionary:
 		_details.text = _safe_json(metadata)
 

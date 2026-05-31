@@ -13,11 +13,6 @@ class_name GFResourceRegistry
 extends Resource
 
 
-# --- 常量 ---
-
-const _GF_RESOURCE_REGISTRY_ENTRY_SCRIPT: Script = preload("res://addons/gf/standard/utilities/assets/gf_resource_registry_entry.gd")
-
-
 # --- 导出变量 ---
 
 ## 注册表条目列表。重复 ID 会以后出现的有效条目为准。
@@ -25,7 +20,7 @@ const _GF_RESOURCE_REGISTRY_ENTRY_SCRIPT: Script = preload("res://addons/gf/stan
 ## @api public
 ## [br]
 ## @schema entries: Array[GFResourceRegistryEntry] resource registry entries.
-@export var entries: Array[Resource] = []
+@export var entries: Array[GFResourceRegistryEntry] = []
 
 
 # --- 私有变量 ---
@@ -45,12 +40,13 @@ var _index_dirty: bool = true
 ## [br]
 ## @return 写入成功返回 true。
 func set_entry(entry: Resource) -> bool:
-	if not _is_valid_registry_entry(entry):
+	var source_entry: GFResourceRegistryEntry = _get_registry_entry_value(entry)
+	if not _is_valid_registry_entry(source_entry):
 		return false
 
-	var stored_entry := _duplicate_registry_entry(entry)
+	var stored_entry: GFResourceRegistryEntry = _duplicate_registry_entry(source_entry)
 	for index: int in range(entries.size()):
-		var existing := entries[index] as Resource
+		var existing: GFResourceRegistryEntry = entries[index]
 		if _is_valid_registry_entry(existing) and _get_entry_id(existing) == _get_entry_id(stored_entry):
 			entries[index] = stored_entry
 			mark_index_dirty()
@@ -70,7 +66,7 @@ func set_entry(entry: Resource) -> bool:
 ## @return 移除成功返回 true。
 func remove_entry(entry_id: StringName) -> bool:
 	for index: int in range(entries.size() - 1, -1, -1):
-		var entry := entries[index] as Resource
+		var entry: GFResourceRegistryEntry = entries[index]
 		if _is_valid_registry_entry(entry) and _get_entry_id(entry) == entry_id:
 			entries.remove_at(index)
 			mark_index_dirty()
@@ -100,13 +96,13 @@ func mark_index_dirty() -> void:
 func rebuild_index() -> void:
 	_entry_lookup.clear()
 	_index.clear()
-	for entry: Resource in entries:
+	for entry: GFResourceRegistryEntry in entries:
 		if not _is_valid_registry_entry(entry):
 			continue
-		var stored_entry := _duplicate_registry_entry(entry)
-		var entry_id := _get_entry_id(stored_entry)
+		var stored_entry: GFResourceRegistryEntry = _duplicate_registry_entry(entry)
+		var entry_id: StringName = _get_entry_id(stored_entry)
 		_entry_lookup[entry_id] = stored_entry
-		_index.set_item(entry_id, _get_entry_path(stored_entry), _get_entry_fields(stored_entry))
+		var _indexed: bool = _index.set_item(entry_id, _get_entry_path(stored_entry), _get_entry_fields(stored_entry))
 	_index_dirty = false
 
 
@@ -131,7 +127,7 @@ func has_entry(entry_id: StringName) -> bool:
 ## @return 条目副本；不存在时返回 null。
 func get_entry(entry_id: StringName) -> Resource:
 	_ensure_index()
-	var entry := _entry_lookup.get(entry_id) as Resource
+	var entry: GFResourceRegistryEntry = _get_registry_entry_value(GFVariantData.get_option_value(_entry_lookup, entry_id))
 	if entry == null:
 		return null
 	return _duplicate_registry_entry(entry)
@@ -146,7 +142,7 @@ func get_entry(entry_id: StringName) -> Resource:
 ## @return 资源路径；不存在时返回空字符串。
 func get_entry_path(entry_id: StringName) -> String:
 	_ensure_index()
-	var entry := _entry_lookup.get(entry_id) as Resource
+	var entry: GFResourceRegistryEntry = _get_registry_entry_value(GFVariantData.get_option_value(_entry_lookup, entry_id))
 	if entry == null:
 		return ""
 	return _get_entry_path(entry)
@@ -161,7 +157,7 @@ func get_entry_path(entry_id: StringName) -> String:
 ## @return 类型提示；不存在时返回空字符串。
 func get_entry_type_hint(entry_id: StringName) -> String:
 	_ensure_index()
-	var entry := _entry_lookup.get(entry_id) as Resource
+	var entry: GFResourceRegistryEntry = _get_registry_entry_value(GFVariantData.get_option_value(_entry_lookup, entry_id))
 	if entry == null:
 		return ""
 	return _get_entry_type_hint(entry)
@@ -178,7 +174,7 @@ func get_entry_type_hint(entry_id: StringName) -> String:
 ## @schema return: Dictionary indexed field values.
 func get_entry_fields(entry_id: StringName) -> Dictionary:
 	_ensure_index()
-	var entry := _entry_lookup.get(entry_id) as Resource
+	var entry: GFResourceRegistryEntry = _get_registry_entry_value(GFVariantData.get_option_value(_entry_lookup, entry_id))
 	if entry == null:
 		return {}
 	return _get_entry_fields(entry)
@@ -191,9 +187,10 @@ func get_entry_fields(entry_id: StringName) -> Dictionary:
 ## @return 排序后的条目 ID 列表。
 func get_all_ids() -> PackedStringArray:
 	_ensure_index()
-	var result := PackedStringArray()
-	for entry_id: StringName in _entry_lookup.keys():
-		result.append(String(entry_id))
+	var result: PackedStringArray = PackedStringArray()
+	for entry_id_value: Variant in _entry_lookup.keys():
+		var entry_id: StringName = GFVariantData.to_string_name(entry_id_value)
+		var _appended: bool = result.append(String(entry_id))
 	result.sort()
 	return result
 
@@ -206,12 +203,16 @@ func get_all_ids() -> PackedStringArray:
 func get_all_paths() -> PackedStringArray:
 	_ensure_index()
 	var lookup: Dictionary = {}
-	for entry: Resource in _entry_lookup.values():
+	for entry_value: Variant in _entry_lookup.values():
+		var entry: GFResourceRegistryEntry = _get_registry_entry_value(entry_value)
+		if entry == null:
+			continue
 		lookup[_get_entry_path(entry)] = true
 
-	var result := PackedStringArray()
-	for path: String in lookup.keys():
-		result.append(path)
+	var result: PackedStringArray = PackedStringArray()
+	for path_value: Variant in lookup.keys():
+		var path: String = GFVariantData.to_text(path_value)
+		var _appended: bool = result.append(path)
 	result.sort()
 	return result
 
@@ -264,11 +265,11 @@ func load_entry(
 	type_hint_override: String = "",
 	cache_mode: int = ResourceLoader.CACHE_MODE_REUSE
 ) -> Resource:
-	var path := get_entry_path(entry_id)
+	var path: String = get_entry_path(entry_id)
 	if path.is_empty():
 		return null
 
-	var resolved_type_hint := _resolve_type_hint(entry_id, type_hint_override)
+	var resolved_type_hint: String = _resolve_type_hint(entry_id, type_hint_override)
 	if not ResourceLoader.exists(path, resolved_type_hint):
 		return null
 	return ResourceLoader.load(path, resolved_type_hint, cache_mode)
@@ -297,7 +298,7 @@ func request_entry_async(
 			on_loaded.call(null)
 		return
 
-	var path := get_entry_path(entry_id)
+	var path: String = get_entry_path(entry_id)
 	if path.is_empty():
 		on_loaded.call(null)
 		return
@@ -334,7 +335,7 @@ func request_entry_handle_async(
 			on_loaded.call(null)
 		return
 
-	var path := get_entry_path(entry_id)
+	var path: String = get_entry_path(entry_id)
 	if path.is_empty():
 		on_loaded.call(null)
 		return
@@ -361,12 +362,12 @@ func request_entry_handle_async(
 ## @schema return: Array[Dictionary] where each item contains path and type_hint.
 func make_asset_group_entries(entry_ids: PackedStringArray = PackedStringArray()) -> Array:
 	_ensure_index()
-	var include_all := entry_ids.is_empty()
-	var result: Array = []
+	var include_all: bool = entry_ids.is_empty()
+	var result: Array[Dictionary] = []
 	for entry_id: String in get_all_ids():
 		if not include_all and not entry_ids.has(entry_id):
 			continue
-		var typed_id := StringName(entry_id)
+		var typed_id: StringName = StringName(entry_id)
 		result.append({
 			"path": get_entry_path(typed_id),
 			"type_hint": get_entry_type_hint(typed_id),
@@ -399,9 +400,9 @@ func get_debug_snapshot() -> Dictionary:
 ## @schema return: Dictionary with entries array.
 func to_dict() -> Dictionary:
 	var entry_data: Array = []
-	for entry: Resource in entries:
+	for entry: GFResourceRegistryEntry in entries:
 		if _is_valid_registry_entry(entry):
-			entry_data.append(entry.call("to_dict"))
+			entry_data.append(entry.to_dict())
 	return {
 		"entries": entry_data,
 	}
@@ -416,13 +417,14 @@ func to_dict() -> Dictionary:
 ## @schema data: Dictionary with entries array.
 func apply_dict(data: Dictionary) -> void:
 	entries.clear()
-	var raw_entries := data.get("entries", []) as Array
-	if raw_entries != null:
-		for raw_entry: Variant in raw_entries:
-			if raw_entry is Dictionary:
-				var entry := _GF_RESOURCE_REGISTRY_ENTRY_SCRIPT.from_dict(raw_entry as Dictionary) as Resource
-				if _is_valid_registry_entry(entry):
-					entries.append(entry)
+	var raw_entries: Array = GFVariantData.get_option_array(data, "entries")
+	for raw_entry: Variant in raw_entries:
+		if raw_entry is Dictionary:
+			var entry: GFResourceRegistryEntry = _get_registry_entry_value(
+				GFResourceRegistryEntry.from_dict(GFVariantData.as_dictionary(raw_entry))
+			)
+			if _is_valid_registry_entry(entry):
+				entries.append(entry)
 	mark_index_dirty()
 
 
@@ -436,9 +438,8 @@ func apply_dict(data: Dictionary) -> void:
 ## [br]
 ## @return 新注册表。
 static func from_dict(data: Dictionary) -> Resource:
-	var script := load("res://addons/gf/standard/utilities/assets/gf_resource_registry.gd") as Script
-	var registry := script.new() as Resource
-	registry.call("apply_dict", data)
+	var registry: GFResourceRegistry = GFResourceRegistry.new()
+	registry.apply_dict(data)
 	return registry
 
 
@@ -455,40 +456,42 @@ func _resolve_type_hint(entry_id: StringName, type_hint_override: String) -> Str
 	return get_entry_type_hint(entry_id)
 
 
-func _is_valid_registry_entry(entry: Resource) -> bool:
-	return entry != null and entry.has_method("is_valid_entry") and bool(entry.call("is_valid_entry"))
+func _is_valid_registry_entry(entry: GFResourceRegistryEntry) -> bool:
+	return entry != null and entry.is_valid_entry()
 
 
-func _duplicate_registry_entry(entry: Resource) -> Resource:
+func _duplicate_registry_entry(entry: GFResourceRegistryEntry) -> GFResourceRegistryEntry:
 	if entry == null:
 		return null
-	if entry.has_method("duplicate_entry"):
-		return entry.call("duplicate_entry") as Resource
-	return entry.duplicate(true)
+	return _get_registry_entry_value(entry.duplicate_entry())
 
 
-func _get_entry_id(entry: Resource) -> StringName:
+func _get_entry_id(entry: GFResourceRegistryEntry) -> StringName:
 	if entry == null:
 		return &""
-	return StringName(entry.get("id"))
+	return entry.id
 
 
-func _get_entry_path(entry: Resource) -> String:
+func _get_entry_path(entry: GFResourceRegistryEntry) -> String:
 	if entry == null:
 		return ""
-	return String(entry.get("path"))
+	return entry.path
 
 
-func _get_entry_type_hint(entry: Resource) -> String:
+func _get_entry_type_hint(entry: GFResourceRegistryEntry) -> String:
 	if entry == null:
 		return ""
-	return String(entry.get("type_hint"))
+	return entry.type_hint
 
 
-func _get_entry_fields(entry: Resource) -> Dictionary:
+func _get_entry_fields(entry: GFResourceRegistryEntry) -> Dictionary:
 	if entry == null:
 		return {}
-	var value: Variant = entry.get("fields")
-	if value is Dictionary:
-		return (value as Dictionary).duplicate(true)
-	return {}
+	return entry.fields.duplicate(true)
+
+
+func _get_registry_entry_value(value: Variant) -> GFResourceRegistryEntry:
+	if value is GFResourceRegistryEntry:
+		var entry: GFResourceRegistryEntry = value
+		return entry
+	return null

@@ -2,20 +2,15 @@
 extends GutTest
 
 
-# --- 常量 ---
-
-const GF_WEIGHTED_TABLE := preload("res://addons/gf/standard/foundation/math/gf_weighted_table.gd")
-
-
 # --- 测试 ---
 
 func test_pick_value_ignores_non_positive_weights() -> void:
-	var table := GF_WEIGHTED_TABLE.new()
+	var table: GFWeightedTable = GFWeightedTable.new()
 	table.default_value = "EMPTY"
-	table.add_entry("SKIP", 0.0)
-	table.add_entry("ONLY", 1.0)
+	var _add_entry_result_10: Variant = table.add_entry("SKIP", 0.0)
+	var _add_entry_result_11: Variant = table.add_entry("ONLY", 1.0)
 
-	assert_eq(table.pick_value(_make_rng(1)), "ONLY")
+	assert_eq(GFVariantData.to_text(table.pick_value(_make_rng(1))), "ONLY")
 	assert_eq(table.get_total_weight(), 1.0)
 
 
@@ -38,58 +33,67 @@ func test_serialized_table_roundtrips_entries_and_seed() -> void:
 	table.default_value = "NONE"
 	table.deterministic_seed = 99
 
-	var restored := GF_WEIGHTED_TABLE.from_dict(table.to_dict())
+	var restored: GFWeightedTable = GFWeightedTable.from_dict(table.to_dict())
 
-	assert_eq(restored.default_value, "NONE")
+	assert_eq(GFVariantData.to_text(restored.default_value), "NONE")
 	assert_eq(restored.deterministic_seed, 99)
 	assert_eq(restored.entries.size(), 3)
-	assert_eq(restored.entries[1].value, "B")
+	assert_eq(GFVariantData.to_text(restored.entries[1].value), "B")
 	assert_eq(restored.entries[1].weight, 2.0)
 
 
 func test_duplicate_table_can_deep_copy_entries() -> void:
-	var table := GF_WEIGHTED_TABLE.new()
-	var entry := table.add_entry({"id": "A"}, 1.0, {"tag": "sample"})
-	var copied := table.duplicate_table(true)
+	var table: GFWeightedTable = GFWeightedTable.new()
+	var entry: GFWeightedEntry = table.add_entry({"id": "A"}, 1.0, {"tag": "sample"})
+	var copied: GFWeightedTable = table.duplicate_table(true)
 
-	entry.value.id = "B"
-	entry.metadata.tag = "changed"
+	var entry_value: Dictionary = GFVariantData.as_dictionary(entry.value)
+	var entry_metadata: Dictionary = GFVariantData.as_dictionary(entry.metadata)
+	entry_value["id"] = "B"
+	entry_metadata["tag"] = "changed"
 
-	assert_eq(copied.entries[0].value.id, "A")
-	assert_eq(copied.entries[0].metadata.tag, "sample")
+	assert_eq(GFVariantData.get_option_string(GFVariantData.as_dictionary(copied.entries[0].value), "id", ""), "A")
+	assert_eq(GFVariantData.get_option_string(GFVariantData.as_dictionary(copied.entries[0].metadata), "tag", ""), "sample")
 
 
 func test_duplicate_table_can_deep_copy_resource_values() -> void:
-	var table := GF_WEIGHTED_TABLE.new()
-	var default_resource := Resource.new()
-	var entry_resource := Resource.new()
+	var table: GFWeightedTable = GFWeightedTable.new()
+	var default_resource: Resource = Resource.new()
+	var entry_resource: Resource = Resource.new()
 	table.default_value = default_resource
-	table.add_entry(entry_resource, 1.0)
+	var _add_entry_result_64: Variant = table.add_entry(entry_resource, 1.0)
 
-	var copied := table.duplicate_table(true)
+	var copied: GFWeightedTable = table.duplicate_table(true)
 
-	assert_ne(copied.default_value, default_resource, "默认值 Resource 应被深拷贝。")
-	assert_ne(copied.entries[0].value, entry_resource, "条目值 Resource 应被深拷贝。")
+	assert_true(_resource_value(copied.default_value) != default_resource, "默认值 Resource 应被深拷贝。")
+	assert_true(_resource_value(copied.entries[0].value) != entry_resource, "条目值 Resource 应被深拷贝。")
 
 
 # --- 私有/辅助方法 ---
 
 func _make_sample_table() -> GFWeightedTable:
-	var table := GF_WEIGHTED_TABLE.new()
-	table.add_entry("A", 1.0)
-	table.add_entry("B", 2.0)
-	table.add_entry("C", 3.0)
+	var table: GFWeightedTable = GFWeightedTable.new()
+	var _add_entry_result_76: Variant = table.add_entry("A", 1.0)
+	var _add_entry_result_77: Variant = table.add_entry("B", 2.0)
+	var _add_entry_result_78: Variant = table.add_entry("C", 3.0)
 	return table
 
 
 func _make_rng(seed_value: int) -> RandomNumberGenerator:
-	var rng := RandomNumberGenerator.new()
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = seed_value
 	return rng
 
 
 func _count_unique(values: Array) -> int:
-	var lookup := {}
-	for value in values:
+	var lookup: Dictionary = {}
+	for value: Variant in values:
 		lookup[value] = true
 	return lookup.size()
+
+
+func _resource_value(value: Variant) -> Resource:
+	if value is Resource:
+		var resource: Resource = value
+		return resource
+	return null

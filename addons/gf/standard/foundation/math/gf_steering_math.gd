@@ -45,7 +45,7 @@ static func seek(agent: GFSteeringAgent, target_position: Vector3) -> GFSteering
 	if agent == null:
 		return GFSteeringAcceleration.new()
 
-	var direction := target_position - agent.position
+	var direction: Vector3 = target_position - agent.position
 	if direction.length_squared() <= _EPSILON:
 		return GFSteeringAcceleration.new()
 	return GFSteeringAcceleration.new(direction.normalized() * agent.linear_acceleration_max)
@@ -64,7 +64,7 @@ static func flee(agent: GFSteeringAgent, target_position: Vector3) -> GFSteering
 	if agent == null:
 		return GFSteeringAcceleration.new()
 
-	var direction := agent.position - target_position
+	var direction: Vector3 = agent.position - target_position
 	if direction.length_squared() <= _EPSILON:
 		return GFSteeringAcceleration.new()
 	return GFSteeringAcceleration.new(direction.normalized() * agent.linear_acceleration_max)
@@ -95,17 +95,17 @@ static func arrive(
 	if agent == null:
 		return GFSteeringAcceleration.new()
 
-	var direction := target_position - agent.position
-	var distance := direction.length()
+	var direction: Vector3 = target_position - agent.position
+	var distance: float = direction.length()
 	if distance <= maxf(arrival_radius, 0.0) or distance <= _EPSILON:
 		return GFSteeringAcceleration.new(-agent.velocity).clamp_to(agent.linear_acceleration_max)
 
-	var target_speed := agent.linear_speed_max
+	var target_speed: float = agent.linear_speed_max
 	if distance < maxf(slow_radius, arrival_radius):
 		target_speed *= distance / maxf(slow_radius, _EPSILON)
 
-	var desired_velocity := direction.normalized() * target_speed
-	var linear := (desired_velocity - agent.velocity) / maxf(time_to_target, _EPSILON)
+	var desired_velocity: Vector3 = direction.normalized() * target_speed
+	var linear: Vector3 = (desired_velocity - agent.velocity) / maxf(time_to_target, _EPSILON)
 	return GFSteeringAcceleration.new(linear).clamp_to(agent.linear_acceleration_max)
 
 
@@ -128,7 +128,7 @@ static func pursue(
 	if agent == null or target_agent == null:
 		return GFSteeringAcceleration.new()
 
-	var prediction := _predict_seconds(agent, target_agent, max_prediction_seconds)
+	var prediction: float = _predict_seconds(agent, target_agent, max_prediction_seconds)
 	return seek(agent, target_agent.position + target_agent.velocity * prediction)
 
 
@@ -151,7 +151,7 @@ static func evade(
 	if agent == null or target_agent == null:
 		return GFSteeringAcceleration.new()
 
-	var prediction := _predict_seconds(agent, target_agent, max_prediction_seconds)
+	var prediction: float = _predict_seconds(agent, target_agent, max_prediction_seconds)
 	return flee(agent, target_agent.position + target_agent.velocity * prediction)
 
 
@@ -183,7 +183,7 @@ static func face(
 	if agent == null:
 		return GFSteeringAcceleration.new()
 
-	var direction := target_position - agent.position
+	var direction: Vector3 = target_position - agent.position
 	if direction.length_squared() <= _EPSILON:
 		return GFSteeringAcceleration.new()
 
@@ -254,20 +254,20 @@ static func align(
 	if agent == null:
 		return GFSteeringAcceleration.new()
 
-	var rotation := _map_to_pi(target_orientation - agent.orientation)
-	var rotation_size := absf(rotation)
+	var rotation: float = _map_to_pi(target_orientation - agent.orientation)
+	var rotation_size: float = absf(rotation)
 	if rotation_size <= align_tolerance:
 		return GFSteeringAcceleration.new(Vector3.ZERO, -agent.angular_velocity).clamp_to(
 			-1.0,
 			agent.angular_acceleration_max
 		)
 
-	var target_rotation_speed := agent.angular_speed_max
+	var target_rotation_speed: float = agent.angular_speed_max
 	if rotation_size < maxf(slow_angle, align_tolerance):
 		target_rotation_speed *= rotation_size / maxf(slow_angle, _EPSILON)
 	target_rotation_speed *= signf(rotation)
 
-	var angular := (target_rotation_speed - agent.angular_velocity) / maxf(time_to_target, _EPSILON)
+	var angular: float = (target_rotation_speed - agent.angular_velocity) / maxf(time_to_target, _EPSILON)
 	return GFSteeringAcceleration.new(Vector3.ZERO, angular).clamp_to(-1.0, agent.angular_acceleration_max)
 
 
@@ -293,20 +293,20 @@ static func separation(
 	if agent == null:
 		return GFSteeringAcceleration.new()
 
-	var result := GFSteeringAcceleration.new()
+	var result: GFSteeringAcceleration = GFSteeringAcceleration.new()
 	for neighbor: GFSteeringAgent in neighbors:
 		if neighbor == null or neighbor == agent:
 			continue
 
-		var direction := agent.position - neighbor.position
-		var distance := direction.length()
-		var effective_distance := max_distance
+		var direction: Vector3 = agent.position - neighbor.position
+		var distance: float = direction.length()
+		var effective_distance: float = max_distance
 		if effective_distance <= 0.0:
 			effective_distance = agent.radius + neighbor.radius
 		if distance <= _EPSILON or distance > effective_distance:
 			continue
 
-		var strength := minf(decay_coefficient / (distance * distance), agent.linear_acceleration_max)
+		var strength: float = minf(decay_coefficient / (distance * distance), agent.linear_acceleration_max)
 		result.linear += direction.normalized() * strength
 
 	return result.clamp_to(agent.linear_acceleration_max)
@@ -325,8 +325,8 @@ static func cohesion(agent: GFSteeringAgent, neighbors: Array[GFSteeringAgent]) 
 	if agent == null:
 		return GFSteeringAcceleration.new()
 
-	var center := Vector3.ZERO
-	var count := 0
+	var center: Vector3 = Vector3.ZERO
+	var count: int = 0
 	for neighbor: GFSteeringAgent in neighbors:
 		if neighbor == null or neighbor == agent:
 			continue
@@ -357,11 +357,11 @@ static func blend(
 	max_linear: float = -1.0,
 	max_angular: float = -1.0
 ) -> GFSteeringAcceleration:
-	var result := GFSteeringAcceleration.new()
+	var result: GFSteeringAcceleration = GFSteeringAcceleration.new()
 	for index: int in range(accelerations.size()):
-		var acceleration_item := accelerations[index]
-		var weight := weights[index] if index < weights.size() else 1.0
-		result.add_scaled(acceleration_item, weight)
+		var acceleration_item: GFSteeringAcceleration = accelerations[index]
+		var weight: float = weights[index] if index < weights.size() else 1.0
+		result = result.add_scaled(acceleration_item, weight)
 	return result.clamp_to(max_linear, max_angular)
 
 
@@ -404,8 +404,8 @@ static func radius_neighbors(
 	if agent == null:
 		return result
 
-	var effective_radius := agent.radius if radius < 0.0 else radius
-	var radius_squared := effective_radius * effective_radius
+	var effective_radius: float = agent.radius if radius < 0.0 else radius
+	var radius_squared: float = effective_radius * effective_radius
 	for candidate: GFSteeringAgent in candidates:
 		if candidate == null or candidate == agent:
 			continue
@@ -440,19 +440,19 @@ static func avoid_collisions(
 		return GFSteeringAcceleration.new()
 
 	var best_target: GFSteeringAgent = null
-	var best_time := INF
-	var best_current_distance := INF
-	var best_relative_velocity := Vector3.ZERO
-	var prediction_limit := maxf(max_prediction_seconds, 0.0)
+	var best_time: float = INF
+	var best_current_distance: float = INF
+	var best_relative_velocity: Vector3 = Vector3.ZERO
+	var prediction_limit: float = maxf(max_prediction_seconds, 0.0)
 
 	for target: GFSteeringAgent in targets:
 		if target == null or target == agent:
 			continue
 
-		var relative_position := target.position - agent.position
-		var current_distance := relative_position.length()
-		var effective_collision_radius := _resolve_collision_radius(agent, target, collision_radius)
-		var effective_minimum_separation := _resolve_minimum_separation(
+		var relative_position: Vector3 = target.position - agent.position
+		var current_distance: float = relative_position.length()
+		var effective_collision_radius: float = _resolve_collision_radius(agent, target, collision_radius)
+		var effective_minimum_separation: float = _resolve_minimum_separation(
 			effective_collision_radius,
 			minimum_separation
 		)
@@ -464,12 +464,12 @@ static func avoid_collisions(
 			best_relative_velocity = target.velocity - agent.velocity
 			break
 
-		var relative_velocity := target.velocity - agent.velocity
-		var relative_speed_squared := relative_velocity.length_squared()
+		var relative_velocity: Vector3 = target.velocity - agent.velocity
+		var relative_speed_squared: float = relative_velocity.length_squared()
 		if relative_speed_squared <= _EPSILON:
 			continue
 
-		var time_to_closest := -relative_position.dot(relative_velocity) / relative_speed_squared
+		var time_to_closest: float = -relative_position.dot(relative_velocity) / relative_speed_squared
 		if time_to_closest <= 0.0:
 			continue
 		if prediction_limit > 0.0 and time_to_closest > prediction_limit:
@@ -477,8 +477,8 @@ static func avoid_collisions(
 		if prediction_limit <= 0.0:
 			continue
 
-		var closest_relative_position := relative_position + relative_velocity * time_to_closest
-		var closest_distance := closest_relative_position.length()
+		var closest_relative_position: Vector3 = relative_position + relative_velocity * time_to_closest
+		var closest_distance: float = closest_relative_position.length()
 		if closest_distance > effective_minimum_separation:
 			continue
 		if time_to_closest >= best_time:
@@ -492,7 +492,7 @@ static func avoid_collisions(
 	if best_target == null:
 		return GFSteeringAcceleration.new()
 
-	var direction := _get_avoidance_direction(
+	var direction: Vector3 = _get_avoidance_direction(
 		agent,
 		best_target,
 		best_time,
@@ -526,8 +526,8 @@ static func path_follow_target(
 	if path.size() == 1:
 		return path[0]
 
-	var closest := _find_closest_path_projection(agent.position, path)
-	return _advance_along_path(path, int(closest["segment_index"]), float(closest["segment_t"]), path_offset)
+	var closest: _PathProjection = _find_closest_path_projection(agent.position, path)
+	return _advance_along_path(path, closest._segment_index, closest._segment_t, path_offset)
 
 
 # --- 私有/辅助方法 ---
@@ -537,9 +537,9 @@ static func _predict_seconds(
 	target_agent: GFSteeringAgent,
 	max_prediction_seconds: float
 ) -> float:
-	var direction := target_agent.position - agent.position
-	var distance := direction.length()
-	var speed := agent.velocity.length()
+	var direction: Vector3 = target_agent.position - agent.position
+	var distance: float = direction.length()
+	var speed: float = agent.velocity.length()
 	if speed <= _EPSILON:
 		return maxf(max_prediction_seconds, 0.0)
 	return minf(distance / speed, maxf(max_prediction_seconds, 0.0))
@@ -552,36 +552,33 @@ static func _direction_to_orientation(direction: Vector3, use_z_axis: bool) -> f
 
 
 static func _map_to_pi(angle: float) -> float:
-	var mapped := fmod(angle + PI, TAU)
+	var mapped: float = fmod(angle + PI, TAU)
 	if mapped < 0.0:
 		mapped += TAU
 	return mapped - PI
 
 
-static func _find_closest_path_projection(position: Vector3, path: Array[Vector3]) -> Dictionary:
-	var best_distance_squared := INF
-	var best_segment_index := 0
-	var best_t := 0.0
+static func _find_closest_path_projection(position: Vector3, path: Array[Vector3]) -> _PathProjection:
+	var best_distance_squared: float = INF
+	var best_segment_index: int = 0
+	var best_t: float = 0.0
 
 	for index: int in range(path.size() - 1):
-		var start := path[index]
-		var end := path[index + 1]
-		var segment := end - start
-		var length_squared := segment.length_squared()
-		var t := 0.0
+		var start: Vector3 = path[index]
+		var end: Vector3 = path[index + 1]
+		var segment: Vector3 = end - start
+		var length_squared: float = segment.length_squared()
+		var t: float = 0.0
 		if length_squared > _EPSILON:
 			t = clampf((position - start).dot(segment) / length_squared, 0.0, 1.0)
-		var projection := start + segment * t
-		var distance_squared := position.distance_squared_to(projection)
+		var projection: Vector3 = start + segment * t
+		var distance_squared: float = position.distance_squared_to(projection)
 		if distance_squared < best_distance_squared:
 			best_distance_squared = distance_squared
 			best_segment_index = index
 			best_t = t
 
-	return {
-		"segment_index": best_segment_index,
-		"segment_t": best_t,
-	}
+	return _PathProjection.new(best_segment_index, best_t)
 
 
 static func _advance_along_path(
@@ -590,15 +587,15 @@ static func _advance_along_path(
 	segment_t: float,
 	distance: float
 ) -> Vector3:
-	var index := clampi(segment_index, 0, path.size() - 2)
-	var current := path[index].lerp(path[index + 1], clampf(segment_t, 0.0, 1.0))
-	var remaining := maxf(distance, 0.0)
+	var index: int = clampi(segment_index, 0, path.size() - 2)
+	var current: Vector3 = path[index].lerp(path[index + 1], clampf(segment_t, 0.0, 1.0))
+	var remaining: float = maxf(distance, 0.0)
 
 	while remaining > _EPSILON and index < path.size() - 1:
-		var end := path[index + 1]
-		var segment_remaining := current.distance_to(end)
+		var end: Vector3 = path[index + 1]
+		var segment_remaining: float = current.distance_to(end)
 		if remaining <= segment_remaining:
-			var direction := (end - current).normalized()
+			var direction: Vector3 = (end - current).normalized()
 			return current + direction * remaining
 		remaining -= segment_remaining
 		index += 1
@@ -633,15 +630,15 @@ static func _get_avoidance_direction(
 	collision_radius: float,
 	relative_velocity: Vector3
 ) -> Vector3:
-	var effective_collision_radius := _resolve_collision_radius(agent, target, collision_radius)
+	var effective_collision_radius: float = _resolve_collision_radius(agent, target, collision_radius)
 	if time_to_collision <= _EPSILON or current_distance <= effective_collision_radius:
-		var immediate_direction := agent.position - target.position
+		var immediate_direction: Vector3 = agent.position - target.position
 		if immediate_direction.length_squared() > _EPSILON:
 			return immediate_direction
 
-	var future_agent_position := agent.position + agent.velocity * time_to_collision
-	var future_target_position := target.position + target.velocity * time_to_collision
-	var future_direction := future_agent_position - future_target_position
+	var future_agent_position: Vector3 = agent.position + agent.velocity * time_to_collision
+	var future_target_position: Vector3 = target.position + target.velocity * time_to_collision
+	var future_direction: Vector3 = future_agent_position - future_target_position
 	if future_direction.length_squared() > _EPSILON:
 		return future_direction
 	if relative_velocity.length_squared() > _EPSILON:
@@ -652,10 +649,21 @@ static func _get_avoidance_direction(
 
 
 static func _get_perpendicular_direction(direction: Vector3) -> Vector3:
-	var perpendicular := direction.cross(Vector3.FORWARD)
+	var perpendicular: Vector3 = direction.cross(Vector3.FORWARD)
 	if perpendicular.length_squared() > _EPSILON:
 		return perpendicular
 	perpendicular = direction.cross(Vector3.UP)
 	if perpendicular.length_squared() > _EPSILON:
 		return perpendicular
 	return direction.cross(Vector3.RIGHT)
+
+
+# --- 内部类 ---
+
+class _PathProjection:
+	var _segment_index: int = 0
+	var _segment_t: float = 0.0
+
+	func _init(p_segment_index: int = 0, p_segment_t: float = 0.0) -> void:
+		_segment_index = p_segment_index
+		_segment_t = p_segment_t

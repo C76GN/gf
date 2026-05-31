@@ -50,11 +50,11 @@ func _gather_save_data(
 	context: Dictionary = {},
 	serializer_registry: GFNodeSerializerRegistry = null
 ) -> Variant:
-	var target := get_target_node()
+	var target: Node = get_target_node()
 	if target == null:
 		return {}
 
-	var serializer_payloads := _gather_configured_serializers(target, context, serializer_registry)
+	var serializer_payloads: Array[Dictionary] = _gather_configured_serializers(target, context, serializer_registry)
 	if serializer_payloads.is_empty():
 		return {}
 
@@ -88,21 +88,21 @@ func _apply_save_data(
 	if not (data is Dictionary):
 		return make_result(false, "Source data must be a Dictionary.")
 
-	var target := get_target_node()
+	var target: Node = get_target_node()
 	if target == null:
 		return make_result(false, "Target node is null.")
 
-	var dictionary := data as Dictionary
+	var dictionary: Dictionary = GFVariantData.as_dictionary(data)
 	if dictionary.is_empty():
 		return make_result(true)
 	if not dictionary.has("serializers"):
 		return make_result(false, "Serializer payloads are missing.")
 
-	var serializer_payloads_variant: Variant = dictionary.get("serializers", [])
+	var serializer_payloads_variant: Variant = GFVariantData.get_option_value(dictionary, "serializers", [])
 	if not (serializer_payloads_variant is Array):
 		return make_result(false, "Serializer payloads must be an Array.")
 
-	var serializer_payloads := serializer_payloads_variant as Array
+	var serializer_payloads: Array = GFVariantData.as_array(serializer_payloads_variant)
 	if serializer_payloads.is_empty():
 		return make_result(true)
 
@@ -120,7 +120,7 @@ func _gather_configured_serializers(
 	for serializer: GFNodeSerializer in _get_configured_serializers(target, serializer_registry):
 		if serializer == null or not serializer.supports_node(target):
 			continue
-		var serializer_data := serializer.gather(target, context)
+		var serializer_data: Dictionary = serializer.gather(target, context)
 		if serializer_data.is_empty():
 			continue
 		result.append({
@@ -136,33 +136,35 @@ func _apply_configured_serializers(
 	context: Dictionary,
 	serializer_registry: GFNodeSerializerRegistry
 ) -> Dictionary:
-	var by_id := _index_configured_serializers(target, serializer_registry)
+	var by_id: Dictionary = _index_configured_serializers(target, serializer_registry)
 	var errors: Array[String] = []
-	var applied := 0
+	var applied: int = 0
 
 	for payload_variant: Variant in serializer_payloads:
 		if not (payload_variant is Dictionary):
 			continue
 
-		var payload := payload_variant as Dictionary
-		var serializer_id := StringName(payload.get("id", &""))
-		var serializer := by_id.get(serializer_id) as GFNodeSerializer
+		var payload: Dictionary = GFVariantData.as_dictionary(payload_variant)
+		var serializer_id: StringName = GFVariantData.get_option_string_name(payload, "id")
+		var serializer: GFNodeSerializer = _get_node_serializer_value(GFVariantData.get_option_value(by_id, serializer_id))
 		if serializer == null:
 			errors.append("Missing serializer: %s" % String(serializer_id))
 			continue
 		if not serializer.supports_node(target):
 			errors.append("Serializer does not support target: %s" % String(serializer_id))
 			continue
-		if not (payload.get("data", {}) is Dictionary):
+
+		var serializer_data_value: Variant = GFVariantData.get_option_value(payload, "data", {})
+		if not (serializer_data_value is Dictionary):
 			errors.append("Serializer data must be a Dictionary: %s" % String(serializer_id))
 			continue
 
-		var serializer_data := payload.get("data", {}) as Dictionary
-		var result := serializer.apply(target, serializer_data, context)
-		if bool(result.get("ok", false)):
+		var serializer_data: Dictionary = GFVariantData.as_dictionary(serializer_data_value)
+		var result: Dictionary = serializer.apply(target, serializer_data, context)
+		if GFVariantData.get_option_bool(result, "ok", false):
 			applied += 1
 		else:
-			errors.append(String(result.get("error", "Apply failed: %s" % String(serializer_id))))
+			errors.append(GFVariantData.get_option_string(result, "error", "Apply failed: %s" % String(serializer_id)))
 
 	return {
 		"ok": errors.is_empty(),
@@ -208,3 +210,10 @@ func _get_configured_serializers(
 func _prepare_property_serializer() -> void:
 	_property_serializer.properties = properties
 	_property_serializer.skip_missing_properties = skip_missing_properties
+
+
+func _get_node_serializer_value(value: Variant) -> GFNodeSerializer:
+	if value is GFNodeSerializer:
+		var serializer: GFNodeSerializer = value
+		return serializer
+	return null

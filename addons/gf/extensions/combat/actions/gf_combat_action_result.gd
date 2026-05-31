@@ -78,7 +78,7 @@ static func make_success(
 	p_current_value: float,
 	p_metadata: Dictionary = {}
 ) -> GFCombatActionResult:
-	var result := GFCombatActionResult.new()
+	var result: GFCombatActionResult = GFCombatActionResult.new()
 	result.ok = true
 	result.reason = &"applied"
 	result.original_action = p_original_action.duplicate_action() if p_original_action != null else null
@@ -110,7 +110,7 @@ static func make_failure(
 	p_previous_value: float = 0.0,
 	p_metadata: Dictionary = {}
 ) -> GFCombatActionResult:
-	var result := GFCombatActionResult.new()
+	var result: GFCombatActionResult = GFCombatActionResult.new()
 	result.ok = false
 	result.reason = p_reason
 	result.original_action = p_original_action.duplicate_action() if p_original_action != null else null

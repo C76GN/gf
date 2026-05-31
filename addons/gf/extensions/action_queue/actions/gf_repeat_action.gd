@@ -22,7 +22,7 @@ signal repeat_completed
 
 # --- 常量 ---
 
-const _ACTION_PROTOCOL: Script = preload("res://addons/gf/extensions/action_queue/core/gf_action_protocol.gd")
+const _ACTION_PROTOCOL = preload("res://addons/gf/extensions/action_queue/core/gf_action_protocol.gd")
 
 ## 单帧最多连续执行的瞬时重复次数，避免无限重复的瞬时动作锁住主线程。
 ## [br]
@@ -124,12 +124,12 @@ func finish() -> void:
 # --- 私有/辅助方法 ---
 
 func _run_repeat_async(current_serial: int) -> void:
-	var tree := Engine.get_main_loop() as SceneTree
+	var tree: SceneTree = _get_scene_tree_value(Engine.get_main_loop())
 	if tree == null:
 		return
 
-	var completed_count := 0
-	var immediate_count := 0
+	var completed_count: int = 0
+	var immediate_count: int = 0
 	while current_serial == _execution_serial:
 		if repeat_count > 0 and completed_count >= repeat_count:
 			break
@@ -140,14 +140,14 @@ func _run_repeat_async(current_serial: int) -> void:
 		if current_serial != _execution_serial:
 			return
 
-		var action := action_factory.call() as Object
+		var action: Object = _get_object_value(action_factory.call())
 		if not _ACTION_PROTOCOL.is_action_valid(action) or not _ACTION_PROTOCOL.can_execute(action):
 			break
 
 		_active_action = action
 		_ACTION_PROTOCOL.inject_dependencies(action, _get_architecture_or_null())
 		var result: Variant = _ACTION_PROTOCOL.execute(action)
-		var waited := false
+		var waited: bool = false
 		if _ACTION_PROTOCOL.should_wait_for_result(action, result):
 			waited = true
 			immediate_count = 0
@@ -177,3 +177,17 @@ func _run_repeat_async(current_serial: int) -> void:
 
 func _is_execution_serial_current(serial: int) -> bool:
 	return serial == _execution_serial
+
+
+func _get_scene_tree_value(value: Variant) -> SceneTree:
+	if value is SceneTree:
+		var tree: SceneTree = value
+		return tree
+	return null
+
+
+func _get_object_value(value: Variant) -> Object:
+	if value is Object:
+		var object: Object = value
+		return object
+	return null

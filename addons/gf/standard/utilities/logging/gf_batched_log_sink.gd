@@ -95,11 +95,11 @@ func init(_owner: Object) -> void:
 ## [br]
 ## @schema entry: Dictionary log entry produced by GFLogUtility.
 func write(entry: Dictionary) -> void:
-	var sanitized := GFLogUtility.sanitize_log_value(entry.duplicate(true)) as Dictionary
+	var sanitized: Dictionary = GFVariantData.as_dictionary(GFLogUtility.sanitize_log_value(entry.duplicate(true)))
 	if sanitized == null:
 		return
 	if omit_formatted_text:
-		sanitized.erase("text")
+		var _erase_result_102: Variant = sanitized.erase("text")
 
 	_queue.append(sanitized)
 	_trim_queue()
@@ -115,13 +115,13 @@ func flush() -> void:
 		_last_flush_msec = Time.get_ticks_msec()
 		return
 
-	var take_count := mini(batch_size, _queue.size())
+	var take_count: int = mini(batch_size, _queue.size())
 	var batch: Array[Dictionary] = []
 	for _index: int in range(take_count):
 		batch.append(_queue.pop_front())
 
 	_last_flush_msec = Time.get_ticks_msec()
-	var payload := {
+	var payload: Dictionary = {
 		"logs": batch,
 		"metadata": metadata.duplicate(true),
 		"dropped_count": _dropped_count,

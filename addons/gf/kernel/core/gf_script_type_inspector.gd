@@ -49,7 +49,9 @@ static func script_extends_or_equals(candidate: Script, expected: Script) -> boo
 ## @return 命中任一脚本时返回 true。
 static func script_extends_any(candidate: Script, expected_scripts: Array) -> bool:
 	for expected_variant: Variant in expected_scripts:
-		var expected := expected_variant as Script
+		if not (expected_variant is Script):
+			continue
+		var expected: Script = expected_variant
 		if expected != null and script_extends_or_equals(candidate, expected):
 			return true
 	return false

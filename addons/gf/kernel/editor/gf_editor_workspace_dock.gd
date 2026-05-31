@@ -8,12 +8,14 @@ extends Control
 
 # --- 常量 ---
 
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
+
 ## 关于弹窗尺寸。
 ## [br]
 ## @api framework_internal
 ## [br]
 ## @layer kernel/editor
-const ABOUT_DIALOG_SIZE := Vector2i(560, 320)
+const ABOUT_DIALOG_SIZE: Vector2i = Vector2i(560, 320)
 
 ## 联系邮箱。
 ## [br]
@@ -175,11 +177,11 @@ func get_page_count() -> int:
 ## [br]
 ## @return 页面标题。
 func get_page_titles() -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	if _tabs == null:
 		return result
 	for index: int in range(_tabs.get_child_count()):
-		result.append(_tabs.get_child(index).name)
+		var _title_appended: bool = result.append(String(_tabs.get_child(index).name))
 	return result
 
 
@@ -191,9 +193,9 @@ func get_page_titles() -> PackedStringArray:
 ## [br]
 ## @return 页面按钮标题。
 func get_page_button_titles() -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	for button: Button in _page_buttons:
-		result.append(button.text)
+		var _title_appended: bool = result.append(button.text)
 	return result
 
 
@@ -251,7 +253,7 @@ func _build_ui() -> void:
 	if _tabs != null:
 		return
 
-	var margin := MarginContainer.new()
+	var margin: MarginContainer = MarginContainer.new()
 	margin.clip_contents = true
 	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -262,13 +264,13 @@ func _build_ui() -> void:
 	add_child(margin)
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
-	var layout := VBoxContainer.new()
+	var layout: VBoxContainer = VBoxContainer.new()
 	layout.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	layout.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	layout.add_theme_constant_override("separation", 6)
 	margin.add_child(layout)
 
-	var header := HBoxContainer.new()
+	var header: HBoxContainer = HBoxContainer.new()
 	header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_theme_constant_override("separation", 8)
 	layout.add_child(header)
@@ -287,7 +289,7 @@ func _build_ui() -> void:
 	_about_button = Button.new()
 	_about_button.text = "关于"
 	_about_button.tooltip_text = "查看 GF Framework 介绍、项目链接、文档地址和版本信息。"
-	_about_button.pressed.connect(_on_about_button_pressed)
+	var _about_pressed_connected: Error = _about_button.pressed.connect(_on_about_button_pressed) as Error
 	header.add_child(_about_button)
 
 	_always_on_top_button = Button.new()
@@ -295,7 +297,7 @@ func _build_ui() -> void:
 	_always_on_top_button.toggle_mode = true
 	_always_on_top_button.focus_mode = Control.FOCUS_NONE
 	_always_on_top_button.tooltip_text = "让 GF Workspace 独立窗口保持在其他窗口上方。"
-	_always_on_top_button.toggled.connect(_on_always_on_top_toggled)
+	var _always_on_top_connected: Error = _always_on_top_button.toggled.connect(_on_always_on_top_toggled) as Error
 	header.add_child(_always_on_top_button)
 
 	_tabs = TabContainer.new()
@@ -303,7 +305,7 @@ func _build_ui() -> void:
 	_tabs.tabs_visible = false
 	_tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_tabs.tab_changed.connect(_on_tabs_tab_changed)
+	var _tab_changed_connected: Error = _tabs.tab_changed.connect(_on_tabs_tab_changed) as Error
 	layout.add_child(_tabs)
 
 
@@ -316,7 +318,7 @@ func _rebuild_pages() -> void:
 		child.queue_free()
 
 	for record: Dictionary in _dock_records:
-		var page := _instantiate_page(record)
+		var page: Control = _instantiate_page(record)
 		if page == null:
 			continue
 		_tabs.add_child(page)
@@ -331,23 +333,24 @@ func _rebuild_pages() -> void:
 
 
 func _instantiate_page(record: Dictionary) -> Control:
-	var script_path := String(record.get("path", "")).strip_edges()
+	var script_path: String = _GF_VARIANT_ACCESS_SCRIPT.get_option_string(record, "path", "").strip_edges()
 	if script_path.is_empty():
 		return null
 
-	var dock_script := load(script_path) as Script
+	var dock_script: Script = _load_script(script_path)
 	if dock_script == null or not dock_script.can_instantiate():
 		push_error("[GF Framework] 工作区面板脚本加载失败：%s" % script_path)
 		return null
 
-	var dock := dock_script.new() as Control
+	var dock_value: Variant = dock_script.call("new")
+	var dock: Control = _variant_to_control(dock_value)
 	if dock == null:
 		push_error("[GF Framework] 工作区面板实例化失败：%s" % script_path)
 		return null
 
-	var label := _resolve_page_label(dock, String(record.get("label", "")))
-	var short_label := _resolve_short_page_label(record, label)
-	var page := Control.new()
+	var label: String = _resolve_page_label(dock, _GF_VARIANT_ACCESS_SCRIPT.get_option_string(record, "label", ""))
+	var short_label: String = _resolve_short_page_label(record, label)
+	var page: Control = Control.new()
 	page.name = label
 	page.set_meta("short_label", short_label)
 	page.clip_contents = true
@@ -364,12 +367,12 @@ func _instantiate_page(record: Dictionary) -> Control:
 
 
 func _make_empty_page() -> Control:
-	var page := CenterContainer.new()
+	var page: CenterContainer = CenterContainer.new()
 	page.name = "概览"
 	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	page.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
-	var label := Label.new()
+	var label: Label = Label.new()
 	label.text = EMPTY_MESSAGE
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -386,11 +389,11 @@ func _resolve_page_label(dock: Control, fallback_label: String) -> String:
 
 
 func _resolve_short_page_label(record: Dictionary, label: String) -> String:
-	var explicit_label := String(record.get("short_label", "")).strip_edges()
+	var explicit_label: String = _GF_VARIANT_ACCESS_SCRIPT.get_option_string(record, "short_label", "").strip_edges()
 	if not explicit_label.is_empty():
 		return explicit_label
 
-	var result := label.strip_edges()
+	var result: String = label.strip_edges()
 	if result.begins_with("GF "):
 		result = result.substr(3)
 	match result:
@@ -439,8 +442,8 @@ func _sync_always_on_top_button() -> void:
 	if not is_instance_valid(_always_on_top_button):
 		return
 
-	var window := _get_workspace_window()
-	var available := window != null
+	var window: Window = _get_workspace_window()
+	var available: bool = window != null
 	_always_on_top_button.disabled = not available
 	_always_on_top_button.set_pressed_no_signal(available and window.always_on_top)
 	if available:
@@ -453,7 +456,7 @@ func _get_workspace_window() -> Window:
 	var current: Node = self
 	while current != null:
 		if current is Window:
-			var window := current as Window
+			var window: Window = current
 			if window.title == WORKSPACE_TITLE:
 				return window
 		current = current.get_parent()
@@ -470,15 +473,15 @@ func _rebuild_page_buttons() -> void:
 	_page_buttons.clear()
 
 	for index: int in range(_tabs.get_child_count()):
-		var page := _tabs.get_child(index)
-		var button := Button.new()
-		button.text = String(page.get_meta("short_label", page.name))
+		var page: Node = _tabs.get_child(index)
+		var button: Button = Button.new()
+		button.text = _GF_VARIANT_ACCESS_SCRIPT.to_text(page.get_meta("short_label", page.name), String(page.name))
 		button.toggle_mode = true
 		button.focus_mode = Control.FOCUS_NONE
 		button.tooltip_text = "切换到 %s" % page.name
 		button.custom_minimum_size = Vector2(PAGE_BUTTON_MIN_WIDTH, 30.0)
 		button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-		button.pressed.connect(_on_page_button_pressed.bind(index))
+		var _page_button_connected: Error = button.pressed.connect(_on_page_button_pressed.bind(index)) as Error
 		_page_selector.add_child(button)
 		_page_buttons.append(button)
 	_sync_page_buttons()
@@ -497,7 +500,7 @@ func _update_status() -> void:
 		_set_status(EMPTY_MESSAGE)
 		return
 
-	var current_title := _tabs.get_child(_tabs.current_tab).name
+	var current_title: String = String(_tabs.get_child(_tabs.current_tab).name)
 	_set_status("%d 个页面 · 当前：%s" % [_tabs.get_child_count(), current_title])
 
 
@@ -537,7 +540,7 @@ func _make_about_text() -> String:
 
 
 func _make_about_content() -> Control:
-	var margin := MarginContainer.new()
+	var margin: MarginContainer = MarginContainer.new()
 	margin.name = "AboutContent"
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	margin.add_theme_constant_override("margin_left", 24)
@@ -545,7 +548,7 @@ func _make_about_content() -> Control:
 	margin.add_theme_constant_override("margin_right", 24)
 	margin.add_theme_constant_override("margin_bottom", 18)
 
-	var layout := VBoxContainer.new()
+	var layout: VBoxContainer = VBoxContainer.new()
 	layout.name = "AboutLayout"
 	layout.alignment = BoxContainer.ALIGNMENT_BEGIN
 	layout.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -553,14 +556,14 @@ func _make_about_content() -> Control:
 	layout.add_theme_constant_override("separation", 8)
 	margin.add_child(layout)
 
-	var scroll := ScrollContainer.new()
+	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.name = "AboutScroll"
 	scroll.custom_minimum_size = Vector2(0.0, ABOUT_TEXT_MAX_HEIGHT)
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	layout.add_child(scroll)
 
-	var text := RichTextLabel.new()
+	var text: RichTextLabel = RichTextLabel.new()
 	text.name = "AboutText"
 	text.bbcode_enabled = true
 	text.fit_content = false
@@ -569,35 +572,35 @@ func _make_about_content() -> Control:
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	text.text = _make_about_bbcode()
-	text.meta_clicked.connect(_on_about_link_clicked)
+	var _about_meta_connected: Error = text.meta_clicked.connect(_on_about_link_clicked) as Error
 	scroll.add_child(text)
 
-	var action_row := HBoxContainer.new()
+	var action_row: HBoxContainer = HBoxContainer.new()
 	action_row.name = "AboutActionRow"
 	action_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	action_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	action_row.add_theme_constant_override("separation", 8)
 	layout.add_child(action_row)
 
-	var issues_button := Button.new()
+	var issues_button: Button = Button.new()
 	issues_button.name = "AboutIssuesButton"
 	issues_button.text = "Issues"
 	issues_button.tooltip_text = "打开 GF Framework Issues 页面。"
-	issues_button.pressed.connect(_on_about_link_button_pressed.bind(ISSUE_URL))
+	var _issues_connected: Error = issues_button.pressed.connect(_on_about_link_button_pressed.bind(ISSUE_URL)) as Error
 	action_row.add_child(issues_button)
 
-	var releases_button := Button.new()
+	var releases_button: Button = Button.new()
 	releases_button.name = "AboutReleasesButton"
 	releases_button.text = "Releases"
 	releases_button.tooltip_text = "打开 GF Framework Releases 页面。"
-	releases_button.pressed.connect(_on_about_link_button_pressed.bind(RELEASES_URL))
+	var _releases_connected: Error = releases_button.pressed.connect(_on_about_link_button_pressed.bind(RELEASES_URL)) as Error
 	action_row.add_child(releases_button)
 
 	_version_check_button = Button.new()
 	_version_check_button.name = "AboutVersionCheckButton"
 	_version_check_button.text = "检测最新版本"
 	_version_check_button.tooltip_text = "从 GitHub Releases 检测当前 GF Framework 是否为最新发布版本。"
-	_version_check_button.pressed.connect(_on_version_check_pressed)
+	var _version_check_connected: Error = _version_check_button.pressed.connect(_on_version_check_pressed) as Error
 	action_row.add_child(_version_check_button)
 
 	_version_status_label = Label.new()
@@ -610,16 +613,16 @@ func _make_about_content() -> Control:
 	_version_status_label.text = "当前版本：%s。可手动检测最新发布版本。" % _get_framework_version()
 	layout.add_child(_version_status_label)
 
-	var confirm_center := CenterContainer.new()
+	var confirm_center: CenterContainer = CenterContainer.new()
 	confirm_center.name = "AboutConfirmCenter"
 	confirm_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	layout.add_child(confirm_center)
 
-	var confirm_button := Button.new()
+	var confirm_button: Button = Button.new()
 	confirm_button.name = "AboutConfirmButton"
 	confirm_button.text = "确定"
 	confirm_button.custom_minimum_size = Vector2(96.0, 0.0)
-	confirm_button.pressed.connect(_on_about_confirm_pressed)
+	var _confirm_connected: Error = confirm_button.pressed.connect(_on_about_confirm_pressed) as Error
 	confirm_center.add_child(confirm_button)
 	return margin
 
@@ -640,11 +643,11 @@ func _make_about_bbcode() -> String:
 
 
 func _get_framework_version() -> String:
-	var config := ConfigFile.new()
-	var error := config.load("res://addons/gf/plugin.cfg")
+	var config: ConfigFile = ConfigFile.new()
+	var error: Error = config.load("res://addons/gf/plugin.cfg")
 	if error != OK:
 		return "unknown"
-	return String(config.get_value("plugin", "version", "unknown")).strip_edges()
+	return _GF_VARIANT_ACCESS_SCRIPT.to_text(config.get_value("plugin", "version", "unknown"), "unknown").strip_edges()
 
 
 func _set_version_status(message: String, color: Color = Color(0.72, 0.72, 0.72)) -> void:
@@ -660,7 +663,7 @@ func _request_latest_version() -> void:
 		_set_version_status("无法创建版本检测请求。", Color(0.9, 0.56, 0.56))
 		return
 
-	var status := _latest_version_request.get_http_client_status()
+	var status: HTTPClient.Status = _latest_version_request.get_http_client_status()
 	if status != HTTPClient.STATUS_DISCONNECTED:
 		_set_version_status("正在检测最新版本，请稍候。")
 		return
@@ -669,11 +672,11 @@ func _request_latest_version() -> void:
 	if is_instance_valid(_version_check_button):
 		_version_check_button.disabled = true
 
-	var headers := PackedStringArray([
+	var headers: PackedStringArray = PackedStringArray([
 		"Accept: application/vnd.github+json",
 		"User-Agent: GF-Framework-Godot-Editor",
 	])
-	var error := _latest_version_request.request(
+	var error: Error = _latest_version_request.request(
 		LATEST_RELEASE_API_URL,
 		headers,
 		HTTPClient.METHOD_GET
@@ -692,13 +695,13 @@ func _ensure_latest_version_request() -> void:
 	_latest_version_request.name = "LatestVersionRequest"
 	_latest_version_request.timeout = 10.0
 	_latest_version_request.use_threads = true
-	_latest_version_request.request_completed.connect(_on_latest_version_request_completed)
+	var _request_completed_connected: Error = _latest_version_request.request_completed.connect(_on_latest_version_request_completed) as Error
 	add_child(_latest_version_request)
 
 
 func _make_latest_version_status(latest_version: String, current_version: String) -> Dictionary:
-	var latest := _normalize_version_tag(latest_version)
-	var current := _normalize_version_tag(current_version)
+	var latest: String = _normalize_version_tag(latest_version)
+	var current: String = _normalize_version_tag(current_version)
 	if latest.is_empty():
 		return {
 			"message": "未能读取最新发布版本。",
@@ -710,7 +713,7 @@ func _make_latest_version_status(latest_version: String, current_version: String
 			"color": Color(0.86, 0.74, 0.45),
 		}
 
-	var compare := _compare_version_strings(latest, current)
+	var compare: int = _compare_version_strings(latest, current)
 	if compare > 0:
 		return {
 			"message": "发现新版本：%s。当前版本：%s。" % [latest, current],
@@ -728,8 +731,8 @@ func _make_latest_version_status(latest_version: String, current_version: String
 
 
 func _compare_version_strings(left: String, right: String) -> int:
-	var left_parts := _parse_version_numbers(left)
-	var right_parts := _parse_version_numbers(right)
+	var left_parts: PackedInt32Array = _parse_version_numbers(left)
+	var right_parts: PackedInt32Array = _parse_version_numbers(right)
 	for index: int in range(3):
 		if left_parts[index] > right_parts[index]:
 			return 1
@@ -739,7 +742,7 @@ func _compare_version_strings(left: String, right: String) -> int:
 
 
 func _normalize_version_tag(value: String) -> String:
-	var text := value.strip_edges()
+	var text: String = value.strip_edges()
 	if text.begins_with("refs/tags/"):
 		text = text.trim_prefix("refs/tags/")
 	if text.length() > 1 and text.substr(0, 1).to_lower() == "v" and text.substr(1, 1).is_valid_int():
@@ -752,13 +755,36 @@ func _normalize_version_tag(value: String) -> String:
 
 
 func _parse_version_numbers(value: String) -> PackedInt32Array:
-	var result := PackedInt32Array([0, 0, 0])
-	var parts := _normalize_version_tag(value).split(".")
+	var result: PackedInt32Array = PackedInt32Array([0, 0, 0])
+	var parts: PackedStringArray = _normalize_version_tag(value).split(".")
 	for index: int in range(mini(parts.size(), 3)):
-		var part := String(parts[index]).strip_edges()
+		var part: String = parts[index].strip_edges()
 		if part.is_valid_int():
-			result[index] = int(part)
+			result[index] = part.to_int()
 	return result
+
+
+func _load_script(path: String) -> Script:
+	var resource: Resource = load(path)
+	if resource is Script:
+		var script: Script = resource
+		return script
+	return null
+
+
+func _variant_to_control(value: Variant) -> Control:
+	if value is Control:
+		var control: Control = value
+		return control
+	return null
+
+
+func _get_dictionary_color(dictionary: Dictionary, key: Variant, fallback: Color) -> Color:
+	var value: Variant = _GF_VARIANT_ACCESS_SCRIPT.get_option_value(dictionary, key, fallback)
+	if value is Color:
+		var color: Color = value
+		return color
+	return fallback
 
 
 # --- 信号处理函数 ---
@@ -768,13 +794,13 @@ func _on_about_button_pressed() -> void:
 
 
 func _on_always_on_top_toggled(enabled: bool) -> void:
-	var window := _get_workspace_window()
+	var window: Window = _get_workspace_window()
 	if window == null:
 		_sync_always_on_top_button()
 		return
 
 	if window.has_method("set_always_on_top_enabled"):
-		window.call("set_always_on_top_enabled", enabled)
+		var _set_on_top_result: Variant = window.call("set_always_on_top_enabled", enabled)
 	else:
 		if enabled:
 			window.transient = false
@@ -798,14 +824,14 @@ func _on_tabs_tab_changed(_tab: int) -> void:
 
 
 func _on_about_link_clicked(meta: Variant) -> void:
-	var link := str(meta)
+	var link: String = str(meta)
 	if not link.is_empty():
-		OS.shell_open(link)
+		var _open_error: Error = OS.shell_open(link)
 
 
 func _on_about_link_button_pressed(url: String) -> void:
 	if not url.is_empty():
-		OS.shell_open(url)
+		var _open_error: Error = OS.shell_open(url)
 
 
 func _on_version_check_pressed() -> void:
@@ -833,11 +859,11 @@ func _on_latest_version_request_completed(
 		_set_version_status("无法检测最新版本：返回内容不是 JSON 对象。", Color(0.9, 0.56, 0.56))
 		return
 
-	var data := parsed as Dictionary
-	var latest_version := String(data.get("tag_name", data.get("name", "")))
-	var status := _make_latest_version_status(latest_version, _get_framework_version())
-	var status_color: Color = status.get("color", Color(0.72, 0.72, 0.72))
-	_set_version_status(String(status.get("message", "")), status_color)
+	var data: Dictionary = _GF_VARIANT_ACCESS_SCRIPT.as_dictionary(parsed)
+	var latest_version: String = _GF_VARIANT_ACCESS_SCRIPT.get_option_string(data, "tag_name", _GF_VARIANT_ACCESS_SCRIPT.get_option_string(data, "name", ""))
+	var status: Dictionary = _make_latest_version_status(latest_version, _get_framework_version())
+	var status_color: Color = _get_dictionary_color(status, "color", Color(0.72, 0.72, 0.72))
+	_set_version_status(_GF_VARIANT_ACCESS_SCRIPT.get_option_string(status, "message", ""), status_color)
 
 
 func _on_about_confirm_pressed() -> void:

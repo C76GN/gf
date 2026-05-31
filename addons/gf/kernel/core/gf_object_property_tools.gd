@@ -14,6 +14,11 @@ class_name GFObjectPropertyTools
 extends RefCounted
 
 
+# --- 常量 ---
+
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
+
+
 # --- 公共方法 ---
 
 ## 获取对象属性信息列表。
@@ -33,7 +38,7 @@ static func get_property_infos(object: Object, usage_filter: int = -1) -> Array[
 		return result
 
 	for property_info: Dictionary in object.get_property_list():
-		if usage_filter >= 0 and (int(property_info.get("usage", 0)) & usage_filter) == 0:
+		if usage_filter >= 0 and (_GF_VARIANT_ACCESS_SCRIPT.get_option_int(property_info, "usage", 0) & usage_filter) == 0:
 			continue
 		result.append(property_info.duplicate(true))
 	return result
@@ -53,7 +58,7 @@ static func get_property_infos(object: Object, usage_filter: int = -1) -> Array[
 static func get_property_info_map(object: Object, usage_filter: int = -1) -> Dictionary:
 	var result: Dictionary = {}
 	for property_info: Dictionary in get_property_infos(object, usage_filter):
-		var property_name := StringName(property_info.get("name", ""))
+		var property_name: StringName = _GF_VARIANT_ACCESS_SCRIPT.get_option_string_name(property_info, "name", &"")
 		if property_name != &"":
 			result[property_name] = property_info
 	return result
@@ -69,11 +74,11 @@ static func get_property_info_map(object: Object, usage_filter: int = -1) -> Dic
 ## [br]
 ## @return 属性名列表。
 static func get_property_names(object: Object, usage_filter: int = -1) -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	for property_info: Dictionary in get_property_infos(object, usage_filter):
-		var property_name := String(property_info.get("name", ""))
+		var property_name: String = _GF_VARIANT_ACCESS_SCRIPT.get_option_string(property_info, "name", "")
 		if not property_name.is_empty():
-			result.append(property_name)
+			var _append_result_81: Variant = result.append(property_name)
 	return result
 
 
@@ -92,7 +97,7 @@ static func get_property_info(object: Object, property_name: StringName) -> Dict
 	if property_name == &"" or not is_instance_valid(object):
 		return {}
 	for property_info: Dictionary in object.get_property_list():
-		if StringName(property_info.get("name", "")) == property_name:
+		if _GF_VARIANT_ACCESS_SCRIPT.get_option_string_name(property_info, "name", &"") == property_name:
 			return property_info.duplicate(true)
 	return {}
 
@@ -135,7 +140,7 @@ static func has_property_path(object: Object, property_path: NodePath) -> bool:
 static func is_property_writable(property_info: Dictionary) -> bool:
 	if property_info.is_empty():
 		return false
-	var usage := int(property_info.get("usage", 0))
+	var usage: int = _GF_VARIANT_ACCESS_SCRIPT.get_option_int(property_info, "usage", 0)
 	return (usage & PROPERTY_USAGE_READ_ONLY) == 0
 
 
@@ -209,19 +214,19 @@ static func write_property(
 	if property_path.is_empty():
 		return _make_write_result(false, "Property path is empty.")
 
-	var root_property := get_root_property_name(property_path)
-	var property_info := get_property_info(object, root_property)
+	var root_property: StringName = get_root_property_name(property_path)
+	var property_info: Dictionary = get_property_info(object, root_property)
 	if property_info.is_empty():
 		return _make_write_result(false, "Missing property: %s" % String(root_property), root_property)
-	if bool(options.get("check_writable", true)) and not is_property_writable(property_info):
+	if _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(options, "check_writable", true) and not is_property_writable(property_info):
 		return _make_write_result(false, "Property is not writable: %s" % String(root_property), root_property)
 
 	var old_value: Variant = object.get_indexed(property_path)
-	var property_type := _get_effective_property_type(property_path, property_info, old_value)
+	var property_type: int = _get_effective_property_type(property_path, property_info, old_value)
 	var value_to_write: Variant = value
-	if bool(options.get("check_type", true)) and not value_matches_property_type(value, property_type):
+	if _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(options, "check_type", true) and not value_matches_property_type(value, property_type):
 		return _make_write_result(false, "Property type mismatch: %s" % String(root_property), root_property, old_value)
-	if bool(options.get("coerce_value", true)):
+	if _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(options, "coerce_value", true):
 		value_to_write = coerce_property_value(value, property_type)
 
 	object.set_indexed(property_path, value_to_write)
@@ -331,14 +336,14 @@ static func value_matches_property_type(value: Variant, property_type: int) -> b
 static func coerce_property_value(value: Variant, property_type: int) -> Variant:
 	match property_type:
 		TYPE_FLOAT:
-			return float(value)
+			return _GF_VARIANT_ACCESS_SCRIPT.to_float(value)
 		TYPE_STRING:
-			return String(value)
+			return _GF_VARIANT_ACCESS_SCRIPT.to_text(value)
 		TYPE_STRING_NAME:
-			return StringName(value)
+			return _GF_VARIANT_ACCESS_SCRIPT.to_string_name(value)
 		TYPE_NODE_PATH:
-			if typeof(value) == TYPE_STRING:
-				return NodePath(value)
+			if value is String or value is StringName or value is NodePath:
+				return NodePath(_GF_VARIANT_ACCESS_SCRIPT.to_text(value))
 			return value
 		_:
 			return value
@@ -369,7 +374,7 @@ static func _get_effective_property_type(
 	current_value: Variant
 ) -> int:
 	if _is_direct_property_path(property_path):
-		return int(property_info.get("type", TYPE_NIL))
+		return _GF_VARIANT_ACCESS_SCRIPT.get_option_int(property_info, "type", TYPE_NIL)
 	if current_value != null:
 		return typeof(current_value)
 	return TYPE_NIL

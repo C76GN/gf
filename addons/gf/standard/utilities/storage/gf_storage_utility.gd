@@ -199,9 +199,10 @@ func _init() -> void:
 func init() -> void:
 	_ensure_storage_helpers()
 	ignore_pause = true
-	var dir_path := _get_save_base_path()
-	if not DirAccess.dir_exists_absolute(dir_path):
-		DirAccess.make_dir_recursive_absolute(dir_path)
+	var dir_path: String = _get_save_base_path()
+	var dir_error: Error = _ensure_directory_absolute(dir_path)
+	if dir_error != OK:
+		push_error("[GFStorageUtility] 无法初始化存储目录：%s，错误码：%s" % [dir_path, dir_error])
 
 
 ## 等待并清理异步存取任务。
@@ -233,8 +234,8 @@ func tick(_delta: float = 0.0) -> void:
 ## @return Godot 的 `Error` 结果码。
 func save_resource(file_name: String, resource: Resource) -> Error:
 	init()
-	var path := _get_full_path(file_name)
-	var dir_error := _ensure_parent_directory(path)
+	var path: String = _get_full_path(file_name)
+	var dir_error: Error = _ensure_parent_directory(path)
 	if dir_error != OK:
 		return dir_error
 	return ResourceSaver.save(resource, path)
@@ -250,7 +251,7 @@ func save_resource(file_name: String, resource: Resource) -> Error:
 ## [br]
 ## @return 读取到的资源实例；不存在时返回 `null`。
 func load_resource(file_name: String, type_hint: String = "") -> Resource:
-	var path := _get_full_path(file_name)
+	var path: String = _get_full_path(file_name)
 	if not FileAccess.file_exists(path):
 		return null
 
@@ -268,12 +269,9 @@ func load_resource(file_name: String, type_hint: String = "") -> Resource:
 ## @return Godot 的 `Error` 结果码。
 func ensure_directory(directory_name: String = "") -> Error:
 	init()
-	var normalized_directory := _normalize_storage_directory_name(directory_name)
-	var path := _get_full_directory_path_from_normalized(normalized_directory)
-	if DirAccess.dir_exists_absolute(path):
-		return OK
-
-	var error := DirAccess.make_dir_recursive_absolute(path)
+	var normalized_directory: String = _normalize_storage_directory_name(directory_name)
+	var path: String = _get_full_directory_path_from_normalized(normalized_directory)
+	var error: Error = _ensure_directory_absolute(path)
 	if error != OK:
 		push_error("[GFStorageUtility] 无法创建目录：%s，错误码：%s" % [path, error])
 	return error
@@ -301,13 +299,13 @@ func list_files(
 	options: Dictionary = {}
 ) -> PackedStringArray:
 	init()
-	var result := PackedStringArray()
-	var normalized_directory := _normalize_storage_directory_name(directory_name)
-	var directory_path := _get_full_directory_path_from_normalized(normalized_directory)
-	var normalized_extension := _normalize_extension_filter(extension_filter)
-	var max_scan_depth := maxi(int(options.get("max_scan_depth", DEFAULT_MAX_LIST_DEPTH)), 0)
-	var max_file_count := maxi(int(options.get("max_file_count", DEFAULT_MAX_LISTED_FILES)), 0)
-	var scan_state := _make_list_scan_state()
+	var result: PackedStringArray = PackedStringArray()
+	var normalized_directory: String = _normalize_storage_directory_name(directory_name)
+	var directory_path: String = _get_full_directory_path_from_normalized(normalized_directory)
+	var normalized_extension: String = _normalize_extension_filter(extension_filter)
+	var max_scan_depth: int = maxi(GFVariantData.get_option_int(options, "max_scan_depth", DEFAULT_MAX_LIST_DEPTH), 0)
+	var max_file_count: int = maxi(GFVariantData.get_option_int(options, "max_file_count", DEFAULT_MAX_LISTED_FILES), 0)
+	var scan_state: Dictionary = _make_list_scan_state()
 	_append_listed_files(
 		directory_path,
 		normalized_directory,
@@ -335,7 +333,7 @@ func delete_file(file_name: String) -> Error:
 		push_error("[GFStorageUtility] delete_file 失败：file_name 为空。")
 		return ERR_INVALID_PARAMETER
 
-	var path := _get_full_path(file_name)
+	var path: String = _get_full_path(file_name)
 	if not FileAccess.file_exists(path):
 		return ERR_FILE_NOT_FOUND
 	return DirAccess.remove_absolute(path)
@@ -363,20 +361,20 @@ func save_slot(slot_id: int, data: Dictionary, metadata: Dictionary = {}) -> Err
 		push_error("[GFStorageUtility] save_slot 失败：slot_id 必须大于等于 0，当前为 %d。" % slot_id)
 		return ERR_INVALID_PARAMETER
 
-	var data_file_name := _get_data_filename(slot_id)
-	var meta_file_name := _get_meta_filename(slot_id)
-	var data_temp_file_name := _get_temp_filename(data_file_name)
-	var meta_temp_file_name := _get_temp_filename(meta_file_name)
+	var data_file_name: String = _get_data_filename(slot_id)
+	var meta_file_name: String = _get_meta_filename(slot_id)
+	var data_temp_file_name: String = _get_temp_filename(data_file_name)
+	var meta_temp_file_name: String = _get_temp_filename(meta_file_name)
 
 	init()
 	_recover_transaction_files([data_file_name, meta_file_name])
 
-	var data_error := _write_json(data_temp_file_name, data)
+	var data_error: Error = _write_json(data_temp_file_name, data)
 	if data_error != OK:
 		_cleanup_transaction_files([data_file_name, meta_file_name])
 		return data_error
 
-	var meta_error := _write_json(meta_temp_file_name, metadata)
+	var meta_error: Error = _write_json(meta_temp_file_name, metadata)
 	if meta_error != OK:
 		_cleanup_transaction_files([data_file_name, meta_file_name])
 		return meta_error
@@ -398,7 +396,7 @@ func load_slot(slot_id: int) -> Dictionary:
 		last_load_result = _make_load_result(false, {}, "Invalid slot_id: %d" % slot_id, true)
 		return {}
 
-	var data_file_name := _get_data_filename(slot_id)
+	var data_file_name: String = _get_data_filename(slot_id)
 	return _read_json(data_file_name)
 
 
@@ -412,7 +410,7 @@ func load_slot(slot_id: int) -> Dictionary:
 ## [br]
 ## @schema return: Dictionary，包含 ok: bool、data: Dictionary、metadata: Dictionary、integrity_valid: bool 和 error: String。
 func load_slot_result(slot_id: int) -> Dictionary:
-	load_slot(slot_id)
+	var _loaded_data: Dictionary = load_slot(slot_id)
 	return last_load_result.duplicate(true)
 
 
@@ -430,7 +428,7 @@ func load_slot_meta(slot_id: int) -> Dictionary:
 		last_load_result = _make_load_result(false, {}, "Invalid slot_id: %d" % slot_id, true)
 		return {}
 
-	var meta_file_name := _get_meta_filename(slot_id)
+	var meta_file_name: String = _get_meta_filename(slot_id)
 	return _read_json(meta_file_name)
 
 
@@ -444,7 +442,7 @@ func load_slot_meta(slot_id: int) -> Dictionary:
 ## [br]
 ## @schema return: Dictionary，包含 ok: bool、data: Dictionary、metadata: Dictionary、integrity_valid: bool 和 error: String。
 func load_slot_meta_result(slot_id: int) -> Dictionary:
-	load_slot_meta(slot_id)
+	var _loaded_metadata: Dictionary = load_slot_meta(slot_id)
 	return last_load_result.duplicate(true)
 
 
@@ -464,8 +462,8 @@ func has_slot(slot_id: int) -> bool:
 		_get_meta_filename(slot_id),
 	])
 
-	var data_path := _get_full_path(_get_data_filename(slot_id))
-	var meta_path := _get_full_path(_get_meta_filename(slot_id))
+	var data_path: String = _get_full_path(_get_data_filename(slot_id))
+	var meta_path: String = _get_full_path(_get_meta_filename(slot_id))
 	return FileAccess.file_exists(data_path) and FileAccess.file_exists(meta_path)
 
 
@@ -478,16 +476,18 @@ func has_slot(slot_id: int) -> bool:
 ## @schema return: Array，包含 slot_id: int、metadata: Dictionary 和 modified_time: int 的 Dictionary 条目。
 func list_slots() -> Array[Dictionary]:
 	init()
-	var dir := DirAccess.open(_get_save_base_path())
+	var dir: DirAccess = DirAccess.open(_get_save_base_path())
 	if dir == null:
 		return []
 
 	var slot_ids: Array[int] = []
-	dir.list_dir_begin()
-	var file_name := dir.get_next()
+	var list_error: Error = _begin_dir_listing(dir)
+	if list_error != OK:
+		return []
+	var file_name: String = dir.get_next()
 	while not file_name.is_empty():
 		if not dir.current_is_dir():
-			var slot_id := _parse_slot_id_from_meta_filename(file_name)
+			var slot_id: int = _parse_slot_id_from_meta_filename(file_name)
 			if slot_id >= 0 and not slot_ids.has(slot_id) and has_slot(slot_id):
 				slot_ids.append(slot_id)
 		file_name = dir.get_next()
@@ -497,7 +497,7 @@ func list_slots() -> Array[Dictionary]:
 
 	var result: Array[Dictionary] = []
 	for slot_id: int in slot_ids:
-		var meta_path := _get_full_path(_get_meta_filename(slot_id))
+		var meta_path: String = _get_full_path(_get_meta_filename(slot_id))
 		result.append({
 			"slot_id": slot_id,
 			"metadata": load_slot_meta(slot_id),
@@ -545,8 +545,8 @@ func save_data(file_name: String, data: Dictionary) -> Error:
 	init()
 	_recover_transaction_files([file_name])
 
-	var temp_file_name := _get_temp_filename(file_name)
-	var write_error := _write_json(temp_file_name, data)
+	var temp_file_name: String = _get_temp_filename(file_name)
+	var write_error: Error = _write_json(temp_file_name, data)
 	if write_error != OK:
 		_cleanup_transaction_files([file_name])
 		return write_error
@@ -581,7 +581,7 @@ func load_data(file_name: String) -> Dictionary:
 ## [br]
 ## @schema return: Dictionary，包含 ok: bool、data: Dictionary、metadata: Dictionary、integrity_valid: bool 和 error: String。
 func load_data_result(file_name: String) -> Dictionary:
-	load_data(file_name)
+	var _loaded_data: Dictionary = load_data(file_name)
 	return last_load_result.duplicate(true)
 
 
@@ -622,7 +622,7 @@ func save_data_async(file_name: String, data: Dictionary) -> Error:
 ## @return 启动线程的 Error 结果码。
 func load_data_async(file_name: String) -> Error:
 	if not _validate_public_file_name(file_name, "load_data_async"):
-		var failed_result := _make_load_result(false, {}, "file_name is empty", true)
+		var failed_result: Dictionary = _make_load_result(false, {}, "file_name is empty", true)
 		last_load_result = failed_result.duplicate(true)
 		load_completed.emit(file_name, failed_result)
 		return ERR_INVALID_PARAMETER
@@ -647,17 +647,17 @@ func wait_for_async_tasks() -> void:
 		if _async_tasks.is_empty():
 			break
 
-		var tasks := _async_tasks.duplicate()
+		var tasks: Array = _async_tasks.duplicate()
 		_async_tasks.clear()
 		for task_variant: Variant in tasks:
-			var task := task_variant as Dictionary
-			if task == null:
+			var task: Dictionary = GFVariantData.as_dictionary(task_variant)
+			if task.is_empty():
 				continue
-			var thread := task.get("thread") as Thread
+			var thread: Thread = _get_task_thread(task)
 			var result_variant: Variant = null
 			if thread != null:
 				result_variant = thread.wait_to_finish()
-			_async_file_locks.erase(String(task.get("file_key", "")))
+			_erase_dictionary_key(_async_file_locks, _get_task_file_key(task))
 			_complete_finished_async_task(task, result_variant)
 		_start_queued_async_tasks()
 
@@ -678,9 +678,9 @@ func wait_for_async_tasks() -> void:
 ## [br]
 ## @schema return: Dictionary，应用已注册迁移和默认值后的数据载荷。
 func migrate_data(data: Dictionary, _from_version: int, _to_version: int) -> Dictionary:
-	var migrated := _apply_registered_migrations(data, _from_version, _to_version)
+	var migrated: Dictionary = _apply_registered_migrations(data, _from_version, _to_version)
 	if not default_values_for_new_keys.is_empty():
-		GFVariantData.deep_merge_defaults(migrated, default_values_for_new_keys)
+		migrated = _merge_default_values(migrated, default_values_for_new_keys)
 	return migrated
 
 
@@ -716,7 +716,7 @@ func register_migration(from_version: int, to_version: int, callback: Callable) 
 ## [br]
 ## @param to_version: 目标版本。
 func unregister_migration(from_version: int, to_version: int) -> void:
-	_migration_steps.erase(_make_migration_key(from_version, to_version))
+	_erase_dictionary_key(_migration_steps, _make_migration_key(from_version, to_version))
 
 
 ## 清空所有注册的版本迁移步骤。
@@ -737,13 +737,15 @@ func get_registered_migrations() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for entry: Dictionary in _migration_steps.values():
 		result.append({
-			"from_version": int(entry.get("from_version", 0)),
-			"to_version": int(entry.get("to_version", 0)),
+			"from_version": GFVariantData.get_option_int(entry, "from_version", 0),
+			"to_version": GFVariantData.get_option_int(entry, "to_version", 0),
 		})
 	result.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
-		if int(left["from_version"]) == int(right["from_version"]):
-			return int(left["to_version"]) < int(right["to_version"])
-		return int(left["from_version"]) < int(right["from_version"])
+		var left_from_version: int = GFVariantData.get_option_int(left, "from_version", 0)
+		var right_from_version: int = GFVariantData.get_option_int(right, "from_version", 0)
+		if left_from_version == right_from_version:
+			return GFVariantData.get_option_int(left, "to_version", 0) < GFVariantData.get_option_int(right, "to_version", 0)
+		return left_from_version < right_from_version
 	)
 	return result
 
@@ -759,23 +761,86 @@ func _ensure_storage_helpers() -> void:
 		_transaction_manager = _StorageTransactionManager.new(self, _path_policy, _file_ops)
 
 
+func _ensure_directory_absolute(path: String) -> Error:
+	if path.is_empty() or DirAccess.dir_exists_absolute(path):
+		return OK
+	return DirAccess.make_dir_recursive_absolute(path)
+
+
+func _begin_dir_listing(dir: DirAccess) -> Error:
+	return dir.list_dir_begin()
+
+
+func _erase_dictionary_key(target: Dictionary, key: Variant) -> void:
+	var erased: bool = target.erase(key)
+	if erased:
+		return
+
+
+func _append_packed_string(target: PackedStringArray, value: String) -> void:
+	var appended: bool = target.append(value)
+	if appended:
+		return
+
+
+func _merge_default_values(target: Dictionary, defaults: Dictionary) -> Dictionary:
+	return GFVariantData.deep_merge_defaults(target, defaults)
+
+
+func _get_thread_value(value: Variant) -> Thread:
+	if value is Thread:
+		return value
+	return null
+
+
+func _get_callable_value(value: Variant) -> Callable:
+	if value is Callable:
+		var callback: Callable = value
+		return callback
+	return Callable()
+
+
+func _get_task_thread(task: Dictionary) -> Thread:
+	return _get_thread_value(GFVariantData.get_option_value(task, "thread"))
+
+
+func _get_task_file_name(task: Dictionary) -> String:
+	return GFVariantData.get_option_string(task, "file_name")
+
+
+func _get_task_file_key(task: Dictionary) -> String:
+	return GFVariantData.get_option_string(task, "file_key")
+
+
+func _get_task_type(task: Dictionary) -> StringName:
+	return GFVariantData.get_option_string_name(task, "type")
+
+
+func _get_task_dictionary(task: Dictionary, key: String) -> Dictionary:
+	return GFVariantData.get_option_dictionary(task, key)
+
+
+func _get_result_error(result: Dictionary, default_value: Error = ERR_BUG) -> Error:
+	return GFVariantData.get_option_int(result, "error", default_value) as Error
+
+
 func _poll_async_tasks() -> void:
-	for i in range(_async_tasks.size() - 1, -1, -1):
-		var task := _async_tasks[i] as Dictionary
-		var thread := task.get("thread") as Thread
+	for i: int in range(_async_tasks.size() - 1, -1, -1):
+		var task: Dictionary = GFVariantData.as_dictionary(_async_tasks[i])
+		var thread: Thread = _get_task_thread(task)
 		if thread == null or thread.is_alive():
 			continue
 
 		var result_variant: Variant = thread.wait_to_finish()
 		_async_tasks.remove_at(i)
-		_async_file_locks.erase(String(task.get("file_key", "")))
+		_erase_dictionary_key(_async_file_locks, _get_task_file_key(task))
 		_complete_finished_async_task(task, result_variant)
 	_start_queued_async_tasks()
 
 
 func _wait_for_async_tasks() -> void:
 	for task: Dictionary in _async_tasks:
-		var thread := task.get("thread") as Thread
+		var thread: Thread = _get_task_thread(task)
 		if thread != null:
 			var result_variant: Variant = thread.wait_to_finish()
 			_complete_finished_async_task(task, result_variant)
@@ -787,28 +852,28 @@ func _wait_for_async_tasks() -> void:
 
 func _start_queued_async_tasks() -> void:
 	while _async_tasks.size() < maxi(max_async_thread_count, 1):
-		var task_index := _find_startable_async_task_index()
+		var task_index: int = _find_startable_async_task_index()
 		if task_index < 0:
 			return
 
-		var task := _async_queue[task_index] as Dictionary
+		var task: Dictionary = GFVariantData.as_dictionary(_async_queue[task_index])
 		_async_queue.remove_at(task_index)
 		_start_async_task(task)
 
 
 func _find_startable_async_task_index() -> int:
-	for i in range(_async_queue.size()):
-		var task := _async_queue[i] as Dictionary
-		var file_key := String(task.get("file_key", ""))
+	for i: int in range(_async_queue.size()):
+		var task: Dictionary = GFVariantData.as_dictionary(_async_queue[i])
+		var file_key: String = _get_task_file_key(task)
 		if file_key.is_empty() or not _async_file_locks.has(file_key):
 			return i
 	return -1
 
 
 func _start_async_task(task: Dictionary) -> void:
-	var file_name := String(task.get("file_name", ""))
-	var task_type := StringName(task.get("type", &""))
-	var thread := Thread.new()
+	var file_name: String = _get_task_file_name(task)
+	var task_type: StringName = _get_task_type(task)
+	var thread: Thread = Thread.new()
 	_recover_transaction_files([file_name])
 
 	var error: Error = ERR_INVALID_PARAMETER
@@ -819,14 +884,14 @@ func _start_async_task(task: Dictionary) -> void:
 			_get_full_path(_get_temp_filename(file_name)),
 			_get_full_path(_get_backup_filename(file_name)),
 			_get_full_path(_get_transaction_filename(file_name)),
-			task.get("data", {}) as Dictionary,
-			task.get("codec_options", {}) as Dictionary
+			_get_task_dictionary(task, "data"),
+			_get_task_dictionary(task, "codec_options")
 		))
 	elif task_type == &"load":
 		error = thread.start(Callable(self, "_load_data_thread").bind(
 			file_name,
 			_get_full_path(file_name),
-			task.get("codec_options", {}) as Dictionary
+			_get_task_dictionary(task, "codec_options")
 		))
 
 	if error != OK:
@@ -834,30 +899,30 @@ func _start_async_task(task: Dictionary) -> void:
 		return
 
 	task["thread"] = thread
-	_async_file_locks[String(task.get("file_key", ""))] = true
+	_async_file_locks[_get_task_file_key(task)] = true
 	_async_tasks.append(task)
 
 
 func _emit_async_start_failed(task: Dictionary, error: Error) -> void:
-	var file_name := String(task.get("file_name", ""))
-	var task_type := StringName(task.get("type", &""))
+	var file_name: String = _get_task_file_name(task)
+	var task_type: StringName = _get_task_type(task)
 	if task_type == &"save":
 		push_error("[GFStorageUtility] 无法启动异步保存线程：%s，错误码：%s" % [file_name, error])
 		save_completed.emit(file_name, error)
 	elif task_type == &"load":
 		push_error("[GFStorageUtility] 无法启动异步读取线程：%s，错误码：%s" % [file_name, error])
-		var failed_result := _make_load_result(false, {}, "Thread start failed: %s" % error_string(error), true)
+		var failed_result: Dictionary = _make_load_result(false, {}, "Thread start failed: %s" % error_string(error), true)
 		load_completed.emit(file_name, failed_result)
 
 
 func _complete_finished_async_task(task: Dictionary, result_variant: Variant) -> void:
-	var file_name := String(task.get("file_name", ""))
-	var task_type := StringName(task.get("type", &""))
+	var file_name: String = _get_task_file_name(task)
+	var task_type: StringName = _get_task_type(task)
 	if task_type == &"save":
-		var save_result := result_variant as Dictionary
+		var save_result: Dictionary = GFVariantData.as_dictionary(result_variant)
 		var error: Error = ERR_BUG
-		if save_result != null:
-			error = int(save_result.get("error", ERR_BUG))
+		if not save_result.is_empty():
+			error = _get_result_error(save_result, ERR_BUG)
 		save_completed.emit(file_name, error)
 	elif task_type == &"load":
 		_complete_async_load(file_name, result_variant)
@@ -865,45 +930,45 @@ func _complete_finished_async_task(task: Dictionary, result_variant: Variant) ->
 
 func _fail_queued_async_tasks(reason: String) -> void:
 	for task: Dictionary in _async_queue:
-		var file_name := String(task.get("file_name", ""))
-		var task_type := StringName(task.get("type", &""))
+		var file_name: String = _get_task_file_name(task)
+		var task_type: StringName = _get_task_type(task)
 		if task_type == &"save":
 			save_completed.emit(file_name, ERR_UNAVAILABLE)
 		elif task_type == &"load":
-			var failed_result := _make_load_result(false, {}, reason, true)
+			var failed_result: Dictionary = _make_load_result(false, {}, reason, true)
 			last_load_result = failed_result.duplicate(true)
 			load_completed.emit(file_name, failed_result)
 
 
 func _complete_async_load(file_name: String, result_variant: Variant) -> void:
-	var result := result_variant as Dictionary
-	if result == null:
+	var result: Dictionary = GFVariantData.as_dictionary(result_variant)
+	if result.is_empty():
 		result = _make_load_result(false, {}, "Async load failed", true)
 
 	last_load_result = result.duplicate(true)
-	if not bool(result.get("ok", false)):
+	if not GFVariantData.get_option_bool(result, "ok"):
 		if _should_emit_load_integrity_failed(result):
-			data_integrity_failed.emit(file_name, String(result.get("error", "Decode failed")))
+			data_integrity_failed.emit(file_name, GFVariantData.get_option_string(result, "error", "Decode failed"))
 		load_completed.emit(file_name, last_load_result.duplicate(true))
 		return
 
-	if not bool(result.get("integrity_valid", true)):
-		data_integrity_failed.emit(file_name, String(result.get("error", "Integrity checksum mismatch")))
+	if not GFVariantData.get_option_bool(result, "integrity_valid", true):
+		data_integrity_failed.emit(file_name, GFVariantData.get_option_string(result, "error", "Integrity checksum mismatch"))
 
-	var data_value: Variant = result.get("data", {})
+	var data_value: Variant = GFVariantData.get_option_value(result, "data", {})
 	if not (data_value is Dictionary):
 		last_load_result = {
 			"ok": false,
 			"data": {},
 			"metadata": {},
-			"integrity_valid": bool(result.get("integrity_valid", true)),
+			"integrity_valid": GFVariantData.get_option_bool(result, "integrity_valid", true),
 			"error": "Decoded storage payload is not a Dictionary.",
 		}
-		data_integrity_failed.emit(file_name, String(last_load_result["error"]))
+		data_integrity_failed.emit(file_name, GFVariantData.to_text(last_load_result["error"]))
 		load_completed.emit(file_name, last_load_result.duplicate(true))
 		return
 
-	var data: Dictionary = data_value as Dictionary
+	var data: Dictionary = GFVariantData.as_dictionary(data_value)
 	data = _apply_schema_migrations(file_name, data)
 	last_load_result["data"] = data
 	last_load_result["metadata"] = _get_storage_metadata(data)
@@ -911,7 +976,7 @@ func _complete_async_load(file_name: String, result_variant: Variant) -> void:
 
 
 func _should_emit_load_integrity_failed(result: Dictionary) -> bool:
-	var error := String(result.get("error", ""))
+	var error: String = GFVariantData.get_option_string(result, "error")
 	if error == "File not found" or error == "File is empty" or error.begins_with("File open failed"):
 		return false
 	return true
@@ -926,19 +991,19 @@ func _save_data_thread(
 	data: Dictionary,
 	codec_options: Dictionary
 ) -> Dictionary:
-	var dir_error := _ensure_absolute_parent_directory(final_path)
+	var dir_error: Error = _ensure_absolute_parent_directory(final_path)
 	if dir_error != OK:
 		return { "error": dir_error }
 
-	var codec := GFStorageCodec.new()
-	var bytes := codec.encode(data, codec_options)
-	var write_error := _write_buffer_absolute(temp_path, bytes)
+	var thread_codec: GFStorageCodec = GFStorageCodec.new()
+	var bytes: PackedByteArray = thread_codec.encode(data, codec_options)
+	var write_error: Error = _write_buffer_absolute(temp_path, bytes)
 	if write_error != OK:
 		_remove_absolute_file_if_exists(temp_path)
 		return { "error": write_error }
 
-	var had_final := FileAccess.file_exists(final_path)
-	var marker_error := _write_plain_json_absolute(transaction_path, {
+	var had_final: bool = FileAccess.file_exists(final_path)
+	var marker_error: Error = _write_plain_json_absolute(transaction_path, {
 		"files": [file_name],
 		"committed": false,
 		"had_final": had_final,
@@ -947,24 +1012,24 @@ func _save_data_thread(
 		_remove_absolute_file_if_exists(temp_path)
 		return { "error": marker_error }
 
-	var backed_up := false
-	var committed := false
+	var backed_up: bool = false
+	var committed: bool = false
 	if had_final:
-		var backup_error := DirAccess.rename_absolute(final_path, backup_path)
+		var backup_error: Error = DirAccess.rename_absolute(final_path, backup_path)
 		if backup_error != OK:
 			_remove_absolute_file_if_exists(temp_path)
 			_remove_absolute_file_if_exists(transaction_path)
 			return { "error": backup_error }
 		backed_up = true
 
-	var commit_error := DirAccess.rename_absolute(temp_path, final_path)
+	var commit_error: Error = DirAccess.rename_absolute(temp_path, final_path)
 	if commit_error != OK:
 		_rollback_absolute_transaction(final_path, temp_path, backup_path, backed_up, committed)
 		_remove_absolute_file_if_exists(transaction_path)
 		return { "error": commit_error }
 	committed = true
 
-	var complete_marker_error := _write_plain_json_absolute(transaction_path, {
+	var complete_marker_error: Error = _write_plain_json_absolute(transaction_path, {
 		"files": [file_name],
 		"committed": true,
 		"had_final": had_final,
@@ -979,11 +1044,11 @@ func _save_data_thread(
 	return { "error": OK }
 
 
-func _load_data_thread(file_name: String, path: String, codec_options: Dictionary) -> Dictionary:
+func _load_data_thread(_file_name: String, path: String, codec_options: Dictionary) -> Dictionary:
 	if not FileAccess.file_exists(path):
 		return _make_thread_load_result(false, {}, "File not found", true)
 
-	var file := FileAccess.open(path, FileAccess.READ)
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		return _make_thread_load_result(
 			false,
@@ -992,20 +1057,20 @@ func _load_data_thread(file_name: String, path: String, codec_options: Dictionar
 			true
 		)
 
-	var bytes := file.get_buffer(file.get_length())
+	var bytes: PackedByteArray = file.get_buffer(file.get_length())
 	file.close()
 	if bytes.is_empty():
 		return _make_thread_load_result(false, {}, "File is empty", true)
 
-	var codec := GFStorageCodec.new()
-	return codec.decode(bytes, codec_options)
+	var thread_codec: GFStorageCodec = GFStorageCodec.new()
+	return thread_codec.decode(bytes, codec_options)
 
 
 func _make_thread_load_result(ok: bool, data: Dictionary, error: String, integrity_valid: bool) -> Dictionary:
-	var codec := GFStorageCodec.new()
+	var metadata_codec: GFStorageCodec = GFStorageCodec.new()
 	return GFResultDictionary.make(ok, {
 		GFResultDictionary.KEY_DATA: data,
-		GFResultDictionary.KEY_METADATA: codec.get_metadata(data),
+		GFResultDictionary.KEY_METADATA: metadata_codec.get_metadata(data),
 		GFResultDictionary.KEY_INTEGRITY_VALID: integrity_valid,
 		GFResultDictionary.KEY_ERROR: error,
 	})
@@ -1042,7 +1107,9 @@ func _rollback_absolute_transaction(
 		_remove_absolute_file_if_exists(final_path)
 	_remove_absolute_file_if_exists(temp_path)
 	if backed_up and FileAccess.file_exists(backup_path):
-		DirAccess.rename_absolute(backup_path, final_path)
+		var restore_error: Error = DirAccess.rename_absolute(backup_path, final_path)
+		if restore_error != OK:
+			push_warning("[GFStorageUtility] 回滚事务恢复备份失败：%s -> %s，错误码：%s" % [backup_path, final_path, restore_error])
 
 
 func _get_data_filename(slot_id: int) -> String:
@@ -1088,12 +1155,14 @@ func _append_listed_files(
 		_warn_list_file_limit(max_file_count, scan_state)
 		return
 
-	var dir := DirAccess.open(directory_path)
+	var dir: DirAccess = DirAccess.open(directory_path)
 	if dir == null:
 		return
 
-	dir.list_dir_begin()
-	var entry_name := dir.get_next()
+	var list_error: Error = _begin_dir_listing(dir)
+	if list_error != OK:
+		return
+	var entry_name: String = dir.get_next()
 	while not entry_name.is_empty():
 		if not _can_append_listed_file(result, max_file_count):
 			_warn_list_file_limit(max_file_count, scan_state)
@@ -1122,7 +1191,7 @@ func _append_listed_files(
 					scan_state
 				)
 		elif _file_matches_extension(entry_name, extension_filter):
-			result.append(_get_storage_relative_file_path(relative_prefix, entry_name))
+			_append_packed_string(result, _get_storage_relative_file_path(relative_prefix, entry_name))
 		entry_name = dir.get_next()
 	dir.list_dir_end()
 
@@ -1146,14 +1215,14 @@ func _make_list_scan_state() -> Dictionary:
 
 
 func _warn_list_file_limit(max_file_count: int, scan_state: Dictionary) -> void:
-	if max_file_count <= 0 or bool(scan_state.get("count_warning_emitted", false)):
+	if max_file_count <= 0 or GFVariantData.get_option_bool(scan_state, "count_warning_emitted", false):
 		return
 	scan_state["count_warning_emitted"] = true
 	push_warning("[GFStorageUtility] list_files 已达到 max_file_count=%d，后续文件已跳过。" % max_file_count)
 
 
 func _warn_list_depth_limit(path: String, max_scan_depth: int, scan_state: Dictionary) -> void:
-	if max_scan_depth <= 0 or bool(scan_state.get("depth_warning_emitted", false)):
+	if max_scan_depth <= 0 or GFVariantData.get_option_bool(scan_state, "depth_warning_emitted", false):
 		return
 	scan_state["depth_warning_emitted"] = true
 	push_warning("[GFStorageUtility] list_files 已达到 max_scan_depth=%d，已跳过更深目录：%s。" % [max_scan_depth, path])
@@ -1200,7 +1269,7 @@ func _parse_slot_id_from_meta_filename(file_name: String) -> int:
 	if not file_name.begins_with("slot_") or not file_name.ends_with("_meta.sav"):
 		return -1
 
-	var id_text := file_name.trim_prefix("slot_").trim_suffix("_meta.sav")
+	var id_text: String = file_name.trim_prefix("slot_").trim_suffix("_meta.sav")
 	if not id_text.is_valid_int():
 		return -1
 
@@ -1314,14 +1383,14 @@ func _ensure_parent_directory(path: String) -> Error:
 func _read_json(file_name: String) -> Dictionary:
 	_recover_transaction_files([file_name])
 
-	var path := _get_full_path(file_name)
+	var path: String = _get_full_path(file_name)
 	if not FileAccess.file_exists(path):
 		last_load_result = _make_load_result(false, {}, "File not found", true)
 		return {}
 
-	var file := FileAccess.open(path, FileAccess.READ)
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
 	if file == null:
-		var open_error := FileAccess.get_open_error()
+		var open_error: Error = FileAccess.get_open_error()
 		push_error("[GFStorageUtility] 无法读取文件：%s，错误码：%s" % [path, open_error])
 		last_load_result = _make_load_result(
 			false,
@@ -1331,40 +1400,40 @@ func _read_json(file_name: String) -> Dictionary:
 		)
 		return {}
 
-	var bytes := file.get_buffer(file.get_length())
+	var bytes: PackedByteArray = file.get_buffer(file.get_length())
 	file.close()
 
 	if bytes.is_empty():
 		last_load_result = _make_load_result(false, {}, "File is empty", true)
 		return {}
 
-	var result := _get_codec().decode(bytes, _get_codec_options())
+	var result: Dictionary = _get_codec().decode(bytes, _get_codec_options())
 	last_load_result = result.duplicate(true)
-	if not bool(result.get("ok", false)):
-		var error := String(result.get("error", "Decode failed"))
+	if not GFVariantData.get_option_bool(result, "ok"):
+		var error: String = GFVariantData.get_option_string(result, "error", "Decode failed")
 		data_integrity_failed.emit(file_name, error)
-		if not bool(result.get("integrity_valid", true)):
+		if not GFVariantData.get_option_bool(result, "integrity_valid", true):
 			push_warning("[GFStorageUtility] 读取数据失败：%s，原因：%s" % [path, error])
 		else:
 			push_error("[GFStorageUtility] 读取数据失败：%s，原因：%s" % [path, error])
 		return {}
 
-	if not bool(result.get("integrity_valid", true)):
-		data_integrity_failed.emit(file_name, String(result.get("error", "Integrity checksum mismatch")))
+	if not GFVariantData.get_option_bool(result, "integrity_valid", true):
+		data_integrity_failed.emit(file_name, GFVariantData.get_option_string(result, "error", "Integrity checksum mismatch"))
 
-	var data_value: Variant = result.get("data", {})
+	var data_value: Variant = GFVariantData.get_option_value(result, "data", {})
 	if not (data_value is Dictionary):
 		last_load_result = {
 			"ok": false,
 			"data": {},
 			"metadata": {},
-			"integrity_valid": bool(result.get("integrity_valid", true)),
+			"integrity_valid": GFVariantData.get_option_bool(result, "integrity_valid", true),
 			"error": "Decoded storage payload is not a Dictionary.",
 		}
-		data_integrity_failed.emit(file_name, String(last_load_result["error"]))
+		data_integrity_failed.emit(file_name, GFVariantData.to_text(last_load_result["error"]))
 		return {}
 
-	var data: Dictionary = data_value as Dictionary
+	var data: Dictionary = GFVariantData.as_dictionary(data_value)
 	data = _apply_schema_migrations(file_name, data)
 	last_load_result["data"] = data
 	last_load_result["metadata"] = _get_storage_metadata(data)
@@ -1393,20 +1462,20 @@ func _get_codec_options() -> Dictionary:
 
 
 func _apply_schema_migrations(file_name: String, data: Dictionary) -> Dictionary:
-	var metadata := _get_storage_metadata(data)
-	var from_version := int(metadata.get("version", 1))
-	var to_version := save_version
+	var metadata: Dictionary = _get_storage_metadata(data)
+	var from_version: int = GFVariantData.get_option_int(metadata, "version", 1)
+	var to_version: int = save_version
 	if from_version >= to_version:
 		if not default_values_for_new_keys.is_empty():
-			GFVariantData.deep_merge_defaults(data, default_values_for_new_keys)
+			data = _merge_default_values(data, default_values_for_new_keys)
 		return data
 
-	var migration_chain := _resolve_migration_chain(from_version, to_version)
+	var migration_chain: Array[int] = _resolve_migration_chain(from_version, to_version)
 	if (strict_schema_migrations or not _migration_steps.is_empty()) and migration_chain.is_empty():
 		return _fail_schema_migration(file_name, from_version, to_version)
 
-	var migrated := migrate_data(data, from_version, to_version)
-	var migrated_metadata := _get_storage_metadata(migrated)
+	var migrated: Dictionary = migrate_data(data, from_version, to_version)
+	var migrated_metadata: Dictionary = _get_storage_metadata(migrated)
 	migrated_metadata["version"] = to_version
 	migrated[GFStorageCodec.META_KEY] = migrated_metadata
 	data_migrated.emit(file_name, from_version, to_version)
@@ -1414,15 +1483,15 @@ func _apply_schema_migrations(file_name: String, data: Dictionary) -> Dictionary
 
 
 func _apply_registered_migrations(data: Dictionary, from_version: int, to_version: int) -> Dictionary:
-	var migrated := data.duplicate(true)
-	var chain := _resolve_migration_chain(from_version, to_version)
+	var migrated: Dictionary = data.duplicate(true)
+	var chain: Array[int] = _resolve_migration_chain(from_version, to_version)
 	if chain.is_empty():
 		return migrated
 
-	var current_version := from_version
+	var current_version: int = from_version
 	for next_version: int in chain:
-		var entry := _migration_steps.get(_make_migration_key(current_version, next_version), {}) as Dictionary
-		var callback: Callable = entry.get("callback", Callable())
+		var entry: Dictionary = GFVariantData.get_option_dictionary(_migration_steps, _make_migration_key(current_version, next_version))
+		var callback: Callable = _get_callable_value(GFVariantData.get_option_value(entry, "callback", Callable()))
 		if not callback.is_valid():
 			push_warning("[GFStorageUtility] 迁移步骤无效，已跳过：%d -> %d。" % [current_version, next_version])
 			current_version = next_version
@@ -1430,7 +1499,7 @@ func _apply_registered_migrations(data: Dictionary, from_version: int, to_versio
 
 		var result: Variant = callback.call(migrated.duplicate(true), current_version, next_version)
 		if result is Dictionary:
-			migrated = result as Dictionary
+			migrated = GFVariantData.as_dictionary(result)
 		else:
 			push_warning("[GFStorageUtility] 迁移步骤未返回 Dictionary，保留原数据：%d -> %d。" % [current_version, next_version])
 		current_version = next_version
@@ -1439,9 +1508,9 @@ func _apply_registered_migrations(data: Dictionary, from_version: int, to_versio
 
 func _resolve_migration_chain(from_version: int, to_version: int) -> Array[int]:
 	var chain: Array[int] = []
-	var current_version := from_version
+	var current_version: int = from_version
 	while current_version < to_version:
-		var next_version := _find_next_migration_version(current_version, to_version)
+		var next_version: int = _find_next_migration_version(current_version, to_version)
 		if next_version <= current_version:
 			if not _migration_steps.is_empty():
 				push_warning("[GFStorageUtility] 未找到完整迁移链：%d -> %d。" % [from_version, to_version])
@@ -1453,7 +1522,7 @@ func _resolve_migration_chain(from_version: int, to_version: int) -> Array[int]:
 
 
 func _fail_schema_migration(file_name: String, from_version: int, to_version: int) -> Dictionary:
-	var error := "Missing migration chain: %d -> %d" % [from_version, to_version]
+	var error: String = "Missing migration chain: %d -> %d" % [from_version, to_version]
 	last_load_result = _make_load_result(false, {}, error, true)
 	data_integrity_failed.emit(file_name, error)
 	push_error("[GFStorageUtility] 迁移失败：%s" % error)
@@ -1461,12 +1530,12 @@ func _fail_schema_migration(file_name: String, from_version: int, to_version: in
 
 
 func _find_next_migration_version(from_version: int, to_version: int) -> int:
-	var best_version := 0
+	var best_version: int = 0
 	for entry: Dictionary in _migration_steps.values():
-		if int(entry.get("from_version", 0)) != from_version:
+		if GFVariantData.get_option_int(entry, "from_version", 0) != from_version:
 			continue
 
-		var candidate := int(entry.get("to_version", 0))
+		var candidate: int = GFVariantData.get_option_int(entry, "to_version", 0)
 		if candidate > to_version:
 			continue
 		if best_version == 0 or candidate < best_version:
@@ -1499,20 +1568,52 @@ class _StoragePathPolicy:
 	func _init(p_owner: Object) -> void:
 		_owner = p_owner
 
+	func _get_owner_property(property_name: String) -> Variant:
+		if _owner == null:
+			return null
+		return _owner.get_indexed(NodePath(property_name))
+
+	func _get_string_property(property_name: String, fallback: String = "") -> String:
+		var value: Variant = _get_owner_property(property_name)
+		if value is String:
+			return value
+		if value is StringName:
+			var string_name_value: StringName = value
+			return String(string_name_value)
+		if value is NodePath:
+			var node_path_value: NodePath = value
+			return String(node_path_value)
+		if value == null:
+			return fallback
+		return str(value)
+
+	func _get_bool_property(property_name: String, fallback: bool = false) -> bool:
+		var value: Variant = _get_owner_property(property_name)
+		if value is bool:
+			return value
+		if value is int:
+			var int_value: int = value
+			return int_value != 0
+		if value is float:
+			var float_value: float = value
+			return not is_zero_approx(float_value)
+		return fallback
+
 	func _get_save_base_path() -> String:
-		if String(_owner.get("save_dir_name")).is_empty():
+		var save_dir_name: String = _get_string_property("save_dir_name")
+		if save_dir_name.is_empty():
 			return "user://"
-		return "user://" + _sanitize_storage_relative_path(String(_owner.get("save_dir_name")), "save_dir_name")
+		return "user://" + _sanitize_storage_relative_path(save_dir_name, "save_dir_name")
 
 	func _get_full_path(file_name: String) -> String:
 		if file_name.is_absolute_path():
-			if bool(_owner.get("allow_absolute_paths")):
+			if _get_bool_property("allow_absolute_paths"):
 				return file_name
 			push_error("[GFStorageUtility] 已禁用绝对路径：%s" % file_name)
 			file_name = file_name.get_file()
 
 		file_name = _sanitize_storage_relative_path(file_name, "file_name")
-		if String(_owner.get("save_dir_name")).is_empty():
+		if _get_string_property("save_dir_name").is_empty():
 			return "user://" + file_name
 		return _get_save_base_path() + "/" + file_name
 
@@ -1521,7 +1622,7 @@ class _StoragePathPolicy:
 			return _get_save_base_path()
 		if directory_name.is_absolute_path():
 			return directory_name
-		if String(_owner.get("save_dir_name")).is_empty():
+		if _get_string_property("save_dir_name").is_empty():
 			return "user://" + directory_name
 		return _get_save_base_path().path_join(directory_name)
 
@@ -1529,13 +1630,13 @@ class _StoragePathPolicy:
 		if directory_name.is_empty() or directory_name == ".":
 			return ""
 		if directory_name.is_absolute_path():
-			if bool(_owner.get("allow_absolute_paths")):
+			if _get_bool_property("allow_absolute_paths"):
 				return directory_name.replace("\\", "/").simplify_path()
 			push_error("[GFStorageUtility] 已禁用绝对路径：%s" % directory_name)
 			directory_name = directory_name.get_file()
 
-		var original_path := directory_name
-		var normalized := directory_name.replace("\\", "/").simplify_path()
+		var original_path: String = directory_name
+		var normalized: String = directory_name.replace("\\", "/").simplify_path()
 		if normalized == ".":
 			return ""
 		if _is_parent_directory_path(normalized):
@@ -1553,8 +1654,8 @@ class _StoragePathPolicy:
 		return extension_filter.is_empty() or file_name.get_extension().to_lower() == extension_filter
 
 	func _sanitize_storage_relative_path(path: String, label: String) -> String:
-		var original_path := path
-		var normalized := path.replace("\\", "/").simplify_path()
+		var original_path: String = path
+		var normalized: String = path.replace("\\", "/").simplify_path()
 		if normalized == ".":
 			normalized = ""
 		if _is_parent_directory_path(normalized):
@@ -1577,8 +1678,54 @@ class _StorageFileOps:
 		_owner = p_owner
 		_path_policy = p_path_policy
 
+	func _get_owner_property(property_name: String) -> Variant:
+		if _owner == null:
+			return null
+		return _owner.get_indexed(NodePath(property_name))
+
+	func _get_bool_property(property_name: String, fallback: bool = false) -> bool:
+		var value: Variant = _get_owner_property(property_name)
+		if value is bool:
+			return value
+		if value is int:
+			var int_value: int = value
+			return int_value != 0
+		if value is float:
+			var float_value: float = value
+			return not is_zero_approx(float_value)
+		return fallback
+
+	func _get_codec() -> GFStorageCodec:
+		var codec_value: Variant = _owner.call("_get_codec")
+		if codec_value is GFStorageCodec:
+			return codec_value
+		return GFStorageCodec.new()
+
+	func _get_codec_options() -> Dictionary:
+		var options_value: Variant = _owner.call("_get_codec_options")
+		if options_value is Dictionary:
+			return options_value
+		return {}
+
+	func _store_buffer_checked(file: FileAccess, bytes: PackedByteArray) -> void:
+		var store_result: Variant = file.store_buffer(bytes)
+		if store_result != null:
+			return
+
+	func _store_string_checked(file: FileAccess, value: String) -> void:
+		var store_result: Variant = file.store_string(value)
+		if store_result != null:
+			return
+
+	func _remove_absolute_if_exists(path: String) -> void:
+		if not FileAccess.file_exists(path):
+			return
+		var remove_error: Error = DirAccess.remove_absolute(path)
+		if remove_error != OK:
+			push_warning("[GFStorageUtility] 删除文件失败：%s，错误码：%s" % [path, remove_error])
+
 	func _ensure_absolute_parent_directory(path: String) -> Error:
-		var base_dir := path.get_base_dir()
+		var base_dir: String = path.get_base_dir()
 		if base_dir.is_empty() or base_dir == "user://":
 			return OK
 		if DirAccess.dir_exists_absolute(base_dir):
@@ -1586,45 +1733,43 @@ class _StorageFileOps:
 		return DirAccess.make_dir_recursive_absolute(base_dir)
 
 	func _ensure_parent_directory(path: String) -> Error:
-		if not bool(_owner.get("create_directories_for_nested_paths")):
+		if not _get_bool_property("create_directories_for_nested_paths"):
 			return OK
 
-		var base_dir := path.get_base_dir()
+		var base_dir: String = path.get_base_dir()
 		if base_dir.is_empty() or base_dir == "user://":
 			return OK
 		if DirAccess.dir_exists_absolute(base_dir):
 			return OK
 
-		var error := DirAccess.make_dir_recursive_absolute(base_dir)
+		var error: Error = DirAccess.make_dir_recursive_absolute(base_dir)
 		if error != OK:
 			push_error("[GFStorageUtility] 无法创建目录：%s，错误码：%s" % [base_dir, error])
 		return error
 
 	func _write_buffer_absolute(path: String, bytes: PackedByteArray) -> Error:
-		var file := FileAccess.open(path, FileAccess.WRITE)
+		var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
 		if file == null:
 			return FileAccess.get_open_error()
-		file.store_buffer(bytes)
-		var error := file.get_error()
+		_store_buffer_checked(file, bytes)
+		var error: Error = file.get_error()
 		file.close()
 		return error
 
 	func _write_plain_json_absolute(path: String, data: Dictionary) -> Error:
-		var file := FileAccess.open(path, FileAccess.WRITE)
+		var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
 		if file == null:
 			return FileAccess.get_open_error()
-		file.store_string(JSON.stringify(data, "\t"))
-		var error := file.get_error()
+		_store_string_checked(file, JSON.stringify(data, "\t"))
+		var error: Error = file.get_error()
 		file.close()
 		return error
 
 	func _remove_absolute_file_if_exists(path: String) -> void:
-		if FileAccess.file_exists(path):
-			DirAccess.remove_absolute(path)
+		_remove_absolute_if_exists(path)
 
 	func _remove_file_if_exists(path: String) -> void:
-		if FileAccess.file_exists(path):
-			DirAccess.remove_absolute(path)
+		_remove_absolute_if_exists(path)
 
 	func _move_file(from_path: String, to_path: String) -> Error:
 		if not FileAccess.file_exists(from_path):
@@ -1632,37 +1777,37 @@ class _StorageFileOps:
 		return DirAccess.rename_absolute(from_path, to_path)
 
 	func _write_json(file_name: String, data: Dictionary) -> Error:
-		var path := _path_policy._get_full_path(file_name)
-		var dir_error := _ensure_parent_directory(path)
+		var path: String = _path_policy._get_full_path(file_name)
+		var dir_error: Error = _ensure_parent_directory(path)
 		if dir_error != OK:
 			return dir_error
-		var file := FileAccess.open(path, FileAccess.WRITE)
+		var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
 		if file == null:
 			push_error("[GFStorageUtility] 无法写入文件：%s，错误码：%s" % [path, FileAccess.get_open_error()])
 			return FileAccess.get_open_error()
 
-		var codec := _owner.call("_get_codec") as GFStorageCodec
-		var codec_options := _owner.call("_get_codec_options") as Dictionary
+		var codec: GFStorageCodec = _get_codec()
+		var codec_options: Dictionary = _get_codec_options()
 		var bytes: PackedByteArray = codec.encode(data, codec_options)
-		file.store_buffer(bytes)
-		var write_error := file.get_error()
+		_store_buffer_checked(file, bytes)
+		var write_error: Error = file.get_error()
 		file.close()
 		if write_error != OK:
 			push_error("[GFStorageUtility] 写入文件失败：%s，错误码：%s" % [path, write_error])
 		return write_error
 
 	func _write_plain_json(file_name: String, data: Dictionary) -> Error:
-		var path := _path_policy._get_full_path(file_name)
-		var dir_error := _ensure_parent_directory(path)
+		var path: String = _path_policy._get_full_path(file_name)
+		var dir_error: Error = _ensure_parent_directory(path)
 		if dir_error != OK:
 			return dir_error
-		var file := FileAccess.open(path, FileAccess.WRITE)
+		var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
 		if file == null:
 			push_error("[GFStorageUtility] 无法写入文件：%s，错误码：%s" % [path, FileAccess.get_open_error()])
 			return FileAccess.get_open_error()
 
-		file.store_string(JSON.stringify(data, "\t"))
-		var write_error := file.get_error()
+		_store_string_checked(file, JSON.stringify(data, "\t"))
+		var write_error: Error = file.get_error()
 		file.close()
 		if write_error != OK:
 			push_error("[GFStorageUtility] 写入文件失败：%s，错误码：%s" % [path, write_error])
@@ -1701,11 +1846,11 @@ class _StorageTransactionManager:
 	func _recover_transaction_files(file_names: Array[String]) -> void:
 		var recovered_files: Dictionary = {}
 		for file_name: String in file_names:
-			var marker := _read_transaction_marker(file_name)
+			var marker: Dictionary = _read_transaction_marker(file_name)
 			if marker.is_empty():
 				continue
 
-			var transaction_files := _get_transaction_marker_files(marker, file_name)
+			var transaction_files: Array[String] = _get_transaction_marker_files(marker, file_name)
 			_recover_transaction_group(transaction_files)
 			for transaction_file_name: String in transaction_files:
 				recovered_files[transaction_file_name] = true
@@ -1718,13 +1863,13 @@ class _StorageTransactionManager:
 		if file_names.is_empty():
 			return
 
-		var should_keep_new_files := _is_transaction_group_committed(file_names)
+		var should_keep_new_files: bool = _is_transaction_group_committed(file_names)
 		if should_keep_new_files:
 			for file_name: String in file_names:
-				var final_path := _path_policy._get_full_path(file_name)
-				var temp_path := _path_policy._get_full_path(_get_temp_filename(file_name))
+				var final_path: String = _path_policy._get_full_path(file_name)
+				var temp_path: String = _path_policy._get_full_path(_get_temp_filename(file_name))
 				if not FileAccess.file_exists(final_path) and FileAccess.file_exists(temp_path):
-					var promote_error := _file_ops._move_file(temp_path, final_path)
+					var promote_error: Error = _file_ops._move_file(temp_path, final_path)
 					if promote_error != OK:
 						push_error("[GFStorageUtility] 恢复已提交事务文件失败：%s，错误码：%s" % [final_path, promote_error])
 						continue
@@ -1734,15 +1879,15 @@ class _StorageTransactionManager:
 			return
 
 		for file_name: String in file_names:
-			var marker := _read_transaction_marker(file_name)
-			var final_path := _path_policy._get_full_path(file_name)
-			var temp_path := _path_policy._get_full_path(_get_temp_filename(file_name))
-			var backup_path := _path_policy._get_full_path(_get_backup_filename(file_name))
-			var had_final := bool(marker.get("had_final", true))
+			var marker: Dictionary = _read_transaction_marker(file_name)
+			var final_path: String = _path_policy._get_full_path(file_name)
+			var temp_path: String = _path_policy._get_full_path(_get_temp_filename(file_name))
+			var backup_path: String = _path_policy._get_full_path(_get_backup_filename(file_name))
+			var had_final: bool = GFVariantData.get_option_bool(marker, "had_final", true)
 
 			if FileAccess.file_exists(backup_path):
 				_file_ops._remove_file_if_exists(final_path)
-				var restore_error := _file_ops._move_file(backup_path, final_path)
+				var restore_error: Error = _file_ops._move_file(backup_path, final_path)
 				if restore_error != OK:
 					push_error("[GFStorageUtility] 回滚事务文件失败：%s，错误码：%s" % [final_path, restore_error])
 			elif not had_final:
@@ -1752,9 +1897,9 @@ class _StorageTransactionManager:
 			_file_ops._remove_file_if_exists(_path_policy._get_full_path(_get_transaction_filename(file_name)))
 
 	func _recover_transaction_file(file_name: String) -> void:
-		var final_path := _path_policy._get_full_path(file_name)
-		var temp_path := _path_policy._get_full_path(_get_temp_filename(file_name))
-		var backup_path := _path_policy._get_full_path(_get_backup_filename(file_name))
+		var final_path: String = _path_policy._get_full_path(file_name)
+		var temp_path: String = _path_policy._get_full_path(_get_temp_filename(file_name))
+		var backup_path: String = _path_policy._get_full_path(_get_backup_filename(file_name))
 		var has_final: bool = FileAccess.file_exists(final_path)
 		var has_temp: bool = FileAccess.file_exists(temp_path)
 		var has_backup: bool = FileAccess.file_exists(backup_path)
@@ -1763,7 +1908,7 @@ class _StorageTransactionManager:
 			if has_final:
 				_file_ops._remove_file_if_exists(final_path)
 
-			var restore_error := _file_ops._move_file(backup_path, final_path)
+			var restore_error: Error = _file_ops._move_file(backup_path, final_path)
 			if restore_error != OK:
 				push_error("[GFStorageUtility] 恢复备份文件失败：%s，错误码：%s" % [final_path, restore_error])
 				return
@@ -1776,7 +1921,7 @@ class _StorageTransactionManager:
 			has_backup = false
 
 		if has_temp and not has_final and not has_backup:
-			var promote_error := _file_ops._move_file(temp_path, final_path)
+			var promote_error: Error = _file_ops._move_file(temp_path, final_path)
 			if promote_error != OK:
 				push_error("[GFStorageUtility] 恢复临时文件失败：%s，错误码：%s" % [final_path, promote_error])
 			return
@@ -1786,7 +1931,7 @@ class _StorageTransactionManager:
 
 	func _commit_transaction(file_names: Array[String]) -> Error:
 		file_names = _unique_file_names(file_names)
-		var marker_error := _write_transaction_markers(file_names, false)
+		var marker_error: Error = _write_transaction_markers(file_names, false)
 		if marker_error != OK:
 			_cleanup_transaction_files(file_names)
 			return marker_error
@@ -1799,26 +1944,26 @@ class _StorageTransactionManager:
 			}
 
 		for file_name: String in file_names:
-			var backup_path := _path_policy._get_full_path(_get_backup_filename(file_name))
-			var final_path := _path_policy._get_full_path(file_name)
+			var backup_path: String = _path_policy._get_full_path(_get_backup_filename(file_name))
+			var final_path: String = _path_policy._get_full_path(file_name)
 			if FileAccess.file_exists(final_path):
-				var backup_error := _file_ops._move_file(final_path, backup_path)
+				var backup_error: Error = _file_ops._move_file(final_path, backup_path)
 				if backup_error != OK:
 					_rollback_transaction(file_names, transaction_state)
 					return backup_error
 				transaction_state[file_name]["backed_up"] = true
 
 		for file_name: String in file_names:
-			var temp_path := _path_policy._get_full_path(_get_temp_filename(file_name))
-			var final_path := _path_policy._get_full_path(file_name)
-			var commit_error := _file_ops._move_file(temp_path, final_path)
+			var temp_path: String = _path_policy._get_full_path(_get_temp_filename(file_name))
+			var final_path: String = _path_policy._get_full_path(file_name)
+			var commit_error: Error = _file_ops._move_file(temp_path, final_path)
 			if commit_error != OK:
 				_rollback_transaction(file_names, transaction_state)
 				_cleanup_transaction_markers(file_names)
 				return commit_error
 			transaction_state[file_name]["committed"] = true
 
-		var complete_marker_error := _write_transaction_markers(file_names, true)
+		var complete_marker_error: Error = _write_transaction_markers(file_names, true)
 		if complete_marker_error != OK:
 			_rollback_transaction(file_names, transaction_state)
 			_cleanup_transaction_markers(file_names)
@@ -1832,32 +1977,36 @@ class _StorageTransactionManager:
 
 	func _rollback_transaction(file_names: Array[String], transaction_state: Dictionary) -> void:
 		for file_name: String in file_names:
-			var final_path := _path_policy._get_full_path(file_name)
-			var temp_path := _path_policy._get_full_path(_get_temp_filename(file_name))
-			var backup_path := _path_policy._get_full_path(_get_backup_filename(file_name))
-			var state: Dictionary = transaction_state.get(file_name, {})
-			var committed: bool = state.get("committed", false)
-			var backed_up: bool = state.get("backed_up", false)
+			var final_path: String = _path_policy._get_full_path(file_name)
+			var temp_path: String = _path_policy._get_full_path(_get_temp_filename(file_name))
+			var backup_path: String = _path_policy._get_full_path(_get_backup_filename(file_name))
+			var state: Dictionary = GFVariantData.as_dictionary(GFVariantData.get_option_value(transaction_state, file_name, {}))
+			var committed: bool = GFVariantData.get_option_bool(state, "committed", false)
+			var backed_up: bool = GFVariantData.get_option_bool(state, "backed_up", false)
 
 			if committed or backed_up:
 				_file_ops._remove_file_if_exists(final_path)
 			_file_ops._remove_file_if_exists(temp_path)
 
 			if backed_up and FileAccess.file_exists(backup_path):
-				var restore_error := _file_ops._move_file(backup_path, final_path)
+				var restore_error: Error = _file_ops._move_file(backup_path, final_path)
 				if restore_error != OK:
 					push_error("[GFStorageUtility] 回滚文件失败：%s，错误码：%s" % [final_path, restore_error])
 
 	func _write_transaction_markers(file_names: Array[String], committed: bool) -> Error:
 		for file_name: String in file_names:
-			var existing_marker := _read_transaction_marker(file_name)
-			var had_final := bool(existing_marker.get("had_final", FileAccess.file_exists(_path_policy._get_full_path(file_name))))
-			var marker := {
+			var existing_marker: Dictionary = _read_transaction_marker(file_name)
+			var had_final: bool = GFVariantData.get_option_bool(
+				existing_marker,
+				"had_final",
+				FileAccess.file_exists(_path_policy._get_full_path(file_name))
+			)
+			var marker: Dictionary = {
 				"files": file_names,
 				"committed": committed,
 				"had_final": had_final,
 			}
-			var error := _file_ops._write_plain_json(_get_transaction_filename(file_name), marker)
+			var error: Error = _file_ops._write_plain_json(_get_transaction_filename(file_name), marker)
 			if error != OK:
 				return error
 		return OK
@@ -1867,29 +2016,29 @@ class _StorageTransactionManager:
 			_file_ops._remove_file_if_exists(_path_policy._get_full_path(_get_transaction_filename(file_name)))
 
 	func _read_transaction_marker(file_name: String) -> Dictionary:
-		var path := _path_policy._get_full_path(_get_transaction_filename(file_name))
+		var path: String = _path_policy._get_full_path(_get_transaction_filename(file_name))
 		if not FileAccess.file_exists(path):
 			return {}
 
-		var file := FileAccess.open(path, FileAccess.READ)
+		var file: FileAccess = FileAccess.open(path, FileAccess.READ)
 		if file == null:
 			push_error("[GFStorageUtility] 无法读取事务标记：%s，错误码：%s" % [path, FileAccess.get_open_error()])
 			return {}
 
-		var content := file.get_as_text()
+		var content: String = file.get_as_text()
 		file.close()
 		var parsed: Variant = JSON.parse_string(content)
 		if parsed is Dictionary:
-			return parsed as Dictionary
+			return GFVariantData.as_dictionary(parsed)
 		push_warning("[GFStorageUtility] 事务标记格式无效，将按单文件恢复处理：%s" % path)
 		return {}
 
 	func _get_transaction_marker_files(marker: Dictionary, fallback_file_name: String) -> Array[String]:
 		var result: Array[String] = []
-		var raw_files: Variant = marker.get("files", [])
+		var raw_files: Variant = GFVariantData.get_option_value(marker, "files", [])
 		if raw_files is Array:
 			for raw_file: Variant in raw_files:
-				var file_name := String(raw_file)
+				var file_name: String = GFVariantData.to_text(raw_file)
 				if not file_name.is_empty() and not result.has(file_name):
 					result.append(file_name)
 
@@ -1899,8 +2048,8 @@ class _StorageTransactionManager:
 
 	func _is_transaction_group_committed(file_names: Array[String]) -> bool:
 		for file_name: String in file_names:
-			var marker := _read_transaction_marker(file_name)
-			if marker.is_empty() or not bool(marker.get("committed", false)):
+			var marker: Dictionary = _read_transaction_marker(file_name)
+			if marker.is_empty() or not GFVariantData.get_option_bool(marker, "committed", false):
 				return false
 		return true
 

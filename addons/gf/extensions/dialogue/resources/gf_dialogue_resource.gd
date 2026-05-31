@@ -14,7 +14,7 @@ extends Resource
 
 # --- 常量 ---
 
-const _GF_VALIDATION_REPORT_DICTIONARY_SCRIPT: Script = preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
+const _GF_VALIDATION_REPORT_DICTIONARY_SCRIPT = preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
 
 
 # --- 导出变量 ---
@@ -78,7 +78,7 @@ func get_line(line_id: StringName) -> GFDialogueLine:
 ## [br]
 ## @return: 起始行；不存在时返回 null。
 func get_start_line(override_line_id: StringName = &"") -> GFDialogueLine:
-	var resolved_id := override_line_id if override_line_id != &"" else start_line_id
+	var resolved_id: StringName = override_line_id if override_line_id != &"" else start_line_id
 	if resolved_id != &"":
 		return get_line(resolved_id)
 	for line: GFDialogueLine in lines:
@@ -93,10 +93,10 @@ func get_start_line(override_line_id: StringName = &"") -> GFDialogueLine:
 ## [br]
 ## @return: 行 ID 列表。
 func get_line_ids() -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	for line: GFDialogueLine in lines:
 		if line != null and line.line_id != &"":
-			result.append(String(line.line_id))
+			var _append_result_99: Variant = result.append(String(line.line_id))
 	return result
 
 
@@ -108,7 +108,7 @@ func get_line_ids() -> PackedStringArray:
 ## [br]
 ## @schema return: GFValidationReportDictionary.finalize_report() 生成的 Dictionary，包含 ok、healthy、summary、issues、next_action、error_count、warning_count 和 issue_count 等字段。
 func validate_resource() -> Dictionary:
-	var report := {
+	var report: Dictionary = {
 		"subject": "Dialogue resource",
 		"issues": [],
 	}
@@ -122,7 +122,7 @@ func validate_resource() -> Dictionary:
 
 	var seen: Dictionary = {}
 	for index: int in range(lines.size()):
-		var line := lines[index]
+		var line: GFDialogueLine = lines[index]
 		if line == null:
 			_append_issue(report, &"null_line", "lines[%d]" % index, "Dialogue line is null.")
 			continue
@@ -133,16 +133,16 @@ func validate_resource() -> Dictionary:
 			_append_issue(report, &"duplicate_line_id", String(line.line_id), "Dialogue line_id is duplicated.")
 		seen[line.line_id] = true
 
-		var next_ids := PackedStringArray()
+		var next_ids: PackedStringArray = PackedStringArray()
 		if line.next_line_id != &"":
-			next_ids.append(String(line.next_line_id))
+			var _append_result_138: Variant = next_ids.append(String(line.next_line_id))
 		if line.jump_line_id != &"":
-			next_ids.append(String(line.jump_line_id))
+			var _append_result_140: Variant = next_ids.append(String(line.jump_line_id))
 		if line.fallback_line_id != &"":
-			next_ids.append(String(line.fallback_line_id))
+			var _append_result_142: Variant = next_ids.append(String(line.fallback_line_id))
 		for response: GFDialogueResponse in line.responses:
 			if response != null and response.next_line_id != &"":
-				next_ids.append(String(response.next_line_id))
+				var _append_result_145: Variant = next_ids.append(String(response.next_line_id))
 		for next_id: String in next_ids:
 			if get_line(StringName(next_id)) == null:
 				_append_issue(
@@ -164,7 +164,8 @@ func validate_resource() -> Dictionary:
 ## [br]
 ## @return: 对话资源副本。
 func duplicate_dialogue() -> GFDialogueResource:
-	return duplicate(true) as GFDialogueResource
+	var resource: GFDialogueResource = _get_dialogue_resource_value(duplicate(true))
+	return resource if resource != null else GFDialogueResource.new()
 
 
 ## 转换为字典。
@@ -194,7 +195,7 @@ func _append_issue(
 	subject: String,
 	message: String
 ) -> void:
-	_GF_VALIDATION_REPORT_DICTIONARY_SCRIPT.append_issue(report, "error", kind, message, {
+	var _append_issue_result_198: Variant = _GF_VALIDATION_REPORT_DICTIONARY_SCRIPT.append_issue(report, "error", kind, message, {
 		"subject": subject,
 		"path": subject,
 	})
@@ -208,3 +209,10 @@ func _get_validation_next_actions() -> Dictionary:
 		"duplicate_line_id": "Make every dialogue line_id unique.",
 		"missing_next_line": "Create the referenced dialogue line or update the transition id.",
 	}
+
+
+func _get_dialogue_resource_value(value: Variant) -> GFDialogueResource:
+	if value is GFDialogueResource:
+		var resource: GFDialogueResource = value
+		return resource
+	return null

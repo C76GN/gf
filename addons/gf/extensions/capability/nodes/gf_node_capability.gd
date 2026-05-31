@@ -14,7 +14,7 @@ extends Node
 
 # --- 常量 ---
 
-const _CAPABILITY_SUPPORT_SCRIPT: Script = preload("res://addons/gf/extensions/capability/nodes/gf_node_capability_support.gd")
+const _CAPABILITY_SUPPORT_SCRIPT = preload("res://addons/gf/extensions/capability/nodes/gf_node_capability_support.gd")
 
 
 # --- 导出变量 ---

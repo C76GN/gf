@@ -74,16 +74,16 @@ func apply(
 	candidates: Array[Vector2i],
 	context: Dictionary = {}
 ) -> int:
-	var selected_cells := _select_cells(candidates, context)
-	var changed_count := 0
+	var selected_cells: Array[Vector2i] = _select_cells(candidates, context)
+	var changed_count: int = 0
 	for cell: Vector2i in selected_cells:
 		if erase_cells:
 			if grid.has(cell):
-				grid.erase(cell)
+				var _erase_result_82: Variant = grid.erase(cell)
 				changed_count += 1
 			continue
 
-		var next_value := _resolve_value(cell, grid.get(cell), context)
+		var next_value: Variant = _resolve_value(cell, GFVariantData.get_option_value(grid, cell), context)
 		grid[cell] = GFVariantData.duplicate_variant(next_value)
 		changed_count += 1
 	return changed_count

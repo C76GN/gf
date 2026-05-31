@@ -56,7 +56,7 @@ signal enabled_changed(enabled: bool)
 
 # --- 常量 ---
 
-const _MESSAGE_RECEIVER_SUPPORT: Script = preload("res://addons/gf/standard/common/gf_message_receiver_support.gd")
+const _MESSAGE_RECEIVER_SUPPORT = preload("res://addons/gf/standard/common/gf_message_receiver_support.gd")
 const _GENERATED_COLLISION_SHAPE_NODE_NAME: StringName = &"GFGeneratedCollisionShape3D"
 
 
@@ -103,7 +103,7 @@ const _GENERATED_COLLISION_SHAPE_NODE_NAME: StringName = &"GFGeneratedCollisionS
 	set(value):
 		_collision_shape_config = value
 		if is_inside_tree() and auto_apply_collision_shape_config:
-			_apply_collision_shape_config(_collision_shape_config)
+			var _apply_collision_shape_config_result_106: Variant = _apply_collision_shape_config(_collision_shape_config)
 
 ## 可选碰撞形状配置列表。非空时可自动生成或更新多个 CollisionShape3D 子节点。
 ## [br]
@@ -114,7 +114,7 @@ const _GENERATED_COLLISION_SHAPE_NODE_NAME: StringName = &"GFGeneratedCollisionS
 	set(value):
 		_collision_shape_configs = value
 		if is_inside_tree() and auto_apply_collision_shape_config:
-			_apply_collision_shape_configs(_collision_shape_configs)
+			var _apply_collision_shape_configs_result_117: Variant = _apply_collision_shape_configs(_collision_shape_configs)
 
 ## 是否在进入场景树或配置变化时自动应用碰撞形状配置。
 ## [br]
@@ -142,9 +142,9 @@ var _collision_shape_configs: Array[GFHitCollisionShapeConfig3D] = []
 func _ready() -> void:
 	if auto_apply_collision_shape_config:
 		if _collision_shape_configs.is_empty():
-			apply_collision_shape_config()
+			var _apply_collision_shape_config_result_145: Variant = apply_collision_shape_config()
 		else:
-			apply_collision_shape_configs()
+			var _apply_collision_shape_configs_result_147: Variant = apply_collision_shape_configs()
 
 
 # --- 公共方法 ---
@@ -181,7 +181,7 @@ func apply_collision_shape_configs(configs: Array[GFHitCollisionShapeConfig3D] =
 ## [br]
 ## @return 存在则返回 CollisionShape3D，否则返回 null。
 func get_generated_collision_shape() -> CollisionShape3D:
-	return get_node_or_null(String(_GENERATED_COLLISION_SHAPE_NODE_NAME)) as CollisionShape3D
+	return _get_collision_shape_3d_value(get_node_or_null(String(_GENERATED_COLLISION_SHAPE_NODE_NAME)))
 
 
 ## 获取框架管理的 CollisionShape3D 子节点列表。
@@ -192,7 +192,7 @@ func get_generated_collision_shape() -> CollisionShape3D:
 func get_generated_collision_shapes() -> Array[CollisionShape3D]:
 	var result: Array[CollisionShape3D] = []
 	for child: Node in get_children():
-		var collision_shape := child as CollisionShape3D
+		var collision_shape: CollisionShape3D = _get_collision_shape_3d_value(child)
 		if collision_shape != null and String(collision_shape.name).begins_with(String(_GENERATED_COLLISION_SHAPE_NODE_NAME)):
 			result.append(collision_shape)
 	return result
@@ -222,11 +222,12 @@ func clear_generated_collision_shapes() -> void:
 ## [br]
 ## @return 可接受时返回 true。
 func can_receive_hit(p_hit_id: StringName = &"") -> bool:
-	if not bool(_MESSAGE_RECEIVER_SUPPORT._can_receive(enabled, accepted_hit_ids, rejected_hit_ids, p_hit_id)):
+	var can_receive_value: Variant = _MESSAGE_RECEIVER_SUPPORT._can_receive(enabled, accepted_hit_ids, rejected_hit_ids, p_hit_id)
+	if not GFVariantData.to_bool(can_receive_value, false):
 		return false
 	if receiver_path == NodePath(""):
 		return true
-	var receiver := _resolve_receiver()
+	var receiver: Object = _resolve_receiver()
 	return receiver != null
 
 
@@ -240,10 +241,10 @@ func can_receive_hit(p_hit_id: StringName = &"") -> bool:
 ## [br]
 ## @schema return: Dictionary，统一命中接收报告，包含 ok、hit_id、receiver、reason、message 和 metadata。
 func receive_hit(context: GFCombatHitContext) -> Dictionary:
-	var hit_id_value := context.hit_id if context != null else &""
-	var receiver := _resolve_receiver()
-	var has_receiver_path := receiver_path != NodePath("")
-	var report: Dictionary = _MESSAGE_RECEIVER_SUPPORT._receive_with_delegate(
+	var hit_id_value: StringName = context.hit_id if context != null else &""
+	var receiver: Object = _resolve_receiver()
+	var has_receiver_path: bool = receiver_path != NodePath("")
+	var report_value: Variant = _MESSAGE_RECEIVER_SUPPORT._receive_with_delegate(
 		self,
 		context,
 		"hit_id",
@@ -253,9 +254,9 @@ func receive_hit(context: GFCombatHitContext) -> Dictionary:
 		rejected_hit_ids,
 		metadata,
 		validation_callback,
-		&"hit_validating",
-		&"hit_received",
-		&"hit_rejected",
+		Callable(self, "_emit_hit_validating"),
+		Callable(self, "_emit_hit_received"),
+		Callable(self, "_emit_hit_rejected"),
 		"Hit context is null.",
 		"Hurt box is disabled.",
 		"Hit id is rejected.",
@@ -266,7 +267,8 @@ func receive_hit(context: GFCombatHitContext) -> Dictionary:
 		[context],
 		"Hit delegate receiver is missing.",
 		"Hit delegate receiver returned an invalid hit report."
-	) as Dictionary
+	)
+	var report: Dictionary = GFVariantData.as_dictionary(report_value)
 	return report
 
 
@@ -275,17 +277,29 @@ func receive_hit(context: GFCombatHitContext) -> Dictionary:
 func _resolve_receiver() -> Object:
 	if receiver_path == NodePath(""):
 		return null
-	var receiver := get_node_or_null(receiver_path)
+	var receiver: Node = get_node_or_null(receiver_path)
 	if receiver == self:
 		return null
 	return receiver
+
+
+func _emit_hit_validating(context: GFCombatHitContext, report: Dictionary) -> void:
+	hit_validating.emit(context, report)
+
+
+func _emit_hit_received(context: GFCombatHitContext, report: Dictionary) -> void:
+	hit_received.emit(context, report)
+
+
+func _emit_hit_rejected(context: GFCombatHitContext, report: Dictionary) -> void:
+	hit_rejected.emit(context, report)
 
 
 func _apply_collision_shape_config(config: GFHitCollisionShapeConfig3D) -> CollisionShape3D:
 	var configs: Array[GFHitCollisionShapeConfig3D] = []
 	if config != null:
 		configs.append(config)
-	var generated_shapes := _apply_collision_shape_configs(configs)
+	var generated_shapes: Array[CollisionShape3D] = _apply_collision_shape_configs(configs)
 	if generated_shapes.is_empty():
 		return null
 	return generated_shapes[0]
@@ -293,12 +307,12 @@ func _apply_collision_shape_config(config: GFHitCollisionShapeConfig3D) -> Colli
 
 func _apply_collision_shape_configs(configs: Array[GFHitCollisionShapeConfig3D]) -> Array[CollisionShape3D]:
 	var generated_shapes: Array[CollisionShape3D] = []
-	var generated_index := 0
+	var generated_index: int = 0
 	for config: GFHitCollisionShapeConfig3D in configs:
 		if config == null or config.shape == null:
 			continue
 
-		var collision_shape := _get_or_create_collision_shape(generated_index)
+		var collision_shape: CollisionShape3D = _get_or_create_collision_shape(generated_index)
 		if config.apply_to(collision_shape):
 			generated_shapes.append(collision_shape)
 			generated_index += 1
@@ -308,7 +322,7 @@ func _apply_collision_shape_configs(configs: Array[GFHitCollisionShapeConfig3D])
 
 
 func _get_or_create_collision_shape(index: int = 0) -> CollisionShape3D:
-	var collision_shape := get_node_or_null(_get_generated_collision_shape_name(index)) as CollisionShape3D
+	var collision_shape: CollisionShape3D = _get_collision_shape_3d_value(get_node_or_null(_get_generated_collision_shape_name(index)))
 	if collision_shape != null:
 		return collision_shape
 
@@ -319,9 +333,9 @@ func _get_or_create_collision_shape(index: int = 0) -> CollisionShape3D:
 
 
 func _clear_generated_collision_shapes_from_index(start_index: int) -> void:
-	var index := start_index
+	var index: int = start_index
 	while true:
-		var collision_shape := get_node_or_null(_get_generated_collision_shape_name(index)) as CollisionShape3D
+		var collision_shape: CollisionShape3D = _get_collision_shape_3d_value(get_node_or_null(_get_generated_collision_shape_name(index)))
 		if collision_shape == null:
 			return
 		remove_child(collision_shape)
@@ -333,3 +347,10 @@ func _get_generated_collision_shape_name(index: int) -> String:
 	if index <= 0:
 		return String(_GENERATED_COLLISION_SHAPE_NODE_NAME)
 	return "%s%d" % [String(_GENERATED_COLLISION_SHAPE_NODE_NAME), index + 1]
+
+
+func _get_collision_shape_3d_value(value: Variant) -> CollisionShape3D:
+	if value is CollisionShape3D:
+		var collision_shape: CollisionShape3D = value
+		return collision_shape
+	return null

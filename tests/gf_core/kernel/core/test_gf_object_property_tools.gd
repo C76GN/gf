@@ -2,74 +2,72 @@
 extends GutTest
 
 
-# --- 常量 ---
-
-const GFObjectPropertyToolsBase = preload("res://addons/gf/kernel/core/gf_object_property_tools.gd")
+const GF_VARIANT_ACCESS = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
 
 
 # --- 测试用例 ---
 
 func test_get_property_info_and_names_use_usage_filter() -> void:
-	var object := DynamicPropertyObject.new()
+	var object: DynamicPropertyObject = DynamicPropertyObject.new()
 
-	var names := GFObjectPropertyToolsBase.get_property_names(object, PROPERTY_USAGE_STORAGE)
-	var info := GFObjectPropertyToolsBase.get_property_info(object, &"dynamic_number")
+	var names: PackedStringArray = GFObjectPropertyTools.get_property_names(object, PROPERTY_USAGE_STORAGE)
+	var info: Dictionary = GFObjectPropertyTools.get_property_info(object, &"dynamic_number")
 
 	assert_true(names.has("dynamic_number"), "应返回匹配 usage 的动态属性。")
 	assert_false(names.has("editor_only"), "不匹配 usage 的属性应被过滤。")
-	assert_eq(int(info.get("type", TYPE_NIL)), TYPE_INT)
+	assert_eq(GF_VARIANT_ACCESS.get_option_int(info, "type", TYPE_NIL), TYPE_INT)
 
 
 func test_read_property_returns_default_for_missing_property() -> void:
-	var object := DynamicPropertyObject.new()
+	var object: DynamicPropertyObject = DynamicPropertyObject.new()
 
-	var value: Variant = GFObjectPropertyToolsBase.read_property(object, ^"missing", "fallback")
+	var value: Variant = GFObjectPropertyTools.read_property(object, ^"missing", "fallback")
 
-	assert_eq(value, "fallback")
+	assert_eq(GF_VARIANT_ACCESS.to_text(value), "fallback")
 
 
 func test_write_property_rejects_read_only_property() -> void:
-	var object := DynamicPropertyObject.new()
+	var object: DynamicPropertyObject = DynamicPropertyObject.new()
 
-	var result: Dictionary = GFObjectPropertyToolsBase.write_property(object, ^"locked_number", 12)
+	var result: Dictionary = GFObjectPropertyTools.write_property(object, ^"locked_number", 12)
 
-	assert_false(bool(result.get("ok", false)))
-	assert_true(String(result.get("error", "")).contains("Property is not writable: locked_number"))
+	assert_false(GF_VARIANT_ACCESS.get_option_bool(result, "ok"))
+	assert_true(GF_VARIANT_ACCESS.get_option_string(result, "error").contains("Property is not writable: locked_number"))
 	assert_eq(object.locked_number_value, 7)
 
 
 func test_write_property_rejects_type_mismatch_before_setting() -> void:
-	var node := Node2D.new()
+	var node: Node2D = Node2D.new()
 
-	var result: Dictionary = GFObjectPropertyToolsBase.write_property(node, ^"position", "bad-position")
+	var result: Dictionary = GFObjectPropertyTools.write_property(node, ^"position", "bad-position")
 
-	assert_false(bool(result.get("ok", false)))
-	assert_true(String(result.get("error", "")).contains("Property type mismatch: position"))
+	assert_false(GF_VARIANT_ACCESS.get_option_bool(result, "ok"))
+	assert_true(GF_VARIANT_ACCESS.get_option_string(result, "error").contains("Property type mismatch: position"))
 	assert_eq(node.position, Vector2.ZERO)
 
 	node.free()
 
 
 func test_write_property_supports_indexed_subproperty() -> void:
-	var node := Node2D.new()
+	var node: Node2D = Node2D.new()
 	node.position = Vector2(1.0, 2.0)
 
-	var result: Dictionary = GFObjectPropertyToolsBase.write_property(node, ^"position:x", 4.5)
+	var result: Dictionary = GFObjectPropertyTools.write_property(node, ^"position:x", 4.5)
 
-	assert_true(bool(result.get("ok", false)))
+	assert_true(GF_VARIANT_ACCESS.get_option_bool(result, "ok"))
 	assert_eq(node.position, Vector2(4.5, 2.0))
-	assert_eq(result.get("old_value"), 1.0)
-	assert_eq(result.get("new_value"), 4.5)
+	assert_eq(GF_VARIANT_ACCESS.get_option_float(result, "old_value"), 1.0)
+	assert_eq(GF_VARIANT_ACCESS.get_option_float(result, "new_value"), 4.5)
 
 	node.free()
 
 
 func test_write_property_coerces_supported_value_types() -> void:
-	var object := DynamicPropertyObject.new()
+	var object: DynamicPropertyObject = DynamicPropertyObject.new()
 
-	var result: Dictionary = GFObjectPropertyToolsBase.write_property(object, ^"target_path", "Child/Label")
+	var result: Dictionary = GFObjectPropertyTools.write_property(object, ^"target_path", "Child/Label")
 
-	assert_true(bool(result.get("ok", false)))
+	assert_true(GF_VARIANT_ACCESS.get_option_bool(result, "ok"))
 	assert_eq(object.target_path_value, ^"Child/Label")
 
 
@@ -121,10 +119,10 @@ class DynamicPropertyObject extends RefCounted:
 	func _set(property: StringName, value: Variant) -> bool:
 		match property:
 			&"dynamic_number":
-				dynamic_number_value = int(value)
+				dynamic_number_value = GF_VARIANT_ACCESS.to_int(value)
 				return true
 			&"target_path":
-				target_path_value = value if value is NodePath else NodePath(String(value))
+				target_path_value = value if value is NodePath else NodePath(GF_VARIANT_ACCESS.to_text(value))
 				return true
 			_:
 				return false

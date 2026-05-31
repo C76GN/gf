@@ -82,11 +82,11 @@ func _physics_process(delta: float) -> void:
 
 	_elapsed_seconds += delta
 	if motion != null and motion.has_method(&"step"):
-		motion.call("step", self, delta, _projectile_context)
+		var _step_result: Variant = motion.call("step", self, delta, _projectile_context)
 	if (
 		lifetime_policy != null
 		and lifetime_policy.has_method(&"should_finish")
-		and bool(lifetime_policy.call("should_finish", self, _elapsed_seconds, _projectile_context))
+		and GFVariantData.to_bool(lifetime_policy.call("should_finish", self, _elapsed_seconds, _projectile_context), false)
 	):
 		finish(&"lifetime")
 
@@ -105,9 +105,9 @@ func launch(projectile_context: Dictionary = {}) -> void:
 	_elapsed_seconds = 0.0
 	_projectile_context = projectile_context.duplicate(true)
 	if motion != null and motion.has_method(&"setup"):
-		motion.call("setup", self, _projectile_context)
+		var _motion_setup_result: Variant = motion.call("setup", self, _projectile_context)
 	if lifetime_policy != null and lifetime_policy.has_method(&"setup"):
-		lifetime_policy.call("setup", self, _projectile_context)
+		var _lifetime_setup_result: Variant = lifetime_policy.call("setup", self, _projectile_context)
 	set_physics_process(true)
 	projectile_launched.emit(self)
 
@@ -170,20 +170,20 @@ func send_impact_to(candidate: Object) -> void:
 
 func _connect_impact_signals() -> void:
 	if not area_entered.is_connected(_on_collision_candidate_entered):
-		area_entered.connect(_on_collision_candidate_entered)
+		var _area_connected: int = area_entered.connect(_on_collision_candidate_entered)
 	if not body_entered.is_connected(_on_collision_candidate_entered):
-		body_entered.connect(_on_collision_candidate_entered)
+		var _body_connected: int = body_entered.connect(_on_collision_candidate_entered)
 
 
 func _send_impact_to_candidate(candidate: Object) -> void:
 	if not _active or not enabled:
 		return
 
-	var receiver := _resolve_receiver_from_candidate(candidate)
+	var receiver: Object = _resolve_receiver_from_candidate(candidate)
 	if receiver == null:
 		return
-	var report := _send_to_impact_receiver(receiver)
-	var accepted := bool(report.get("ok", false))
+	var report: Dictionary = _send_to_impact_receiver(receiver)
+	var accepted: bool = GFVariantData.get_option_bool(report, "ok", false)
 	_record_impact(report)
 	if finish_on_impact and accepted:
 		finish(&"impact")
@@ -192,14 +192,12 @@ func _send_impact_to_candidate(candidate: Object) -> void:
 
 
 func _send_to_impact_receiver(receiver: Object) -> Dictionary:
-	var dispatch_host := _resolve_collision_dispatch_host()
+	var dispatch_host: Object = _resolve_collision_dispatch_host()
 	if dispatch_host == self:
 		return send_to(receiver)
 
 	var report_value: Variant = dispatch_host.call("send_to", receiver, null, &"")
-	if not report_value is Dictionary:
-		return {}
-	var report := report_value as Dictionary
+	var report: Dictionary = GFVariantData.as_dictionary(report_value)
 	_emit_send_result(build_hit_context(receiver), receiver, report)
 	return report
 
@@ -210,7 +208,9 @@ func _resolve_receiver_from_candidate(candidate: Object) -> Object:
 	if candidate.has_method(&"receive_hit"):
 		return candidate
 
-	var node := candidate as Node
+	var node: Node = null
+	if candidate is Node:
+		node = candidate
 	while node != null:
 		if node.has_method(&"receive_hit"):
 			return node
@@ -219,16 +219,16 @@ func _resolve_receiver_from_candidate(candidate: Object) -> Object:
 
 
 func _record_impact(report: Dictionary) -> void:
-	_projectile_context["impact_attempt_count"] = int(_projectile_context.get("impact_attempt_count", 0)) + 1
-	if bool(report.get("ok", false)):
-		_projectile_context["impact_count"] = int(_projectile_context.get("impact_count", 0)) + 1
+	_projectile_context["impact_attempt_count"] = GFVariantData.get_option_int(_projectile_context, "impact_attempt_count", 0) + 1
+	if GFVariantData.get_option_bool(report, "ok", false):
+		_projectile_context["impact_count"] = GFVariantData.get_option_int(_projectile_context, "impact_count", 0) + 1
 
 
 func _lifetime_should_finish() -> bool:
 	return (
 		lifetime_policy != null
 		and lifetime_policy.has_method(&"should_finish")
-		and bool(lifetime_policy.call("should_finish", self, _elapsed_seconds, _projectile_context))
+		and GFVariantData.to_bool(lifetime_policy.call("should_finish", self, _elapsed_seconds, _projectile_context), false)
 	)
 
 

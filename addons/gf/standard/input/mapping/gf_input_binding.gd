@@ -105,8 +105,11 @@ enum ValueTarget {
 ## [br]
 ## @return 新绑定。
 func duplicate_binding() -> GFInputBinding:
-	var binding := (get_script() as Script).new() as GFInputBinding
-	binding.input_event = input_event.duplicate(true) as InputEvent if input_event != null else null
+	var binding: GFInputBinding = _instantiate_binding()
+	if input_event != null:
+		binding.input_event = _variant_to_input_event(input_event.duplicate(true))
+	else:
+		binding.input_event = null
 	binding.value_target = value_target
 	binding.deadzone = deadzone
 	binding.scale = scale
@@ -132,24 +135,36 @@ func matches_event(event: InputEvent) -> bool:
 		return false
 
 	if input_event is InputEventAction and event is InputEventAction:
-		return (input_event as InputEventAction).action == (event as InputEventAction).action
+		var template_action: InputEventAction = input_event
+		var runtime_action: InputEventAction = event
+		return template_action.action == runtime_action.action
 
 	if input_event is InputEventKey and event is InputEventKey:
-		return _matches_key(event as InputEventKey, input_event as InputEventKey)
+		var template_key_event: InputEventKey = input_event
+		var runtime_key_event: InputEventKey = event
+		return _matches_key(runtime_key_event, template_key_event)
 
 	if input_event is InputEventMouseButton and event is InputEventMouseButton:
-		return (input_event as InputEventMouseButton).button_index == (event as InputEventMouseButton).button_index
+		var template_mouse: InputEventMouseButton = input_event
+		var runtime_mouse: InputEventMouseButton = event
+		return template_mouse.button_index == runtime_mouse.button_index
 
 	if input_event is InputEventJoypadButton and event is InputEventJoypadButton:
-		return (input_event as InputEventJoypadButton).button_index == (event as InputEventJoypadButton).button_index
+		var template_button: InputEventJoypadButton = input_event
+		var runtime_button: InputEventJoypadButton = event
+		return template_button.button_index == runtime_button.button_index
 
 	if input_event is InputEventJoypadMotion and event is InputEventJoypadMotion:
-		return (input_event as InputEventJoypadMotion).axis == (event as InputEventJoypadMotion).axis
+		var template_axis: InputEventJoypadMotion = input_event
+		var runtime_axis: InputEventJoypadMotion = event
+		return template_axis.axis == runtime_axis.axis
 
 	if input_event is InputEventScreenTouch and event is InputEventScreenTouch:
+		var template_touch: InputEventScreenTouch = input_event
+		var runtime_touch: InputEventScreenTouch = event
 		return (
 			not match_touch_index
-			or (input_event as InputEventScreenTouch).index == (event as InputEventScreenTouch).index
+			or template_touch.index == runtime_touch.index
 		)
 
 	return input_event.is_match(event, true)
@@ -171,12 +186,12 @@ func get_contribution(
 	action_value_type: GFInputAction.ValueType,
 	deadzone_override: float = -1.0
 ) -> Vector3:
-	var effective_deadzone := deadzone if deadzone_override < 0.0 else clampf(deadzone_override, 0.0, 1.0)
-	var raw_value := _read_event_value(event, effective_deadzone)
+	var effective_deadzone: float = deadzone if deadzone_override < 0.0 else clampf(deadzone_override, 0.0, 1.0)
+	var raw_value: float = _read_event_value(event, effective_deadzone)
 	if value_target == ValueTarget.AUTO:
 		return _get_auto_contribution(raw_value, event, action_value_type)
 
-	var strength := _get_target_strength(event, raw_value, value_target)
+	var strength: float = _get_target_strength(event, raw_value, value_target)
 	if strength < effective_deadzone:
 		strength = 0.0
 
@@ -227,11 +242,11 @@ func get_display_name() -> String:
 # --- 私有/辅助方法 ---
 
 func _matches_key(event: InputEventKey, template: InputEventKey) -> bool:
-	var template_key := template.physical_keycode
+	var template_key: Key = template.physical_keycode
 	if template_key == KEY_NONE:
 		template_key = template.keycode
 
-	var event_key := event.physical_keycode
+	var event_key: Key = event.physical_keycode
 	if event_key == KEY_NONE:
 		event_key = event.keycode
 
@@ -249,27 +264,28 @@ func _matches_key(event: InputEventKey, template: InputEventKey) -> bool:
 
 func _read_event_value(event: InputEvent, effective_deadzone: float) -> float:
 	if event is InputEventAction:
-		var action_event := event as InputEventAction
+		var action_event: InputEventAction = event
 		return action_event.strength if action_event.pressed else 0.0
 
 	if event is InputEventKey:
-		var key_event := event as InputEventKey
+		var key_event: InputEventKey = event
 		return 1.0 if key_event.pressed else 0.0
 
 	if event is InputEventMouseButton:
-		var mouse_event := event as InputEventMouseButton
+		var mouse_event: InputEventMouseButton = event
 		return mouse_event.factor if mouse_event.pressed else 0.0
 
 	if event is InputEventJoypadButton:
-		var joy_button := event as InputEventJoypadButton
+		var joy_button: InputEventJoypadButton = event
 		return joy_button.pressure if joy_button.pressed else 0.0
 
 	if event is InputEventJoypadMotion:
-		var axis_event := event as InputEventJoypadMotion
+		var axis_event: InputEventJoypadMotion = event
 		return axis_event.axis_value if absf(axis_event.axis_value) >= effective_deadzone else 0.0
 
 	if event is InputEventScreenTouch:
-		return 1.0 if (event as InputEventScreenTouch).pressed else 0.0
+		var touch_event: InputEventScreenTouch = event
+		return 1.0 if touch_event.pressed else 0.0
 
 	return 0.0
 
@@ -309,13 +325,13 @@ func _apply_modifiers(
 	event: InputEvent,
 	action_value_type: GFInputAction.ValueType
 ) -> Vector3:
-	var result := value
+	var result: Vector3 = value
 	for modifier: GFInputModifier in modifiers:
 		if modifier != null:
 			if action_value_type == GFInputAction.ValueType.AXIS_3D:
 				result = modifier.modify_3d(result, event, null)
 			else:
-				var modified := modifier.modify(Vector2(result.x, result.y), event, null)
+				var modified: Vector2 = modifier.modify(Vector2(result.x, result.y), event, null)
 				result = Vector3(modified.x, modified.y, result.z)
 	return result
 
@@ -325,7 +341,25 @@ func _duplicate_modifiers() -> Array[GFInputModifier]:
 	for modifier: GFInputModifier in modifiers:
 		if modifier == null:
 			continue
-		var duplicate_modifier := modifier.duplicate_modifier()
+		var duplicate_modifier: GFInputModifier = modifier.duplicate_modifier()
 		if duplicate_modifier != null:
 			result.append(duplicate_modifier)
 	return result
+
+
+func _instantiate_binding() -> GFInputBinding:
+	var script_value: Variant = get_script()
+	if script_value is Script:
+		var script: Script = script_value
+		var instance: Variant = script.call("new")
+		if instance is GFInputBinding:
+			var binding: GFInputBinding = instance
+			return binding
+	return GFInputBinding.new()
+
+
+func _variant_to_input_event(value: Variant) -> InputEvent:
+	if value is InputEvent:
+		var event: InputEvent = value
+		return event
+	return null

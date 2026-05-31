@@ -42,7 +42,7 @@ func add_trait(p_trait: GFTrait) -> void:
 ## @param trait_id: 特征 ID。
 func remove_traits_by_id(trait_id: StringName) -> void:
 	for index: int in range(traits.size() - 1, -1, -1):
-		var current_trait := traits[index]
+		var current_trait: GFTrait = traits[index]
 		if current_trait != null and current_trait.trait_id == trait_id:
 			traits.remove_at(index)
 
@@ -83,7 +83,7 @@ func get_traits(target_id: StringName, category: StringName = &"") -> Array[GFTr
 ## [br]
 ## @return 合并后的数值。
 func calculate_number(target_id: StringName, base_value: float, category: StringName = &"") -> float:
-	var result := base_value
+	var result: float = base_value
 	for current_trait: GFTrait in get_traits(target_id, category):
 		result = current_trait.apply_number(result)
 	return result

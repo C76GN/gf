@@ -66,15 +66,15 @@ func set_capacity(budget_id: StringName, capacity: float, reset_available: bool 
 	if budget_id == &"":
 		return
 
-	var normalized_capacity := maxf(0.0, capacity)
-	var entry := _get_or_make_entry(budget_id)
+	var normalized_capacity: float = maxf(0.0, capacity)
+	var entry: Dictionary = _get_or_make_entry(budget_id)
 	entry["capacity"] = normalized_capacity
 	if reset_available:
 		entry["available"] = normalized_capacity
 	else:
-		entry["available"] = clampf(float(entry.get("available", 0.0)), 0.0, normalized_capacity)
+		entry["available"] = clampf(_get_entry_available(entry), 0.0, normalized_capacity)
 	_budgets[budget_id] = entry
-	budget_changed.emit(budget_id, float(entry["available"]), normalized_capacity)
+	budget_changed.emit(budget_id, _get_entry_available(entry), normalized_capacity)
 
 
 ## 设置当前可用量。
@@ -88,11 +88,11 @@ func set_available(budget_id: StringName, available: float) -> void:
 	if budget_id == &"":
 		return
 
-	var entry := _get_or_make_entry(budget_id)
-	var capacity := float(entry.get("capacity", 0.0))
+	var entry: Dictionary = _get_or_make_entry(budget_id)
+	var capacity: float = _get_entry_capacity(entry)
 	entry["available"] = clampf(available, 0.0, capacity)
 	_budgets[budget_id] = entry
-	budget_changed.emit(budget_id, float(entry["available"]), capacity)
+	budget_changed.emit(budget_id, _get_entry_available(entry), capacity)
 
 
 ## 获取容量。
@@ -103,8 +103,7 @@ func set_available(budget_id: StringName, available: float) -> void:
 ## [br]
 ## @return 容量；不存在时返回 0。
 func get_capacity(budget_id: StringName) -> float:
-	var entry := _budgets.get(budget_id) as Dictionary
-	return float(entry.get("capacity", 0.0)) if entry != null else 0.0
+	return _get_entry_capacity(_get_entry_copy(budget_id))
 
 
 ## 获取可用量。
@@ -115,8 +114,7 @@ func get_capacity(budget_id: StringName) -> float:
 ## [br]
 ## @return 可用量；不存在时返回 0。
 func get_available(budget_id: StringName) -> float:
-	var entry := _budgets.get(budget_id) as Dictionary
-	return float(entry.get("available", 0.0)) if entry != null else 0.0
+	return _get_entry_available(_get_entry_copy(budget_id))
 
 
 ## 是否有足够预算。
@@ -162,11 +160,11 @@ func consume(budget_id: StringName, amount: float, metadata: Dictionary = {}) ->
 		budget_rejected.emit(budget_id, amount, "insufficient_budget")
 		return _make_result(false, budget_id, amount, "insufficient_budget", metadata)
 
-	var entry := _budgets[budget_id] as Dictionary
-	entry["available"] = float(entry.get("available", 0.0)) - amount
+	var entry: Dictionary = _get_entry_copy(budget_id)
+	entry["available"] = _get_entry_available(entry) - amount
 	_budgets[budget_id] = entry
 	budget_consumed.emit(budget_id, amount)
-	budget_changed.emit(budget_id, float(entry["available"]), float(entry.get("capacity", 0.0)))
+	budget_changed.emit(budget_id, _get_entry_available(entry), _get_entry_capacity(entry))
 	return _make_result(true, budget_id, amount, "", metadata)
 
 
@@ -181,11 +179,11 @@ func release(budget_id: StringName, amount: float) -> void:
 	if budget_id == &"" or amount <= 0.0:
 		return
 
-	var entry := _get_or_make_entry(budget_id)
-	var capacity := float(entry.get("capacity", 0.0))
-	entry["available"] = clampf(float(entry.get("available", 0.0)) + amount, 0.0, capacity)
+	var entry: Dictionary = _get_or_make_entry(budget_id)
+	var capacity: float = _get_entry_capacity(entry)
+	entry["available"] = clampf(_get_entry_available(entry) + amount, 0.0, capacity)
 	_budgets[budget_id] = entry
-	budget_changed.emit(budget_id, float(entry["available"]), capacity)
+	budget_changed.emit(budget_id, _get_entry_available(entry), capacity)
 
 
 ## 将一个或全部预算重置为容量。
@@ -195,12 +193,12 @@ func release(budget_id: StringName, amount: float) -> void:
 ## @param budget_id: 预算标识；为空时重置全部。
 func reset(budget_id: StringName = &"") -> void:
 	if budget_id != &"":
-		var entry := _budgets.get(budget_id) as Dictionary
-		if entry == null:
+		if not _budgets.has(budget_id):
 			return
-		entry["available"] = float(entry.get("capacity", 0.0))
+		var entry: Dictionary = _get_entry_copy(budget_id)
+		entry["available"] = _get_entry_capacity(entry)
 		_budgets[budget_id] = entry
-		budget_changed.emit(budget_id, float(entry["available"]), float(entry.get("capacity", 0.0)))
+		budget_changed.emit(budget_id, _get_entry_available(entry), _get_entry_capacity(entry))
 		return
 
 	for key: StringName in _budgets.keys():
@@ -224,8 +222,7 @@ func clear() -> void:
 func get_snapshot() -> Dictionary:
 	var result: Dictionary = {}
 	for key: StringName in _budgets.keys():
-		var entry := _budgets[key] as Dictionary
-		result[String(key)] = entry.duplicate(true) if entry != null else {}
+		result[String(key)] = _get_entry_copy(key)
 	return result
 
 
@@ -233,11 +230,23 @@ func get_snapshot() -> Dictionary:
 
 func _get_or_make_entry(budget_id: StringName) -> Dictionary:
 	if _budgets.has(budget_id):
-		return (_budgets[budget_id] as Dictionary).duplicate(true)
+		return _get_entry_copy(budget_id)
 	return {
 		"capacity": 0.0,
 		"available": 0.0,
 	}
+
+
+func _get_entry_copy(budget_id: StringName) -> Dictionary:
+	return GFVariantData.to_dictionary(_budgets[budget_id]) if _budgets.has(budget_id) else {}
+
+
+func _get_entry_capacity(entry: Dictionary) -> float:
+	return GFVariantData.get_option_float(entry, "capacity", 0.0)
+
+
+func _get_entry_available(entry: Dictionary) -> float:
+	return GFVariantData.get_option_float(entry, "available", 0.0)
 
 
 func _make_result(

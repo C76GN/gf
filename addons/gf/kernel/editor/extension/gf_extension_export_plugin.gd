@@ -21,6 +21,7 @@ const GFExtensionSettingsBase = preload("res://addons/gf/kernel/extension/gf_ext
 ## [br]
 ## @layer kernel/editor
 const GFExtensionUsageAuditBase = preload("res://addons/gf/kernel/extension/gf_extension_usage_audit.gd")
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
 
 
 # --- 私有变量 ---
@@ -66,7 +67,7 @@ func _refresh_disabled_extension_roots() -> void:
 
 
 static func _path_is_under(path: String, root_path: String) -> bool:
-	var normalized_root := root_path.trim_suffix("/")
+	var normalized_root: String = root_path.trim_suffix("/")
 	return path == normalized_root or path.begins_with(normalized_root + "/")
 
 
@@ -74,13 +75,13 @@ func _warn_disabled_extension_references() -> void:
 	if _disabled_manifests.is_empty():
 		return
 
-	var report := GFExtensionUsageAuditBase.audit_disabled_extensions(_disabled_manifests, {
+	var report: Dictionary = GFExtensionUsageAuditBase.audit_disabled_extensions(_disabled_manifests, {
 		"max_references_per_extension": 8,
 	})
-	if bool(report.get("ok", true)):
+	if _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(report, "ok", true):
 		return
 
-	var formatted_report := _format_reference_report(report)
+	var formatted_report: String = _format_reference_report(report)
 	if GFExtensionSettingsBase.should_fail_export_on_disabled_extension_references():
 		push_error("[GFExtensionExportPlugin] 检测到禁用扩展仍被项目文件引用，当前导出策略要求报告为错误：\n%s" % formatted_report)
 		return
@@ -89,21 +90,25 @@ func _warn_disabled_extension_references() -> void:
 
 
 func _format_reference_report(report: Dictionary) -> String:
-	var lines := PackedStringArray()
-	var extensions := report.get("extensions", {}) as Dictionary
+	var lines: PackedStringArray = PackedStringArray()
+	var extensions: Dictionary = _GF_VARIANT_ACCESS_SCRIPT.as_dictionary(
+		_GF_VARIANT_ACCESS_SCRIPT.get_option_value(report, "extensions", {})
+	)
 	for extension_id: String in extensions.keys():
-		var extension_report := extensions[extension_id] as Dictionary
-		if extension_report == null:
+		var extension_report: Dictionary = _GF_VARIANT_ACCESS_SCRIPT.as_dictionary(extensions[extension_id])
+		if extension_report.is_empty():
 			continue
 
-		lines.append("- %s (%s)" % [
-			String(extension_report.get("display_name", extension_id)),
+		var _append_result_102: Variant = lines.append("- %s (%s)" % [
+			_GF_VARIANT_ACCESS_SCRIPT.get_option_string(extension_report, "display_name", extension_id),
 			extension_id,
 		])
-		var references := extension_report.get("references", []) as Array
-		for reference: Dictionary in references:
-			lines.append("  %s:%d" % [
-				String(reference.get("path", "")),
-				int(reference.get("line", 0)),
+		var references: Array = _GF_VARIANT_ACCESS_SCRIPT.as_array(
+			_GF_VARIANT_ACCESS_SCRIPT.get_option_value(extension_report, "references", [])
+		)
+		for reference_entry: Dictionary in references:
+			var _append_result_110: Variant = lines.append("  %s:%d" % [
+				_GF_VARIANT_ACCESS_SCRIPT.get_option_string(reference_entry, "path", ""),
+				_GF_VARIANT_ACCESS_SCRIPT.get_option_int(reference_entry, "line", 0),
 			])
 	return "\n".join(lines)

@@ -58,7 +58,7 @@ func supports_node(node: Node) -> bool:
 ## [br]
 ## @schema return: Dictionary，可包含 visible、modulate、self_modulate、show_behind_parent、top_level、z_as_relative 与 z_index。
 func gather(node: Node, _context: Dictionary = {}) -> Dictionary:
-	var canvas_item := node as CanvasItem
+	var canvas_item: CanvasItem = _get_canvas_item(node)
 	if canvas_item == null:
 		return {}
 
@@ -83,9 +83,18 @@ func gather(node: Node, _context: Dictionary = {}) -> Dictionary:
 ## [br]
 ## @schema return: Dictionary，包含 ok: bool 与 error: String。
 func apply(node: Node, payload: Dictionary, _context: Dictionary = {}) -> Dictionary:
-	var canvas_item := node as CanvasItem
+	var canvas_item: CanvasItem = _get_canvas_item(node)
 	if canvas_item == null:
 		return make_result(false, "Node is not CanvasItem.")
 
 	_apply_property_specs(canvas_item, payload, _PROPERTY_SPECS)
 	return make_result(true)
+
+
+# --- 私有/辅助方法 ---
+
+func _get_canvas_item(node: Node) -> CanvasItem:
+	if node is CanvasItem:
+		var canvas_item: CanvasItem = node
+		return canvas_item
+	return null

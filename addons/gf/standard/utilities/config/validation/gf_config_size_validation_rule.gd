@@ -44,7 +44,7 @@ extends GFConfigValidationRule
 ## [br]
 ## @schema return: Dictionary，包含基础规则字段和数量边界设置。
 func describe() -> Dictionary:
-	var result := super.describe()
+	var result: Dictionary = super.describe()
 	result["has_minimum_size"] = has_minimum_size
 	result["minimum_size"] = minimum_size
 	result["has_maximum_size"] = has_maximum_size
@@ -79,7 +79,7 @@ func _get_default_rule_id() -> StringName:
 ## [br]
 ## @schema report: GFConfigValidationReport 兼容 Dictionary，会被当前规则修改。
 func _validate_value(value: Variant, context: Dictionary, report: Dictionary) -> void:
-	var size := _get_value_size(value)
+	var size: int = _get_value_size(value)
 	if size < 0:
 		_add_issue(report, context, "size_invalid_type", "数量校验只支持 String、Array、Dictionary 或 PackedArray。")
 		return
@@ -115,30 +115,39 @@ func _validate_size(size: int, context: Dictionary, report: Dictionary, kind: St
 
 
 func _get_value_size(value: Variant) -> int:
-	match typeof(value):
-		TYPE_STRING, TYPE_STRING_NAME:
-			return String(value).length()
-		TYPE_ARRAY:
-			return (value as Array).size()
-		TYPE_DICTIONARY:
-			return (value as Dictionary).size()
-		TYPE_PACKED_BYTE_ARRAY:
-			return (value as PackedByteArray).size()
-		TYPE_PACKED_INT32_ARRAY:
-			return (value as PackedInt32Array).size()
-		TYPE_PACKED_INT64_ARRAY:
-			return (value as PackedInt64Array).size()
-		TYPE_PACKED_FLOAT32_ARRAY:
-			return (value as PackedFloat32Array).size()
-		TYPE_PACKED_FLOAT64_ARRAY:
-			return (value as PackedFloat64Array).size()
-		TYPE_PACKED_STRING_ARRAY:
-			return (value as PackedStringArray).size()
-		TYPE_PACKED_VECTOR2_ARRAY:
-			return (value as PackedVector2Array).size()
-		TYPE_PACKED_VECTOR3_ARRAY:
-			return (value as PackedVector3Array).size()
-		TYPE_PACKED_COLOR_ARRAY:
-			return (value as PackedColorArray).size()
-		_:
-			return -1
+	if value is String or value is StringName:
+		return GFVariantData.to_text(value).length()
+	if value is Array:
+		var array: Array = value
+		return array.size()
+	if value is Dictionary:
+		var dictionary: Dictionary = value
+		return dictionary.size()
+	if value is PackedByteArray:
+		var packed_bytes: PackedByteArray = value
+		return packed_bytes.size()
+	if value is PackedInt32Array:
+		var packed_int32: PackedInt32Array = value
+		return packed_int32.size()
+	if value is PackedInt64Array:
+		var packed_int64: PackedInt64Array = value
+		return packed_int64.size()
+	if value is PackedFloat32Array:
+		var packed_float32: PackedFloat32Array = value
+		return packed_float32.size()
+	if value is PackedFloat64Array:
+		var packed_float64: PackedFloat64Array = value
+		return packed_float64.size()
+	if value is PackedStringArray:
+		var packed_strings: PackedStringArray = value
+		return packed_strings.size()
+	if value is PackedVector2Array:
+		var packed_vector2: PackedVector2Array = value
+		return packed_vector2.size()
+	if value is PackedVector3Array:
+		var packed_vector3: PackedVector3Array = value
+		return packed_vector3.size()
+	if value is PackedColorArray:
+		var packed_colors: PackedColorArray = value
+		return packed_colors.size()
+	return -1

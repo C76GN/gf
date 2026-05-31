@@ -18,7 +18,7 @@ class_name GFSystem
 
 # --- 常量 ---
 
-const _DEPENDENCY_SCOPE_SUPPORT: Script = preload("res://addons/gf/kernel/base/gf_dependency_scope_support.gd")
+const _DEPENDENCY_SCOPE_SUPPORT = preload("res://addons/gf/kernel/base/gf_dependency_scope_support.gd")
 
 
 # --- 公共变量 ---
@@ -154,7 +154,7 @@ func inject_dependencies(architecture: GFArchitecture) -> void:
 ## [br]
 ## @return 所属架构仍处于活动生命周期时返回 true。
 func is_lifecycle_active() -> bool:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	return architecture != null and architecture.is_lifecycle_active()
 
 
@@ -164,7 +164,7 @@ func is_lifecycle_active() -> bool:
 ## [br]
 ## @return 当前模块完成 ready 阶段时返回 true。
 func is_ready_in_architecture() -> bool:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	return architecture != null and architecture.is_module_ready(self)
 
 
@@ -178,7 +178,7 @@ func is_ready_in_architecture() -> bool:
 ## [br]
 ## @return 模型实例。
 func get_model(model_type: Script, require_ready: bool = false) -> Object:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_model(model_type, require_ready)
@@ -194,7 +194,7 @@ func get_model(model_type: Script, require_ready: bool = false) -> Object:
 ## [br]
 ## @return 工具实例。
 func get_utility(utility_type: Script, require_ready: bool = false) -> Object:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_utility(utility_type, require_ready)
@@ -210,7 +210,7 @@ func get_utility(utility_type: Script, require_ready: bool = false) -> Object:
 ## [br]
 ## @return 系统实例。
 func get_system(system_type: Script, require_ready: bool = false) -> Object:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_system(system_type, require_ready)
@@ -228,7 +228,7 @@ func get_system(system_type: Script, require_ready: bool = false) -> Object:
 ## [br]
 ## @param priority: 回调优先级，数值越大越先执行，默认为 0。
 func register_event(event_type: Script, callback: Callable, priority: int = 0) -> void:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
 		architecture.register_event_owned(self, event_type, callback, priority)
 
@@ -241,7 +241,7 @@ func register_event(event_type: Script, callback: Callable, priority: int = 0) -
 ## [br]
 ## @param callback: 要移除的回调函数。
 func unregister_event(event_type: Script, callback: Callable) -> void:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
 		architecture.unregister_event(event_type, callback)
 
@@ -256,7 +256,7 @@ func unregister_event(event_type: Script, callback: Callable) -> void:
 ## [br]
 ## @param priority: 回调优先级，数值越大越先执行，默认为 0。
 func register_assignable_event(base_event_type: Script, callback: Callable, priority: int = 0) -> void:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
 		architecture.register_assignable_event_owned(self, base_event_type, callback, priority)
 
@@ -269,7 +269,7 @@ func register_assignable_event(base_event_type: Script, callback: Callable, prio
 ## [br]
 ## @param callback: 要移除的回调函数。
 func unregister_assignable_event(base_event_type: Script, callback: Callable) -> void:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
 		architecture.unregister_assignable_event(base_event_type, callback)
 
@@ -280,7 +280,7 @@ func unregister_assignable_event(base_event_type: Script, callback: Callable) ->
 ## [br]
 ## @param event_instance: 要分发的事件实例。
 func send_event(event_instance: Object) -> void:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
 		architecture.send_event(event_instance)
 
@@ -293,7 +293,7 @@ func send_event(event_instance: Object) -> void:
 ## [br]
 ## @param callback: 回调函数，签名为 func(payload: Variant)。
 func register_simple_event(event_id: StringName, callback: Callable) -> void:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
 		architecture.register_simple_event_owned(self, event_id, callback)
 
@@ -306,7 +306,7 @@ func register_simple_event(event_id: StringName, callback: Callable) -> void:
 ## [br]
 ## @param callback: 要移除的回调函数。
 func unregister_simple_event(event_id: StringName, callback: Callable) -> void:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
 		architecture.unregister_simple_event(event_id, callback)
 
@@ -324,7 +324,7 @@ func unregister_simple_event(event_id: StringName, callback: Callable) -> void:
 ##   "description": "事件附加数据；由事件消费者约定结构。"
 ## }
 func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
 		architecture.send_simple_event(event_id, payload)
 
@@ -336,7 +336,10 @@ func _gf_set_dependency_scope(architecture: GFArchitecture) -> void:
 
 
 func _get_architecture() -> GFArchitecture:
-	return _DEPENDENCY_SCOPE_SUPPORT._get_architecture_or_global(_dependency_scope, "GFSystem") as GFArchitecture
+	var raw_architecture: Variant = _DEPENDENCY_SCOPE_SUPPORT._get_architecture_or_global(_dependency_scope, "GFSystem")
+	if raw_architecture is GFArchitecture:
+		return raw_architecture
+	return null
 
 
 func _release_dependency_scope() -> void:
@@ -344,10 +347,16 @@ func _release_dependency_scope() -> void:
 
 
 func _get_architecture_or_null() -> GFArchitecture:
-	return _DEPENDENCY_SCOPE_SUPPORT._get_architecture_or_null(_dependency_scope, "GFSystem") as GFArchitecture
+	var raw_architecture: Variant = _DEPENDENCY_SCOPE_SUPPORT._get_architecture_or_null(_dependency_scope, "GFSystem")
+	if raw_architecture is GFArchitecture:
+		return raw_architecture
+	return null
 
 
 func _request_tick_cache_refresh() -> void:
-	var architecture := _DEPENDENCY_SCOPE_SUPPORT._get_bound_architecture_or_null(_dependency_scope) as GFArchitecture
+	var raw_architecture: Variant = _DEPENDENCY_SCOPE_SUPPORT._get_bound_architecture_or_null(_dependency_scope)
+	if not (raw_architecture is GFArchitecture):
+		return
+	var architecture: GFArchitecture = raw_architecture
 	if architecture != null:
 		architecture._refresh_tick_caches()

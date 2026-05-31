@@ -45,7 +45,7 @@ var _architecture_ref: WeakRef = null
 # --- Godot 生命周期方法 ---
 
 func _init(architecture: GFArchitecture = null, initial_values: Dictionary = {}) -> void:
-	set_architecture(architecture)
+	var _set_architecture_result_48: Variant = set_architecture(architecture)
 	values = initial_values.duplicate(true)
 
 
@@ -71,7 +71,7 @@ func set_architecture(architecture: GFArchitecture) -> GFDialogueContext:
 func get_architecture() -> GFArchitecture:
 	if _architecture_ref == null:
 		return null
-	return _architecture_ref.get_ref() as GFArchitecture
+	return _get_architecture_value(_architecture_ref.get_ref())
 
 
 ## 写入上下文值。
@@ -104,7 +104,7 @@ func set_value(key: StringName, value: Variant) -> GFDialogueContext:
 ## [br]
 ## @schema return: values 中的项目值，或传入的 default_value。
 func get_value(key: StringName, default_value: Variant = null) -> Variant:
-	return values.get(key, default_value)
+	return GFVariantData.get_option_value(values, key, default_value)
 
 
 ## 检查条件。
@@ -171,7 +171,7 @@ func apply_mutation(mutation_id: StringName, payload: Variant = null, subject: V
 func resolve_text(text: String, subject: Variant = null) -> String:
 	if not text_resolver.is_valid():
 		return text
-	return String(text_resolver.call(text, subject, self))
+	return GFVariantData.to_text(text_resolver.call(text, subject, self))
 
 
 ## 序列化运行值。
@@ -200,16 +200,25 @@ func deserialize_values(data: Dictionary) -> void:
 
 func _normalize_result(raw_result: Variant, default_reason: StringName = &"ok") -> Dictionary:
 	if raw_result is Dictionary:
-		var result := (raw_result as Dictionary).duplicate(true)
+		var result: Dictionary = GFVariantData.to_dictionary(raw_result, {}, true)
 		if not result.has("ok"):
 			result["ok"] = true
 		if not result.has("reason"):
-			result["reason"] = default_reason if bool(result.get("ok", false)) else &"rejected"
+			result["reason"] = default_reason if GFVariantData.get_option_bool(result, "ok", false) else &"rejected"
 		return result
 
-	var ok := bool(raw_result) if raw_result is bool else true
+	var ok: bool = true
+	if raw_result is bool:
+		ok = GFVariantData.to_bool(raw_result, false)
 	return {
 		"ok": ok,
 		"reason": default_reason if ok else &"rejected",
 		"value": raw_result,
 	}
+
+
+func _get_architecture_value(value: Variant) -> GFArchitecture:
+	if value is GFArchitecture:
+		var architecture: GFArchitecture = value
+		return architecture
+	return null

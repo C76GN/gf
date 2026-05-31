@@ -26,12 +26,13 @@ const GFEditorWorkspaceWindowBase = preload("res://addons/gf/kernel/editor/gf_ed
 ## [br]
 ## @layer kernel/editor
 const GFExtensionSettingsBase = preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
 
 
 # --- 私有变量 ---
 
 var _standard_dock_records: Array[Dictionary] = []
-var _workspace_window: Window = null
+var _workspace_window: GFEditorWorkspaceWindowBase = null
 
 
 # --- 公共方法 ---
@@ -52,7 +53,7 @@ func setup(plugin: EditorPlugin, standard_dock_records: Array[Dictionary] = []) 
 		return
 
 	set_standard_dock_records(standard_dock_records)
-	var records := _collect_core_dock_records()
+	var records: Array[Dictionary] = _collect_core_dock_records()
 	records.append_array(_collect_enabled_extension_dock_records())
 	records.sort_custom(_sort_dock_records)
 	_add_workspace_window(records)
@@ -108,7 +109,7 @@ func get_workspace_window() -> Window:
 # --- 私有/辅助方法 ---
 
 func _collect_core_dock_records() -> Array[Dictionary]:
-	var records := _copy_records(_standard_dock_records)
+	var records: Array[Dictionary] = _copy_records(_standard_dock_records)
 	records.append(
 		{
 			"path": EXTENSION_MANAGER_DOCK_SCRIPT_PATH,
@@ -132,7 +133,7 @@ func _collect_enabled_extension_dock_records() -> Array[Dictionary]:
 	var used_paths: Dictionary = {}
 	for manifest: GFExtensionManifest in GFExtensionSettingsBase.get_enabled_manifests():
 		for dock_path: String in manifest.editor_dock_paths:
-			var normalized_path := dock_path.strip_edges()
+			var normalized_path: String = dock_path.strip_edges()
 			if normalized_path.is_empty() or used_paths.has(normalized_path):
 				continue
 
@@ -153,13 +154,13 @@ func _add_workspace_window(records: Array[Dictionary]) -> void:
 
 
 func _get_extension_dock_label(manifest: GFExtensionManifest, dock_path: String) -> String:
-	var extension_name := manifest.display_name
+	var extension_name: String = manifest.display_name
 	if extension_name.is_empty():
 		extension_name = manifest.id
 	if manifest.editor_dock_paths.size() <= 1:
 		return extension_name
 
-	var script_label := dock_path.get_file().get_basename()
+	var script_label: String = dock_path.get_file().get_basename()
 	if script_label.begins_with("gf_"):
 		script_label = script_label.substr(3)
 	if script_label.ends_with("_dock"):
@@ -176,7 +177,7 @@ func _get_extension_short_label(manifest: GFExtensionManifest) -> String:
 	if not manifest.editor_dock_short_label.is_empty():
 		return manifest.editor_dock_short_label
 
-	var extension_name := manifest.display_name
+	var extension_name: String = manifest.display_name
 	if extension_name.is_empty():
 		extension_name = manifest.id
 	if extension_name.begins_with("GF "):
@@ -185,13 +186,16 @@ func _get_extension_short_label(manifest: GFExtensionManifest) -> String:
 
 
 func _sort_dock_records(left: Dictionary, right: Dictionary) -> bool:
-	var left_order := int(left.get("order", 1000))
-	var right_order := int(right.get("order", 1000))
+	var left_order: int = _GF_VARIANT_ACCESS_SCRIPT.get_option_int(left, "order", 1000)
+	var right_order: int = _GF_VARIANT_ACCESS_SCRIPT.get_option_int(right, "order", 1000)
 	if left_order != right_order:
 		return left_order < right_order
 
-	var left_label := String(left.get("label", ""))
-	var right_label := String(right.get("label", ""))
+	var left_label: String = _GF_VARIANT_ACCESS_SCRIPT.get_option_string(left, "label", "")
+	var right_label: String = _GF_VARIANT_ACCESS_SCRIPT.get_option_string(right, "label", "")
 	if left_label != right_label:
 		return left_label < right_label
-	return String(left.get("path", "")) < String(right.get("path", ""))
+	return (
+		_GF_VARIANT_ACCESS_SCRIPT.get_option_string(left, "path", "")
+		< _GF_VARIANT_ACCESS_SCRIPT.get_option_string(right, "path", "")
+	)

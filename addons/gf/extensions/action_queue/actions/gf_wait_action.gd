@@ -19,6 +19,11 @@ extends GFVisualAction
 signal wait_completed
 
 
+# --- 常量 ---
+
+const _GF_ASYNC_CALL_SCRIPT = preload("res://addons/gf/kernel/core/gf_async_call.gd")
+
+
 # --- 公共变量 ---
 
 ## 等待秒数。
@@ -73,13 +78,13 @@ func execute() -> Variant:
 	if seconds <= 0.0:
 		return null
 
-	var tree := _get_scene_tree()
+	var tree: SceneTree = _get_scene_tree()
 	if tree == null:
 		return null
 
 	_execution_serial += 1
 	_timer = tree.create_timer(seconds, process_always, process_in_physics, ignore_time_scale)
-	_complete_after_timer_async(_timer, _execution_serial)
+	_GF_ASYNC_CALL_SCRIPT.run_detached(Callable(self, &"_complete_after_timer_async"), [_timer, _execution_serial])
 	return wait_completed
 
 
@@ -117,4 +122,11 @@ func _complete_after_timer_async(timer: SceneTreeTimer, serial: int) -> void:
 func _get_scene_tree() -> SceneTree:
 	if is_instance_valid(host_node) and host_node.is_inside_tree():
 		return host_node.get_tree()
-	return Engine.get_main_loop() as SceneTree
+	return _get_scene_tree_value(Engine.get_main_loop())
+
+
+func _get_scene_tree_value(value: Variant) -> SceneTree:
+	if value is SceneTree:
+		var tree: SceneTree = value
+		return tree
+	return null

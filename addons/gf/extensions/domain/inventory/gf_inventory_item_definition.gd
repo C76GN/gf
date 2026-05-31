@@ -158,7 +158,7 @@ func matches_categories(required_categories: Array[StringName]) -> bool:
 ## [br]
 ## @schema return: Dictionary，规范化后的物品实例数据副本；等价于默认实例数据时为空字典。
 func normalize_instance_data(instance_data: Dictionary = {}) -> Dictionary:
-	var data := instance_data.duplicate(true)
+	var data: Dictionary = instance_data.duplicate(true)
 	if are_instance_data_compatible(data, default_instance_data):
 		return {}
 	return data
@@ -178,15 +178,15 @@ func normalize_instance_data(instance_data: Dictionary = {}) -> Dictionary:
 ## [br]
 ## @schema right: Dictionary，右侧物品实例数据。
 func are_instance_data_compatible(left: Dictionary = {}, right: Dictionary = {}) -> bool:
-	var left_data := _with_defaults(left)
-	var right_data := _with_defaults(right)
+	var left_data: Dictionary = _with_defaults(left)
+	var right_data: Dictionary = _with_defaults(right)
 	if compatibility_checker.is_valid():
-		return bool(compatibility_checker.call(left_data.duplicate(true), right_data.duplicate(true), self))
+		return GFVariantData.to_bool(compatibility_checker.call(left_data.duplicate(true), right_data.duplicate(true), self))
 	if stack_key_fields.is_empty():
 		return left_data == right_data
 
 	for field_name: String in stack_key_fields:
-		if left_data.get(field_name) != right_data.get(field_name):
+		if GFVariantData.get_option_value(left_data, field_name) != GFVariantData.get_option_value(right_data, field_name):
 			return false
 	return true
 
@@ -199,9 +199,9 @@ func are_instance_data_compatible(left: Dictionary = {}, right: Dictionary = {})
 ## [br]
 ## @schema return: Dictionary，包含 item_id、display_name、description、max_stack_amount、max_stack_count、categories、default_instance_data、stack_key_fields 与 metadata。
 func to_dict() -> Dictionary:
-	var category_names := PackedStringArray()
+	var category_names: PackedStringArray = PackedStringArray()
 	for category: StringName in categories:
-		category_names.append(String(category))
+		var _category_appended: bool = category_names.append(String(category))
 	return {
 		"item_id": String(item_id),
 		"display_name": display_name,
@@ -223,23 +223,21 @@ func to_dict() -> Dictionary:
 ## [br]
 ## @schema data: Dictionary，可包含 item_id、display_name、description、max_stack_amount、max_stack_count、categories、default_instance_data、stack_key_fields 与 metadata。
 func apply_dict(data: Dictionary) -> void:
-	item_id = StringName(String(data.get("item_id", item_id)))
-	display_name = String(data.get("display_name", display_name))
-	description = String(data.get("description", description))
-	max_stack_amount = int(data.get("max_stack_amount", max_stack_amount))
-	max_stack_count = int(data.get("max_stack_count", max_stack_count))
+	item_id = GFVariantData.get_option_string_name(data, "item_id", item_id)
+	display_name = GFVariantData.get_option_string(data, "display_name", display_name)
+	description = GFVariantData.get_option_string(data, "description", description)
+	max_stack_amount = GFVariantData.get_option_int(data, "max_stack_amount", max_stack_amount)
+	max_stack_count = GFVariantData.get_option_int(data, "max_stack_count", max_stack_count)
 	categories.clear()
-	var raw_categories := data.get("categories", PackedStringArray())
+	var raw_categories: PackedStringArray = GFVariantData.get_option_packed_string_array(data, "categories")
 	for category: Variant in raw_categories:
-		categories.append(StringName(String(category)))
-	var default_data := data.get("default_instance_data", {}) as Dictionary
-	default_instance_data = default_data.duplicate(true) if default_data != null else {}
-	var raw_stack_fields := data.get("stack_key_fields", PackedStringArray())
+		categories.append(StringName(GFVariantData.to_text(category)))
+	default_instance_data = GFVariantData.get_option_dictionary(data, "default_instance_data")
+	var raw_stack_fields: PackedStringArray = GFVariantData.get_option_packed_string_array(data, "stack_key_fields")
 	stack_key_fields = PackedStringArray()
 	for field_name: Variant in raw_stack_fields:
-		stack_key_fields.append(String(field_name))
-	var metadata_data := data.get("metadata", {}) as Dictionary
-	metadata = metadata_data.duplicate(true) if metadata_data != null else {}
+		var _field_appended: bool = stack_key_fields.append(GFVariantData.to_text(field_name))
+	metadata = GFVariantData.get_option_dictionary(data, "metadata")
 
 
 ## 从字典创建物品定义。
@@ -252,7 +250,7 @@ func apply_dict(data: Dictionary) -> void:
 ## [br]
 ## @schema data: Dictionary，可包含 item_id、display_name、description、max_stack_amount、max_stack_count、categories、default_instance_data、stack_key_fields 与 metadata。
 static func from_dict(data: Dictionary) -> GFInventoryItemDefinition:
-	var definition := GFInventoryItemDefinition.new()
+	var definition: GFInventoryItemDefinition = GFInventoryItemDefinition.new()
 	definition.apply_dict(data)
 	return definition
 
@@ -260,7 +258,7 @@ static func from_dict(data: Dictionary) -> GFInventoryItemDefinition:
 # --- 私有/辅助方法 ---
 
 func _with_defaults(instance_data: Dictionary) -> Dictionary:
-	var result := default_instance_data.duplicate(true)
+	var result: Dictionary = default_instance_data.duplicate(true)
 	for key: Variant in instance_data.keys():
 		result[key] = instance_data[key]
 	return result

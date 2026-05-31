@@ -242,7 +242,7 @@ func set_runtime_value(key: StringName, value: Variant) -> void:
 ## [br]
 ## @schema return: 找到的运行态值，或传入的 default_value。
 func get_runtime_value(key: StringName, default_value: Variant = null) -> Variant:
-	return runtime_state.get(key, default_value)
+	return GFVariantData.get_option_value(runtime_state, key, default_value)
 
 
 ## 清空节点运行态数据。
@@ -292,7 +292,7 @@ func _describe_ports(ports: Array[GFFlowPort]) -> Array[Dictionary]:
 
 
 func _describe_port(port: GFFlowPort) -> Dictionary:
-	var port_id := _get_port_id(port)
+	var port_id: StringName = _get_port_id(port)
 	return {
 		"port_id": port_id,
 		"display_name": _get_port_display_name(port, port_id),

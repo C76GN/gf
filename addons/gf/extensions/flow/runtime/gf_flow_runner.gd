@@ -51,7 +51,7 @@ signal flow_cancelled
 
 # --- 常量 ---
 
-const _GF_ASYNC_WAIT_SUPPORT: Script = preload("res://addons/gf/standard/common/gf_async_wait_support.gd")
+const _GF_ASYNC_WAIT_SUPPORT = preload("res://addons/gf/standard/common/gf_async_wait_support.gd")
 
 
 # --- 公共变量 ---
@@ -114,14 +114,14 @@ func run(graph: GFFlowGraph, context: GFFlowContext = null) -> void:
 		push_warning("[GFFlowRunner] 流程正在执行，忽略重复 run()。")
 		return
 
-	var flow_context := context if context != null else GFFlowContext.new(_get_architecture_or_null())
+	var flow_context: GFFlowContext = context if context != null else GFFlowContext.new(_get_architecture_or_null())
 	if flow_context.get_architecture() == null:
 		flow_context.set_architecture(_get_architecture_or_null())
 
 	is_running = true
 	_cancel_requested = false
 	flow_started.emit(graph)
-	var original_runtime_state := graph.serialize_runtime_state() if isolate_graph_runtime_state else {}
+	var original_runtime_state: Dictionary = graph.serialize_runtime_state() if isolate_graph_runtime_state else {}
 	if isolate_graph_runtime_state:
 		graph.clear_runtime_state()
 		graph.deserialize_runtime_state(flow_context.serialize_runtime_state())
@@ -162,19 +162,19 @@ func with_signal_timeout(seconds: float, respect_time_scale: bool = true) -> GFF
 # --- 私有/辅助方法 ---
 
 func _run_graph(graph: GFFlowGraph, context: GFFlowContext) -> void:
-	var pending := PackedStringArray([String(graph.start_node_id)])
-	var executed_count := 0
+	var pending: PackedStringArray = PackedStringArray([String(graph.start_node_id)])
+	var executed_count: int = 0
 	while not pending.is_empty() and not _cancel_requested:
 		if max_executed_nodes > 0 and executed_count >= max_executed_nodes:
 			push_warning("[GFFlowRunner] 达到最大节点执行数量，流程停止。")
 			break
 
-		var node_id := StringName(pending[0])
+		var node_id: StringName = StringName(pending[0])
 		pending.remove_at(0)
 		if node_id == &"":
 			continue
 
-		var node := graph.get_node(node_id)
+		var node: GFFlowNode = graph.get_node(node_id)
 		if node == null:
 			push_warning("[GFFlowRunner] 缺少流程节点：%s" % String(node_id))
 			continue
@@ -184,16 +184,17 @@ func _run_graph(graph: GFFlowGraph, context: GFFlowContext) -> void:
 		node_started.emit(node_id, node)
 		var result: Variant = node.execute(context)
 		if node.wait_for_result and result is Signal:
-			await _await_signal_safely(result as Signal)
+			var result_signal: Signal = result
+			await _await_signal_safely(result_signal)
 			if _cancel_requested:
 				return
 		node_completed.emit(node_id, node)
 
-		var next_ids := node.get_next_nodes(context)
+		var next_ids: PackedStringArray = node.get_next_nodes(context)
 		if next_ids.is_empty() and not context.has_next_nodes_override() and node.next_node_ids.is_empty():
 			next_ids = graph.get_connected_node_ids_from(node_id)
 		for next_id: String in next_ids:
-			pending.append(next_id)
+			_append_packed_string(pending, next_id)
 
 
 func _await_signal_safely(result_signal: Signal) -> void:
@@ -208,10 +209,14 @@ func _await_signal_safely(result_signal: Signal) -> void:
 
 
 func _get_time_utility() -> GFTimeUtility:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
-	return architecture.get_utility(GFTimeUtility) as GFTimeUtility
+	var utility: Object = architecture.get_utility(GFTimeUtility)
+	if utility is GFTimeUtility:
+		var time_utility: GFTimeUtility = utility
+		return time_utility
+	return null
 
 
 func _should_continue_waiting() -> bool:
@@ -220,7 +225,14 @@ func _should_continue_waiting() -> bool:
 
 func _get_architecture_or_null() -> GFArchitecture:
 	if _architecture_ref != null:
-		var architecture := _architecture_ref.get_ref() as GFArchitecture
-		if architecture != null:
+		var architecture_value: Object = _architecture_ref.get_ref()
+		if architecture_value is GFArchitecture:
+			var architecture: GFArchitecture = architecture_value
 			return architecture
 	return GFAutoload.get_architecture_or_null()
+
+
+func _append_packed_string(target: PackedStringArray, value: String) -> void:
+	var appended: bool = target.append(value)
+	if appended:
+		return

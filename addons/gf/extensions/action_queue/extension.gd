@@ -4,7 +4,7 @@ extends GFInstaller
 
 # --- 常量 ---
 
-const _GF_ACTION_QUEUE_SYSTEM: Script = preload("res://addons/gf/extensions/action_queue/core/gf_action_queue_system.gd")
+const _GF_ACTION_QUEUE_SYSTEM = preload("res://addons/gf/extensions/action_queue/core/gf_action_queue_system.gd")
 
 
 # --- 框架内部方法 ---

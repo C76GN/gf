@@ -153,15 +153,17 @@ var _previous_crash_marker: Dictionary = {}
 func init() -> void:
 	clear_memory_entries()
 	if not DirAccess.dir_exists_absolute(_LOG_DIR):
-		DirAccess.make_dir_recursive_absolute(_LOG_DIR)
+		var make_log_dir_result: Error = DirAccess.make_dir_recursive_absolute(_LOG_DIR)
+		if make_log_dir_result != OK:
+			push_warning("[GFLogUtility] 无法创建日志目录：%s，错误码：%s" % [_LOG_DIR, make_log_dir_result])
 
 	if trace_id.is_empty():
 		trace_id = _generate_trace_id()
 	_check_previous_crash_marker()
 	_write_crash_marker()
 
-	var datetime := Time.get_datetime_dict_from_system()
-	var file_name := "gf_log_%04d%02d%02d_%02d%02d%02d_%03d.log" % [
+	var datetime: Dictionary = Time.get_datetime_dict_from_system()
+	var file_name: String = "gf_log_%04d%02d%02d_%02d%02d%02d_%03d.log" % [
 		datetime.year,
 		datetime.month,
 		datetime.day,
@@ -394,7 +396,7 @@ func get_trace_id() -> String:
 ## [br]
 ## @schema context: Dictionary[String, Variant] sanitized global context merged into every log entry.
 func set_global_context(context: Dictionary) -> void:
-	_global_context = _sanitize_log_value(context) as Dictionary
+	_global_context = _sanitize_log_dictionary(context)
 
 
 ## 设置全局日志上下文提供者。每条日志输出时会调用一次，返回 Dictionary 时参与合并。
@@ -464,7 +466,7 @@ func set_tag_muted(tag: String, muted: bool) -> void:
 ## [br]
 ## @return 已静音时返回 true。
 func is_tag_muted(tag: String) -> bool:
-	return _muted_tags.get(tag, false)
+	return GFVariantData.get_option_bool(_muted_tags, tag)
 
 
 ## 注册日志 sink。
@@ -489,7 +491,7 @@ func add_sink(sink: GFLogSink) -> void:
 ## [br]
 ## @param shutdown: 是否调用 sink.shutdown()。
 func remove_sink(sink: GFLogSink, shutdown: bool = true) -> void:
-	var index := _sinks.find(sink)
+	var index: int = _sinks.find(sink)
 	if index < 0:
 		return
 
@@ -542,7 +544,7 @@ func flush_sinks() -> void:
 ## [br]
 ## @schema return: Array[Dictionary] of log entries from oldest to newest.
 func get_recent_entries(count: int = -1) -> Array[Dictionary]:
-	var size := _memory_entries.size()
+	var size: int = _memory_entries.size()
 	if count < 0 or count >= size:
 		return get_entries(0, -1)
 	return get_entries(size - count, count)
@@ -560,11 +562,11 @@ func get_recent_entries(count: int = -1) -> Array[Dictionary]:
 ## [br]
 ## @schema return: Array[Dictionary] of log entries from oldest to newest.
 func get_entries(offset: int = 0, count: int = -1) -> Array[Dictionary]:
-	var safe_offset := clampi(offset, 0, _memory_entries.size())
-	var end := _memory_entries.size() if count < 0 else mini(safe_offset + count, _memory_entries.size())
+	var safe_offset: int = clampi(offset, 0, _memory_entries.size())
+	var end: int = _memory_entries.size() if count < 0 else mini(safe_offset + count, _memory_entries.size())
 	var result: Array[Dictionary] = []
-	for logical_index in range(safe_offset, end):
-		var physical_index := _memory_logical_to_physical(logical_index)
+	for logical_index: int in range(safe_offset, end):
+		var physical_index: int = _memory_logical_to_physical(logical_index)
 		if physical_index >= 0 and physical_index < _memory_entries.size():
 			result.append(_memory_entries[physical_index].duplicate(true))
 	return result
@@ -628,8 +630,8 @@ func _log(level: int, tag: String, msg: String, context: Dictionary = {}) -> voi
 		return
 
 	var level_str: String = _LEVEL_NAMES[level] if level < _LEVEL_NAMES.size() else "UNKNOWN"
-	var datetime := Time.get_datetime_dict_from_system()
-	var timestamp := "%04d-%02d-%02d %02d:%02d:%02d" % [
+	var datetime: Dictionary = Time.get_datetime_dict_from_system()
+	var timestamp: String = "%04d-%02d-%02d %02d:%02d:%02d" % [
 		datetime.year,
 		datetime.month,
 		datetime.day,
@@ -637,12 +639,12 @@ func _log(level: int, tag: String, msg: String, context: Dictionary = {}) -> voi
 		datetime.minute,
 		datetime.second,
 	]
-	var entry := _make_entry(timestamp, level, level_str, tag, msg, context)
-	var formatted := String(entry["text"])
+	var entry: Dictionary = _make_entry(timestamp, level, level_str, tag, msg, context)
+	var formatted: String = _get_log_entry_text(entry)
 	_append_memory_entry(entry)
 
 	if _file != null:
-		_file.store_line(formatted)
+		_store_log_line(formatted)
 		_flush_file_if_needed(level)
 
 	match level:
@@ -674,9 +676,10 @@ func _log_lazy(
 	if context_builder.is_valid():
 		var context_variant: Variant = context_builder.call()
 		if context_variant is Dictionary:
-			context = (context_variant as Dictionary).duplicate(true)
+			context = GFVariantData.to_dictionary(context_variant)
 
-	_log(level, tag, String(message_builder.call()), context)
+	var message: String = _variant_to_log_string(message_builder.call())
+	_log(level, tag, message, context)
 
 
 func _should_log(level: int, tag: String) -> bool:
@@ -684,22 +687,24 @@ func _should_log(level: int, tag: String) -> bool:
 		return false
 	if level < min_level:
 		return false
-	if _muted_tags.get(tag, false):
+	if GFVariantData.get_option_bool(_muted_tags, tag):
 		return false
 	return true
 
 
 func _cleanup_old_logs() -> void:
-	var dir := DirAccess.open(_LOG_DIR)
+	var dir: DirAccess = DirAccess.open(_LOG_DIR)
 	if dir == null:
 		return
 
 	var files: PackedStringArray = PackedStringArray()
-	dir.list_dir_begin()
-	var file_name := dir.get_next()
+	var list_result: Error = dir.list_dir_begin()
+	if list_result != OK:
+		return
+	var file_name: String = dir.get_next()
 	while file_name != "":
 		if not dir.current_is_dir() and file_name.begins_with("gf_log_") and file_name.ends_with(".log"):
-			files.append(file_name)
+			var _append_result: bool = files.append(file_name)
 		file_name = dir.get_next()
 	dir.list_dir_end()
 
@@ -708,16 +713,16 @@ func _cleanup_old_logs() -> void:
 
 	files.sort()
 	var to_remove: int = files.size() - max_log_files
-	for i in range(to_remove):
-		var path := _LOG_DIR + files[i]
-		DirAccess.remove_absolute(path)
+	for i: int in range(to_remove):
+		var path: String = _LOG_DIR + files[i]
+		_remove_absolute(path)
 
 
 func _flush_file_if_needed(level: int) -> void:
 	if _file == null:
 		return
 
-	var now := Time.get_ticks_msec()
+	var now: int = Time.get_ticks_msec()
 	if (
 		flush_immediately
 		or flush_interval_msec <= 0
@@ -736,8 +741,8 @@ func _make_entry(
 	message: String,
 	context: Dictionary
 ) -> Dictionary:
-	var safe_context := _merge_log_context(context)
-	var text := "[%s][%s][%s] %s" % [timestamp, level_name, tag, message]
+	var safe_context: Dictionary = _merge_log_context(context)
+	var text: String = "[%s][%s][%s] %s" % [timestamp, level_name, tag, message]
 	if not safe_context.is_empty():
 		text += " " + JSON.stringify(safe_context)
 
@@ -786,8 +791,8 @@ func _trim_memory_entries() -> void:
 	if _memory_entries.size() <= _max_memory_entries:
 		return
 
-	var retained_count := _max_memory_entries
-	var dropped_count := _memory_entries.size() - retained_count
+	var retained_count: int = _max_memory_entries
+	var dropped_count: int = _memory_entries.size() - retained_count
 	var retained: Array[Dictionary] = []
 	for entry: Dictionary in get_recent_entries(retained_count):
 		retained.append(entry)
@@ -806,18 +811,19 @@ func _memory_logical_to_physical(logical_index: int) -> int:
 
 
 func _merge_log_context(context: Dictionary) -> Dictionary:
-	var merged := _global_context.duplicate(true)
+	var merged: Dictionary = _global_context.duplicate(true)
 	if _global_context_provider.is_valid():
 		var provided: Variant = _global_context_provider.call()
 		if provided is Dictionary:
-			for key: Variant in (provided as Dictionary).keys():
-				merged[key] = (provided as Dictionary)[key]
+			var provided_context: Dictionary = GFVariantData.as_dictionary(provided)
+			for key: Variant in provided_context.keys():
+				merged[key] = provided_context[key]
 
 	for key: Variant in context.keys():
 		merged[key] = context[key]
 	if not merged.has("trace_id"):
 		merged["trace_id"] = get_trace_id()
-	return _sanitize_log_value(merged, 0, []) as Dictionary
+	return _sanitize_log_dictionary(merged)
 
 
 static func _sanitize_log_value(value: Variant, depth: int = 0, visited: Array = []) -> Variant:
@@ -828,17 +834,17 @@ static func _sanitize_log_value(value: Variant, depth: int = 0, visited: Array =
 		TYPE_NIL, TYPE_BOOL, TYPE_INT, TYPE_FLOAT:
 			return value
 		TYPE_STRING:
-			return _truncate_log_string(String(value))
+			return _truncate_log_string(_variant_to_log_string(value))
 		TYPE_STRING_NAME, TYPE_NODE_PATH:
-			return _truncate_log_string(String(value))
+			return _truncate_log_string(_variant_to_log_string(value))
 		TYPE_DICTIONARY:
 			if _visited_contains_reference(visited, value):
 				return "<circular_reference>"
 			visited.append(value)
 			var result: Dictionary = {}
-			var source := value as Dictionary
+			var source: Dictionary = GFVariantData.as_dictionary(value)
 			for key: Variant in source.keys():
-				result[String(key)] = _sanitize_log_value(source[key], depth + 1, visited)
+				result[_variant_to_log_string(key)] = _sanitize_log_value(source[key], depth + 1, visited)
 			visited.pop_back()
 			return result
 		TYPE_ARRAY:
@@ -846,40 +852,115 @@ static func _sanitize_log_value(value: Variant, depth: int = 0, visited: Array =
 				return "<circular_reference>"
 			visited.append(value)
 			var result: Array = []
-			for item: Variant in (value as Array):
+			for item: Variant in GFVariantData.as_array(value):
 				result.append(_sanitize_log_value(item, depth + 1, visited))
 			visited.pop_back()
 			return result
 		TYPE_PACKED_BYTE_ARRAY:
 			return {
 				"type": "PackedByteArray",
-				"size": (value as PackedByteArray).size(),
+				"size": _get_packed_array_size(value),
 			}
 		TYPE_PACKED_INT32_ARRAY, TYPE_PACKED_INT64_ARRAY, TYPE_PACKED_FLOAT32_ARRAY, TYPE_PACKED_FLOAT64_ARRAY:
 			return {
 				"type": type_string(typeof(value)),
-				"size": value.size(),
+				"size": _get_packed_array_size(value),
 			}
 		TYPE_PACKED_STRING_ARRAY:
 			var strings: Array = []
-			for item: String in (value as PackedStringArray):
+			for item: String in _variant_to_packed_string_array(value):
 				strings.append(_sanitize_log_value(item, depth + 1, visited))
 			return strings
 		TYPE_OBJECT:
-			var object := value as Object
+			var object: Object = _variant_to_object(value)
 			if object == null:
 				return null
-			var payload := {
+			var payload: Dictionary = {
 				"type": object.get_class(),
 				"id": object.get_instance_id(),
 			}
 			if object is Node:
-				var node := object as Node
+				var node: Node = object
 				payload["name"] = node.name
-				payload["path"] = str(node.get_path()) if node.is_inside_tree() else ""
+				payload["path"] = _variant_to_log_string(node.get_path()) if node.is_inside_tree() else ""
 			return payload
 		_:
-			return _truncate_log_string(str(value))
+			return _truncate_log_string(_variant_to_log_string(value))
+
+
+func _store_log_line(line: String) -> void:
+	if _file == null:
+		return
+
+	var stored: bool = _file.store_line(line)
+	if not stored:
+		push_warning("[GFLogUtility] 无法写入日志文件：%s" % _log_file_path)
+
+
+func _get_log_entry_text(entry: Dictionary) -> String:
+	if not entry.has("text"):
+		return ""
+	return _variant_to_log_string(entry["text"])
+
+
+static func _remove_absolute(path: String) -> void:
+	var remove_result: Error = DirAccess.remove_absolute(path)
+	if remove_result != OK:
+		push_warning("[GFLogUtility] 无法移除文件：%s，错误码：%s" % [path, remove_result])
+
+
+static func _sanitize_log_dictionary(source: Dictionary) -> Dictionary:
+	var sanitized: Variant = _sanitize_log_value(source, 0, [])
+	return GFVariantData.as_dictionary(sanitized)
+
+
+static func _sanitize_dictionary_variant(value: Variant) -> Dictionary:
+	return _sanitize_log_dictionary(GFVariantData.as_dictionary(value))
+
+
+static func _variant_to_packed_string_array(value: Variant) -> PackedStringArray:
+	if value is PackedStringArray:
+		var array: PackedStringArray = value
+		return array
+	return PackedStringArray()
+
+
+static func _variant_to_object(value: Variant) -> Object:
+	if value is Object:
+		var object: Object = value
+		return object
+	return null
+
+
+static func _get_packed_array_size(value: Variant) -> int:
+	if value is PackedByteArray:
+		var byte_array: PackedByteArray = value
+		return byte_array.size()
+	if value is PackedInt32Array:
+		var int32_array: PackedInt32Array = value
+		return int32_array.size()
+	if value is PackedInt64Array:
+		var int64_array: PackedInt64Array = value
+		return int64_array.size()
+	if value is PackedFloat32Array:
+		var float32_array: PackedFloat32Array = value
+		return float32_array.size()
+	if value is PackedFloat64Array:
+		var float64_array: PackedFloat64Array = value
+		return float64_array.size()
+	return 0
+
+
+static func _variant_to_log_string(value: Variant) -> String:
+	if value is String:
+		return value
+	if value is StringName:
+		var name_value: StringName = value
+		return String(name_value)
+	if value is NodePath:
+		var path_value: NodePath = value
+		return String(path_value)
+	return str(value)
 
 
 static func _visited_contains_reference(visited: Array, value: Variant) -> bool:
@@ -905,34 +986,36 @@ func _check_previous_crash_marker() -> void:
 		return
 
 	_last_shutdown_was_clean = false
-	var content := FileAccess.get_file_as_string(_CRASH_MARKER_PATH)
+	var content: String = FileAccess.get_file_as_string(_CRASH_MARKER_PATH)
 	var parsed: Variant = JSON.parse_string(content)
 	if parsed is Dictionary:
-		_previous_crash_marker = _sanitize_log_value(parsed) as Dictionary
+		_previous_crash_marker = _sanitize_dictionary_variant(parsed)
 
 
 func _write_crash_marker() -> void:
 	if not crash_marker_enabled:
 		return
 
-	var file := FileAccess.open(_CRASH_MARKER_PATH, FileAccess.WRITE)
+	var file: FileAccess = FileAccess.open(_CRASH_MARKER_PATH, FileAccess.WRITE)
 	if file == null:
 		return
-	file.store_string(JSON.stringify({
+	var stored: bool = file.store_string(JSON.stringify({
 		"trace_id": get_trace_id(),
 		"started_at": Time.get_datetime_string_from_system(true, true),
 		"ticks_msec": Time.get_ticks_msec(),
 	}))
+	if not stored:
+		push_warning("[GFLogUtility] 无法写入运行中标记：%s" % _CRASH_MARKER_PATH)
 	file.close()
 
 
 func _mark_shutdown_clean() -> void:
 	if FileAccess.file_exists(_CRASH_MARKER_PATH):
-		DirAccess.remove_absolute(_CRASH_MARKER_PATH)
+		_remove_absolute(_CRASH_MARKER_PATH)
 
 
 func _generate_trace_id() -> String:
-	var source := "%s:%s:%s" % [
+	var source: String = "%s:%s:%s" % [
 		Time.get_unix_time_from_system(),
 		Time.get_ticks_usec(),
 		randi(),

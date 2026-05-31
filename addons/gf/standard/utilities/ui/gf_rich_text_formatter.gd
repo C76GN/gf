@@ -47,7 +47,7 @@ const _STRIP_RIGHT_BRACKET_PLACEHOLDER: String = "__GF_ESCAPED_RIGHT_BRACKET__"
 ## [br]
 ## @schema options: Dictionary，支持 markup、variables、variable_resolver、variable_prefix、variable_suffix、escape_variable_values、missing_variable_text、token_resolver、token_prefix、token_suffix、escape_token_values。
 static func to_bbcode(text: String, options: Dictionary = {}) -> String:
-	var markup: StringName = StringName(options.get("markup", MARKUP_BBCODE))
+	var markup: StringName = _get_option_string_name(options, "markup", MARKUP_BBCODE)
 	var result: String = text
 
 	match markup:
@@ -58,13 +58,13 @@ static func to_bbcode(text: String, options: Dictionary = {}) -> String:
 		_:
 			pass
 
-	var raw_variables: Variant = options.get("variables", {})
-	var variables: Dictionary = raw_variables if raw_variables is Dictionary else {}
-	var variable_resolver := _get_callable_option(options, "variable_resolver")
+	var raw_variables: Variant = GFVariantData.get_option_value(options, "variables", {})
+	var variables: Dictionary = GFVariantData.as_dictionary(raw_variables)
+	var variable_resolver: Callable = _get_callable_option(options, "variable_resolver")
 	if not variables.is_empty() or variable_resolver.is_valid():
 		result = replace_variables(result, variables, variable_resolver, options)
 
-	var token_resolver := _get_callable_option(options, "token_resolver")
+	var token_resolver: Callable = _get_callable_option(options, "token_resolver")
 	if token_resolver.is_valid():
 		result = replace_tokens(result, token_resolver, options)
 
@@ -79,7 +79,7 @@ static func to_bbcode(text: String, options: Dictionary = {}) -> String:
 ## [br]
 ## @return BBCode 文本。
 static func markdown_to_bbcode(text: String) -> String:
-	var pattern := (
+	var pattern: String = (
 		"!\\[([^\\]]*)\\]\\(([^\\)]+)\\)"
 		+ "|\\[([^\\]]+)\\]\\(([^\\)]+)\\)"
 		+ "|`([^`]+)`"
@@ -130,17 +130,17 @@ static func replace_variables(
 	resolver: Callable = Callable(),
 	options: Dictionary = {}
 ) -> String:
-	var prefix := String(options.get("variable_prefix", "{{"))
-	var suffix := String(options.get("variable_suffix", "}}"))
-	var escape_values := bool(options.get("escape_variable_values", true))
-	var missing_text := String(options.get("missing_variable_text", ""))
+	var prefix: String = _get_option_text(options, "variable_prefix", "{{")
+	var suffix: String = _get_option_text(options, "variable_suffix", "}}")
+	var escape_values: bool = _get_option_bool(options, "escape_variable_values", true)
+	var missing_text: String = _get_option_text(options, "missing_variable_text", "")
 	return _replace_wrapped_segments(
 		text,
 		prefix,
 		suffix,
 		func(token: String) -> String:
 			var value: Variant = null
-			var has_value := false
+			var has_value: bool = false
 			if resolver.is_valid():
 				value = resolver.call(token)
 				has_value = value != null
@@ -150,7 +150,7 @@ static func replace_variables(
 			if not has_value:
 				return missing_text
 
-			var value_text := str(value)
+			var value_text: String = str(value)
 			return escape_bbcode(value_text) if escape_values else value_text
 	)
 
@@ -172,9 +172,9 @@ static func replace_tokens(text: String, resolver: Callable, options: Dictionary
 	if not resolver.is_valid():
 		return text
 
-	var prefix := String(options.get("token_prefix", ":"))
-	var suffix := String(options.get("token_suffix", ":"))
-	var escape_values := bool(options.get("escape_token_values", false))
+	var prefix: String = _get_option_text(options, "token_prefix", ":")
+	var suffix: String = _get_option_text(options, "token_suffix", ":")
+	var escape_values: bool = _get_option_bool(options, "escape_token_values", false)
 	return _replace_wrapped_segments(
 		text,
 		prefix,
@@ -187,7 +187,7 @@ static func replace_tokens(text: String, resolver: Callable, options: Dictionary
 			if raw_resolved == null:
 				return prefix + token + suffix
 
-			var resolved := String(raw_resolved)
+			var resolved: String = GFVariantData.to_text(raw_resolved)
 			if resolved.is_empty():
 				return prefix + token + suffix
 			return escape_bbcode(resolved) if escape_values else resolved
@@ -202,9 +202,9 @@ static func replace_tokens(text: String, resolver: Callable, options: Dictionary
 ## [br]
 ## @return 可安全嵌入 BBCode 的文本。
 static func escape_bbcode(text: String) -> String:
-	var result := ""
+	var result: String = ""
 	for index: int in range(text.length()):
-		var character := text.substr(index, 1)
+		var character: String = text.substr(index, 1)
 		if character == "[":
 			result += "[lb]"
 		elif character == "]":
@@ -222,15 +222,15 @@ static func escape_bbcode(text: String) -> String:
 ## [br]
 ## @return 去掉标签后的文本。
 static func strip_bbcode(text: String) -> String:
-	var regex := RegEx.new()
-	var error := regex.compile("\\[[^\\]]*\\]")
+	var regex: RegEx = RegEx.new()
+	var error: Error = regex.compile("\\[[^\\]]*\\]")
 	if error != OK:
 		return text
 
-	var protected_text := text
+	var protected_text: String = text
 	protected_text = protected_text.replace("[lb]", _STRIP_LEFT_BRACKET_PLACEHOLDER)
 	protected_text = protected_text.replace("[rb]", _STRIP_RIGHT_BRACKET_PLACEHOLDER)
-	var stripped := regex.sub(protected_text, "", true)
+	var stripped: String = regex.sub(protected_text, "", true)
 	stripped = stripped.replace(_STRIP_LEFT_BRACKET_PLACEHOLDER, "[")
 	stripped = stripped.replace(_STRIP_RIGHT_BRACKET_PLACEHOLDER, "]")
 	return stripped
@@ -239,28 +239,46 @@ static func strip_bbcode(text: String) -> String:
 # --- 私有/辅助方法 ---
 
 static func _get_callable_option(options: Dictionary, key: String) -> Callable:
-	var value: Variant = options.get(key, Callable())
+	var value: Variant = GFVariantData.get_option_value(options, key, Callable())
 	if value is Callable:
 		return value
 	return Callable()
 
 
+static func _get_option_text(options: Dictionary, key: String, fallback: String) -> String:
+	if not options.has(key):
+		return fallback
+	return GFVariantData.to_text(options[key], fallback)
+
+
+static func _get_option_bool(options: Dictionary, key: String, fallback: bool) -> bool:
+	if not options.has(key):
+		return fallback
+	return GFVariantData.to_bool(options[key], fallback)
+
+
+static func _get_option_string_name(options: Dictionary, key: String, fallback: StringName) -> StringName:
+	if not options.has(key):
+		return fallback
+	return GFVariantData.to_string_name(options[key], fallback)
+
+
 static func _replace_regex_matches(text: String, pattern: String, replacement_builder: Callable) -> String:
-	var regex := RegEx.new()
-	var error := regex.compile(pattern)
+	var regex: RegEx = RegEx.new()
+	var error: Error = regex.compile(pattern)
 	if error != OK or not replacement_builder.is_valid():
 		return text
 
-	var result := ""
-	var cursor := 0
+	var result: String = ""
+	var cursor: int = 0
 	for match_result: RegExMatch in regex.search_all(text):
-		var start := match_result.get_start()
-		var end := match_result.get_end()
+		var start: int = match_result.get_start()
+		var end: int = match_result.get_end()
 		if start < cursor:
 			continue
 
 		result += escape_bbcode(text.substr(cursor, start - cursor))
-		result += String(replacement_builder.call(match_result))
+		result += GFVariantData.to_text(replacement_builder.call(match_result))
 		cursor = end
 
 	result += escape_bbcode(text.substr(cursor))
@@ -276,23 +294,23 @@ static func _replace_wrapped_segments(
 	if prefix.is_empty() or suffix.is_empty() or not resolver.is_valid():
 		return text
 
-	var result := ""
-	var cursor := 0
+	var result: String = ""
+	var cursor: int = 0
 	while cursor < text.length():
-		var start := text.find(prefix, cursor)
+		var start: int = text.find(prefix, cursor)
 		if start < 0:
 			result += text.substr(cursor)
 			break
 
-		var token_start := start + prefix.length()
-		var end := text.find(suffix, token_start)
+		var token_start: int = start + prefix.length()
+		var end: int = text.find(suffix, token_start)
 		if end < 0:
 			result += text.substr(cursor)
 			break
 
 		result += text.substr(cursor, start - cursor)
-		var token := text.substr(token_start, end - token_start)
-		result += String(resolver.call(token))
+		var token: String = text.substr(token_start, end - token_start)
+		result += GFVariantData.to_text(resolver.call(token))
 		cursor = end + suffix.length()
 
 	return result
@@ -303,7 +321,7 @@ static func _is_safe_token(token: String) -> bool:
 		return false
 
 	for index: int in range(token.length()):
-		var character := token.substr(index, 1)
+		var character: String = token.substr(index, 1)
 		if not _is_safe_token_character(character):
 			return false
 	return true

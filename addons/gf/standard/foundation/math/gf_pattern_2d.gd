@@ -150,7 +150,7 @@ func normalize_cells() -> void:
 ## [br]
 ## @return 新 pattern 资源。
 func duplicate_pattern() -> GFPattern2D:
-	var pattern := GFPattern2D.new()
+	var pattern: GFPattern2D = GFPattern2D.new()
 	pattern.pattern_dimensions = pattern_dimensions
 	pattern.cells = cells.duplicate()
 	return pattern

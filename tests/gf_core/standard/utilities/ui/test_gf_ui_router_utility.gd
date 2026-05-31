@@ -4,7 +4,7 @@ extends GutTest
 
 # --- 常量 ---
 
-const _PANEL_SCENE_PATH := "res://tests/gf_core/fixtures/scene_signal_audit_valid.tscn"
+const _PANEL_SCENE_PATH: String = "res://tests/gf_core/fixtures/scene_signal_audit_valid.tscn"
 
 
 # --- 私有变量 ---
@@ -21,18 +21,26 @@ class ManualAssetUtility extends GFAssetUtility:
 
 	func load_async(path: String, on_loaded: Callable, _type_hint: String = "") -> void:
 		if not _callbacks.has(path):
-			_callbacks[path] = [] as Array[Callable]
-		var list: Array = _callbacks[path]
+			var created_callbacks: Array[Callable] = []
+			_callbacks[path] = created_callbacks
+		var list: Array = _callback_list(path)
 		list.append(on_loaded)
 
 	func resolve(path: String, resource: Resource) -> void:
 		if not _callbacks.has(path):
 			return
 
-		var callbacks: Array = _callbacks[path]
-		_callbacks.erase(path)
+		var callbacks: Array = _callback_list(path)
+		var _erase_result_34: Variant = _callbacks.erase(path)
 		for callback: Callable in callbacks:
 			callback.call(resource)
+
+	func _callback_list(path: String) -> Array:
+		var callbacks_value: Variant = _callbacks[path]
+		if callbacks_value is Array:
+			var callbacks: Array = callbacks_value
+			return callbacks
+		return []
 
 
 # --- Godot 生命周期方法 ---
@@ -63,23 +71,24 @@ func after_each() -> void:
 # --- 测试方法 ---
 
 func test_push_route_records_history_and_options_metadata() -> void:
-	var route := _make_route(&"settings", GFUIUtility.Layer.POPUP)
+	var route: GFUIRoute = _make_route(&"settings", GFUIUtility.Layer.POPUP)
 	route.metadata = { "section": "options" }
 	assert_true(_router.register_route(route), "有效路由应可注册。")
 
-	var panel := _router.push_route(&"settings", { "tab": "audio" })
-	var options := _ui_utility.get_panel_options(panel)
-	var metadata := options["metadata"] as Dictionary
+	var panel: Node = _router.push_route(&"settings", { "tab": "audio" })
+	var options: Dictionary = _ui_utility.get_panel_options(panel)
+	var metadata: Dictionary = GFVariantData.as_dictionary(options["metadata"])
+	var route_params: Dictionary = GFVariantData.as_dictionary(metadata["route_params"])
 
 	assert_not_null(panel, "push_route 应返回打开的面板。")
 	assert_eq(_router.get_current_route_id(), &"settings", "当前路由应写入历史。")
-	assert_eq(metadata["route_id"], &"settings", "面板选项应包含 route_id 元数据。")
-	assert_eq((metadata["route_params"] as Dictionary)["tab"], "audio", "面板选项应包含路由参数。")
-	assert_eq(metadata["section"], "options", "路由元数据应被透传。")
+	assert_eq(GFVariantData.get_option_string_name(metadata, "route_id"), &"settings", "面板选项应包含 route_id 元数据。")
+	assert_eq(GFVariantData.get_option_string(route_params, "tab"), "audio", "面板选项应包含路由参数。")
+	assert_eq(GFVariantData.get_option_string(metadata, "section"), "options", "路由元数据应被透传。")
 
 
 func test_route_build_options_deep_merges_metadata_and_copies_params() -> void:
-	var route := _make_route(&"profile", GFUIUtility.Layer.POPUP)
+	var route: GFUIRoute = _make_route(&"profile", GFUIUtility.Layer.POPUP)
 	route.default_options = {
 		"metadata": {
 			"defaults": {
@@ -90,33 +99,35 @@ func test_route_build_options_deep_merges_metadata_and_copies_params() -> void:
 	route.metadata = {
 		"section": "profile",
 	}
-	var params := {
+	var params: Dictionary = {
 		"user_id": 42,
 	}
 
-	var options := route.build_options(params, {
+	var options: Dictionary = route.build_options(params, {
 		"metadata": {
 			"defaults": {
 				"mode": "compact",
 			},
 		},
 	})
-	var options_metadata := options["metadata"] as Dictionary
-	((options_metadata["route_params"] as Dictionary))["user_id"] = 100
+	var options_metadata: Dictionary = GFVariantData.as_dictionary(options["metadata"])
+	var route_params: Dictionary = GFVariantData.as_dictionary(options_metadata["route_params"])
+	var defaults: Dictionary = GFVariantData.as_dictionary(options_metadata["defaults"])
+	route_params["user_id"] = 100
 
-	assert_eq(options_metadata["route_id"], &"profile", "路由选项应写入 route_id。")
-	assert_eq(options_metadata["section"], "profile", "路由自身 metadata 应保留。")
-	assert_eq((options_metadata["defaults"] as Dictionary)["tab"], "overview", "默认 metadata 嵌套字段应保留。")
-	assert_eq((options_metadata["defaults"] as Dictionary)["mode"], "compact", "覆盖 metadata 嵌套字段应合并。")
-	assert_eq(params["user_id"], 42, "路由参数应复制保存。")
+	assert_eq(GFVariantData.get_option_string_name(options_metadata, "route_id"), &"profile", "路由选项应写入 route_id。")
+	assert_eq(GFVariantData.get_option_string(options_metadata, "section"), "profile", "路由自身 metadata 应保留。")
+	assert_eq(GFVariantData.get_option_string(defaults, "tab"), "overview", "默认 metadata 嵌套字段应保留。")
+	assert_eq(GFVariantData.get_option_string(defaults, "mode"), "compact", "覆盖 metadata 嵌套字段应合并。")
+	assert_eq(GFVariantData.get_option_int(params, "user_id"), 42, "路由参数应复制保存。")
 
 
 func test_back_pops_current_route() -> void:
-	_router.register_route(_make_route(&"inventory", GFUIUtility.Layer.POPUP))
-	_router.push_route(&"inventory")
+	var _register_route_result_126: Variant = _router.register_route(_make_route(&"inventory", GFUIUtility.Layer.POPUP))
+	var _push_route_result_127: Variant = _router.push_route(&"inventory")
 	assert_eq(_ui_utility.get_stack_count(GFUIUtility.Layer.POPUP), 1, "打开路由后层级应有面板。")
 
-	var handled := _router.back()
+	var handled: bool = _router.back()
 
 	assert_true(handled, "存在历史时 back 应成功。")
 	assert_eq(_ui_utility.get_stack_count(GFUIUtility.Layer.POPUP), 0, "back 应弹出当前面板。")
@@ -124,12 +135,12 @@ func test_back_pops_current_route() -> void:
 
 
 func test_back_refuses_to_pop_non_route_panel_above_route() -> void:
-	_router.register_route(_make_route(&"inventory", GFUIUtility.Layer.POPUP))
-	var route_panel := _router.push_route(&"inventory")
-	var overlay_panel := Control.new()
+	var _register_route_result_138: Variant = _router.register_route(_make_route(&"inventory", GFUIUtility.Layer.POPUP))
+	var route_panel: Node = _router.push_route(&"inventory")
+	var overlay_panel: Control = Control.new()
 	_ui_utility.push_panel_instance(overlay_panel, GFUIUtility.Layer.POPUP)
 
-	var handled := _router.back()
+	var handled: bool = _router.back()
 
 	assert_false(handled, "普通面板压在路由面板上方时，router.back 不应误弹普通面板。")
 	assert_eq(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), overlay_panel, "router.back 失败后栈顶普通面板应保留。")
@@ -139,22 +150,22 @@ func test_back_refuses_to_pop_non_route_panel_above_route() -> void:
 
 
 func test_replace_route_clears_same_layer_history() -> void:
-	_router.register_route(_make_route(&"first", GFUIUtility.Layer.POPUP))
-	_router.register_route(_make_route(&"second", GFUIUtility.Layer.POPUP))
-	_router.push_route(&"first")
-	_router.replace_route(&"second")
+	var _register_route_result_153: Variant = _router.register_route(_make_route(&"first", GFUIUtility.Layer.POPUP))
+	var _register_route_result_154: Variant = _router.register_route(_make_route(&"second", GFUIUtility.Layer.POPUP))
+	var _push_route_result_155: Variant = _router.push_route(&"first")
+	var _replace_route_result_156: Variant = _router.replace_route(&"second")
 
-	var history := _router.get_route_history()
+	var history: Array[Dictionary] = _router.get_route_history()
 
 	assert_eq(history.size(), 1, "替换层级后同层历史应只保留新路由。")
-	assert_eq(history[0]["route_id"], &"second", "替换后历史应指向新路由。")
+	assert_eq(GFVariantData.get_option_string_name(history[0], "route_id"), &"second", "替换后历史应指向新路由。")
 	assert_eq(_ui_utility.get_stack_count(GFUIUtility.Layer.POPUP), 1, "替换层级后 UI 栈应只保留一个面板。")
 
 
 func test_missing_route_emits_failure() -> void:
 	watch_signals(_router)
 
-	var panel := _router.push_route(&"missing")
+	var panel: Node = _router.push_route(&"missing")
 
 	assert_null(panel, "缺失路由不应打开面板。")
 	assert_signal_emitted(_router, "route_open_failed", "缺失路由应发出失败信号。")
@@ -163,12 +174,12 @@ func test_missing_route_emits_failure() -> void:
 
 func test_duplicate_pending_push_route_async_opens_once() -> void:
 	_arch = GFArchitecture.new()
-	var asset_util := ManualAssetUtility.new()
-	_arch.register_utility_instance(asset_util)
+	var asset_util: ManualAssetUtility = ManualAssetUtility.new()
+	await _arch.register_utility_instance(asset_util)
 	await Gf.set_architecture(_arch)
-	var route := _make_route(&"inventory", GFUIUtility.Layer.POPUP)
+	var route: GFUIRoute = _make_route(&"inventory", GFUIUtility.Layer.POPUP)
 	route.scene_path = "res://tests/pending_route_panel.tscn"
-	_router.register_route(route)
+	var _register_route_result_182: Variant = _router.register_route(route)
 
 	_router.push_route_async(&"inventory")
 	_router.push_route_async(&"inventory")
@@ -183,7 +194,7 @@ func test_duplicate_pending_push_route_async_opens_once() -> void:
 # --- 私有/辅助方法 ---
 
 func _make_route(route_id: StringName, layer: int) -> GFUIRoute:
-	var route := GFUIRoute.new()
+	var route: GFUIRoute = GFUIRoute.new()
 	route.route_id = route_id
 	route.scene_path = _PANEL_SCENE_PATH
 	route.layer = layer
@@ -191,8 +202,8 @@ func _make_route(route_id: StringName, layer: int) -> GFUIRoute:
 
 
 func _make_control_scene() -> PackedScene:
-	var control := Control.new()
-	var scene := PackedScene.new()
-	scene.pack(control)
+	var control: Control = Control.new()
+	var scene: PackedScene = PackedScene.new()
+	var _pack_result_207: Variant = scene.pack(control)
 	control.free()
 	return scene

@@ -66,7 +66,7 @@ func set_property_value(key: StringName, value: Variant) -> void:
 	if key == &"":
 		return
 
-	var old_value: Variant = values.get(key)
+	var old_value: Variant = _get_value(key)
 	if values.has(key) and old_value == value:
 		return
 
@@ -88,7 +88,7 @@ func set_property_value(key: StringName, value: Variant) -> void:
 ## [br]
 ## @schema return: 属性表中的项目值，或传入的 default_value。
 func get_property_value(key: StringName, default_value: Variant = null) -> Variant:
-	return values.get(key, default_value)
+	return _get_value(key, default_value)
 
 
 ## 检查属性是否存在。
@@ -114,7 +114,7 @@ func remove_property_value(key: StringName) -> bool:
 		return false
 
 	var old_value: Variant = values[key]
-	values.erase(key)
+	var _erased: bool = values.erase(key)
 	property_removed.emit(key, old_value)
 	return true
 
@@ -123,9 +123,9 @@ func remove_property_value(key: StringName) -> bool:
 ## [br]
 ## @api public
 func clear_properties() -> void:
-	var keys := values.keys()
+	var keys: Array = values.keys()
 	for key_variant: Variant in keys:
-		remove_property_value(StringName(key_variant))
+		var _remove_property_value_result_128: Variant = remove_property_value(GFVariantData.to_string_name(key_variant))
 
 
 ## 获取 int 属性。
@@ -138,9 +138,9 @@ func clear_properties() -> void:
 ## [br]
 ## @return: int 属性值或默认值。
 func get_int(key: StringName, default_value: int = 0) -> int:
-	var value: Variant = values.get(key, default_value)
+	var value: Variant = _get_value(key, default_value)
 	if typeof(value) == TYPE_INT:
-		return int(value)
+		return GFVariantData.to_int(value)
 	return default_value
 
 
@@ -154,9 +154,9 @@ func get_int(key: StringName, default_value: int = 0) -> int:
 ## [br]
 ## @return: float 属性值或默认值。
 func get_float(key: StringName, default_value: float = 0.0) -> float:
-	var value: Variant = values.get(key, default_value)
+	var value: Variant = _get_value(key, default_value)
 	if typeof(value) == TYPE_FLOAT or typeof(value) == TYPE_INT:
-		return float(value)
+		return GFVariantData.to_float(value)
 	return default_value
 
 
@@ -170,9 +170,9 @@ func get_float(key: StringName, default_value: float = 0.0) -> float:
 ## [br]
 ## @return: bool 属性值或默认值。
 func get_bool(key: StringName, default_value: bool = false) -> bool:
-	var value: Variant = values.get(key, default_value)
+	var value: Variant = _get_value(key, default_value)
 	if value is bool:
-		return bool(value)
+		return GFVariantData.to_bool(value)
 	return default_value
 
 
@@ -186,9 +186,9 @@ func get_bool(key: StringName, default_value: bool = false) -> bool:
 ## [br]
 ## @return: String 属性值或默认值。
 func get_string(key: StringName, default_value: String = "") -> String:
-	var value: Variant = values.get(key, default_value)
+	var value: Variant = _get_value(key, default_value)
 	if value is String:
-		return String(value)
+		return GFVariantData.to_text(value)
 	return default_value
 
 
@@ -202,9 +202,10 @@ func get_string(key: StringName, default_value: String = "") -> String:
 ## [br]
 ## @return: Vector2 属性值或默认值。
 func get_vector2(key: StringName, default_value: Vector2 = Vector2.ZERO) -> Vector2:
-	var value: Variant = values.get(key, default_value)
+	var value: Variant = _get_value(key, default_value)
 	if value is Vector2:
-		return value as Vector2
+		var vector: Vector2 = value
+		return vector
 	return default_value
 
 
@@ -218,7 +219,14 @@ func get_vector2(key: StringName, default_value: Vector2 = Vector2.ZERO) -> Vect
 ## [br]
 ## @return: Color 属性值或默认值。
 func get_color(key: StringName, default_value: Color = Color.WHITE) -> Color:
-	var value: Variant = values.get(key, default_value)
+	var value: Variant = _get_value(key, default_value)
 	if value is Color:
-		return value as Color
+		var color: Color = value
+		return color
 	return default_value
+
+
+# --- 私有/辅助方法 ---
+
+func _get_value(key: StringName, default_value: Variant = null) -> Variant:
+	return GFVariantData.get_option_value(values, key, default_value)

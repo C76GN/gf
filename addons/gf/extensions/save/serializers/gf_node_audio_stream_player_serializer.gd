@@ -60,9 +60,9 @@ func gather(node: Node, _context: Dictionary = {}) -> Dictionary:
 	if not supports_node(node):
 		return {}
 
-	var result := {
-		"playing": bool(node.call("is_playing")) if node.has_method("is_playing") else false,
-		"playback_position": float(node.call("get_playback_position")) if node.has_method("get_playback_position") else 0.0,
+	var result: Dictionary = {
+		"playing": GFVariantData.to_bool(node.call("is_playing")) if node.has_method("is_playing") else false,
+		"playback_position": GFVariantData.to_float(node.call("get_playback_position")) if node.has_method("get_playback_position") else 0.0,
 	}
 	_copy_properties_to_payload(node, result, _OPTIONAL_PROPERTIES)
 	return result
@@ -97,10 +97,10 @@ func apply(node: Node, payload: Dictionary, _context: Dictionary = {}) -> Dictio
 		"attenuation",
 	]))
 
-	var should_play := bool(payload.get("playing", false))
-	var should_pause := bool(payload.get("stream_paused", false))
+	var should_play: bool = GFVariantData.get_option_bool(payload, "playing")
+	var should_pause: bool = GFVariantData.get_option_bool(payload, "stream_paused")
 	if (should_play or should_pause) and node.has_method("play") and _can_start_playback(node):
-		node.call("play", maxf(float(payload.get("playback_position", 0.0)), 0.0))
+		node.call("play", maxf(GFVariantData.get_option_float(payload, "playback_position"), 0.0))
 	elif not should_play and not should_pause and node.has_method("stop"):
 		node.call("stop")
 
@@ -113,4 +113,4 @@ func apply(node: Node, payload: Dictionary, _context: Dictionary = {}) -> Dictio
 func _can_start_playback(node: Object) -> bool:
 	if not _has_property(node, "stream"):
 		return true
-	return node.get("stream") != null
+	return GFObjectPropertyTools.read_property(node, NodePath("stream")) != null

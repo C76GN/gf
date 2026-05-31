@@ -8,6 +8,8 @@ extends VBoxContainer
 
 # --- 常量 ---
 
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
+
 ## 扩展启用设置脚本。
 ## [br]
 ## @api framework_internal
@@ -27,7 +29,7 @@ const GFExtensionUsageAuditBase = preload("res://addons/gf/kernel/extension/gf_e
 ## @api framework_internal
 ## [br]
 ## @layer kernel/editor
-const GFEditorWorkspaceUI := preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
+const GFEditorWorkspaceUI = preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
 
 ## 扩展行最小高度。
 ## [br]
@@ -106,8 +108,31 @@ func _init() -> void:
 
 # --- 私有/辅助方法 ---
 
+func _connect_signal_checked(source_signal: Signal, callback: Callable, flags: int = 0) -> void:
+	if source_signal.is_null() or not callback.is_valid():
+		return
+	if source_signal.is_connected(callback):
+		return
+
+	var error: Error = source_signal.connect(callback, flags as Object.ConnectFlags) as Error
+	if error != OK:
+		push_warning("[GFExtensionManagerDock] Signal 连接失败：%s" % error_string(error))
+
+
+func _save_project_settings() -> void:
+	var error: Error = ProjectSettings.save()
+	if error != OK:
+		push_error("[GFExtensionManagerDock] 保存 ProjectSettings 失败：%s" % error_string(error))
+
+
+func _append_packed_string(target: PackedStringArray, value: String) -> void:
+	var appended: bool = target.append(value)
+	if appended:
+		return
+
+
 func _build_ui() -> void:
-	var toolbar := GFEditorWorkspaceUI.make_toolbar()
+	var toolbar: HBoxContainer = GFEditorWorkspaceUI.make_toolbar()
 	add_child(toolbar)
 
 	toolbar.add_child(GFEditorWorkspaceUI.make_button("重新加载", "重新读取所有 gf_extension.json。", _refresh_extensions))
@@ -117,7 +142,7 @@ func _build_ui() -> void:
 	toolbar.add_child(GFEditorWorkspaceUI.make_button("禁用全部", "取消勾选当前发现的所有扩展。", _set_all_enabled.bind(false)))
 	toolbar.add_child(GFEditorWorkspaceUI.make_button("保存设置", "写入 ProjectSettings 并保存 project.godot。", _apply_selection))
 
-	var option_row := GFEditorWorkspaceUI.make_toolbar()
+	var option_row: HBoxContainer = GFEditorWorkspaceUI.make_toolbar()
 	add_child(option_row)
 
 	_auto_install_check = CheckBox.new()
@@ -135,28 +160,28 @@ func _build_ui() -> void:
 	_export_fail_check.tooltip_text = "导出审计发现项目仍引用禁用扩展时，以错误形式报告，适合发布前检查"
 	option_row.add_child(_export_fail_check)
 
-	var filter_row := GFEditorWorkspaceUI.make_toolbar()
+	var filter_row: HBoxContainer = GFEditorWorkspaceUI.make_toolbar()
 	add_child(filter_row)
 
 	_search_field = LineEdit.new()
 	_search_field.placeholder_text = "搜索名称、ID、标签"
 	_search_field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_search_field.text_changed.connect(_on_search_changed)
+	_connect_signal_checked(_search_field.text_changed, _on_search_changed)
 	filter_row.add_child(_search_field)
 
-	var split := HSplitContainer.new()
+	var split: HSplitContainer = HSplitContainer.new()
 	split.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	add_child(split)
 
-	var list_panel := VBoxContainer.new()
+	var list_panel: VBoxContainer = VBoxContainer.new()
 	list_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	list_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	split.add_child(list_panel)
 
 	list_panel.add_child(_create_header_row())
 
-	var scroll := ScrollContainer.new()
+	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	list_panel.add_child(scroll)
@@ -179,11 +204,11 @@ func _build_ui() -> void:
 
 
 func _create_header_row() -> Control:
-	var row := HBoxContainer.new()
+	var row: HBoxContainer = HBoxContainer.new()
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 	row.add_child(_create_header_label("启用", CHECK_COLUMN_WIDTH))
-	var name_label := _create_header_label("扩展", 0.0)
+	var name_label: Label = _create_header_label("扩展", 0.0)
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(name_label)
 	row.add_child(_create_header_label("类型", KIND_COLUMN_WIDTH))
@@ -194,7 +219,7 @@ func _create_header_row() -> Control:
 
 
 func _create_header_label(text: String, width: float) -> Label:
-	var label := Label.new()
+	var label: Label = Label.new()
 	label.text = text
 	label.modulate = Color(0.75, 0.75, 0.75)
 	if width > 0.0:
@@ -208,7 +233,7 @@ func _refresh_extensions() -> void:
 	_clear_extension_rows()
 
 	_manifests = GFExtensionSettingsBase.get_all_manifests()
-	var enabled_ids := GFExtensionSettingsBase.resolve_extension_dependencies(
+	var enabled_ids: Array[String] = GFExtensionSettingsBase.resolve_extension_dependencies(
 		GFExtensionSettingsBase.get_enabled_extension_ids(),
 		_manifests
 	)
@@ -233,16 +258,16 @@ func _refresh_visible_extension_rows() -> void:
 	_extension_checks.clear()
 	_clear_extension_rows()
 
-	var visible_manifests := _get_visible_manifests()
-	var last_kind := ""
+	var visible_manifests: Array[GFExtensionManifest] = _get_visible_manifests()
+	var last_kind: String = ""
 	for manifest: GFExtensionManifest in visible_manifests:
 		if manifest.kind != last_kind:
 			_add_group_header(manifest.kind)
 			last_kind = manifest.kind
-		_add_extension_row(manifest, bool(_selection_by_id.get(manifest.id, false)))
+		_add_extension_row(manifest, _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(_selection_by_id, manifest.id, false))
 
 	if visible_manifests.is_empty():
-		var empty_label := Label.new()
+		var empty_label: Label = Label.new()
 		empty_label.text = "没有匹配的扩展。"
 		empty_label.modulate = Color(0.65, 0.65, 0.65)
 		_extension_rows.add_child(empty_label)
@@ -255,7 +280,7 @@ func _clear_extension_rows() -> void:
 
 
 func _add_group_header(kind: String) -> void:
-	var label := Label.new()
+	var label: Label = Label.new()
 	label.text = _format_kind(kind)
 	label.modulate = Color(0.85, 0.85, 0.85)
 	label.custom_minimum_size = Vector2(0.0, 28.0)
@@ -263,43 +288,43 @@ func _add_group_header(kind: String) -> void:
 
 
 func _add_extension_row(manifest: GFExtensionManifest, enabled: bool) -> void:
-	var row := HBoxContainer.new()
+	var row: HBoxContainer = HBoxContainer.new()
 	row.custom_minimum_size = Vector2(0.0, EXTENSION_ROW_MIN_HEIGHT)
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_extension_rows.add_child(row)
 
-	var check := CheckBox.new()
+	var check: CheckBox = CheckBox.new()
 	check.button_pressed = enabled
 	check.tooltip_text = manifest.id
 	check.custom_minimum_size = Vector2(CHECK_COLUMN_WIDTH, 0.0)
-	check.toggled.connect(_on_extension_toggled.bind(manifest.id))
+	_connect_signal_checked(check.toggled, _on_extension_toggled.bind(manifest.id))
 	row.add_child(check)
 	_extension_checks[manifest.id] = check
 
-	var name_button := Button.new()
+	var name_button: Button = Button.new()
 	name_button.flat = true
 	name_button.text = manifest.display_name
 	name_button.tooltip_text = "%s\n%s" % [manifest.id, manifest.description]
 	name_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_button.pressed.connect(_show_manifest_details.bind(manifest))
+	_connect_signal_checked(name_button.pressed, _show_manifest_details.bind(manifest))
 	row.add_child(name_button)
 
-	var kind_label := Label.new()
+	var kind_label: Label = Label.new()
 	kind_label.text = _format_kind(manifest.kind)
 	kind_label.custom_minimum_size = Vector2(KIND_COLUMN_WIDTH, 0.0)
 	row.add_child(kind_label)
 
-	var version_label := Label.new()
+	var version_label: Label = Label.new()
 	version_label.text = manifest.version
 	version_label.custom_minimum_size = Vector2(VERSION_COLUMN_WIDTH, 0.0)
 	row.add_child(version_label)
 
-	var extension_version_label := Label.new()
+	var extension_version_label: Label = Label.new()
 	extension_version_label.text = manifest.extension_version if not manifest.extension_version.is_empty() else "-"
 	extension_version_label.custom_minimum_size = Vector2(EXTENSION_VERSION_COLUMN_WIDTH, 0.0)
 	row.add_child(extension_version_label)
 
-	var status_label := Label.new()
+	var status_label: Label = Label.new()
 	status_label.text = "有效" if manifest.is_valid() else "无效"
 	status_label.tooltip_text = _join_strings(manifest.get_validation_errors())
 	status_label.custom_minimum_size = Vector2(STATUS_COLUMN_WIDTH, 0.0)
@@ -311,10 +336,10 @@ func _apply_selection() -> void:
 	GFExtensionSettingsBase.set_auto_install_enabled_installers(_auto_install_check.button_pressed)
 	GFExtensionSettingsBase.set_export_exclude_disabled_extensions(_export_exclude_check.button_pressed)
 	GFExtensionSettingsBase.set_fail_export_on_disabled_extension_references(_export_fail_check.button_pressed)
-	ProjectSettings.save()
+	_save_project_settings()
 	_refresh_usage_report()
 	_refresh_extensions()
-	if int(_usage_report.get("reference_count", 0)) > 0:
+	if _GF_VARIANT_ACCESS_SCRIPT.get_option_int(_usage_report, "reference_count", 0) > 0:
 		_set_status("扩展设置已保存，但发现禁用扩展仍被引用，请检查详情。")
 	else:
 		_set_status("扩展设置已保存。")
@@ -329,7 +354,7 @@ func _set_all_enabled(enabled: bool) -> void:
 
 
 func _restore_default_selection() -> void:
-	var default_ids := GFExtensionSettingsBase.get_default_enabled_extension_ids()
+	var default_ids: Array[String] = GFExtensionSettingsBase.get_default_enabled_extension_ids()
 	for manifest: GFExtensionManifest in _manifests:
 		_selection_by_id[manifest.id] = default_ids.has(manifest.id)
 	_refresh_usage_report()
@@ -340,39 +365,39 @@ func _restore_default_selection() -> void:
 func _show_manifest_details(manifest: GFExtensionManifest) -> void:
 	_selected_manifest_id = manifest.id
 
-	var lines := PackedStringArray()
-	lines.append("名称：%s" % manifest.display_name)
-	lines.append("ID：%s" % manifest.id)
-	lines.append("发行版本：%s" % manifest.version)
-	lines.append("扩展版本：%s" % (manifest.extension_version if not manifest.extension_version.is_empty() else "-"))
-	lines.append("类型：%s" % _format_kind(manifest.kind))
-	lines.append("默认启用：%s" % ("是" if manifest.enabled_by_default else "否"))
-	lines.append("当前启用：%s" % ("是" if bool(_selection_by_id.get(manifest.id, false)) else "否"))
-	lines.append("状态：%s" % ("有效" if manifest.is_valid() else "无效"))
-	lines.append("根目录：%s" % manifest.root_path)
-	lines.append("")
-	lines.append(manifest.description)
-	lines.append("")
-	lines.append("依赖：%s" % _format_dependencies(manifest.dependencies))
-	lines.append("Installer：%s" % _format_string_array(manifest.installer_paths))
-	lines.append("菜单动作：%s" % _format_string_array(manifest.editor_action_paths))
-	lines.append("工作区页面：%s" % _format_string_array(manifest.editor_dock_paths))
-	lines.append("工作区短标签：%s" % (manifest.editor_dock_short_label if not manifest.editor_dock_short_label.is_empty() else "-"))
-	lines.append("工作区排序：%d" % manifest.editor_dock_order)
-	lines.append("Inspector：%s" % _format_string_array(manifest.editor_inspector_paths))
-	lines.append("导入插件：%s" % _format_string_array(manifest.import_plugin_paths))
-	lines.append("导出插件：%s" % _format_string_array(manifest.export_plugin_paths))
-	lines.append("glTF 文档扩展：%s" % _format_string_array(manifest.gltf_document_extension_paths))
-	lines.append("访问器扩展：%s" % _format_string_array(manifest.access_generator_extension_paths))
-	lines.append("标签：%s" % _format_string_array(manifest.tags))
+	var lines: PackedStringArray = PackedStringArray()
+	_append_packed_string(lines, "名称：%s" % manifest.display_name)
+	_append_packed_string(lines, "ID：%s" % manifest.id)
+	_append_packed_string(lines, "发行版本：%s" % manifest.version)
+	_append_packed_string(lines, "扩展版本：%s" % (manifest.extension_version if not manifest.extension_version.is_empty() else "-"))
+	_append_packed_string(lines, "类型：%s" % _format_kind(manifest.kind))
+	_append_packed_string(lines, "默认启用：%s" % ("是" if manifest.enabled_by_default else "否"))
+	_append_packed_string(lines, "当前启用：%s" % ("是" if _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(_selection_by_id, manifest.id, false) else "否"))
+	_append_packed_string(lines, "状态：%s" % ("有效" if manifest.is_valid() else "无效"))
+	_append_packed_string(lines, "根目录：%s" % manifest.root_path)
+	_append_packed_string(lines, "")
+	_append_packed_string(lines, manifest.description)
+	_append_packed_string(lines, "")
+	_append_packed_string(lines, "依赖：%s" % _format_dependencies(manifest.dependencies))
+	_append_packed_string(lines, "Installer：%s" % _format_string_array(manifest.installer_paths))
+	_append_packed_string(lines, "菜单动作：%s" % _format_string_array(manifest.editor_action_paths))
+	_append_packed_string(lines, "工作区页面：%s" % _format_string_array(manifest.editor_dock_paths))
+	_append_packed_string(lines, "工作区短标签：%s" % (manifest.editor_dock_short_label if not manifest.editor_dock_short_label.is_empty() else "-"))
+	_append_packed_string(lines, "工作区排序：%d" % manifest.editor_dock_order)
+	_append_packed_string(lines, "Inspector：%s" % _format_string_array(manifest.editor_inspector_paths))
+	_append_packed_string(lines, "导入插件：%s" % _format_string_array(manifest.import_plugin_paths))
+	_append_packed_string(lines, "导出插件：%s" % _format_string_array(manifest.export_plugin_paths))
+	_append_packed_string(lines, "glTF 文档扩展：%s" % _format_string_array(manifest.gltf_document_extension_paths))
+	_append_packed_string(lines, "访问器扩展：%s" % _format_string_array(manifest.access_generator_extension_paths))
+	_append_packed_string(lines, "标签：%s" % _format_string_array(manifest.tags))
 	_append_usage_warning_lines(lines, manifest)
 
-	var errors := manifest.get_validation_errors()
+	var errors: Array[String] = manifest.get_validation_errors()
 	if not errors.is_empty():
-		lines.append("")
-		lines.append("校验问题：")
+		_append_packed_string(lines, "")
+		_append_packed_string(lines, "校验问题：")
 		for error: String in errors:
-			lines.append("- %s" % error)
+			_append_packed_string(lines, "- %s" % error)
 
 	_details_output.text = "\n".join(lines)
 
@@ -390,11 +415,11 @@ func _matches_search(manifest: GFExtensionManifest) -> bool:
 	if _search_field == null:
 		return true
 
-	var query := _search_field.text.strip_edges().to_lower()
+	var query: String = _search_field.text.strip_edges().to_lower()
 	if query.is_empty():
 		return true
 
-	var haystack := "%s %s %s %s %s" % [
+	var haystack: String = "%s %s %s %s %s" % [
 		manifest.display_name,
 		manifest.id,
 		manifest.description,
@@ -407,7 +432,7 @@ func _matches_search(manifest: GFExtensionManifest) -> bool:
 func _get_selected_enabled_ids() -> Array[String]:
 	var ids: Array[String] = []
 	for manifest: GFExtensionManifest in _manifests:
-		if bool(_selection_by_id.get(manifest.id, false)):
+		if _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(_selection_by_id, manifest.id, false):
 			ids.append(manifest.id)
 	ids.sort()
 	return ids
@@ -416,7 +441,7 @@ func _get_selected_enabled_ids() -> Array[String]:
 func _get_disabled_manifests_from_selection() -> Array[GFExtensionManifest]:
 	var manifests: Array[GFExtensionManifest] = []
 	for manifest: GFExtensionManifest in _manifests:
-		if not bool(_selection_by_id.get(manifest.id, false)):
+		if not _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(_selection_by_id, manifest.id, false):
 			manifests.append(manifest)
 	return manifests
 
@@ -431,30 +456,34 @@ func _refresh_usage_report() -> void:
 
 
 func _append_usage_warning_lines(lines: PackedStringArray, manifest: GFExtensionManifest) -> void:
-	if bool(_selection_by_id.get(manifest.id, false)):
+	if _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(_selection_by_id, manifest.id, false):
 		return
 
-	var extensions := _usage_report.get("extensions", {}) as Dictionary
+	var extensions: Dictionary = _GF_VARIANT_ACCESS_SCRIPT.as_dictionary(
+		_GF_VARIANT_ACCESS_SCRIPT.get_option_value(_usage_report, "extensions", {})
+	)
 	if not extensions.has(manifest.id):
 		return
 
-	var extension_report := extensions[manifest.id] as Dictionary
-	if extension_report == null:
+	var extension_report: Dictionary = _GF_VARIANT_ACCESS_SCRIPT.as_dictionary(extensions[manifest.id])
+	if extension_report.is_empty():
 		return
 
-	lines.append("")
-	lines.append("引用风险：发现 %d 处项目文件仍直接引用该禁用扩展。" % int(extension_report.get("reference_count", 0)))
-	var references := extension_report.get("references", []) as Array
+	_append_packed_string(lines, "")
+	_append_packed_string(lines, "引用风险：发现 %d 处项目文件仍直接引用该禁用扩展。" % _GF_VARIANT_ACCESS_SCRIPT.get_option_int(extension_report, "reference_count", 0))
+	var references: Array = _GF_VARIANT_ACCESS_SCRIPT.as_array(
+		_GF_VARIANT_ACCESS_SCRIPT.get_option_value(extension_report, "references", [])
+	)
 	for i: int in range(mini(references.size(), 8)):
-		var reference := references[i] as Dictionary
-		if reference == null:
+		var reference: Dictionary = _GF_VARIANT_ACCESS_SCRIPT.as_dictionary(references[i])
+		if reference.is_empty():
 			continue
-		lines.append("- %s:%d" % [
-			String(reference.get("path", "")),
-			int(reference.get("line", 0)),
+		_append_packed_string(lines, "- %s:%d" % [
+			_GF_VARIANT_ACCESS_SCRIPT.get_option_string(reference, "path", ""),
+			_GF_VARIANT_ACCESS_SCRIPT.get_option_int(reference, "line", 0),
 		])
 	if references.size() > 8:
-		lines.append("- 还有 %d 处未显示。" % (references.size() - 8))
+		_append_packed_string(lines, "- 还有 %d 处未显示。" % (references.size() - 8))
 
 
 func _format_kind(kind: String) -> String:
@@ -471,15 +500,15 @@ func _format_dependencies(values: Array[String]) -> String:
 	if values.is_empty():
 		return "无"
 
-	var labels := PackedStringArray()
+	var labels: PackedStringArray = PackedStringArray()
 	for value: String in values:
 		match value:
 			"gf.kernel":
-				labels.append("GF Kernel")
+				_append_packed_string(labels, "GF Kernel")
 			"gf.standard":
-				labels.append("GF Standard")
+				_append_packed_string(labels, "GF Standard")
 			_:
-				labels.append(value)
+				_append_packed_string(labels, value)
 	return ", ".join(labels)
 
 
@@ -490,15 +519,15 @@ func _format_string_array(values: Array[String]) -> String:
 
 
 func _join_strings(values: Array[String]) -> String:
-	var packed := PackedStringArray()
+	var packed: PackedStringArray = PackedStringArray()
 	for value: String in values:
-		packed.append(value)
+		_append_packed_string(packed, value)
 	return ", ".join(packed)
 
 
 func _set_selection_status() -> void:
-	var enabled_count := _get_selected_enabled_ids().size()
-	var reference_count := int(_usage_report.get("reference_count", 0))
+	var enabled_count: int = _get_selected_enabled_ids().size()
+	var reference_count: int = _GF_VARIANT_ACCESS_SCRIPT.get_option_int(_usage_report, "reference_count", 0)
 	if reference_count > 0:
 		_set_status("已选择 %d / %d 个扩展；发现 %d 处禁用扩展引用。" % [
 			enabled_count,

@@ -21,7 +21,8 @@ signal queue_drained
 
 # --- 常量 ---
 
-const _ACTION_PROTOCOL: Script = preload("res://addons/gf/extensions/action_queue/core/gf_action_protocol.gd")
+const _ACTION_PROTOCOL = preload("res://addons/gf/extensions/action_queue/core/gf_action_protocol.gd")
+const _GF_ASYNC_CALL_SCRIPT = preload("res://addons/gf/kernel/core/gf_async_call.gd")
 
 
 # --- 公共变量 ---
@@ -139,7 +140,7 @@ func enqueue_parallel(actions: Array) -> void:
 	if actions.is_empty():
 		return
 
-	var group := GFVisualActionGroup.new(actions, true)
+	var group: GFVisualActionGroup = GFVisualActionGroup.new(actions, true)
 	_queue.push_back(group)
 	_try_start_processing()
 
@@ -181,7 +182,7 @@ func push_front_parallel(actions: Array) -> void:
 	if actions.is_empty():
 		return
 
-	var group := GFVisualActionGroup.new(actions, true)
+	var group: GFVisualActionGroup = GFVisualActionGroup.new(actions, true)
 	_push_front_action(group)
 	_try_start_processing()
 
@@ -192,7 +193,7 @@ func push_front_parallel(actions: Array) -> void:
 ## [br]
 ## @param stop_current: 为 true 时同时取消当前正在等待 Signal 的动作队列消费。
 func clear_queue(stop_current: bool = false) -> void:
-	var was_processing := is_processing
+	var was_processing: bool = is_processing
 	_queue.clear()
 	_queue_head_index = 0
 	if stop_current:
@@ -215,10 +216,10 @@ func get_named_queue(queue_name: StringName) -> GFActionQueueSystem:
 		push_error("[GFActionQueueSystem] get_named_queue 失败：queue_name 为空。")
 		return null
 	if _named_queues.has(queue_name):
-		return _named_queues[queue_name] as GFActionQueueSystem
+		return _get_named_queue_value(queue_name)
 
-	var queue := GFActionQueueSystem.new()
-	var architecture := _get_architecture_or_null()
+	var queue: GFActionQueueSystem = GFActionQueueSystem.new()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	queue.init()
 	if architecture != null:
 		queue.inject_dependencies(architecture)
@@ -236,7 +237,7 @@ func get_named_queue(queue_name: StringName) -> GFActionQueueSystem:
 ## [br]
 ## @return 绑定后的命名队列；queue_name 为空时返回 null。
 func get_linked_queue(queue_name: StringName, linked_node: Node) -> GFActionQueueSystem:
-	var queue := get_named_queue(queue_name)
+	var queue: GFActionQueueSystem = get_named_queue(queue_name)
 	if queue == null:
 		return null
 	queue.bind_to_node(linked_node)
@@ -293,7 +294,7 @@ func remove_interceptor(interceptor: GFActionInterceptor) -> bool:
 func set_interceptors(interceptors: Array[GFActionInterceptor]) -> void:
 	_interceptors.clear()
 	for interceptor: GFActionInterceptor in interceptors:
-		add_interceptor(interceptor)
+		var _interceptor_added: bool = add_interceptor(interceptor)
 
 
 ## 清空动作执行拦截器。
@@ -322,7 +323,7 @@ func get_interceptors() -> Array[GFActionInterceptor]:
 ## [br]
 ## @param action: 要处理的动作对象。
 func enqueue_to(queue_name: StringName, action: Object) -> void:
-	var queue := get_named_queue(queue_name)
+	var queue: GFActionQueueSystem = get_named_queue(queue_name)
 	if queue != null:
 		queue.enqueue(action)
 
@@ -335,7 +336,7 @@ func enqueue_to(queue_name: StringName, action: Object) -> void:
 ## [br]
 ## @param action: 要处理的动作对象。
 func enqueue_fire_and_forget_to(queue_name: StringName, action: Object) -> void:
-	var queue := get_named_queue(queue_name)
+	var queue: GFActionQueueSystem = get_named_queue(queue_name)
 	if queue != null:
 		queue.enqueue_fire_and_forget(action)
 
@@ -350,7 +351,7 @@ func enqueue_fire_and_forget_to(queue_name: StringName, action: Object) -> void:
 ## [br]
 ## @schema actions: Array，元素为 GFVisualAction 或实现 execute() 协议的动作对象。
 func enqueue_parallel_to(queue_name: StringName, actions: Array) -> void:
-	var queue := get_named_queue(queue_name)
+	var queue: GFActionQueueSystem = get_named_queue(queue_name)
 	if queue != null:
 		queue.enqueue_parallel(actions)
 
@@ -363,7 +364,7 @@ func enqueue_parallel_to(queue_name: StringName, actions: Array) -> void:
 ## [br]
 ## @param action: 要处理的动作对象。
 func push_front_to(queue_name: StringName, action: Object) -> void:
-	var queue := get_named_queue(queue_name)
+	var queue: GFActionQueueSystem = get_named_queue(queue_name)
 	if queue != null:
 		queue.push_front(action)
 
@@ -376,7 +377,7 @@ func push_front_to(queue_name: StringName, action: Object) -> void:
 ## [br]
 ## @param stop_current: 是否停止当前正在执行的动作。
 func clear_named_queue(queue_name: StringName, stop_current: bool = false) -> void:
-	var queue := _named_queues.get(queue_name) as GFActionQueueSystem
+	var queue: GFActionQueueSystem = _get_named_queue_value(queue_name)
 	if queue != null:
 		queue.clear_queue(stop_current)
 
@@ -387,7 +388,8 @@ func clear_named_queue(queue_name: StringName, stop_current: bool = false) -> vo
 ## [br]
 ## @param stop_current: 是否停止当前正在执行的动作。
 func clear_all_named_queues(stop_current: bool = false) -> void:
-	for queue: GFActionQueueSystem in _named_queues.values():
+	for queue_value: Variant in _named_queues.values():
+		var queue: GFActionQueueSystem = _variant_to_action_queue(queue_value)
 		if queue != null:
 			queue.clear_queue(stop_current)
 	_named_queues.clear()
@@ -458,7 +460,7 @@ func get_current_action() -> Object:
 func get_debug_snapshot() -> Dictionary:
 	var named_snapshots: Dictionary = {}
 	for queue_name: StringName in _named_queues.keys():
-		var queue := _named_queues[queue_name] as GFActionQueueSystem
+		var queue: GFActionQueueSystem = _get_named_queue_value(queue_name)
 		if queue != null:
 			named_snapshots[queue_name] = queue.get_debug_snapshot()
 
@@ -483,9 +485,9 @@ func tick(_delta: float) -> void:
 	if _linked_node_ref != null and _linked_node_ref.get_ref() == null:
 		clear_queue(true)
 	for queue_name: StringName in _named_queues.keys():
-		var queue := _named_queues[queue_name] as GFActionQueueSystem
+		var queue: GFActionQueueSystem = _get_named_queue_value(queue_name)
 		if queue == null:
-			_named_queues.erase(queue_name)
+			var _queue_erased: bool = _named_queues.erase(queue_name)
 			continue
 		queue.tick(_delta)
 
@@ -494,7 +496,7 @@ func tick(_delta: float) -> void:
 
 func _try_start_processing() -> void:
 	if not is_processing:
-		_process_queue()
+		_GF_ASYNC_CALL_SCRIPT.run_detached(Callable(self, &"_process_queue"))
 
 
 func _process_queue() -> void:
@@ -502,15 +504,15 @@ func _process_queue() -> void:
 		return
 
 	is_processing = true
-	var current_serial := _processing_serial
+	var current_serial: int = _processing_serial
 
 	while current_serial == _processing_serial and _has_queued_actions():
-		var action := _dequeue_action()
+		var action: Object = _dequeue_action()
 		if not _ACTION_PROTOCOL.is_action_valid(action):
 			continue
 
 		_inject_action_dependencies(action)
-		var before_result := _apply_before_interceptors(action)
+		var before_result: GFActionInterceptionResult = _apply_before_interceptors(action)
 		if before_result.is_stop_queue():
 			_stop_processing_from_interceptor(false)
 			return
@@ -538,7 +540,7 @@ func _process_queue() -> void:
 
 		if current_serial != _processing_serial:
 			return
-		var after_result := _apply_after_interceptors(action, result)
+		var after_result: GFActionInterceptionResult = _apply_after_interceptors(action, result)
 		if after_result.is_stop_queue():
 			_stop_processing_from_interceptor(false)
 			return
@@ -555,7 +557,7 @@ func _has_queued_actions() -> bool:
 
 
 func _dequeue_action() -> Object:
-	var action := _queue[_queue_head_index]
+	var action: Object = _variant_to_action(_queue[_queue_head_index])
 	_queue[_queue_head_index] = null
 	_queue_head_index += 1
 	_compact_queue_if_needed()
@@ -567,7 +569,7 @@ func _push_front_action(action: Object) -> void:
 		_queue_head_index -= 1
 		_queue[_queue_head_index] = action
 	else:
-		_queue.insert(0, action)
+		var _insert_result: int = _queue.insert(0, action)
 
 
 func _compact_queue_if_needed() -> void:
@@ -598,9 +600,9 @@ func _sort_interceptors() -> void:
 
 
 func _apply_before_interceptors(action: Object) -> GFActionInterceptionResult:
-	var current_action := action
+	var current_action: Object = action
 	for interceptor: GFActionInterceptor in _get_enabled_interceptors():
-		var result := interceptor._before_execute(current_action, self)
+		var result: GFActionInterceptionResult = interceptor._before_execute(current_action, self)
 		result = _normalize_interception_result(result)
 		if result.is_replace():
 			current_action = result.replacement_action
@@ -616,7 +618,7 @@ func _apply_after_interceptors(
 	execute_result: Variant
 ) -> GFActionInterceptionResult:
 	for interceptor: GFActionInterceptor in _get_enabled_interceptors():
-		var result := _normalize_interception_result(interceptor._after_execute(action, self, execute_result))
+		var result: GFActionInterceptionResult = _normalize_interception_result(interceptor._after_execute(action, self, execute_result))
 		if result.is_stop_queue():
 			return result
 	return GFActionInterceptionResult.continue_action()
@@ -649,29 +651,56 @@ func _cancel_current_action() -> void:
 func _dispose_all_named_queues() -> void:
 	var queues: Array = _named_queues.values()
 	_named_queues.clear()
-	for queue: GFActionQueueSystem in queues:
+	for queue_value: Variant in queues:
+		var queue: GFActionQueueSystem = _variant_to_action_queue(queue_value)
 		if queue == null:
 			continue
 		queue.dispose()
 		queue._release_dependency_scope()
 
 
+func _get_named_queue_value(queue_name: StringName) -> GFActionQueueSystem:
+	return _variant_to_action_queue(GFVariantData.get_option_value(_named_queues, queue_name))
+
+
+func _variant_to_action_queue(value: Variant) -> GFActionQueueSystem:
+	if value is GFActionQueueSystem:
+		var queue: GFActionQueueSystem = value
+		return queue
+	return null
+
+
+func _variant_to_action(value: Variant) -> Object:
+	if value is Object:
+		var action: Object = value
+		return action
+	return null
+
+
+func _get_diagnostics_utility() -> GFDiagnosticsUtility:
+	var utility: Object = get_utility(GFDiagnosticsUtility)
+	if utility is GFDiagnosticsUtility:
+		var diagnostics: GFDiagnosticsUtility = utility
+		return diagnostics
+	return null
+
+
 func _register_diagnostics_contribution() -> void:
-	var diagnostics := get_utility(GFDiagnosticsUtility) as GFDiagnosticsUtility
+	var diagnostics: GFDiagnosticsUtility = _get_diagnostics_utility()
 	if diagnostics == null:
 		return
 
-	diagnostics.register_tool_snapshot_provider(&"action_queue", Callable(self, "get_debug_snapshot"))
-	diagnostics.register_monitor(&"tools.action_queue", Callable(self, "get_debug_snapshot"), {
+	var _snapshot_provider_registered: bool = diagnostics.register_tool_snapshot_provider(&"action_queue", Callable(self, "get_debug_snapshot"))
+	var _monitor_registered: bool = diagnostics.register_monitor(&"tools.action_queue", Callable(self, "get_debug_snapshot"), {
 		"label": "Action Queue",
 		"group": "Tools",
 		"min_interval_seconds": 0.25,
 	})
-	diagnostics.add_monitor_to_preset(&"tools", &"tools.action_queue")
+	var _preset_updated: bool = diagnostics.add_monitor_to_preset(&"tools", &"tools.action_queue")
 
 
 func _unregister_diagnostics_contribution() -> void:
-	var diagnostics := get_utility(GFDiagnosticsUtility) as GFDiagnosticsUtility
+	var diagnostics: GFDiagnosticsUtility = _get_diagnostics_utility()
 	if diagnostics == null:
 		return
 
@@ -680,7 +709,7 @@ func _unregister_diagnostics_contribution() -> void:
 
 
 func _stop_processing_from_interceptor(cancel_current: bool) -> void:
-	var was_processing := is_processing
+	var was_processing: bool = is_processing
 	_processing_serial += 1
 	_queue.clear()
 	_queue_head_index = 0

@@ -2,14 +2,9 @@
 extends GutTest
 
 
-class TestProjectInstaller extends GFInstaller:
-	func install_bindings(_binder: Variant) -> void:
-		await _binder.bind_utility(GFSeedUtility).as_singleton()
-
-
 func test_installer_bindings_register_utility_through_binder() -> void:
-	var inst := TestProjectInstaller.new()
-	var arch := GFArchitecture.new()
+	var inst: ProjectInstallerProbe = ProjectInstallerProbe.new()
+	var arch: GFArchitecture = GFArchitecture.new()
 
 	await inst.install_bindings(arch.create_binder())
 
@@ -17,7 +12,16 @@ func test_installer_bindings_register_utility_through_binder() -> void:
 
 
 func test_binder_bind_utility_returns_bind_builder() -> void:
-	var arch := GFArchitecture.new()
-	var binder := GFBinder.new(arch)
-	var builder: Variant = binder.bind_utility(preload("res://addons/gf/standard/utilities/random/gf_seed_utility.gd"))
+	var arch: GFArchitecture = GFArchitecture.new()
+	var binder: GFBinder = GFBinder.new(arch)
+	var builder: Variant = binder.bind_utility(GFSeedUtility)
 	assert_true(builder is GFBindBuilder, "bind_utility 应返回 GFBindBuilder。")
+
+
+# --- 辅助类型 ---
+
+class ProjectInstallerProbe extends GFInstaller:
+	func install_bindings(binder: Variant) -> void:
+		if binder is GFBinder:
+			var typed_binder: GFBinder = binder
+			await typed_binder.bind_utility(GFSeedUtility).as_singleton()

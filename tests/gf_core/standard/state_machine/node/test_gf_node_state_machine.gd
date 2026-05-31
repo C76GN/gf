@@ -4,18 +4,13 @@ extends GutTest
 
 # --- 常量 ---
 
-const GFNodeStateBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state.gd")
-const GFNodeStateGroupBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_group.gd")
-const GFNodeStateMachineBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine.gd")
-const GFNodeStateMachineConfigBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine_config.gd")
-const GFNodeStateMachineInspectorPluginBase = preload("res://addons/gf/standard/state_machine/node/editor/gf_node_state_machine_inspector_plugin.gd")
-const GFNodeContextBase = preload("res://addons/gf/kernel/core/gf_node_context.gd")
+const GFNodeStateMachineInspectorPluginScript = preload("res://addons/gf/standard/state_machine/node/editor/gf_node_state_machine_inspector_plugin.gd")
 
 
 # --- 辅助子类 ---
 
 class TrackingNodeState:
-	extends GFNodeStateBase
+	extends GFNodeState
 
 	var enter_count: int = 0
 	var exit_count: int = 0
@@ -79,8 +74,11 @@ class HostReadyTrackingNodeState:
 
 	func _enter(previous_state: StringName = &"", args: Dictionary = {}) -> void:
 		super._enter(previous_state, args)
-		var host_node := get_host()
-		host_ready_at_enter = host_node != null and "ready_called" in host_node and host_node.get("ready_called") == true
+		var host_node: Node = get_host()
+		host_ready_at_enter = false
+		if host_node is ReadyHost:
+			var ready_host: ReadyHost = host_node
+			host_ready_at_enter = ready_host.ready_called
 
 
 class GuardedNodeState:
@@ -152,17 +150,17 @@ class DummyQuery:
 		return get_utility(DummyUtility)
 
 
-class TestNodeContext:
-	extends GFNodeContextBase
+class SampleNodeContext:
+	extends GFNodeContext
 
-	var model := DummyModel.new()
-	var system := DummySystem.new()
-	var utility := DummyUtility.new()
+	var model: DummyModel = DummyModel.new()
+	var system: DummySystem = DummySystem.new()
+	var utility: DummyUtility = DummyUtility.new()
 
 	func install(architecture_instance: GFArchitecture) -> void:
-		architecture_instance.register_model_instance(model)
-		architecture_instance.register_system_instance(system)
-		architecture_instance.register_utility_instance(utility)
+		await architecture_instance.register_model_instance(model)
+		await architecture_instance.register_system_instance(system)
+		await architecture_instance.register_utility_instance(utility)
 
 
 class EventListeningNodeState:
@@ -195,9 +193,9 @@ class EventListeningNodeState:
 # --- 测试 ---
 
 func test_internal_group_loads_direct_child_states() -> void:
-	var machine: Node = GFNodeStateMachineBase.new()
-	var idle := TrackingNodeState.new()
-	var run := TrackingNodeState.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var idle: TrackingNodeState = TrackingNodeState.new()
+	var run: TrackingNodeState = TrackingNodeState.new()
 	idle.name = "Idle"
 	run.name = "Run"
 	machine.initial_state = &"Idle"
@@ -213,16 +211,16 @@ func test_internal_group_loads_direct_child_states() -> void:
 
 
 func test_editor_inspector_collects_state_names_from_exports() -> void:
-	var machine: Node = GFNodeStateMachineBase.new()
-	var idle: Node = GFNodeStateBase.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var idle: GFNodeState = GFNodeState.new()
 	idle.name = "IdleNode"
 	idle.state_name = &"idle"
-	var run: Node = GFNodeStateBase.new()
+	var run: GFNodeState = GFNodeState.new()
 	run.name = "Run"
 	machine.add_child(idle)
 	machine.add_child(run)
 
-	var states := GFNodeStateMachineInspectorPluginBase.collect_direct_states(machine) as Array[StringName]
+	var states: Array[StringName] = GFNodeStateMachineInspectorPluginScript.collect_direct_states(machine)
 
 	assert_eq(states.size(), 2, "Inspector 应收集直接子状态。")
 	assert_has(states, &"idle", "Inspector 应优先使用导出的 state_name。")
@@ -232,13 +230,13 @@ func test_editor_inspector_collects_state_names_from_exports() -> void:
 
 
 func test_manual_start_mode_loads_without_entering_initial_state() -> void:
-	var machine: Node = GFNodeStateMachineBase.new()
-	var idle := TrackingNodeState.new()
-	var run := TrackingNodeState.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var idle: TrackingNodeState = TrackingNodeState.new()
+	var run: TrackingNodeState = TrackingNodeState.new()
 	idle.name = "Idle"
 	run.name = "Run"
 	machine.initial_state = &"Idle"
-	machine.start_mode = GFNodeStateMachineBase.StartMode.MANUAL
+	machine.start_mode = GFNodeStateMachine.StartMode.MANUAL
 	add_child_autofree(machine)
 	machine.add_child(idle)
 	machine.add_child(run)
@@ -256,18 +254,18 @@ func test_manual_start_mode_loads_without_entering_initial_state() -> void:
 
 
 func test_start_can_reload_when_reload_on_ready_is_disabled() -> void:
-	var machine: Node = GFNodeStateMachineBase.new()
-	var idle := TrackingNodeState.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var idle: TrackingNodeState = TrackingNodeState.new()
 	idle.name = "Idle"
 	machine.initial_state = &"Idle"
 	machine.reload_on_ready = false
-	machine.start_mode = GFNodeStateMachineBase.StartMode.MANUAL
+	machine.start_mode = GFNodeStateMachine.StartMode.MANUAL
 	add_child_autofree(machine)
 	machine.add_child(idle)
 
 	await get_tree().process_frame
 
-	assert_null(machine.get_state_group(GFNodeStateMachineBase.INTERNAL_GROUP_NAME), "关闭 reload_on_ready 时不应自动加载状态组。")
+	assert_null(machine.get_state_group(GFNodeStateMachine.INTERNAL_GROUP_NAME), "关闭 reload_on_ready 时不应自动加载状态组。")
 
 	machine.start()
 
@@ -276,18 +274,18 @@ func test_start_can_reload_when_reload_on_ready_is_disabled() -> void:
 
 
 func test_runtime_helper_child_does_not_reload_internal_states() -> void:
-	var machine: Node = GFNodeStateMachineBase.new()
-	var idle := TrackingNodeState.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var idle: TrackingNodeState = TrackingNodeState.new()
 	idle.name = "Idle"
 	machine.initial_state = &"Idle"
 	add_child_autofree(machine)
 	machine.add_child(idle)
 	await get_tree().process_frame
 
-	var initialized_count := idle.initialized_count
-	var enter_count := idle.enter_count
-	var exit_count := idle.exit_count
-	var helper := Node.new()
+	var initialized_count: int = idle.initialized_count
+	var enter_count: int = idle.enter_count
+	var exit_count: int = idle.exit_count
+	var helper: Node = Node.new()
 	helper.name = "Helper"
 	machine.add_child(helper)
 	await get_tree().process_frame
@@ -299,9 +297,9 @@ func test_runtime_helper_child_does_not_reload_internal_states() -> void:
 
 
 func test_runtime_state_child_reloads_internal_states() -> void:
-	var machine: Node = GFNodeStateMachineBase.new()
-	var idle := TrackingNodeState.new()
-	var run := TrackingNodeState.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var idle: TrackingNodeState = TrackingNodeState.new()
+	var run: TrackingNodeState = TrackingNodeState.new()
 	idle.name = "Idle"
 	run.name = "Run"
 	machine.initial_state = &"Idle"
@@ -313,16 +311,16 @@ func test_runtime_state_child_reloads_internal_states() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 
-	var group := machine.get_state_group(GFNodeStateMachineBase.INTERNAL_GROUP_NAME) as GFNodeStateGroup
+	var group: GFNodeStateGroup = machine.get_state_group(GFNodeStateMachine.INTERNAL_GROUP_NAME)
 	assert_eq(group.get_state(&"Run"), run, "运行时加入状态子节点应重新加载内部状态组。")
 	assert_eq(run.initialized_count, 1, "动态加入的状态应完成初始化。")
 	assert_eq(machine.get_current_state(), idle, "重载后应尽量保持当前状态。")
 
 
 func test_default_start_mode_waits_for_host_ready() -> void:
-	var host := ReadyHost.new()
-	var machine: Node = GFNodeStateMachineBase.new()
-	var idle := HostReadyTrackingNodeState.new()
+	var host: ReadyHost = ReadyHost.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var idle: HostReadyTrackingNodeState = HostReadyTrackingNodeState.new()
 	idle.name = "Idle"
 	machine.initial_state = &"Idle"
 	host.add_child(machine)
@@ -332,18 +330,18 @@ func test_default_start_mode_waits_for_host_ready() -> void:
 	await get_tree().process_frame
 
 	assert_true(host.ready_called, "测试宿主应已进入 ready。")
-	assert_eq(machine.start_mode, GFNodeStateMachineBase.StartMode.AFTER_HOST_READY, "2.0 默认应等待宿主 ready 后启动。")
+	assert_eq(machine.start_mode, GFNodeStateMachine.StartMode.AFTER_HOST_READY, "2.0 默认应等待宿主 ready 后启动。")
 	assert_eq(machine.get_current_state(), idle, "默认启动模式应在宿主 ready 后进入初始状态。")
 	assert_true(idle.host_ready_at_enter, "状态 enter 发生时宿主应已经 ready。")
 
 
 func test_on_ready_start_mode_can_be_selected_for_legacy_order() -> void:
-	var host := ReadyHost.new()
-	var machine: Node = GFNodeStateMachineBase.new()
-	var idle := HostReadyTrackingNodeState.new()
+	var host: ReadyHost = ReadyHost.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var idle: HostReadyTrackingNodeState = HostReadyTrackingNodeState.new()
 	idle.name = "Idle"
 	machine.initial_state = &"Idle"
-	machine.start_mode = GFNodeStateMachineBase.StartMode.ON_READY
+	machine.start_mode = GFNodeStateMachine.StartMode.ON_READY
 	host.add_child(machine)
 	machine.add_child(idle)
 	add_child_autofree(host)
@@ -356,14 +354,14 @@ func test_on_ready_start_mode_can_be_selected_for_legacy_order() -> void:
 
 
 func test_manual_start_mode_prevents_external_group_auto_start() -> void:
-	var machine: Node = GFNodeStateMachineBase.new()
-	var body_group: Node = GFNodeStateGroupBase.new()
-	var idle := TrackingNodeState.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var body_group: GFNodeStateGroup = GFNodeStateGroup.new()
+	var idle: TrackingNodeState = TrackingNodeState.new()
 	body_group.name = "Body"
 	body_group.group_name = &"Body"
 	body_group.initial_state = &"Idle"
 	idle.name = "Idle"
-	machine.start_mode = GFNodeStateMachineBase.StartMode.MANUAL
+	machine.start_mode = GFNodeStateMachine.StartMode.MANUAL
 	add_child_autofree(machine)
 	machine.add_child(body_group)
 	body_group.add_child(idle)
@@ -379,8 +377,8 @@ func test_manual_start_mode_prevents_external_group_auto_start() -> void:
 
 
 func test_state_group_auto_start_can_be_disabled() -> void:
-	var group: Node = GFNodeStateGroupBase.new()
-	var idle := TrackingNodeState.new()
+	var group: GFNodeStateGroup = GFNodeStateGroup.new()
+	var idle: TrackingNodeState = TrackingNodeState.new()
 	group.name = "Body"
 	group.group_name = &"Body"
 	group.initial_state = &"Idle"
@@ -401,8 +399,8 @@ func test_state_group_auto_start_can_be_disabled() -> void:
 
 
 func test_runtime_helper_child_does_not_reload_state_group() -> void:
-	var group: Node = GFNodeStateGroupBase.new()
-	var idle := TrackingNodeState.new()
+	var group: GFNodeStateGroup = GFNodeStateGroup.new()
+	var idle: TrackingNodeState = TrackingNodeState.new()
 	group.name = "Body"
 	group.group_name = &"Body"
 	group.initial_state = &"Idle"
@@ -411,10 +409,10 @@ func test_runtime_helper_child_does_not_reload_state_group() -> void:
 	add_child_autofree(group)
 	await get_tree().process_frame
 
-	var initialized_count := idle.initialized_count
-	var enter_count := idle.enter_count
-	var exit_count := idle.exit_count
-	var helper := Node.new()
+	var initialized_count: int = idle.initialized_count
+	var enter_count: int = idle.enter_count
+	var exit_count: int = idle.exit_count
+	var helper: Node = Node.new()
 	helper.name = "Helper"
 	group.add_child(helper)
 	await get_tree().process_frame
@@ -426,9 +424,9 @@ func test_runtime_helper_child_does_not_reload_state_group() -> void:
 
 
 func test_runtime_state_child_reloads_state_group() -> void:
-	var group: Node = GFNodeStateGroupBase.new()
-	var idle := TrackingNodeState.new()
-	var run := TrackingNodeState.new()
+	var group: GFNodeStateGroup = GFNodeStateGroup.new()
+	var idle: TrackingNodeState = TrackingNodeState.new()
+	var run: TrackingNodeState = TrackingNodeState.new()
 	group.name = "Body"
 	group.group_name = &"Body"
 	group.initial_state = &"Idle"
@@ -448,9 +446,9 @@ func test_runtime_state_child_reloads_state_group() -> void:
 
 
 func test_transition_to_changes_internal_state() -> void:
-	var machine: Node = GFNodeStateMachineBase.new()
-	var idle := TrackingNodeState.new()
-	var run := TrackingNodeState.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var idle: TrackingNodeState = TrackingNodeState.new()
+	var run: TrackingNodeState = TrackingNodeState.new()
 	idle.name = "Idle"
 	run.name = "Run"
 	machine.initial_state = &"Idle"
@@ -466,18 +464,18 @@ func test_transition_to_changes_internal_state() -> void:
 	assert_eq(idle.last_next, &"Run", "旧状态应收到目标状态名。")
 	assert_eq(run.enter_count, 1, "切换状态应进入新状态。")
 	assert_eq(run.last_previous, &"Idle", "新状态应收到来源状态名。")
-	assert_eq(run.last_args.get("speed"), 5, "切换参数应传给新状态。")
+	assert_eq(GFVariantData.get_option_int(run.last_args, "speed"), 5, "切换参数应传给新状态。")
 	assert_signal_emitted_with_parameters(
 		machine,
 		"state_changed",
-		[machine.get_state_group(GFNodeStateMachineBase.INTERNAL_GROUP_NAME), idle, run]
+		[machine.get_state_group(GFNodeStateMachine.INTERNAL_GROUP_NAME), idle, run]
 	)
 	var current_state: GFNodeState = machine.get_current_state()
 	assert_eq(current_state, run, "节点状态机当前状态 getter 应返回 GFNodeState。")
 
 
 func test_node_state_proxy_methods_without_architecture_are_safe() -> void:
-	var state := TrackingNodeState.new()
+	var state: TrackingNodeState = TrackingNodeState.new()
 	autofree(state)
 
 	state.send_event(StateEventPayload.new())
@@ -486,14 +484,14 @@ func test_node_state_proxy_methods_without_architecture_are_safe() -> void:
 	assert_null(state.get_model(DummyModel), "未挂入架构上下文的 NodeState.get_model 应安全返回 null。")
 	assert_null(state.get_system(DummySystem), "未挂入架构上下文的 NodeState.get_system 应安全返回 null。")
 	assert_null(state.get_utility(DummyUtility), "未挂入架构上下文的 NodeState.get_utility 应安全返回 null。")
-	assert_null(state.send_command(DummyCommand.new()), "未挂入架构上下文的 NodeState.send_command 应安全返回 null。")
-	assert_null(state.send_query(DummyQuery.new()), "未挂入架构上下文的 NodeState.send_query 应安全返回 null。")
+	assert_true(_is_null(state.send_command(DummyCommand.new())), "未挂入架构上下文的 NodeState.send_command 应安全返回 null。")
+	assert_true(_is_null(state.send_query(DummyQuery.new())), "未挂入架构上下文的 NodeState.send_query 应安全返回 null。")
 
 
 func test_node_state_uses_nearest_context_for_dependencies_commands_and_queries() -> void:
-	var context := TestNodeContext.new()
-	var machine: Node = GFNodeStateMachineBase.new()
-	var idle := TrackingNodeState.new()
+	var context: SampleNodeContext = SampleNodeContext.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var idle: TrackingNodeState = TrackingNodeState.new()
 	idle.name = "Idle"
 	machine.initial_state = &"Idle"
 	context.add_child(machine)
@@ -506,18 +504,18 @@ func test_node_state_uses_nearest_context_for_dependencies_commands_and_queries(
 	assert_eq(idle.get_model(DummyModel), context.model, "NodeState.get_model 应解析最近 GFNodeContext。")
 	assert_eq(idle.get_system(DummySystem), context.system, "NodeState.get_system 应解析最近 GFNodeContext。")
 	assert_eq(idle.get_utility(DummyUtility), context.utility, "NodeState.get_utility 应解析最近 GFNodeContext。")
-	assert_eq(idle.send_command(DummyCommand.new()), context.utility, "NodeState.send_command 应使用状态机上下文架构。")
-	assert_eq(idle.send_query(DummyQuery.new()), context.utility, "NodeState.send_query 应使用状态机上下文架构。")
+	assert_eq(_dummy_utility(idle.send_command(DummyCommand.new())), context.utility, "NodeState.send_command 应使用状态机上下文架构。")
+	assert_eq(_dummy_utility(idle.send_query(DummyQuery.new())), context.utility, "NodeState.send_query 应使用状态机上下文架构。")
 
 	context.queue_free()
 	await get_tree().process_frame
 
 
 func test_node_state_can_register_events_through_context_architecture() -> void:
-	var context := TestNodeContext.new()
-	var machine: Node = GFNodeStateMachineBase.new()
-	var listen := EventListeningNodeState.new()
-	var idle := TrackingNodeState.new()
+	var context: SampleNodeContext = SampleNodeContext.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var listen: EventListeningNodeState = EventListeningNodeState.new()
+	var idle: TrackingNodeState = TrackingNodeState.new()
 	listen.name = "Listen"
 	idle.name = "Idle"
 	machine.initial_state = &"Listen"
@@ -528,7 +526,7 @@ func test_node_state_can_register_events_through_context_architecture() -> void:
 
 	await context.wait_until_ready()
 	await get_tree().process_frame
-	var architecture := context.get_architecture()
+	var architecture: GFArchitecture = context.get_architecture()
 
 	architecture.send_event(StateEventPayload.new(3))
 	architecture.send_event(DerivedStateEventPayload.new(5))
@@ -552,10 +550,10 @@ func test_node_state_can_register_events_through_context_architecture() -> void:
 
 
 func test_state_can_request_cross_group_transition() -> void:
-	var machine: Node = GFNodeStateMachineBase.new()
-	var body_group: Node = GFNodeStateGroupBase.new()
-	var idle := TrackingNodeState.new()
-	var attack := TrackingNodeState.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var body_group: GFNodeStateGroup = GFNodeStateGroup.new()
+	var idle: TrackingNodeState = TrackingNodeState.new()
+	var attack: TrackingNodeState = TrackingNodeState.new()
 	body_group.name = "Body"
 	body_group.group_name = &"Body"
 	body_group.initial_state = &"Idle"
@@ -575,10 +573,10 @@ func test_state_can_request_cross_group_transition() -> void:
 
 
 func test_transition_requested_during_exit_replaces_outer_target() -> void:
-	var machine: Node = GFNodeStateMachineBase.new()
-	var idle := ExitRedirectNodeState.new(&"Attack")
-	var run := TrackingNodeState.new()
-	var attack := TrackingNodeState.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var idle: ExitRedirectNodeState = ExitRedirectNodeState.new(&"Attack")
+	var run: TrackingNodeState = TrackingNodeState.new()
+	var attack: TrackingNodeState = TrackingNodeState.new()
 	idle.name = "Idle"
 	run.name = "Run"
 	attack.name = "Attack"
@@ -598,13 +596,13 @@ func test_transition_requested_during_exit_replaces_outer_target() -> void:
 
 
 func test_transition_to_redirect_does_not_reexit_current_state_when_stacked_state_redirects() -> void:
-	var machine: Node = GFNodeStateMachineBase.new()
-	var idle := TrackingNodeState.new()
-	var menu := ExitRedirectNodeState.new(&"Inventory")
-	var confirm := ExitRedirectNodeState.new(&"Combat")
-	var run := TrackingNodeState.new()
-	var combat := TrackingNodeState.new()
-	var inventory := TrackingNodeState.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var idle: TrackingNodeState = TrackingNodeState.new()
+	var menu: ExitRedirectNodeState = ExitRedirectNodeState.new(&"Inventory")
+	var confirm: ExitRedirectNodeState = ExitRedirectNodeState.new(&"Combat")
+	var run: TrackingNodeState = TrackingNodeState.new()
+	var combat: TrackingNodeState = TrackingNodeState.new()
+	var inventory: TrackingNodeState = TrackingNodeState.new()
 	idle.name = "Idle"
 	menu.name = "Menu"
 	confirm.name = "Confirm"
@@ -636,9 +634,9 @@ func test_transition_to_redirect_does_not_reexit_current_state_when_stacked_stat
 
 
 func test_push_and_pop_state_uses_pause_and_resume() -> void:
-	var machine: Node = GFNodeStateMachineBase.new()
-	var idle := TrackingNodeState.new()
-	var menu := TrackingNodeState.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var idle: TrackingNodeState = TrackingNodeState.new()
+	var menu: TrackingNodeState = TrackingNodeState.new()
 	idle.name = "Idle"
 	menu.name = "Menu"
 	machine.initial_state = &"Idle"
@@ -656,7 +654,7 @@ func test_push_and_pop_state_uses_pause_and_resume() -> void:
 	assert_true(machine.is_in_state(&"Idle"), "暂停栈中的状态应被视为仍处于状态机内。")
 	assert_true(machine.is_in_state(&"Menu"), "当前子状态应被视为处于状态机内。")
 
-	var popped: bool = machine.pop_state(GFNodeStateMachineBase.INTERNAL_GROUP_NAME, { "closed": true })
+	var popped: bool = machine.pop_state(GFNodeStateMachine.INTERNAL_GROUP_NAME, { "closed": true })
 
 	assert_true(popped, "pop_state 有上一层状态时应返回 true。")
 	assert_eq(machine.get_current_state(), idle, "pop_state 后应恢复上一层状态。")
@@ -667,12 +665,12 @@ func test_push_and_pop_state_uses_pause_and_resume() -> void:
 
 
 func test_pop_state_redirect_does_not_reexit_current_state_when_stacked_state_redirects() -> void:
-	var machine: Node = GFNodeStateMachineBase.new()
-	var idle := TrackingNodeState.new()
-	var menu := ExitRedirectNodeState.new(&"Inventory")
-	var confirm := ExitRedirectNodeState.new(&"Combat")
-	var combat := TrackingNodeState.new()
-	var inventory := TrackingNodeState.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var idle: TrackingNodeState = TrackingNodeState.new()
+	var menu: ExitRedirectNodeState = ExitRedirectNodeState.new(&"Inventory")
+	var confirm: ExitRedirectNodeState = ExitRedirectNodeState.new(&"Combat")
+	var combat: TrackingNodeState = TrackingNodeState.new()
+	var inventory: TrackingNodeState = TrackingNodeState.new()
 	idle.name = "Idle"
 	menu.name = "Menu"
 	confirm.name = "Confirm"
@@ -689,7 +687,7 @@ func test_pop_state_redirect_does_not_reexit_current_state_when_stacked_state_re
 
 	machine.push_state(&"Menu")
 	machine.push_state(&"Confirm")
-	var popped: bool = machine.pop_state(GFNodeStateMachineBase.INTERNAL_GROUP_NAME)
+	var popped: bool = machine.pop_state(GFNodeStateMachine.INTERNAL_GROUP_NAME)
 
 	assert_true(popped, "pop_state 有暂停栈时应成功。")
 	assert_eq(confirm.exit_count, 1, "当前子状态的 exit 重定向不应导致当前状态重复 exit。")
@@ -702,9 +700,9 @@ func test_pop_state_redirect_does_not_reexit_current_state_when_stacked_state_re
 
 
 func test_remove_current_pushed_state_restores_paused_state() -> void:
-	var machine: Node = GFNodeStateMachineBase.new()
-	var idle := TrackingNodeState.new()
-	var menu := TrackingNodeState.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var idle: TrackingNodeState = TrackingNodeState.new()
+	var menu: TrackingNodeState = TrackingNodeState.new()
 	idle.name = "Idle"
 	menu.name = "Menu"
 	machine.initial_state = &"Idle"
@@ -714,9 +712,9 @@ func test_remove_current_pushed_state_restores_paused_state() -> void:
 	await get_tree().process_frame
 
 	machine.push_state(&"Menu")
-	var group := machine.get_state_group(GFNodeStateMachineBase.INTERNAL_GROUP_NAME) as GFNodeStateGroup
+	var group: GFNodeStateGroup = machine.get_state_group(GFNodeStateMachine.INTERNAL_GROUP_NAME)
 	watch_signals(group)
-	var removed := group.remove_state(menu)
+	var removed: bool = group.remove_state(menu)
 
 	assert_true(removed, "移除当前叠加状态应成功。")
 	assert_eq(machine.get_current_state(), idle, "移除当前叠加状态后应恢复上一层状态。")
@@ -730,9 +728,9 @@ func test_remove_current_pushed_state_restores_paused_state() -> void:
 
 
 func test_remove_current_state_honors_exit_redirect() -> void:
-	var machine: Node = GFNodeStateMachineBase.new()
-	var idle := ExitRedirectNodeState.new(&"Run")
-	var run := TrackingNodeState.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var idle: ExitRedirectNodeState = ExitRedirectNodeState.new(&"Run")
+	var run: TrackingNodeState = TrackingNodeState.new()
 	idle.name = "Idle"
 	run.name = "Run"
 	machine.initial_state = &"Idle"
@@ -741,8 +739,8 @@ func test_remove_current_state_honors_exit_redirect() -> void:
 	machine.add_child(run)
 	await get_tree().process_frame
 
-	var group := machine.get_state_group(GFNodeStateMachineBase.INTERNAL_GROUP_NAME) as GFNodeStateGroup
-	var removed := group.remove_state(idle)
+	var group: GFNodeStateGroup = machine.get_state_group(GFNodeStateMachine.INTERNAL_GROUP_NAME)
+	var removed: bool = group.remove_state(idle)
 
 	assert_true(removed, "移除当前状态应成功。")
 	assert_eq(idle.exit_count, 1, "remove_state 应让当前状态执行一次 exit。")
@@ -752,14 +750,14 @@ func test_remove_current_state_honors_exit_redirect() -> void:
 
 
 func test_config_controls_initial_state_and_history_limit() -> void:
-	var config: Resource = GFNodeStateMachineConfigBase.new()
+	var config: Resource = GFNodeStateMachineConfig.new()
 	config.set("initial_state", &"Run")
 	config.set("history_max_size", 2)
 
-	var machine: Node = GFNodeStateMachineBase.new()
-	var idle := TrackingNodeState.new()
-	var run := TrackingNodeState.new()
-	var attack := TrackingNodeState.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var idle: TrackingNodeState = TrackingNodeState.new()
+	var run: TrackingNodeState = TrackingNodeState.new()
+	var attack: TrackingNodeState = TrackingNodeState.new()
 	idle.name = "Idle"
 	run.name = "Run"
 	attack.name = "Attack"
@@ -783,9 +781,9 @@ func test_config_controls_initial_state_and_history_limit() -> void:
 
 
 func test_state_can_access_machine_host() -> void:
-	var host := Node.new()
-	var machine: Node = GFNodeStateMachineBase.new()
-	var idle := TrackingNodeState.new()
+	var host: Node = Node.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var idle: TrackingNodeState = TrackingNodeState.new()
 	idle.name = "Idle"
 	machine.initial_state = &"Idle"
 	add_child_autofree(host)
@@ -797,9 +795,9 @@ func test_state_can_access_machine_host() -> void:
 
 
 func test_state_guard_can_block_transition() -> void:
-	var machine: Node = GFNodeStateMachineBase.new()
-	var idle := GuardedNodeState.new()
-	var run := GuardedNodeState.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var idle: GuardedNodeState = GuardedNodeState.new()
+	var run: GuardedNodeState = GuardedNodeState.new()
 	idle.name = "Idle"
 	run.name = "Run"
 	run.allow_enter = false
@@ -809,7 +807,7 @@ func test_state_guard_can_block_transition() -> void:
 	machine.add_child(run)
 	await get_tree().process_frame
 
-	var group := machine.get_state_group(GFNodeStateMachineBase.INTERNAL_GROUP_NAME) as GFNodeStateGroup
+	var group: GFNodeStateGroup = machine.get_state_group(GFNodeStateMachine.INTERNAL_GROUP_NAME)
 	watch_signals(group)
 	machine.transition_to(&"Run")
 
@@ -819,8 +817,8 @@ func test_state_guard_can_block_transition() -> void:
 
 
 func test_state_group_blackboard_is_shared_with_states() -> void:
-	var group: Node = GFNodeStateGroupBase.new()
-	var idle := TrackingNodeState.new()
+	var group: GFNodeStateGroup = GFNodeStateGroup.new()
+	var idle: TrackingNodeState = TrackingNodeState.new()
 	group.name = "Body"
 	group.group_name = &"Body"
 	group.initial_state = &"Idle"
@@ -830,16 +828,16 @@ func test_state_group_blackboard_is_shared_with_states() -> void:
 	group.add_child(idle)
 	await get_tree().process_frame
 
-	var blackboard := idle.get_blackboard()
+	var blackboard: Dictionary = idle.get_blackboard()
 	blackboard["speed"] = 4
 
-	assert_eq(group.blackboard.get("speed"), 4, "状态应能访问并修改状态组共享黑板。")
+	assert_eq(GFVariantData.get_option_int(group.blackboard, "speed"), 4, "状态应能访问并修改状态组共享黑板。")
 
 
 func test_state_group_dispatches_event_from_current_to_stack() -> void:
-	var machine: Node = GFNodeStateMachineBase.new()
-	var idle := EventHandlingNodeState.new()
-	var menu := EventHandlingNodeState.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var idle: EventHandlingNodeState = EventHandlingNodeState.new()
+	var menu: EventHandlingNodeState = EventHandlingNodeState.new()
 	idle.name = "Idle"
 	menu.name = "Menu"
 	idle.handled_events.append(&"cancel")
@@ -849,7 +847,7 @@ func test_state_group_dispatches_event_from_current_to_stack() -> void:
 	machine.add_child(menu)
 	await get_tree().process_frame
 	machine.push_state(&"Menu")
-	var group := machine.get_state_group(GFNodeStateMachineBase.INTERNAL_GROUP_NAME) as GFNodeStateGroup
+	var group: GFNodeStateGroup = machine.get_state_group(GFNodeStateMachine.INTERNAL_GROUP_NAME)
 	watch_signals(group)
 
 	var handled: bool = group.dispatch_state_event(&"cancel", { "source": "input" })
@@ -861,9 +859,9 @@ func test_state_group_dispatches_event_from_current_to_stack() -> void:
 
 
 func test_node_state_machine_dispatches_event_to_named_group_and_reemits() -> void:
-	var machine: Node = GFNodeStateMachineBase.new()
-	var body_group: Node = GFNodeStateGroupBase.new()
-	var idle := EventHandlingNodeState.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var body_group: GFNodeStateGroup = GFNodeStateGroup.new()
+	var idle: EventHandlingNodeState = EventHandlingNodeState.new()
 	body_group.name = "Body"
 	body_group.group_name = &"Body"
 	body_group.initial_state = &"Idle"
@@ -883,9 +881,9 @@ func test_node_state_machine_dispatches_event_to_named_group_and_reemits() -> vo
 
 
 func test_node_state_machine_snapshot_reports_groups() -> void:
-	var machine: Node = GFNodeStateMachineBase.new()
-	var body_group: Node = GFNodeStateGroupBase.new()
-	var idle := TrackingNodeState.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var body_group: GFNodeStateGroup = GFNodeStateGroup.new()
+	var idle: TrackingNodeState = TrackingNodeState.new()
 	body_group.name = "Body"
 	body_group.group_name = &"Body"
 	body_group.initial_state = &"Idle"
@@ -897,17 +895,19 @@ func test_node_state_machine_snapshot_reports_groups() -> void:
 	await get_tree().process_frame
 
 	var snapshot: Dictionary = machine.get_state_snapshot()
-	var groups: Dictionary = snapshot.get("groups") as Dictionary
-	var body_snapshot: Dictionary = groups.get(&"Body") as Dictionary
+	var groups: Dictionary = GFVariantData.get_option_dictionary(snapshot, "groups")
+	var body_snapshot: Dictionary = GFVariantData.get_option_dictionary(groups, &"Body")
+	var body_blackboard: Dictionary = GFVariantData.get_option_dictionary(body_snapshot, "blackboard")
+	var body_states: Array = GFVariantData.get_option_array(body_snapshot, "states")
 
-	assert_eq(body_snapshot.get("current_state"), &"Idle", "状态机快照应报告状态组当前状态。")
-	assert_eq((body_snapshot.get("blackboard") as Dictionary).get("speed"), 5, "状态组快照应包含黑板副本。")
-	assert_has(body_snapshot.get("states") as Array, &"Idle", "状态组快照应包含已注册状态。")
+	assert_eq(GFVariantData.get_option_string_name(body_snapshot, "current_state"), &"Idle", "状态机快照应报告状态组当前状态。")
+	assert_eq(GFVariantData.get_option_int(body_blackboard, "speed"), 5, "状态组快照应包含黑板副本。")
+	assert_has(body_states, &"Idle", "状态组快照应包含已注册状态。")
 
 
 func test_clear_state_groups_disconnects_external_group_signals() -> void:
-	var machine: Node = GFNodeStateMachineBase.new()
-	var group: GFNodeStateGroup = GFNodeStateGroupBase.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var group: GFNodeStateGroup = GFNodeStateGroup.new()
 	group.name = "Body"
 	group.group_name = &"Body"
 	add_child_autofree(machine)
@@ -922,9 +922,9 @@ func test_clear_state_groups_disconnects_external_group_signals() -> void:
 
 
 func test_clear_state_groups_stops_external_group_without_removing_states() -> void:
-	var machine: Node = GFNodeStateMachineBase.new()
-	var group: GFNodeStateGroup = GFNodeStateGroupBase.new()
-	var idle := TrackingNodeState.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var group: GFNodeStateGroup = GFNodeStateGroup.new()
+	var idle: TrackingNodeState = TrackingNodeState.new()
 	group.name = "Body"
 	group.group_name = &"Body"
 	group.initial_state = &"Idle"
@@ -945,8 +945,8 @@ func test_clear_state_groups_stops_external_group_without_removing_states() -> v
 
 
 func test_clear_state_groups_with_free_detaches_group_immediately() -> void:
-	var machine: Node = GFNodeStateMachineBase.new()
-	var group: GFNodeStateGroup = GFNodeStateGroupBase.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var group: GFNodeStateGroup = GFNodeStateGroup.new()
 	group.name = "Body"
 	group.group_name = &"Body"
 	add_child_autofree(machine)
@@ -963,9 +963,9 @@ func test_clear_state_groups_with_free_detaches_group_immediately() -> void:
 
 
 func test_clear_states_exits_current_and_stacked_states() -> void:
-	var machine: Node = GFNodeStateMachineBase.new()
-	var idle := TrackingNodeState.new()
-	var menu := TrackingNodeState.new()
+	var machine: GFNodeStateMachine = GFNodeStateMachine.new()
+	var idle: TrackingNodeState = TrackingNodeState.new()
+	var menu: TrackingNodeState = TrackingNodeState.new()
 	idle.name = "Idle"
 	menu.name = "Menu"
 	machine.initial_state = &"Idle"
@@ -975,7 +975,7 @@ func test_clear_states_exits_current_and_stacked_states() -> void:
 	await get_tree().process_frame
 
 	machine.push_state(&"Menu")
-	var group := machine.get_state_group(GFNodeStateMachineBase.INTERNAL_GROUP_NAME) as GFNodeStateGroup
+	var group: GFNodeStateGroup = machine.get_state_group(GFNodeStateMachine.INTERNAL_GROUP_NAME)
 	group.clear_states(false)
 
 	assert_eq(menu.exit_count, 1, "清空状态时当前状态应执行 exit。")
@@ -985,10 +985,11 @@ func test_clear_states_exits_current_and_stacked_states() -> void:
 
 
 func test_clear_states_with_free_detaches_state_nodes_immediately() -> void:
-	var group: GFNodeStateGroup = GFNodeStateGroupBase.new()
-	var idle := TrackingNodeState.new()
+	var group: GFNodeStateGroup = GFNodeStateGroup.new()
+	var idle: TrackingNodeState = TrackingNodeState.new()
 	idle.name = "Idle"
 	group.initial_state = &"Idle"
+	group.auto_start = false
 	group.add_child(idle)
 	add_child_autofree(group)
 	await get_tree().process_frame
@@ -1000,3 +1001,14 @@ func test_clear_states_with_free_detaches_state_nodes_immediately() -> void:
 
 	await get_tree().process_frame
 	assert_false(is_instance_valid(idle), "下一帧状态节点应完成释放。")
+
+
+func _dummy_utility(value: Variant) -> DummyUtility:
+	if value is DummyUtility:
+		var utility: DummyUtility = value
+		return utility
+	return null
+
+
+func _is_null(value: Variant) -> bool:
+	return value == null

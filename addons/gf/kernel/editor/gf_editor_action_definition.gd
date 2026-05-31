@@ -77,7 +77,10 @@ func create_command(context: Dictionary = {}) -> GFEditorCommandBase:
 		return null
 
 	var command_variant: Variant = command_factory.call(context)
-	return command_variant as GFEditorCommandBase
+	if command_variant is GFEditorCommandBase:
+		var command: GFEditorCommandBase = command_variant
+		return command
+	return null
 
 
 ## 执行动作并可选接入 UndoRedo。
@@ -92,7 +95,7 @@ func create_command(context: Dictionary = {}) -> GFEditorCommandBase:
 ## [br]
 ## @return Godot 错误码。
 func invoke(context: Dictionary = {}, undo_manager: Object = null) -> Error:
-	var command := create_command(context)
+	var command: GFEditorCommandBase = create_command(context)
 	if command == null:
 		return ERR_CANT_CREATE
 
@@ -113,7 +116,7 @@ func invoke(context: Dictionary = {}, undo_manager: Object = null) -> Error:
 func is_available(context: Dictionary = {}) -> bool:
 	if not command_factory.is_valid():
 		return false
-	var command := create_command(context)
+	var command: GFEditorCommandBase = create_command(context)
 	return command != null and command.can_execute()
 
 

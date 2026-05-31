@@ -11,7 +11,7 @@ extends RefCounted
 ## [br]
 ## @api framework_internal
 const GFBindingLifetimesBase = preload("res://addons/gf/kernel/core/gf_binding_lifetimes.gd")
-const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
+const _SCRIPT_TYPE_INSPECTOR = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
 
 
 # --- 公共变量 ---
@@ -85,7 +85,7 @@ func get_instance(requesting_architecture: GFArchitecture = null) -> Object:
 				return _cached_instance
 
 			clear_cached_instance()
-			var provided_instance := _provide(_owner_architecture)
+			var provided_instance: Object = _provide(_owner_architecture)
 			if provided_instance == null:
 				return null
 
@@ -94,7 +94,7 @@ func get_instance(requesting_architecture: GFArchitecture = null) -> Object:
 			return _cached_instance
 
 		GFBindingLifetimesBase.Lifetime.TRANSIENT:
-			var injection_architecture := requesting_architecture
+			var injection_architecture: GFArchitecture = requesting_architecture
 			if injection_architecture == null:
 				injection_architecture = _owner_architecture
 			return _provide(injection_architecture)
@@ -108,7 +108,7 @@ func get_instance(requesting_architecture: GFArchitecture = null) -> Object:
 ## [br]
 ## @api framework_internal
 func clear_cached_instance() -> void:
-	var instance := _cached_instance
+	var instance: Object = _cached_instance
 	_cached_instance = null
 	_has_cached_instance = false
 
@@ -120,7 +120,7 @@ func clear_cached_instance() -> void:
 ## [br]
 ## @api framework_internal
 func dispose_cached_instance() -> void:
-	var instance := _cached_instance
+	var instance: Object = _cached_instance
 	_cached_instance = null
 	_has_cached_instance = false
 
@@ -130,7 +130,7 @@ func dispose_cached_instance() -> void:
 	if _owner_architecture != null:
 		_owner_architecture.unregister_owner_events(instance)
 	if _should_dispose_cached_instance and is_instance_valid(instance) and instance.has_method("dispose"):
-		instance.dispose()
+		instance.call("dispose")
 	if is_instance_valid(instance):
 		_release_instance_scope(instance)
 
@@ -140,7 +140,8 @@ func dispose_cached_instance() -> void:
 func _provide(injection_architecture: GFArchitecture) -> Object:
 	var value: Variant
 	if provider is Callable:
-		value = (provider as Callable).call()
+		var provider_callable: Callable = provider
+		value = provider_callable.call()
 	else:
 		value = provider
 
@@ -148,7 +149,7 @@ func _provide(injection_architecture: GFArchitecture) -> Object:
 		push_error("[GFBinding] 绑定来源必须返回 Object 实例。")
 		return null
 
-	var instance := value as Object
+	var instance: Object = value
 	if not is_instance_valid(instance):
 		push_error("[GFBinding] 绑定来源返回了已失效的 Object 实例。")
 		return null
@@ -169,9 +170,9 @@ func _inject_if_needed(instance: Object, architecture: GFArchitecture) -> void:
 	if instance.has_method("_gf_set_dependency_scope"):
 		instance.call("_gf_set_dependency_scope", architecture)
 	if instance.has_method("inject_dependencies"):
-		instance.inject_dependencies(architecture)
+		instance.call("inject_dependencies", architecture)
 	if instance.has_method("inject"):
-		instance.inject(architecture)
+		instance.call("inject", architecture)
 
 
 func _release_instance_scope(instance: Object) -> void:
@@ -187,8 +188,10 @@ func _release_instance_scope(instance: Object) -> void:
 func _cached_instance_is_valid() -> bool:
 	if not is_instance_valid(_cached_instance):
 		return false
-	if _cached_instance is Node and (_cached_instance as Node).is_queued_for_deletion():
-		return false
+	if _cached_instance is Node:
+		var cached_node: Node = _cached_instance
+		if cached_node.is_queued_for_deletion():
+			return false
 	return true
 
 
@@ -196,8 +199,19 @@ func _instance_matches_key(instance: Object) -> bool:
 	if not key is Script:
 		return true
 
-	var instance_script := instance.get_script() as Script
+	var instance_script: Script = _get_instance_script(instance)
 	if instance_script == null:
 		return false
 
-	return _SCRIPT_TYPE_INSPECTOR.script_extends_or_equals(instance_script, key as Script)
+	var key_script: Script = key
+	return _SCRIPT_TYPE_INSPECTOR.script_extends_or_equals(instance_script, key_script)
+
+
+func _get_instance_script(instance: Object) -> Script:
+	if instance == null:
+		return null
+	var raw_script: Variant = instance.get_script()
+	if raw_script is Script:
+		var script: Script = raw_script
+		return script
+	return null

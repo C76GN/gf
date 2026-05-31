@@ -39,7 +39,7 @@ extends GFConfigValidationRule
 ## [br]
 ## @schema return: Dictionary，包含基础规则字段、pattern、require_full_match 和 allow_empty。
 func describe() -> Dictionary:
-	var result := super.describe()
+	var result: Dictionary = super.describe()
 	result["pattern"] = pattern
 	result["require_full_match"] = require_full_match
 	result["allow_empty"] = allow_empty
@@ -77,20 +77,20 @@ func _validate_value(value: Variant, context: Dictionary, report: Dictionary) ->
 		_add_issue(report, context, "regex_invalid_type", "正则校验只支持 String 或 StringName。")
 		return
 
-	var text := String(value)
+	var text: String = GFVariantData.to_text(value)
 	if text.is_empty() and allow_empty:
 		return
 	if pattern.is_empty():
 		_add_issue(report, context, "regex_empty_pattern", "正则表达式为空。")
 		return
 
-	var regex := RegEx.new()
-	var error := regex.compile(pattern)
+	var regex: RegEx = RegEx.new()
+	var error: Error = regex.compile(pattern)
 	if error != OK:
 		_add_issue(report, context, "regex_compile_failed", "正则表达式无法编译：%s。" % error_string(error))
 		return
 
-	var matched := regex.search(text)
+	var matched: RegExMatch = regex.search(text)
 	if matched == null:
 		_add_issue(report, context, "regex_mismatch", "字符串不符合正则表达式。")
 		return

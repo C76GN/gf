@@ -4,13 +4,6 @@ extends GutTest
 
 # --- 常量 ---
 
-const GFFlowContextBase = preload("res://addons/gf/extensions/flow/runtime/gf_flow_context.gd")
-const GFFlowGraphBase = preload("res://addons/gf/extensions/flow/resources/gf_flow_graph.gd")
-const GFFlowGraphDockBase = preload("res://addons/gf/extensions/flow/editor/gf_flow_graph_dock.gd")
-const GFFlowGraphEditorModelBase = preload("res://addons/gf/extensions/flow/editor/gf_flow_graph_editor_model.gd")
-const GFFlowNodeBase = preload("res://addons/gf/extensions/flow/resources/gf_flow_node.gd")
-const GFFlowPortBase = preload("res://addons/gf/extensions/flow/resources/gf_flow_port.gd")
-const GFFlowRunnerBase = preload("res://addons/gf/extensions/flow/runtime/gf_flow_runner.gd")
 const GFAsyncWaitSupportBase = preload("res://addons/gf/standard/common/gf_async_wait_support.gd")
 
 
@@ -71,16 +64,16 @@ class RuntimeStateFlowNode extends GFFlowNode:
 		node_id = &"runtime"
 
 	func execute(_context: GFFlowContext) -> Variant:
-		set_runtime_value(&"count", int(get_runtime_value(&"count", 0)) + 1)
+		set_runtime_value(&"count", GFVariantData.to_int(get_runtime_value(&"count", 0)) + 1)
 		return null
 
 
 class MethodTrapFlowPort extends GFFlowPort:
-	var get_port_id_called := false
-	var get_display_name_called := false
-	var describe_called := false
-	var get_compatibility_report_called := false
-	var is_compatible_with_called := false
+	var get_port_id_called: bool = false
+	var get_display_name_called: bool = false
+	var describe_called: bool = false
+	var get_compatibility_report_called: bool = false
+	var is_compatible_with_called: bool = false
 
 	func get_port_id() -> StringName:
 		get_port_id_called = true
@@ -113,14 +106,14 @@ class MethodTrapFlowPort extends GFFlowPort:
 
 
 class MethodTrapFlowNode extends GFFlowNode:
-	var get_display_name_called := false
-	var get_input_ports_called := false
-	var get_output_ports_called := false
-	var get_input_port_called := false
-	var get_output_port_called := false
-	var describe_ports_called := false
-	var describe_editor_called := false
-	var describe_node_called := false
+	var get_display_name_called: bool = false
+	var get_input_ports_called: bool = false
+	var get_output_ports_called: bool = false
+	var get_input_port_called: bool = false
+	var get_output_port_called: bool = false
+	var describe_ports_called: bool = false
+	var describe_editor_called: bool = false
+	var describe_node_called: bool = false
 
 	func get_display_name() -> String:
 		get_display_name_called = true
@@ -172,15 +165,15 @@ class MethodTrapFlowNode extends GFFlowNode:
 ## 验证流程节点会按后继关系执行。
 func test_flow_runner_executes_node_links() -> void:
 	var order: Array[String] = []
-	var graph := GFFlowGraphBase.new()
+	var graph: GFFlowGraph = GFFlowGraph.new()
 	graph.start_node_id = &"start"
 	graph.nodes = [
 		RecordingFlowNode.new(&"start", order, PackedStringArray(["end"])),
 		RecordingFlowNode.new(&"end", order),
 	]
-	var runner := GFFlowRunnerBase.new()
+	var runner: GFFlowRunner = GFFlowRunner.new()
 
-	runner.run(graph, GFFlowContextBase.new())
+	await runner.run(graph, GFFlowContext.new())
 
 	assert_eq(order, ["start", "end"], "流程应按节点后继顺序执行。")
 	assert_false(runner.is_running, "同步流程完成后不应保持 running。")
@@ -189,56 +182,58 @@ func test_flow_runner_executes_node_links() -> void:
 ## 验证节点可通过上下文覆盖后继节点。
 func test_flow_node_can_override_next_nodes() -> void:
 	var order: Array[String] = []
-	var graph := GFFlowGraphBase.new()
+	var graph: GFFlowGraph = GFFlowGraph.new()
 	graph.start_node_id = &"branch"
 	graph.nodes = [
 		BranchFlowNode.new(),
 		RecordingFlowNode.new(&"left", order),
 		RecordingFlowNode.new(&"right", order),
 	]
-	var runner := GFFlowRunnerBase.new()
+	var runner: GFFlowRunner = GFFlowRunner.new()
 
-	runner.run(graph, GFFlowContextBase.new())
+	await runner.run(graph, GFFlowContext.new())
 
 	assert_eq(order, ["right"], "上下文覆盖的分支应决定后继节点。")
 
 
 ## 验证流程节点端口描述可用于图结构描述。
 func test_flow_node_describes_ports() -> void:
-	var output_port := GFFlowPortBase.new()
+	var output_port: GFFlowPort = GFFlowPort.new()
 	output_port.port_id = &"success"
 	output_port.direction = GFFlowPort.Direction.OUTPUT
 	output_port.value_type = GFFlowPort.ValueType.BOOL
 	output_port.editor_color = Color.GREEN
 	output_port.type_hint = &"result"
 	output_port.semantic_tags = PackedStringArray(["logic"])
-	var node := GFFlowNodeBase.new()
+	var node: GFFlowNode = GFFlowNode.new()
 	node.node_id = &"check"
 	node.output_ports = [output_port]
 
-	var description := node.describe_node()
-	var outputs := (description["ports"] as Dictionary)["outputs"] as Array
+	var description: Dictionary = node.describe_node()
+	var ports: Dictionary = GFVariantData.get_option_dictionary(description, "ports")
+	var outputs: Array = GFVariantData.get_option_array(ports, "outputs")
+	var first_output: Dictionary = GFVariantData.as_dictionary(outputs[0])
 
 	assert_eq(outputs.size(), 1, "节点描述应包含输出端口。")
-	assert_eq(outputs[0]["port_id"], &"success", "端口标识应保留。")
-	assert_eq(outputs[0]["editor_color"], Color.GREEN, "端口描述应包含编辑器颜色。")
-	assert_eq(outputs[0]["type_hint"], &"result", "端口描述应包含类型提示。")
-	assert_true((outputs[0]["semantic_tags"] as PackedStringArray).has("logic"), "端口描述应包含语义标签。")
+	assert_eq(GFVariantData.get_option_string_name(first_output, "port_id"), &"success", "端口标识应保留。")
+	assert_eq(_color_value(first_output, "editor_color"), Color.GREEN, "端口描述应包含编辑器颜色。")
+	assert_eq(GFVariantData.get_option_string_name(first_output, "type_hint"), &"result", "端口描述应包含类型提示。")
+	assert_true(GFVariantData.get_option_packed_string_array(first_output, "semantic_tags").has("logic"), "端口描述应包含语义标签。")
 
 
 ## 验证流程图连接可驱动无 next_node_ids 的节点推进。
 func test_flow_runner_executes_graph_connections() -> void:
 	var order: Array[String] = []
-	var graph := GFFlowGraphBase.new()
+	var graph: GFFlowGraph = GFFlowGraph.new()
 	graph.start_node_id = &"start"
 	graph.nodes = [
 		RecordingFlowNode.new(&"start", order),
 		RecordingFlowNode.new(&"end", order),
 	]
-	graph.add_connection(&"start", &"", &"end", &"")
-	var runner := GFFlowRunnerBase.new()
+	var _add_connection_result_233: Variant = graph.add_connection(&"start", &"", &"end", &"")
+	var runner: GFFlowRunner = GFFlowRunner.new()
 
-	runner.run(graph, GFFlowContextBase.new())
+	await runner.run(graph, GFFlowContext.new())
 
 	assert_eq(order, ["start", "end"], "流程应能通过图连接推进后继节点。")
 
@@ -246,32 +241,33 @@ func test_flow_runner_executes_graph_connections() -> void:
 ## 验证上下文显式空后继会阻止连接回退。
 func test_flow_context_empty_override_stops_connection_fallback() -> void:
 	var order: Array[String] = []
-	var graph := GFFlowGraphBase.new()
+	var graph: GFFlowGraph = GFFlowGraph.new()
 	graph.start_node_id = &"stop"
 	graph.nodes = [
 		StopFlowNode.new(),
 		RecordingFlowNode.new(&"end", order),
 	]
-	graph.add_connection(&"stop", &"", &"end", &"")
-	var runner := GFFlowRunnerBase.new()
+	var _add_connection_result_250: Variant = graph.add_connection(&"stop", &"", &"end", &"")
+	var runner: GFFlowRunner = GFFlowRunner.new()
 
-	runner.run(graph, GFFlowContextBase.new())
+	await runner.run(graph, GFFlowContext.new())
 
 	assert_eq(order, [], "显式空后继应表示停止，而不是回退到图连接。")
 
 
 func test_flow_runner_cancel_during_signal_wait_stops_after_await() -> void:
 	var order: Array[String] = []
-	var graph := GFFlowGraphBase.new()
-	var waiting_node := ManualWaitFlowNode.new(&"wait", order, PackedStringArray(["after"]))
+	var graph: GFFlowGraph = GFFlowGraph.new()
+	var waiting_node: ManualWaitFlowNode = ManualWaitFlowNode.new(&"wait", order, PackedStringArray(["after"]))
 	graph.start_node_id = &"wait"
 	graph.nodes = [
 		waiting_node,
 		RecordingFlowNode.new(&"after", order),
 	]
-	var runner := GFFlowRunnerBase.new()
+	var runner: GFFlowRunner = GFFlowRunner.new()
 	watch_signals(runner)
-	runner.run(graph, GFFlowContextBase.new())
+	@warning_ignore("missing_await")
+	runner.run(graph, GFFlowContext.new())
 
 	await get_tree().process_frame
 	runner.cancel()
@@ -286,11 +282,11 @@ func test_flow_runner_cancel_during_signal_wait_stops_after_await() -> void:
 
 ## 验证流程图会校验连接端点与端口。
 func test_flow_graph_validate_reports_connection_port_issues() -> void:
-	var graph := GFFlowGraphBase.new()
-	var start := GFFlowNodeBase.new()
+	var graph: GFFlowGraph = GFFlowGraph.new()
+	var start: GFFlowNode = GFFlowNode.new()
 	start.node_id = &"start"
 	start.output_ports = [_make_port(&"done", GFFlowPort.Direction.OUTPUT)]
-	var end := GFFlowNodeBase.new()
+	var end: GFFlowNode = GFFlowNode.new()
 	end.node_id = &"end"
 	end.input_ports = [_make_port(&"enter", GFFlowPort.Direction.INPUT)]
 	graph.nodes = [start, end]
@@ -304,19 +300,19 @@ func test_flow_graph_validate_reports_connection_port_issues() -> void:
 		},
 	]
 
-	var report := graph.validate_graph()
+	var report: Dictionary = graph.validate_graph()
 
-	assert_false(bool(report["ok"]), "缺失连接端口应使校验失败。")
+	assert_false(GFVariantData.get_option_bool(report, "ok"), "缺失连接端口应使校验失败。")
 	assert_true(_has_issue(report, "missing_connection_output_port"), "校验报告应包含 missing_connection_output_port。")
 
 
 ## 验证流程图默认端口兼容性校验会报告类型不匹配。
 func test_flow_graph_validate_reports_incompatible_ports_by_default() -> void:
-	var graph := GFFlowGraphBase.new()
-	var start := GFFlowNodeBase.new()
+	var graph: GFFlowGraph = GFFlowGraph.new()
+	var start: GFFlowNode = GFFlowNode.new()
 	start.node_id = &"start"
 	start.output_ports = [_make_typed_port(&"value", GFFlowPort.Direction.OUTPUT, GFFlowPort.ValueType.NUMBER)]
-	var end := GFFlowNodeBase.new()
+	var end: GFFlowNode = GFFlowNode.new()
 	end.node_id = &"end"
 	end.input_ports = [_make_typed_port(&"value", GFFlowPort.Direction.INPUT, GFFlowPort.ValueType.STRING)]
 	graph.nodes = [start, end]
@@ -330,22 +326,22 @@ func test_flow_graph_validate_reports_incompatible_ports_by_default() -> void:
 		},
 	]
 
-	var report := graph.validate_graph()
-	var compatibility := graph.check_connection_compatibility(&"start", &"value", &"end", &"value")
+	var report: Dictionary = graph.validate_graph()
+	var compatibility: Dictionary = graph.check_connection_compatibility(&"start", &"value", &"end", &"value")
 
 	assert_true(graph.validate_port_compatibility, "2.0 默认应启用端口兼容性校验。")
-	assert_false(bool(report["ok"]), "默认严格校验下类型不匹配应失败。")
+	assert_false(GFVariantData.get_option_bool(report, "ok"), "默认严格校验下类型不匹配应失败。")
 	assert_true(_has_issue(report, "incompatible_connection_ports"), "校验报告应包含 incompatible_connection_ports。")
-	assert_false(bool(compatibility["ok"]), "兼容性检查应返回失败。")
+	assert_false(GFVariantData.get_option_bool(compatibility, "ok"), "兼容性检查应返回失败。")
 
 
 ## 验证流程图默认拒绝新增不兼容端口连接。
 func test_flow_graph_add_connection_rejects_incompatible_ports_by_default() -> void:
-	var graph := GFFlowGraphBase.new()
-	var start := GFFlowNodeBase.new()
+	var graph: GFFlowGraph = GFFlowGraph.new()
+	var start: GFFlowNode = GFFlowNode.new()
 	start.node_id = &"start"
 	start.output_ports = [_make_typed_port(&"value", GFFlowPort.Direction.OUTPUT, GFFlowPort.ValueType.NUMBER)]
-	var end := GFFlowNodeBase.new()
+	var end: GFFlowNode = GFFlowNode.new()
 	end.node_id = &"end"
 	end.input_ports = [_make_typed_port(&"value", GFFlowPort.Direction.INPUT, GFFlowPort.ValueType.STRING)]
 	graph.nodes = [start, end]
@@ -358,7 +354,7 @@ func test_flow_graph_add_connection_rejects_incompatible_ports_by_default() -> v
 
 ## 验证流程图连接描述可供编辑器或可视化工具消费。
 func test_flow_graph_describes_connections() -> void:
-	var graph := GFFlowGraphBase.new()
+	var graph: GFFlowGraph = GFFlowGraph.new()
 	var order: Array[String] = []
 	graph.nodes = [
 		RecordingFlowNode.new(&"start", order),
@@ -366,82 +362,90 @@ func test_flow_graph_describes_connections() -> void:
 	]
 	assert_true(graph.add_connection(&"start", &"", &"end", &"", { "label": "ok" }), "节点级连接应添加成功。")
 
-	var description := graph.describe_graph()
-	var connections := description["connections"] as Array
+	var description: Dictionary = graph.describe_graph()
+	var connections: Array = GFVariantData.get_option_array(description, "connections")
+	var first_connection: Dictionary = GFVariantData.as_dictionary(connections[0])
+	var connection_metadata: Dictionary = GFVariantData.get_option_dictionary(first_connection, "metadata")
 
-	assert_eq(description["connection_count"], 1, "图描述应包含连接数量。")
-	assert_eq(connections[0]["to_node_id"], &"end", "图描述应包含目标节点。")
-	assert_eq((connections[0]["metadata"] as Dictionary).get("label"), "ok", "连接元数据应保留。")
+	assert_eq(GFVariantData.get_option_int(description, "connection_count"), 1, "图描述应包含连接数量。")
+	assert_eq(GFVariantData.get_option_string_name(first_connection, "to_node_id"), &"end", "图描述应包含目标节点。")
+	assert_eq(GFVariantData.get_option_string(connection_metadata, "label"), "ok", "连接元数据应保留。")
 
 
 ## 验证流程图提供编辑器目录和布局元数据。
 func test_flow_graph_editor_catalog_describes_nodes() -> void:
-	var graph := GFFlowGraphBase.new()
-	var node := GFFlowNodeBase.new()
+	var graph: GFFlowGraph = GFFlowGraph.new()
+	var node: GFFlowNode = GFFlowNode.new()
 	node.node_id = &"start"
 	node.display_name = "Start"
 	node.category = &"Core"
 	graph.nodes = [node]
 
 	assert_true(graph.set_node_editor_layout(&"start", Vector2(12.0, 24.0), Vector2(160.0, 80.0), true), "应能设置节点编辑器布局。")
-	var report := graph.build_editor_report()
-	var catalog := report["catalog"] as Dictionary
-	var nodes := catalog["nodes"] as Array
-	var editor := nodes[0]["editor"] as Dictionary
+	var report: Dictionary = graph.build_editor_report()
+	var catalog: Dictionary = GFVariantData.get_option_dictionary(report, "catalog")
+	var nodes: Array = GFVariantData.get_option_array(catalog, "nodes")
+	var first_node: Dictionary = GFVariantData.as_dictionary(nodes[0])
+	var editor: Dictionary = GFVariantData.get_option_dictionary(first_node, "editor")
 
-	assert_true(bool(report["ok"]), "有效流程图编辑器报告应通过。")
-	assert_eq(nodes[0]["display_name"], "Start", "目录应包含显示名。")
-	assert_eq(nodes[0]["category"], "Core", "目录应包含分类。")
-	assert_eq(editor["position"], Vector2(12.0, 24.0), "目录应包含编辑器位置。")
-	assert_true(bool(editor["collapsed"]), "目录应包含折叠状态。")
+	assert_true(GFVariantData.get_option_bool(report, "ok"), "有效流程图编辑器报告应通过。")
+	assert_eq(GFVariantData.get_option_string(first_node, "display_name"), "Start", "目录应包含显示名。")
+	assert_eq(GFVariantData.get_option_string(first_node, "category"), "Core", "目录应包含分类。")
+	assert_eq(GFVariantData.get_option_vector2(editor, "position"), Vector2(12.0, 24.0), "目录应包含编辑器位置。")
+	assert_true(GFVariantData.get_option_bool(editor, "collapsed"), "目录应包含折叠状态。")
 
 
 ## 验证 FlowGraph 编辑器视图模型包含端口索引、布局和连接信息。
 func test_flow_graph_editor_model_builds_graph_edit_ready_data() -> void:
-	var graph := GFFlowGraphBase.new()
-	var start := GFFlowNodeBase.new()
+	var graph: GFFlowGraph = GFFlowGraph.new()
+	var start: GFFlowNode = GFFlowNode.new()
 	start.node_id = &"start"
 	start.display_name = "Start"
 	start.output_ports = [_make_port(&"done", GFFlowPort.Direction.OUTPUT)]
 	start.editor_position = Vector2(10.0, 20.0)
-	var end := GFFlowNodeBase.new()
+	var end: GFFlowNode = GFFlowNode.new()
 	end.node_id = &"end"
 	end.input_ports = [_make_port(&"enter", GFFlowPort.Direction.INPUT)]
 	graph.nodes = [start, end]
-	graph.add_connection(&"start", &"done", &"end", &"enter")
-	var editor_model: GFFlowGraphEditorModelBase = GFFlowGraphEditorModelBase.new()
+	var _add_connection_result_410: Variant = graph.add_connection(&"start", &"done", &"end", &"enter")
+	var editor_model: GFFlowGraphEditorModel = GFFlowGraphEditorModel.new()
 
-	var view_model := editor_model.build_view_model(graph)
-	var nodes := view_model["nodes"] as Array
-	var connections := view_model["connections"] as Array
+	var view_model: Dictionary = editor_model.build_view_model(graph)
+	var nodes: Array = GFVariantData.get_option_array(view_model, "nodes")
+	var connections: Array = GFVariantData.get_option_array(view_model, "connections")
+	var first_node: Dictionary = GFVariantData.as_dictionary(nodes[0])
+	var first_connection: Dictionary = GFVariantData.as_dictionary(connections[0])
+	var output_port_indices: Dictionary = GFVariantData.get_option_dictionary(first_node, "output_port_indices")
+	var output_ports: Array = GFVariantData.get_option_array(first_node, "output_ports")
+	var first_output_port: Dictionary = GFVariantData.as_dictionary(output_ports[0])
 
-	assert_true(bool(view_model["ok"]), "有效流程图应生成 ok 视图模型。")
-	assert_eq(nodes[0]["position"], Vector2(10.0, 20.0), "节点布局应进入视图模型。")
-	assert_eq(((nodes[0] as Dictionary)["output_port_indices"] as Dictionary)[&"done"], 0, "输出端口应有稳定索引。")
-	assert_eq(connections[0]["from_port_index"], 0, "连接应包含 GraphEdit 可用的输出端口索引。")
-	assert_eq(connections[0]["to_port_index"], 0, "连接应包含 GraphEdit 可用的输入端口索引。")
-	assert_eq(nodes[0]["execution_slot_index"], 0, "GraphEdit 视图模型应保留执行连接 slot。")
-	assert_eq(((nodes[0] as Dictionary)["output_ports"] as Array)[0]["graph_slot_index"], 1, "数据端口应避开执行连接 slot。")
-	assert_eq(connections[0]["from_graph_slot_index"], 1, "连接应包含 GraphEdit 输出 slot。")
-	assert_eq(connections[0]["to_graph_slot_index"], 1, "连接应包含 GraphEdit 输入 slot。")
+	assert_true(GFVariantData.get_option_bool(view_model, "ok"), "有效流程图应生成 ok 视图模型。")
+	assert_eq(GFVariantData.get_option_vector2(first_node, "position"), Vector2(10.0, 20.0), "节点布局应进入视图模型。")
+	assert_eq(GFVariantData.get_option_int(output_port_indices, &"done"), 0, "输出端口应有稳定索引。")
+	assert_eq(GFVariantData.get_option_int(first_connection, "from_port_index"), 0, "连接应包含 GraphEdit 可用的输出端口索引。")
+	assert_eq(GFVariantData.get_option_int(first_connection, "to_port_index"), 0, "连接应包含 GraphEdit 可用的输入端口索引。")
+	assert_eq(GFVariantData.get_option_int(first_node, "execution_slot_index"), 0, "GraphEdit 视图模型应保留执行连接 slot。")
+	assert_eq(GFVariantData.get_option_int(first_output_port, "graph_slot_index"), 1, "数据端口应避开执行连接 slot。")
+	assert_eq(GFVariantData.get_option_int(first_connection, "from_graph_slot_index"), 1, "连接应包含 GraphEdit 输出 slot。")
+	assert_eq(GFVariantData.get_option_int(first_connection, "to_graph_slot_index"), 1, "连接应包含 GraphEdit 输入 slot。")
 
 
 ## 验证 FlowGraph 编辑器视图模型只读取导出属性，不调用项目节点或端口方法。
 func test_flow_graph_editor_model_reads_exports_without_calling_node_or_port_methods() -> void:
-	var graph := GFFlowGraphBase.new()
-	var start := MethodTrapFlowNode.new()
+	var graph: GFFlowGraph = GFFlowGraph.new()
+	var start: MethodTrapFlowNode = MethodTrapFlowNode.new()
 	start.node_id = &"start"
 	start.display_name = "Start Export"
-	var output_port := MethodTrapFlowPort.new()
+	var output_port: MethodTrapFlowPort = MethodTrapFlowPort.new()
 	output_port.port_id = &"done"
 	output_port.display_name = "Done Export"
 	output_port.direction = GFFlowPort.Direction.OUTPUT
 	output_port.value_type = GFFlowPort.ValueType.BOOL
 	start.output_ports = [output_port]
-	var end := MethodTrapFlowNode.new()
+	var end: MethodTrapFlowNode = MethodTrapFlowNode.new()
 	end.node_id = &"end"
 	end.display_name = "End Export"
-	var input_port := MethodTrapFlowPort.new()
+	var input_port: MethodTrapFlowPort = MethodTrapFlowPort.new()
 	input_port.port_id = &"enter"
 	input_port.display_name = "Enter Export"
 	input_port.direction = GFFlowPort.Direction.INPUT
@@ -450,15 +454,19 @@ func test_flow_graph_editor_model_reads_exports_without_calling_node_or_port_met
 	graph.nodes = [start, end]
 
 	assert_true(graph.add_connection(&"start", &"done", &"end", &"enter"), "结构化属性应足以添加有效端口连接。")
-	var editor_model: GFFlowGraphEditorModelBase = GFFlowGraphEditorModelBase.new()
-	var view_model := editor_model.build_view_model(graph)
-	var nodes := view_model["nodes"] as Array
-	var connections := view_model["connections"] as Array
+	var editor_model: GFFlowGraphEditorModel = GFFlowGraphEditorModel.new()
+	var view_model: Dictionary = editor_model.build_view_model(graph)
+	var nodes: Array = GFVariantData.get_option_array(view_model, "nodes")
+	var connections: Array = GFVariantData.get_option_array(view_model, "connections")
+	var first_node: Dictionary = GFVariantData.as_dictionary(nodes[0])
+	var output_ports: Array = GFVariantData.get_option_array(first_node, "output_ports")
+	var first_output_port: Dictionary = GFVariantData.as_dictionary(output_ports[0])
+	var first_connection: Dictionary = GFVariantData.as_dictionary(connections[0])
 
-	assert_true(bool(view_model["ok"]), "导出属性完整时编辑器视图模型应通过校验。")
-	assert_eq(nodes[0]["display_name"], "Start Export", "节点显示名应来自导出属性。")
-	assert_eq(((nodes[0] as Dictionary)["output_ports"] as Array)[0]["display_name"], "Done Export", "端口显示名应来自导出属性。")
-	assert_eq(connections[0]["from_port_index"], 0, "连接应能通过导出端口定位。")
+	assert_true(GFVariantData.get_option_bool(view_model, "ok"), "导出属性完整时编辑器视图模型应通过校验。")
+	assert_eq(GFVariantData.get_option_string(first_node, "display_name"), "Start Export", "节点显示名应来自导出属性。")
+	assert_eq(GFVariantData.get_option_string(first_output_port, "display_name"), "Done Export", "端口显示名应来自导出属性。")
+	assert_eq(GFVariantData.get_option_int(first_connection, "from_port_index"), 0, "连接应能通过导出端口定位。")
 	assert_false(start.any_method_called(), "编辑器模型不应调用自定义节点方法。")
 	assert_false(end.any_method_called(), "编辑器模型不应调用自定义节点方法。")
 	assert_false(output_port.any_method_called(), "编辑器模型不应调用自定义端口方法。")
@@ -467,18 +475,18 @@ func test_flow_graph_editor_model_reads_exports_without_calling_node_or_port_met
 
 ## 验证 FlowGraph 结构报告也只读取导出属性。
 func test_flow_graph_structural_reports_read_exports_without_calling_methods() -> void:
-	var graph := GFFlowGraphBase.new()
-	var start := MethodTrapFlowNode.new()
+	var graph: GFFlowGraph = GFFlowGraph.new()
+	var start: MethodTrapFlowNode = MethodTrapFlowNode.new()
 	start.node_id = &"start"
 	start.display_name = "Start Export"
-	var output_port := MethodTrapFlowPort.new()
+	var output_port: MethodTrapFlowPort = MethodTrapFlowPort.new()
 	output_port.port_id = &"done"
 	output_port.direction = GFFlowPort.Direction.OUTPUT
 	output_port.value_type = GFFlowPort.ValueType.STRING
 	start.output_ports = [output_port]
-	var end := MethodTrapFlowNode.new()
+	var end: MethodTrapFlowNode = MethodTrapFlowNode.new()
 	end.node_id = &"end"
-	var input_port := MethodTrapFlowPort.new()
+	var input_port: MethodTrapFlowPort = MethodTrapFlowPort.new()
 	input_port.port_id = &"enter"
 	input_port.direction = GFFlowPort.Direction.INPUT
 	input_port.value_type = GFFlowPort.ValueType.STRING
@@ -494,14 +502,19 @@ func test_flow_graph_structural_reports_read_exports_without_calling_methods() -
 		},
 	]
 
-	var report := graph.build_editor_report()
-	var description := graph.describe_graph()
-	var compatibility := graph.check_connection_compatibility(&"start", &"done", &"end", &"enter")
+	var report: Dictionary = graph.build_editor_report()
+	var description: Dictionary = graph.describe_graph()
+	var compatibility: Dictionary = graph.check_connection_compatibility(&"start", &"done", &"end", &"enter")
+	var catalog: Dictionary = GFVariantData.get_option_dictionary(report, "catalog")
+	var catalog_nodes: Array = GFVariantData.get_option_array(catalog, "nodes")
+	var report_node: Dictionary = GFVariantData.as_dictionary(catalog_nodes[0])
+	var description_nodes: Array = GFVariantData.get_option_array(description, "nodes")
+	var description_node: Dictionary = GFVariantData.as_dictionary(description_nodes[0])
 
-	assert_true(bool(report["ok"]), "结构报告应通过导出属性完成校验。")
-	assert_eq(((report["catalog"] as Dictionary)["nodes"] as Array)[0]["display_name"], "Start Export", "目录应读取导出显示名。")
-	assert_eq(((description["nodes"] as Array)[0] as Dictionary)["display_name"], "Start Export", "图描述应读取导出显示名。")
-	assert_true(bool(compatibility["ok"]), "兼容性检查应读取导出端口属性。")
+	assert_true(GFVariantData.get_option_bool(report, "ok"), "结构报告应通过导出属性完成校验。")
+	assert_eq(GFVariantData.get_option_string(report_node, "display_name"), "Start Export", "目录应读取导出显示名。")
+	assert_eq(GFVariantData.get_option_string(description_node, "display_name"), "Start Export", "图描述应读取导出显示名。")
+	assert_true(GFVariantData.get_option_bool(compatibility, "ok"), "兼容性检查应读取导出端口属性。")
 	assert_false(start.any_method_called(), "结构报告不应调用自定义节点方法。")
 	assert_false(end.any_method_called(), "结构报告不应调用自定义节点方法。")
 	assert_false(output_port.any_method_called(), "结构报告不应调用自定义端口方法。")
@@ -510,41 +523,41 @@ func test_flow_graph_structural_reports_read_exports_without_calling_methods() -
 
 ## 验证 FlowGraph 编辑器模型可应用通用自动布局。
 func test_flow_graph_editor_model_applies_auto_layout() -> void:
-	var graph := GFFlowGraphBase.new()
-	var start := GFFlowNodeBase.new()
+	var graph: GFFlowGraph = GFFlowGraph.new()
+	var start: GFFlowNode = GFFlowNode.new()
 	start.node_id = &"start"
-	var end := GFFlowNodeBase.new()
+	var end: GFFlowNode = GFFlowNode.new()
 	end.node_id = &"end"
 	graph.nodes = [start, end]
-	graph.add_connection(&"start", &"", &"end", &"")
-	var editor_model: GFFlowGraphEditorModelBase = GFFlowGraphEditorModelBase.new()
+	var _add_connection_result_532: Variant = graph.add_connection(&"start", &"", &"end", &"")
+	var editor_model: GFFlowGraphEditorModel = GFFlowGraphEditorModel.new()
 
-	var report := editor_model.auto_layout(graph, { "x_spacing": 120.0 })
+	var report: Dictionary = editor_model.auto_layout(graph, { "x_spacing": 120.0 })
 
-	assert_true(bool(report["ok"]), "自动布局应返回成功报告。")
+	assert_true(GFVariantData.get_option_bool(report, "ok"), "自动布局应返回成功报告。")
 	assert_eq(start.editor_position, Vector2.ZERO, "起点应在第一层。")
 	assert_eq(end.editor_position, Vector2(120.0, 0.0), "目标节点应进入下一层。")
-	assert_eq(int(report["changed_count"]), 2, "两个节点都应被写入布局。")
+	assert_eq(GFVariantData.get_option_int(report, "changed_count"), 2, "两个节点都应被写入布局。")
 
 
 ## 验证 Flow 工具面板复用编辑器模型展示结构报告。
 func test_flow_graph_dock_builds_view_model_for_loaded_graph() -> void:
-	var graph := GFFlowGraphBase.new()
-	var start := GFFlowNodeBase.new()
+	var graph: GFFlowGraph = GFFlowGraph.new()
+	var start: GFFlowNode = GFFlowNode.new()
 	start.node_id = &"start"
 	graph.nodes = [start]
-	var dock: GFFlowGraphDock = GFFlowGraphDockBase.new()
+	var dock: GFFlowGraphDock = GFFlowGraphDock.new()
 
 	dock.set_graph(graph)
-	var view_model := dock.get_last_view_model()
+	var view_model: Dictionary = dock.get_last_view_model()
 
-	assert_eq(int(view_model.get("node_count", 0)), 1, "Flow 工具面板应构建节点视图模型。")
-	assert_true((view_model.get("nodes", []) as Array).size() == 1, "Flow 工具面板应保留节点条目。")
+	assert_eq(GFVariantData.get_option_int(view_model, "node_count"), 1, "Flow 工具面板应构建节点视图模型。")
+	assert_true(GFVariantData.get_option_array(view_model, "nodes").size() == 1, "Flow 工具面板应保留节点条目。")
 	dock.free()
 
 
 func test_flow_graph_dock_starts_with_compact_empty_state() -> void:
-	var dock: GFFlowGraphDock = GFFlowGraphDockBase.new()
+	var dock: GFFlowGraphDock = GFFlowGraphDock.new()
 
 	assert_false(dock._content_split.visible, "未加载 FlowGraph 时不应显示空画布和侧栏。")
 	assert_true(dock._empty_label.visible, "未加载 FlowGraph 时应显示明确空状态。")
@@ -553,13 +566,13 @@ func test_flow_graph_dock_starts_with_compact_empty_state() -> void:
 
 
 func test_flow_graph_dock_renders_graph_edit_nodes() -> void:
-	var graph := GFFlowGraphBase.new()
-	var start := GFFlowNodeBase.new()
+	var graph: GFFlowGraph = GFFlowGraph.new()
+	var start: GFFlowNode = GFFlowNode.new()
 	start.node_id = &"start"
-	var end := GFFlowNodeBase.new()
+	var end: GFFlowNode = GFFlowNode.new()
 	end.node_id = &"end"
 	graph.nodes = [start, end]
-	var dock: GFFlowGraphDock = GFFlowGraphDockBase.new()
+	var dock: GFFlowGraphDock = GFFlowGraphDock.new()
 
 	dock.set_graph(graph)
 
@@ -571,16 +584,16 @@ func test_flow_graph_dock_renders_graph_edit_nodes() -> void:
 
 
 func test_flow_graph_dock_connection_request_updates_graph() -> void:
-	var graph := GFFlowGraphBase.new()
-	var start := GFFlowNodeBase.new()
+	var graph: GFFlowGraph = GFFlowGraph.new()
+	var start: GFFlowNode = GFFlowNode.new()
 	start.node_id = &"start"
-	var end := GFFlowNodeBase.new()
+	var end: GFFlowNode = GFFlowNode.new()
 	end.node_id = &"end"
 	graph.nodes = [start, end]
-	var dock: GFFlowGraphDock = GFFlowGraphDockBase.new()
+	var dock: GFFlowGraphDock = GFFlowGraphDock.new()
 	dock.set_graph(graph)
-	var start_control := dock._node_controls_by_id[&"start"] as GraphNode
-	var end_control := dock._node_controls_by_id[&"end"] as GraphNode
+	var start_control: GraphNode = _graph_node_control(dock, &"start")
+	var end_control: GraphNode = _graph_node_control(dock, &"end")
 
 	dock._on_connection_request(StringName(start_control.name), 0, StringName(end_control.name), 0)
 
@@ -589,13 +602,13 @@ func test_flow_graph_dock_connection_request_updates_graph() -> void:
 
 
 func test_flow_graph_dock_canvas_move_updates_node_position() -> void:
-	var graph := GFFlowGraphBase.new()
-	var start := GFFlowNodeBase.new()
+	var graph: GFFlowGraph = GFFlowGraph.new()
+	var start: GFFlowNode = GFFlowNode.new()
 	start.node_id = &"start"
 	graph.nodes = [start]
-	var dock: GFFlowGraphDock = GFFlowGraphDockBase.new()
+	var dock: GFFlowGraphDock = GFFlowGraphDock.new()
 	dock.set_graph(graph)
-	var start_control := dock._node_controls_by_id[&"start"] as GraphNode
+	var start_control: GraphNode = _graph_node_control(dock, &"start")
 	start_control.position_offset = Vector2(42.0, 64.0)
 
 	dock._on_end_node_move()
@@ -606,63 +619,64 @@ func test_flow_graph_dock_canvas_move_updates_node_position() -> void:
 
 ## 验证流程上下文可注册通用条件查询处理器。
 func test_flow_context_queries_condition_handlers() -> void:
-	var context := GFFlowContextBase.new()
+	var context: GFFlowContext = GFFlowContext.new()
 	assert_true(context.register_condition_handler(&"ready", func(condition_id: StringName, payload: Variant, flow_context: GFFlowContext) -> Dictionary:
 		return {
 			"ok": true,
-			"value": String(payload) == "go" and flow_context == context,
+			"value": GFVariantData.to_text(payload) == "go" and flow_context == context,
 			"metadata": { "condition_id": condition_id },
 		}
 	), "有效条件处理器应注册成功。")
 
-	var result := context.query_condition(&"ready", "go")
-	var missing := context.query_condition(&"missing")
+	var result: Dictionary = context.query_condition(&"ready", "go")
+	var missing: Dictionary = context.query_condition(&"missing")
+	var result_metadata: Dictionary = GFVariantData.get_option_dictionary(result, "metadata")
 
-	assert_true(bool(result["ok"]), "有效条件查询应成功。")
-	assert_true(bool(result["value"]), "条件处理器应返回归一化 value。")
-	assert_eq((result["metadata"] as Dictionary).get("condition_id"), &"ready", "条件查询应保留元数据。")
-	assert_false(bool(missing["ok"]), "缺失处理器应返回失败结果。")
-	assert_eq(missing["reason"], "missing_condition_handler", "缺失处理器应有稳定 reason。")
+	assert_true(GFVariantData.get_option_bool(result, "ok"), "有效条件查询应成功。")
+	assert_true(GFVariantData.get_option_bool(result, "value"), "条件处理器应返回归一化 value。")
+	assert_eq(GFVariantData.get_option_string_name(result_metadata, "condition_id"), &"ready", "条件查询应保留元数据。")
+	assert_false(GFVariantData.get_option_bool(missing, "ok"), "缺失处理器应返回失败结果。")
+	assert_eq(GFVariantData.get_option_string(missing, "reason"), "missing_condition_handler", "缺失处理器应有稳定 reason。")
 
 
 ## 验证流程图可保存、恢复和清空节点运行态。
 func test_flow_graph_serializes_runtime_state() -> void:
-	var graph := GFFlowGraphBase.new()
-	var node := GFFlowNodeBase.new()
+	var graph: GFFlowGraph = GFFlowGraph.new()
+	var node: GFFlowNode = GFFlowNode.new()
 	node.node_id = &"node"
 	node.set_runtime_value(&"cursor", 3)
 	graph.nodes = [node]
 
-	var snapshot := graph.serialize_runtime_state()
+	var snapshot: Dictionary = graph.serialize_runtime_state()
 	graph.clear_runtime_state()
-	assert_eq(node.get_runtime_value(&"cursor", 0), 0, "清空运行态后应回到默认值。")
+	assert_eq(GFVariantData.to_int(node.get_runtime_value(&"cursor", 0)), 0, "清空运行态后应回到默认值。")
 
 	graph.deserialize_runtime_state(snapshot)
-	assert_eq(node.get_runtime_value(&"cursor", 0), 3, "反序列化应恢复节点运行态。")
+	assert_eq(GFVariantData.to_int(node.get_runtime_value(&"cursor", 0)), 3, "反序列化应恢复节点运行态。")
 
-	var runtime_graph := graph.instantiate_graph()
-	var runtime_node := runtime_graph.get_node(&"node")
-	assert_eq(runtime_node.get_runtime_value(&"cursor", 0), 0, "实例化运行副本默认应清理运行态。")
+	var runtime_graph: GFFlowGraph = graph.instantiate_graph()
+	var runtime_node: GFFlowNode = runtime_graph.get_node(&"node")
+	assert_eq(GFVariantData.to_int(runtime_node.get_runtime_value(&"cursor", 0)), 0, "实例化运行副本默认应清理运行态。")
 
 
 func test_flow_runner_isolates_node_runtime_state_into_context() -> void:
-	var graph := GFFlowGraphBase.new()
-	var node := RuntimeStateFlowNode.new()
+	var graph: GFFlowGraph = GFFlowGraph.new()
+	var node: RuntimeStateFlowNode = RuntimeStateFlowNode.new()
 	node.set_runtime_value(&"count", 7)
 	graph.start_node_id = &"runtime"
 	graph.nodes = [node]
-	var context := GFFlowContextBase.new()
-	var runner := GFFlowRunnerBase.new()
+	var context: GFFlowContext = GFFlowContext.new()
+	var runner: GFFlowRunner = GFFlowRunner.new()
 
-	runner.run(graph, context)
+	await runner.run(graph, context)
 
-	assert_eq(node.get_runtime_value(&"count", 0), 7, "Runner 默认不应把本次运行态写回共享图资源。")
-	assert_eq(context.get_node_runtime_value(&"runtime", &"count", 0), 1, "本次运行态应沉淀到 FlowContext。")
+	assert_eq(GFVariantData.to_int(node.get_runtime_value(&"count", 0)), 7, "Runner 默认不应把本次运行态写回共享图资源。")
+	assert_eq(GFVariantData.to_int(context.get_node_runtime_value(&"runtime", &"count", 0)), 1, "本次运行态应沉淀到 FlowContext。")
 
 
 ## 验证流程图可用轻量 Schema 校验编辑器元数据。
 func test_flow_graph_validates_metadata_schema() -> void:
-	var graph := GFFlowGraphBase.new()
+	var graph: GFFlowGraph = GFFlowGraph.new()
 	graph.editor_metadata = {
 		"label": "Intro",
 	}
@@ -677,65 +691,65 @@ func test_flow_graph_validates_metadata_schema() -> void:
 		},
 	}
 
-	var report := graph.validate_graph_metadata()
+	var report: Dictionary = graph.validate_graph_metadata()
 
-	assert_false(bool(report["ok"]), "缺失必填元数据时应校验失败。")
+	assert_false(GFVariantData.get_option_bool(report, "ok"), "缺失必填元数据时应校验失败。")
 	assert_true(_has_issue(report, "metadata_missing_required"), "元数据校验应报告缺失必填字段。")
 
 
 ## 验证编辑器模型可构建选择包并粘贴为新节点。
 func test_flow_graph_editor_model_builds_and_pastes_selection_package() -> void:
-	var graph := GFFlowGraphBase.new()
-	var start := GFFlowNodeBase.new()
+	var graph: GFFlowGraph = GFFlowGraph.new()
+	var start: GFFlowNode = GFFlowNode.new()
 	start.node_id = &"start"
 	start.next_node_ids = PackedStringArray(["end"])
 	start.editor_position = Vector2(4.0, 8.0)
-	var end := GFFlowNodeBase.new()
+	var end: GFFlowNode = GFFlowNode.new()
 	end.node_id = &"end"
 	graph.nodes = [start, end]
-	graph.add_connection(&"start", &"", &"end", &"")
-	var editor_model: GFFlowGraphEditorModelBase = GFFlowGraphEditorModelBase.new()
+	var _add_connection_result_710: Variant = graph.add_connection(&"start", &"", &"end", &"")
+	var editor_model: GFFlowGraphEditorModel = GFFlowGraphEditorModel.new()
 
-	var selection := editor_model.build_selection_package(graph, PackedStringArray(["start", "end"]))
-	var paste_report := editor_model.paste_selection_package(graph, selection, Vector2(10.0, 0.0))
-	var pasted_start := graph.get_node(&"start_2")
-	var pasted_end := graph.get_node(&"end_2")
+	var selection: Dictionary = editor_model.build_selection_package(graph, PackedStringArray(["start", "end"]))
+	var paste_report: Dictionary = editor_model.paste_selection_package(graph, selection, Vector2(10.0, 0.0))
+	var pasted_start: GFFlowNode = graph.get_node(&"start_2")
+	var pasted_end: GFFlowNode = graph.get_node(&"end_2")
 
-	assert_true(bool(selection["ok"]), "选择包应构建成功。")
-	assert_eq(int(selection["connection_count"]), 1, "选择包应包含内部连接。")
-	assert_true(bool(paste_report["ok"]), "选择包应能粘贴。")
+	assert_true(GFVariantData.get_option_bool(selection, "ok"), "选择包应构建成功。")
+	assert_eq(GFVariantData.get_option_int(selection, "connection_count"), 1, "选择包应包含内部连接。")
+	assert_true(GFVariantData.get_option_bool(paste_report, "ok"), "选择包应能粘贴。")
 	assert_not_null(pasted_start, "粘贴应生成唯一节点 ID。")
 	assert_not_null(pasted_end, "粘贴应生成目标节点。")
 	assert_eq(pasted_start.editor_position, Vector2(14.0, 8.0), "粘贴应应用位置偏移。")
 	assert_true(pasted_start.next_node_ids.has("end_2"), "粘贴应重映射内部后继节点。")
 	assert_true(graph.has_connection(&"start_2", &"", &"end_2", &""), "粘贴应重映射内部连接。")
 
-	var remove_report := editor_model.remove_nodes(graph, PackedStringArray(["start_2", "end_2"]))
-	assert_eq(int(remove_report["removed_node_count"]), 2, "批量删除应移除粘贴节点。")
+	var remove_report: Dictionary = editor_model.remove_nodes(graph, PackedStringArray(["start_2", "end_2"]))
+	assert_eq(GFVariantData.get_option_int(remove_report, "removed_node_count"), 2, "批量删除应移除粘贴节点。")
 	assert_false(graph.has_connection(&"start_2", &"", &"end_2", &""), "批量删除应移除相关连接。")
 
 
 ## 验证流程图校验会报告缺失后继节点。
 func test_flow_graph_validate_reports_missing_next_node() -> void:
 	var order: Array[String] = []
-	var graph := GFFlowGraphBase.new()
+	var graph: GFFlowGraph = GFFlowGraph.new()
 	graph.start_node_id = &"start"
 	graph.nodes = [
 		RecordingFlowNode.new(&"start", order, PackedStringArray(["missing"])),
 	]
 
-	var report := graph.validate_graph()
+	var report: Dictionary = graph.validate_graph()
 
-	assert_false(bool(report["ok"]), "缺失后继节点应使校验失败。")
-	assert_gt(int(report["error_count"]), 0, "校验报告应统计错误数量。")
-	assert_false(String(report["next_action"]).is_empty(), "校验报告应包含下一步建议。")
+	assert_false(GFVariantData.get_option_bool(report, "ok"), "缺失后继节点应使校验失败。")
+	assert_gt(GFVariantData.get_option_int(report, "error_count"), 0, "校验报告应统计错误数量。")
+	assert_false(GFVariantData.get_option_string(report, "next_action").is_empty(), "校验报告应包含下一步建议。")
 	assert_true(_has_issue(report, "missing_next_node"), "校验报告应包含 missing_next_node。")
 
 
 ## 验证流程图校验会提示不可达节点。
 func test_flow_graph_validate_warns_unreachable_nodes() -> void:
 	var order: Array[String] = []
-	var graph := GFFlowGraphBase.new()
+	var graph: GFFlowGraph = GFFlowGraph.new()
 	graph.start_node_id = &"start"
 	graph.nodes = [
 		RecordingFlowNode.new(&"start", order, PackedStringArray(["middle"])),
@@ -743,52 +757,52 @@ func test_flow_graph_validate_warns_unreachable_nodes() -> void:
 		RecordingFlowNode.new(&"orphan", order),
 	]
 
-	var report := graph.validate_graph()
+	var report: Dictionary = graph.validate_graph()
 
-	assert_true(bool(report["ok"]), "不可达节点只应作为结构警告，不应阻止图通过基础校验。")
-	assert_false(bool(report["healthy"]), "存在警告时 healthy 应为 false。")
+	assert_true(GFVariantData.get_option_bool(report, "ok"), "不可达节点只应作为结构警告，不应阻止图通过基础校验。")
+	assert_false(GFVariantData.get_option_bool(report, "healthy"), "存在警告时 healthy 应为 false。")
 	assert_true(_has_issue(report, "unreachable_node"), "校验报告应包含 unreachable_node。")
 
 
 ## 验证流程图校验会提示循环结构。
 func test_flow_graph_validate_warns_cycles() -> void:
 	var order: Array[String] = []
-	var graph := GFFlowGraphBase.new()
+	var graph: GFFlowGraph = GFFlowGraph.new()
 	graph.start_node_id = &"start"
 	graph.nodes = [
 		RecordingFlowNode.new(&"start", order, PackedStringArray(["middle"])),
 		RecordingFlowNode.new(&"middle", order, PackedStringArray(["start"])),
 	]
 
-	var report := graph.validate_graph()
+	var report: Dictionary = graph.validate_graph()
 
-	assert_true(bool(report["ok"]), "循环只应作为结构警告，运行时仍由 loop guard 保护。")
+	assert_true(GFVariantData.get_option_bool(report, "ok"), "循环只应作为结构警告，运行时仍由 loop guard 保护。")
 	assert_true(_has_issue(report, "cycle_detected"), "校验报告应包含 cycle_detected。")
 
 
 ## 验证项目可显式开启终端节点提示。
 func test_flow_graph_validate_can_warn_terminal_nodes() -> void:
 	var order: Array[String] = []
-	var graph := GFFlowGraphBase.new()
+	var graph: GFFlowGraph = GFFlowGraph.new()
 	graph.start_node_id = &"start"
 	graph.warn_terminal_nodes = true
 	graph.nodes = [
 		RecordingFlowNode.new(&"start", order),
 	]
 
-	var report := graph.validate_graph()
+	var report: Dictionary = graph.validate_graph()
 
-	assert_true(bool(report["ok"]), "终端节点提示不应阻止基础校验通过。")
+	assert_true(GFVariantData.get_option_bool(report, "ok"), "终端节点提示不应阻止基础校验通过。")
 	assert_true(_has_issue(report, "terminal_node"), "校验报告应包含 terminal_node。")
 
 
 ## 验证 Flow Signal 超时可以跟随 GFTimeUtility 的暂停与 time_scale。
 func test_flow_runner_signal_timeout_respects_time_utility() -> void:
-	var arch := GFArchitecture.new()
-	var time_utility := GFTimeUtility.new()
+	var arch: GFArchitecture = GFArchitecture.new()
+	var time_utility: GFTimeUtility = GFTimeUtility.new()
 	await arch.register_utility_instance(time_utility)
 	await arch.init()
-	var runner := GFFlowRunnerBase.new()
+	var runner: GFFlowRunner = GFFlowRunner.new()
 	runner.inject_dependencies(arch)
 
 	time_utility.time_scale = 0.5
@@ -817,7 +831,7 @@ func test_flow_runner_signal_timeout_respects_time_utility() -> void:
 		"GFTimeUtility 暂停时超时不应推进。"
 	)
 
-	runner.with_signal_timeout(1.0, false)
+	var _with_signal_timeout_result_834: Variant = runner.with_signal_timeout(1.0, false)
 	assert_almost_eq(
 		GFAsyncWaitSupportBase.get_timeout_elapsed_msec(
 			3000,
@@ -836,15 +850,32 @@ func test_flow_runner_signal_timeout_respects_time_utility() -> void:
 # --- 私有/辅助方法 ---
 
 func _has_issue(report: Dictionary, kind: String) -> bool:
-	for issue_variant: Variant in report.get("issues", []):
-		var issue := issue_variant as Dictionary
-		if issue != null and String(issue.get("kind", "")) == kind:
+	for issue_variant: Variant in GFVariantData.get_option_array(report, "issues"):
+		if not issue_variant is Dictionary:
+			continue
+		var issue: Dictionary = issue_variant
+		if GFVariantData.get_option_string(issue, "kind") == kind:
 			return true
 	return false
 
 
-func _make_port(port_id: StringName, direction: GFFlowPort.Direction) -> GFFlowPortBase:
-	var port := GFFlowPortBase.new()
+func _color_value(source: Dictionary, key: Variant) -> Color:
+	var value: Variant = GFVariantData.get_option_value(source, key)
+	if value is Color:
+		var color: Color = value
+		return color
+	return Color.TRANSPARENT
+
+
+func _graph_node_control(dock: GFFlowGraphDock, node_id: StringName) -> GraphNode:
+	var control_value: Variant = GFVariantData.get_option_value(dock._node_controls_by_id, node_id)
+	if control_value is GraphNode:
+		return control_value
+	return null
+
+
+func _make_port(port_id: StringName, direction: GFFlowPort.Direction) -> GFFlowPort:
+	var port: GFFlowPort = GFFlowPort.new()
 	port.port_id = port_id
 	port.direction = direction
 	return port
@@ -854,7 +885,7 @@ func _make_typed_port(
 	port_id: StringName,
 	direction: GFFlowPort.Direction,
 	value_type: GFFlowPort.ValueType
-) -> GFFlowPortBase:
-	var port := _make_port(port_id, direction)
+) -> GFFlowPort:
+	var port: GFFlowPort = _make_port(port_id, direction)
 	port.value_type = value_type
 	return port

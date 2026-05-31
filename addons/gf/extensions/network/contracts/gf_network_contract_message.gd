@@ -14,7 +14,7 @@ extends Resource
 
 # --- 常量 ---
 
-const _GF_VALIDATION_REPORT_DICTIONARY := preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
+const _GF_VALIDATION_REPORT_DICTIONARY = preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
 
 
 # --- 导出变量 ---
@@ -103,13 +103,13 @@ func get_field(target_field_name: StringName) -> GFNetworkContractField:
 ## [br]
 ## @schema return: Dictionary[StringName, Variant]，按字段契约归一化后的 payload。
 func build_payload(values: Dictionary = {}, options: Dictionary = {}) -> Dictionary:
-	var include_defaults := bool(options.get("include_defaults", true))
+	var include_defaults: bool = GFVariantData.get_option_bool(options, "include_defaults", true)
 	var payload: Dictionary = {}
 	for field: GFNetworkContractField in fields:
 		if field == null or field.get_field_name() == &"":
 			continue
 
-		var field_name := field.get_field_name()
+		var field_name: StringName = field.get_field_name()
 		if _has_payload_key(values, field_name):
 			payload[field_name] = field.normalize_value(_get_payload_value(values, field_name, null))
 		elif include_defaults and field.default_value != null:
@@ -131,15 +131,15 @@ func build_payload(values: Dictionary = {}, options: Dictionary = {}) -> Diction
 ## [br]
 ## @schema options: Dictionary，支持 include_defaults、sequence、tick、sender_id、channel_id。
 func make_message(values: Dictionary = {}, options: Dictionary = {}) -> GFNetworkMessage:
-	var resolved_channel_id := channel_id
+	var resolved_channel_id: StringName = channel_id
 	if options.has("channel_id"):
-		resolved_channel_id = StringName(options.get("channel_id", &""))
+		resolved_channel_id = GFVariantData.get_option_string_name(options, "channel_id")
 	return GFNetworkMessage.new(
 		message_type,
 		build_payload(values, options),
-		int(options.get("sequence", 0)),
-		int(options.get("tick", 0)),
-		int(options.get("sender_id", -1)),
+		GFVariantData.get_option_int(options, "sequence"),
+		GFVariantData.get_option_int(options, "tick"),
+		GFVariantData.get_option_int(options, "sender_id", -1),
 		resolved_channel_id
 	)
 
@@ -158,14 +158,14 @@ func validate_definition() -> Dictionary:
 
 	var seen_fields: Dictionary = {}
 	for index: int in range(fields.size()):
-		var field := fields[index]
+		var field: GFNetworkContractField = fields[index]
 		if field == null:
 			issues.append(_make_issue("warning", "null_field", "Network contract message contains a null field.", str(index)))
 			continue
 
-		var field_report := field.validate_definition()
-		issues.append_array(_with_message_context(field_report.get("issues", []) as Array))
-		var field_name := field.get_field_name()
+		var field_report: Dictionary = field.validate_definition()
+		issues.append_array(_with_message_context(GFVariantData.get_option_array(field_report, "issues")))
+		var field_name: StringName = field.get_field_name()
 		if field_name == &"":
 			continue
 		if seen_fields.has(field_name):
@@ -191,15 +191,15 @@ func validate_payload(payload: Dictionary) -> Dictionary:
 		if field == null or field.get_field_name() == &"":
 			continue
 
-		var field_name := field.get_field_name()
+		var field_name: StringName = field.get_field_name()
 		if not _has_payload_key(payload, field_name):
 			if field.required:
 				issues.append(_make_issue("error", "missing_required_field", "Network payload is missing a required field.", String(field_name)))
 			continue
 
-		var value := _get_payload_value(payload, field_name, null)
-		var field_report := field.validate_value(value)
-		issues.append_array(_with_message_context(field_report.get("issues", []) as Array))
+		var value: Variant = _get_payload_value(payload, field_name, null)
+		var field_report: Dictionary = field.validate_value(value)
+		issues.append_array(_with_message_context(GFVariantData.get_option_array(field_report, "issues")))
 	return _finalize_report(issues)
 
 
@@ -251,23 +251,23 @@ func _has_payload_key(payload: Dictionary, field_name: StringName) -> bool:
 func _get_payload_value(payload: Dictionary, field_name: StringName, default_value: Variant) -> Variant:
 	if payload.has(field_name):
 		return payload[field_name]
-	return payload.get(String(field_name), default_value)
+	return GFVariantData.get_option_value(payload, String(field_name), default_value)
 
 
 func _with_message_context(issues: Array) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for issue_variant: Variant in issues:
-		var issue := issue_variant as Dictionary
-		if issue == null:
+		var issue: Dictionary = GFVariantData.as_dictionary(issue_variant)
+		if issue.is_empty():
 			continue
-		var copy := issue.duplicate(true)
+		var copy: Dictionary = issue.duplicate(true)
 		copy["message_type"] = message_type
 		result.append(copy)
 	return result
 
 
 func _make_issue(severity: String, kind: String, message: String, field_name: String = "") -> Dictionary:
-	var issue := {
+	var issue: Dictionary = {
 		"severity": severity,
 		"kind": kind,
 		"message_type": message_type,
@@ -282,7 +282,7 @@ func _make_issue(severity: String, kind: String, message: String, field_name: St
 
 
 func _finalize_report(issues: Array[Dictionary]) -> Dictionary:
-	var report := {
+	var report: Dictionary = {
 		"subject": "Network contract message",
 		"message_type": message_type,
 		"issues": issues,

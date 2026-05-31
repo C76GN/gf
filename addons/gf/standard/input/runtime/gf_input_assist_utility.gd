@@ -63,8 +63,8 @@ func buffer_action(action_id: StringName, duration: float, player_index: int = -
 	if action_id == &"" or duration <= 0.0:
 		return
 
-	var key := _make_scoped_key(action_id, player_index)
-	var current := float(_action_buffers.get(key, 0.0))
+	var key: String = _make_scoped_key(action_id, player_index)
+	var current: float = GFVariantData.get_option_float(_action_buffers, key, 0.0)
 	_action_buffers[key] = maxf(current, duration)
 
 
@@ -78,9 +78,9 @@ func buffer_action(action_id: StringName, duration: float, player_index: int = -
 ## [br]
 ## @return 是否成功消费。
 func consume_buffered_action(action_id: StringName, player_index: int = -1) -> bool:
-	var key := _make_scoped_key(action_id, player_index)
-	if _action_buffers.has(key) and float(_action_buffers[key]) > 0.0:
-		_action_buffers.erase(key)
+	var key: String = _make_scoped_key(action_id, player_index)
+	if _action_buffers.has(key) and GFVariantData.to_float(_action_buffers[key]) > 0.0:
+		var _erase_result_83: Variant = _action_buffers.erase(key)
 		return true
 	return false
 
@@ -95,8 +95,8 @@ func consume_buffered_action(action_id: StringName, player_index: int = -1) -> b
 ## [br]
 ## @return 是否有活跃缓冲。
 func has_buffered_action(action_id: StringName, player_index: int = -1) -> bool:
-	var key := _make_scoped_key(action_id, player_index)
-	return _action_buffers.has(key) and float(_action_buffers[key]) > 0.0
+	var key: String = _make_scoped_key(action_id, player_index)
+	return _action_buffers.has(key) and GFVariantData.to_float(_action_buffers[key]) > 0.0
 
 
 ## 清除指定动作缓冲。
@@ -107,7 +107,7 @@ func has_buffered_action(action_id: StringName, player_index: int = -1) -> bool:
 ## [br]
 ## @param player_index: 玩家索引；小于 0 时使用全局缓冲。
 func clear_buffered_action(action_id: StringName, player_index: int = -1) -> void:
-	_action_buffers.erase(_make_scoped_key(action_id, player_index))
+	var _erase_result_110: Variant = _action_buffers.erase(_make_scoped_key(action_id, player_index))
 
 
 ## 开始一个通用宽容窗口。
@@ -120,9 +120,9 @@ func clear_buffered_action(action_id: StringName, player_index: int = -1) -> voi
 ## [br]
 ## @param player_index: 玩家索引；小于 0 时使用全局窗口。
 func start_grace_window(window_id: StringName, duration: float, player_index: int = -1) -> void:
-	var key := _make_scoped_key(window_id, player_index)
+	var key: String = _make_scoped_key(window_id, player_index)
 	if window_id == &"" or duration <= 0.0:
-		_grace_windows.erase(key)
+		var _erase_result_125: Variant = _grace_windows.erase(key)
 		return
 	_grace_windows[key] = duration
 
@@ -137,8 +137,8 @@ func start_grace_window(window_id: StringName, duration: float, player_index: in
 ## [br]
 ## @return 是否在窗口内。
 func is_grace_window_active(window_id: StringName, player_index: int = -1) -> bool:
-	var key := _make_scoped_key(window_id, player_index)
-	return _grace_windows.has(key) and float(_grace_windows[key]) > 0.0
+	var key: String = _make_scoped_key(window_id, player_index)
+	return _grace_windows.has(key) and GFVariantData.to_float(_grace_windows[key]) > 0.0
 
 
 ## 手动取消指定宽容窗口。
@@ -149,7 +149,7 @@ func is_grace_window_active(window_id: StringName, player_index: int = -1) -> bo
 ## [br]
 ## @param player_index: 玩家索引；小于 0 时使用全局窗口。
 func cancel_grace_window(window_id: StringName, player_index: int = -1) -> void:
-	_grace_windows.erase(_make_scoped_key(window_id, player_index))
+	var _erase_result_152: Variant = _grace_windows.erase(_make_scoped_key(window_id, player_index))
 
 
 ## 清除指定玩家的全部输入辅助状态。
@@ -193,12 +193,12 @@ func _tick_timers(timers: Dictionary, delta: float) -> void:
 	var expired: Array[String] = []
 
 	for key: String in timers:
-		timers[key] = float(timers[key]) - delta
-		if float(timers[key]) <= 0.0:
+		timers[key] = GFVariantData.to_float(timers[key]) - delta
+		if GFVariantData.to_float(timers[key]) <= 0.0:
 			expired.append(key)
 
 	for key: String in expired:
-		timers.erase(key)
+		var _erase_result_201: Variant = timers.erase(key)
 
 
 func _make_scoped_key(id: StringName, player_index: int) -> String:
@@ -218,11 +218,11 @@ func _clear_keys_with_prefix(timers: Dictionary, prefix: String) -> void:
 			keys_to_remove.append(key)
 
 	for key: String in keys_to_remove:
-		timers.erase(key)
+		var _erase_result_221: Variant = timers.erase(key)
 
 
 func _duplicate_timer_snapshot(timers: Dictionary) -> Dictionary:
 	var result: Dictionary = {}
 	for key: String in timers.keys():
-		result[key] = float(timers[key])
+		result[key] = GFVariantData.to_float(timers[key])
 	return result

@@ -124,12 +124,12 @@ var wave_curve: Curve = null
 
 自定义波形曲线。仅在 waveform 为 CURVE 时使用，曲线值 0.5 表示零偏移。
 
-#### `seed`
+#### `sample_seed`
 
 - API: `public`
 
 ```gdscript
-var seed: int = 1
+var sample_seed: int = 1
 ```
 
 确定性采样种子。
@@ -760,12 +760,12 @@ var wave_curve: Curve = null
 
 自定义波形曲线。仅在 waveform 为 CURVE 时使用。
 
-#### `seed`
+#### `sample_seed`
 
 - API: `public`
 
 ```gdscript
-var seed: int = 1
+var sample_seed: int = 1
 ```
 
 确定性采样种子。

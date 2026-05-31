@@ -56,6 +56,7 @@ const EXTENSION_FORBIDDEN_SOFT_REFERENCES: Dictionary = {
 		"should_wait_for_result",
 	],
 }
+const GF_VARIANT_ACCESS = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
 
 
 # --- 测试用例 ---
@@ -66,7 +67,7 @@ func test_kernel_does_not_depend_on_standard_layer() -> void:
 
 	var issues: Array[String] = []
 	for path: String in files:
-		var source := _read_text(path)
+		var source: String = _read_text(path)
 		for forbidden_text: String in KERNEL_FORBIDDEN_TEXTS:
 			if source.contains(forbidden_text):
 				issues.append("%s contains %s" % [path, forbidden_text])
@@ -81,10 +82,10 @@ func test_kernel_does_not_depend_on_standard_layer() -> void:
 func test_kernel_does_not_reference_standard_or_extension_classes() -> void:
 	var files: Array[String] = []
 	_collect_gd_files(KERNEL_ROOT, files)
-	var forbidden_class_names := _collect_class_names(STANDARD_ROOT)
+	var forbidden_class_names: Array[String] = _collect_class_names(STANDARD_ROOT)
 	forbidden_class_names.append_array(_collect_class_names(EXTENSIONS_ROOT))
 
-	var issues := _collect_forbidden_class_reference_issues(files, forbidden_class_names)
+	var issues: Array[String] = _collect_forbidden_class_reference_issues(files, forbidden_class_names)
 
 	assert_eq(
 		issues,
@@ -96,11 +97,11 @@ func test_kernel_does_not_reference_standard_or_extension_classes() -> void:
 func test_kernel_editor_does_not_hardcode_extension_ids() -> void:
 	var files: Array[String] = []
 	_collect_gd_files(KERNEL_EDITOR_ROOT, files)
-	var extension_ids := _collect_extension_ids()
+	var extension_ids: Array[String] = _collect_extension_ids()
 
 	var issues: Array[String] = []
 	for path: String in files:
-		var source := _read_text(path)
+		var source: String = _read_text(path)
 		for extension_id: String in extension_ids:
 			if source.contains(extension_id):
 				issues.append("%s contains %s" % [path, extension_id])
@@ -115,11 +116,11 @@ func test_kernel_editor_does_not_hardcode_extension_ids() -> void:
 func test_kernel_does_not_hardcode_extension_ids() -> void:
 	var files: Array[String] = []
 	_collect_gd_files(KERNEL_ROOT, files)
-	var extension_ids := _collect_extension_ids()
+	var extension_ids: Array[String] = _collect_extension_ids()
 
 	var issues: Array[String] = []
 	for path: String in files:
-		var source := _read_text(path)
+		var source: String = _read_text(path)
 		for extension_id: String in extension_ids:
 			if source.contains(extension_id):
 				issues.append("%s contains %s" % [path, extension_id])
@@ -134,11 +135,11 @@ func test_kernel_does_not_hardcode_extension_ids() -> void:
 func test_standard_does_not_hard_depend_on_extension_paths_or_classes() -> void:
 	var files: Array[String] = []
 	_collect_gd_files(STANDARD_ROOT, files)
-	var extension_class_names := _collect_class_names(EXTENSIONS_ROOT)
+	var extension_class_names: Array[String] = _collect_class_names(EXTENSIONS_ROOT)
 
 	var issues: Array[String] = []
 	for path: String in files:
-		var source := _read_text(path)
+		var source: String = _read_text(path)
 		for forbidden_path: String in STANDARD_FORBIDDEN_EXTENSION_PATHS:
 			if source.contains(forbidden_path):
 				issues.append("%s contains %s" % [path, forbidden_path])
@@ -156,11 +157,11 @@ func test_standard_does_not_hard_depend_on_extension_paths_or_classes() -> void:
 func test_standard_does_not_reference_extension_ids() -> void:
 	var files: Array[String] = []
 	_collect_gd_files(STANDARD_ROOT, files)
-	var extension_ids := _collect_extension_ids()
+	var extension_ids: Array[String] = _collect_extension_ids()
 
 	var issues: Array[String] = []
 	for path: String in files:
-		var source := _read_text(path)
+		var source: String = _read_text(path)
 		for extension_id: String in extension_ids:
 			if source.contains(extension_id):
 				issues.append("%s contains %s" % [path, extension_id])
@@ -173,23 +174,25 @@ func test_standard_does_not_reference_extension_ids() -> void:
 
 
 func test_bundled_extension_manifests_are_atomic() -> void:
-	var extension_names := _collect_immediate_directory_names(EXTENSIONS_ROOT)
-	var manifest_by_extension_name := _collect_manifest_by_extension_name(extension_names)
+	var extension_names: Array[String] = _collect_immediate_directory_names(EXTENSIONS_ROOT)
+	var manifest_by_extension_name: Dictionary = _collect_manifest_by_extension_name(extension_names)
 	var issues: Array[String] = []
 	for extension_name: String in extension_names:
-		var manifest_data := manifest_by_extension_name.get(extension_name, {}) as Dictionary
-		if manifest_data == null:
+		var manifest_data: Dictionary = GF_VARIANT_ACCESS.get_option_dictionary(
+			manifest_by_extension_name,
+			extension_name,
+			{}
+		)
+		if manifest_data.is_empty():
 			issues.append("%s missing manifest" % extension_name)
 			continue
 
 		if not manifest_data.has("extension_version"):
 			issues.append("%s missing extension_version" % extension_name)
 
-		var dependencies := manifest_data.get("dependencies", []) as Array
-		if dependencies == null:
-			dependencies = []
+		var dependencies: Array = GF_VARIANT_ACCESS.get_option_array(manifest_data, "dependencies", [])
 		for dependency_variant: Variant in dependencies:
-			var dependency_id := String(dependency_variant)
+			var dependency_id: String = GF_VARIANT_ACCESS.to_text(dependency_variant)
 			if not EXTENSION_ALLOWED_DEPENDENCIES.has(dependency_id):
 				issues.append("%s declares dependency %s" % [extension_name, dependency_id])
 
@@ -205,27 +208,27 @@ func test_bundled_extension_manifests_are_atomic() -> void:
 
 
 func test_bundled_extensions_do_not_reference_other_bundled_extensions() -> void:
-	var extension_names := _collect_immediate_directory_names(EXTENSIONS_ROOT)
-	var class_root_by_name := _collect_extension_class_root_by_name()
+	var extension_names: Array[String] = _collect_immediate_directory_names(EXTENSIONS_ROOT)
+	var class_root_by_name: Dictionary = _collect_extension_class_root_by_name()
 	var issues: Array[String] = []
 	for extension_name: String in extension_names:
-		var extension_root := EXTENSIONS_ROOT.path_join(extension_name)
+		var extension_root: String = EXTENSIONS_ROOT.path_join(extension_name)
 		var files: Array[String] = []
 		_collect_gd_files(extension_root, files)
 		for path: String in files:
-			var source := _read_text(path)
+			var source: String = _read_text(path)
 			for other_extension_name: String in extension_names:
 				if other_extension_name == extension_name:
 					continue
-				var other_extension_path := "addons/gf/extensions/%s" % other_extension_name
-				var other_extension_id := "gf.%s" % other_extension_name
+				var other_extension_path: String = "addons/gf/extensions/%s" % other_extension_name
+				var other_extension_id: String = "gf.%s" % other_extension_name
 				if source.contains(other_extension_path):
 					issues.append("%s references %s" % [path, other_extension_path])
 				if source.contains(other_extension_id):
 					issues.append("%s references %s" % [path, other_extension_id])
 			for class_name_variant: Variant in class_root_by_name.keys():
-				var class_name_text := String(class_name_variant)
-				var class_root := String(class_root_by_name[class_name_text])
+				var class_name_text: String = GF_VARIANT_ACCESS.to_text(class_name_variant)
+				var class_root: String = GF_VARIANT_ACCESS.to_text(class_root_by_name[class_name_text])
 				if class_root != extension_root and _contains_identifier(source, class_name_text):
 					issues.append("%s references extension class %s" % [path, class_name_text])
 
@@ -241,7 +244,7 @@ func test_bundled_extensions_do_not_call_global_gf_facade() -> void:
 	_collect_gd_files(EXTENSIONS_ROOT, files)
 	var issues: Array[String] = []
 	for path: String in files:
-		var source := _read_text(path)
+		var source: String = _read_text(path)
 		if source.contains("Gf."):
 			issues.append("%s calls global Gf facade" % path)
 
@@ -255,15 +258,19 @@ func test_bundled_extensions_do_not_call_global_gf_facade() -> void:
 func test_known_extension_soft_collaboration_protocols_do_not_return() -> void:
 	var issues: Array[String] = []
 	for extension_name_variant: Variant in EXTENSION_FORBIDDEN_SOFT_REFERENCES.keys():
-		var extension_name := String(extension_name_variant)
-		var extension_root := EXTENSIONS_ROOT.path_join(extension_name)
+		var extension_name: String = GF_VARIANT_ACCESS.to_text(extension_name_variant)
+		var extension_root: String = EXTENSIONS_ROOT.path_join(extension_name)
 		var files: Array[String] = []
 		_collect_gd_files(extension_root, files)
-		var forbidden_texts := EXTENSION_FORBIDDEN_SOFT_REFERENCES[extension_name] as Array
+		var forbidden_texts: Array = GF_VARIANT_ACCESS.get_option_array(
+			EXTENSION_FORBIDDEN_SOFT_REFERENCES,
+			extension_name,
+			[]
+		)
 		for path: String in files:
-			var source := _read_text(path)
+			var source: String = _read_text(path)
 			for forbidden_text_variant: Variant in forbidden_texts:
-				var forbidden_text := String(forbidden_text_variant)
+				var forbidden_text: String = GF_VARIANT_ACCESS.to_text(forbidden_text_variant)
 				if source.contains(forbidden_text):
 					issues.append("%s contains soft collaboration marker %s" % [path, forbidden_text])
 
@@ -277,14 +284,14 @@ func test_known_extension_soft_collaboration_protocols_do_not_return() -> void:
 # --- 私有/辅助方法 ---
 
 func _collect_gd_files(root_path: String, result: Array[String]) -> void:
-	var dir := DirAccess.open(root_path)
+	var dir: DirAccess = DirAccess.open(root_path)
 	if dir == null:
 		return
 
-	dir.list_dir_begin()
-	var entry := dir.get_next()
+	var _list_dir_begin_result_291: Variant = dir.list_dir_begin()
+	var entry: String = dir.get_next()
 	while not entry.is_empty():
-		var path := root_path.path_join(entry)
+		var path: String = root_path.path_join(entry)
 		if dir.current_is_dir():
 			if not entry.begins_with("."):
 				_collect_gd_files(path, result)
@@ -296,12 +303,12 @@ func _collect_gd_files(root_path: String, result: Array[String]) -> void:
 
 func _collect_immediate_directory_names(root_path: String) -> Array[String]:
 	var result: Array[String] = []
-	var dir := DirAccess.open(root_path)
+	var dir: DirAccess = DirAccess.open(root_path)
 	if dir == null:
 		return result
 
-	dir.list_dir_begin()
-	var entry := dir.get_next()
+	var _list_dir_begin_result_310: Variant = dir.list_dir_begin()
+	var entry: String = dir.get_next()
 	while not entry.is_empty():
 		if dir.current_is_dir() and not entry.begins_with("."):
 			result.append(entry)
@@ -321,8 +328,8 @@ func _collect_extension_ids() -> Array[String]:
 func _collect_manifest_by_extension_name(extension_names: Array[String]) -> Dictionary:
 	var result: Dictionary = {}
 	for extension_name: String in extension_names:
-		var manifest_path := EXTENSIONS_ROOT.path_join(extension_name).path_join("gf_extension.json")
-		var manifest_data := _read_json_dictionary(manifest_path)
+		var manifest_path: String = EXTENSIONS_ROOT.path_join(extension_name).path_join("gf_extension.json")
+		var manifest_data: Dictionary = _read_json_dictionary(manifest_path)
 		if manifest_data.is_empty():
 			continue
 		result[extension_name] = manifest_data
@@ -330,22 +337,22 @@ func _collect_manifest_by_extension_name(extension_names: Array[String]) -> Dict
 
 
 func _read_text(path: String) -> String:
-	var file := FileAccess.open(path, FileAccess.READ)
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		return ""
-	var text := file.get_as_text()
+	var text: String = file.get_as_text()
 	file.close()
 	return text
 
 
 func _read_json_dictionary(path: String) -> Dictionary:
-	var file := FileAccess.open(path, FileAccess.READ)
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		return {}
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	file.close()
 	if parsed is Dictionary:
-		return parsed
+		return GF_VARIANT_ACCESS.as_dictionary(parsed)
 	return {}
 
 
@@ -354,12 +361,12 @@ func _collect_class_names(root_path: String) -> Array[String]:
 	_collect_gd_files(root_path, files)
 
 	var result: Array[String] = []
-	var regex := RegEx.new()
-	regex.compile("(?m)^\\s*class_name\\s+([A-Za-z_]\\w*)")
+	var regex: RegEx = RegEx.new()
+	var _compile_result_365: Variant = regex.compile("(?m)^\\s*class_name\\s+([A-Za-z_]\\w*)")
 	for path: String in files:
-		var source := _read_text(path)
+		var source: String = _read_text(path)
 		for match_result: RegExMatch in regex.search_all(source):
-			var discovered_class_name := match_result.get_string(1)
+			var discovered_class_name: String = match_result.get_string(1)
 			if not result.has(discovered_class_name):
 				result.append(discovered_class_name)
 	result.sort()
@@ -371,22 +378,22 @@ func _collect_extension_class_root_by_name() -> Dictionary:
 	_collect_gd_files(EXTENSIONS_ROOT, files)
 
 	var result: Dictionary = {}
-	var regex := RegEx.new()
-	regex.compile("(?m)^\\s*class_name\\s+([A-Za-z_]\\w*)")
+	var regex: RegEx = RegEx.new()
+	var _compile_result_382: Variant = regex.compile("(?m)^\\s*class_name\\s+([A-Za-z_]\\w*)")
 	for path: String in files:
-		var extension_root := _get_extension_root(path)
-		var source := _read_text(path)
+		var extension_root: String = _get_extension_root(path)
+		var source: String = _read_text(path)
 		for match_result: RegExMatch in regex.search_all(source):
 			result[match_result.get_string(1)] = extension_root
 	return result
 
 
 func _get_extension_root(path: String) -> String:
-	var marker := EXTENSIONS_ROOT + "/"
+	var marker: String = EXTENSIONS_ROOT + "/"
 	if not path.begins_with(marker):
 		return ""
 
-	var slash_index := path.find("/", marker.length())
+	var slash_index: int = path.find("/", marker.length())
 	if slash_index == -1:
 		return ""
 	return path.substr(0, slash_index)
@@ -398,7 +405,7 @@ func _collect_forbidden_class_reference_issues(
 ) -> Array[String]:
 	var issues: Array[String] = []
 	for path: String in files:
-		var source := _read_text(path)
+		var source: String = _read_text(path)
 		for forbidden_class_name: String in forbidden_class_names:
 			if _contains_identifier(source, forbidden_class_name):
 				issues.append("%s references %s" % [path, forbidden_class_name])
@@ -406,6 +413,6 @@ func _collect_forbidden_class_reference_issues(
 
 
 func _contains_identifier(source: String, identifier: String) -> bool:
-	var regex := RegEx.new()
-	regex.compile("(?<![A-Za-z0-9_])%s(?![A-Za-z0-9_])" % identifier)
+	var regex: RegEx = RegEx.new()
+	var _compile_result_417: Variant = regex.compile("(?<![A-Za-z0-9_])%s(?![A-Za-z0-9_])" % identifier)
 	return regex.search(source) != null

@@ -57,7 +57,7 @@ func update(raw_active: bool, _value: Variant, delta: float, state: Dictionary) 
 		state["elapsed"] = 0.0
 		return TriggerState.INACTIVE
 
-	var elapsed := float(state.get("elapsed", 0.0))
+	var elapsed: float = GFVariantData.get_option_float(state, "elapsed", 0.0)
 	elapsed += maxf(delta, 0.0)
 	state["elapsed"] = elapsed
 	if elapsed >= hold_seconds:

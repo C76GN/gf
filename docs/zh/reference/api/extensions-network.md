@@ -2748,12 +2748,12 @@ var is_active: bool = false
 
 会话是否已经启动。
 
-#### `is_connected`
+#### `has_connection`
 
 - API: `public`
 
 ```gdscript
-var is_connected: bool = false
+var has_connection: bool = false
 ```
 
 后端是否已报告连接成功。
@@ -2871,7 +2871,7 @@ Returns: 会话状态字典。
 
 Schemas:
 
-- `return`: Dictionary，包含 mode、mode_name、endpoint、local_peer_id、max_peers、is_active、is_connected、started_at_unix、metadata。
+- `return`: Dictionary，包含 mode、mode_name、endpoint、local_peer_id、max_peers、is_active、has_connection、started_at_unix、metadata。
 
 ## GFNetworkSnapshot
 

@@ -13,7 +13,7 @@ extends GFInputTrigger
 
 # --- 常量 ---
 
-const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
+const _INSTANCE_GUARD = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
 
 
 # --- 导出变量 ---
@@ -101,7 +101,7 @@ func prepare_runtime(
 ## [br]
 ## @return 触发状态。
 func update(raw_active: bool, _value: Variant, delta: float, state: Dictionary) -> TriggerState:
-	var effective_branches := _get_effective_branches()
+	var effective_branches: Array[GFInputSequenceBranch] = _get_effective_branches()
 	if effective_branches.is_empty():
 		return TriggerState.TRIGGERED if raw_active else TriggerState.INACTIVE
 
@@ -133,16 +133,16 @@ func _advance_branches(
 	delta: float,
 	effective_branches: Array[GFInputSequenceBranch]
 ) -> void:
-	var input_runtime := _get_input_runtime(state)
+	var input_runtime: Object = _get_input_runtime(state)
 	if input_runtime == null:
 		return
 
-	var branch_states := _get_branch_states(state, effective_branches.size())
+	var branch_states: Array[Dictionary] = _get_branch_states(state, effective_branches.size())
 	for branch_index: int in range(effective_branches.size()):
-		var branch := effective_branches[branch_index]
+		var branch: GFInputSequenceBranch = effective_branches[branch_index]
 		if branch == null:
 			continue
-		_advance_branch(branch_states[branch_index], branch, input_runtime, delta, int(state.get("player_index", -1)))
+		_advance_branch(branch_states[branch_index], branch, input_runtime, delta, _get_runtime_player_index(state))
 
 
 func _advance_branch(
@@ -152,16 +152,16 @@ func _advance_branch(
 	delta: float,
 	player_index: int
 ) -> void:
-	if bool(branch_state.get("completed", false)):
+	if _is_branch_completed(branch_state):
 		return
 
-	var sequence_index := int(branch_state.get("sequence_index", 0))
-	var steps := _get_valid_steps(branch)
+	var sequence_index: int = _get_branch_sequence_index(branch_state)
+	var steps: Array[GFInputSequenceStep] = _get_valid_steps(branch)
 	if sequence_index >= steps.size():
 		branch_state["completed"] = true
 		return
 
-	var current_step := steps[sequence_index]
+	var current_step: GFInputSequenceStep = steps[sequence_index]
 	if _should_reset_for_gap(branch_state, current_step, branch, delta):
 		_reset_branch_progress(branch_state)
 		sequence_index = 0
@@ -179,7 +179,7 @@ func _advance_branch(
 
 
 func _get_input_runtime(state: Dictionary) -> Object:
-	return _INSTANCE_GUARD._get_live_object(state.get("input_runtime"))
+	return _INSTANCE_GUARD._get_live_object(GFVariantData.get_option_value(state, "input_runtime"))
 
 
 func _advance_step(
@@ -192,11 +192,11 @@ func _advance_step(
 	if step == null or step.action_id == &"":
 		return true
 
-	var is_active := _is_action_active(input_runtime, step.action_id, player_index)
-	var was_active := bool(branch_state.get("step_was_active", false))
-	var started := bool(branch_state.get("step_started", false))
-	var elapsed := float(branch_state.get("step_elapsed", 0.0))
-	var just_started := _was_action_just_started(input_runtime, step.action_id, player_index)
+	var is_active: bool = _is_action_active(input_runtime, step.action_id, player_index)
+	var was_active: bool = _was_step_active(branch_state)
+	var started: bool = _has_step_started(branch_state)
+	var elapsed: float = _get_step_elapsed(branch_state)
+	var just_started: bool = _was_action_just_started(input_runtime, step.action_id, player_index)
 
 	if step.trigger_on_release and _was_action_just_completed(input_runtime, step.action_id, player_index):
 		elapsed = maxf(elapsed, _get_last_completed_duration(input_runtime, step.action_id, player_index))
@@ -242,16 +242,16 @@ func _should_reset_for_gap(
 	branch: GFInputSequenceBranch,
 	delta: float
 ) -> bool:
-	if int(branch_state.get("sequence_index", 0)) <= 0:
+	if _get_branch_sequence_index(branch_state) <= 0:
 		return false
-	if bool(branch_state.get("step_started", false)):
+	if _has_step_started(branch_state):
 		return false
 
-	var gap_seconds := _resolve_gap_seconds(step, branch)
+	var gap_seconds: float = _resolve_gap_seconds(step, branch)
 	if gap_seconds <= 0.0:
 		return false
 
-	var gap_elapsed := float(branch_state.get("gap_elapsed", 0.0)) + maxf(delta, 0.0)
+	var gap_elapsed: float = _get_gap_elapsed(branch_state) + maxf(delta, 0.0)
 	branch_state["gap_elapsed"] = gap_elapsed
 	return gap_elapsed > gap_seconds
 
@@ -275,16 +275,16 @@ func _get_valid_steps(branch: GFInputSequenceBranch) -> Array[GFInputSequenceSte
 
 
 func _get_branch_states(state: Dictionary, branch_count: int) -> Array[Dictionary]:
-	var branch_states := state.get("branch_states", []) as Array
-	if branch_states == null:
-		branch_states = []
+	var branch_states: Array = GFVariantData.get_option_array(state, "branch_states")
 	while branch_states.size() < branch_count:
 		branch_states.append(_make_branch_state())
 	while branch_states.size() > branch_count:
 		branch_states.pop_back()
 	state["branch_states"] = branch_states
 	var typed_states: Array[Dictionary] = []
-	typed_states.assign(branch_states)
+	for branch_state_value: Variant in branch_states:
+		if branch_state_value is Dictionary:
+			typed_states.append(GFVariantData.as_dictionary(branch_state_value))
 	return typed_states
 
 
@@ -300,44 +300,43 @@ func _make_branch_state() -> Dictionary:
 
 
 func _has_completed_branch(state: Dictionary) -> bool:
-	var branch_states := state.get("branch_states", []) as Array
-	if branch_states == null:
-		return false
-	for branch_state: Dictionary in branch_states:
-		if bool(branch_state.get("completed", false)):
+	var branch_states: Array = GFVariantData.get_option_array(state, "branch_states")
+	for branch_state_value: Variant in branch_states:
+		var branch_state: Dictionary = GFVariantData.as_dictionary(branch_state_value)
+		if _is_branch_completed(branch_state):
 			return true
 	return false
 
 
 func _is_action_active(input_runtime: Object, action_id: StringName, player_index: int) -> bool:
 	if player_scoped and player_index >= 0 and input_runtime.has_method("is_action_active_for_player"):
-		return bool(input_runtime.call("is_action_active_for_player", player_index, action_id))
+		return GFVariantData.to_bool(input_runtime.call("is_action_active_for_player", player_index, action_id))
 	if input_runtime.has_method("is_action_active"):
-		return bool(input_runtime.call("is_action_active", action_id))
+		return GFVariantData.to_bool(input_runtime.call("is_action_active", action_id))
 	return false
 
 
 func _was_action_just_started(input_runtime: Object, action_id: StringName, player_index: int) -> bool:
 	if player_scoped and player_index >= 0 and input_runtime.has_method("was_action_just_started_for_player"):
-		return bool(input_runtime.call("was_action_just_started_for_player", player_index, action_id))
+		return GFVariantData.to_bool(input_runtime.call("was_action_just_started_for_player", player_index, action_id))
 	if input_runtime.has_method("was_action_just_started"):
-		return bool(input_runtime.call("was_action_just_started", action_id))
+		return GFVariantData.to_bool(input_runtime.call("was_action_just_started", action_id))
 	return false
 
 
 func _was_action_just_completed(input_runtime: Object, action_id: StringName, player_index: int) -> bool:
 	if player_scoped and player_index >= 0 and input_runtime.has_method("was_action_just_completed_for_player"):
-		return bool(input_runtime.call("was_action_just_completed_for_player", player_index, action_id))
+		return GFVariantData.to_bool(input_runtime.call("was_action_just_completed_for_player", player_index, action_id))
 	if input_runtime.has_method("was_action_just_completed"):
-		return bool(input_runtime.call("was_action_just_completed", action_id))
+		return GFVariantData.to_bool(input_runtime.call("was_action_just_completed", action_id))
 	return false
 
 
 func _get_last_completed_duration(input_runtime: Object, action_id: StringName, player_index: int) -> float:
 	if player_scoped and player_index >= 0 and input_runtime.has_method("get_last_completed_duration_for_player"):
-		return float(input_runtime.call("get_last_completed_duration_for_player", player_index, action_id))
+		return GFVariantData.to_float(input_runtime.call("get_last_completed_duration_for_player", player_index, action_id))
 	if input_runtime.has_method("get_last_completed_duration"):
-		return float(input_runtime.call("get_last_completed_duration", action_id))
+		return GFVariantData.to_float(input_runtime.call("get_last_completed_duration", action_id))
 	return 0.0
 
 
@@ -345,11 +344,11 @@ func _reset_all_branch_progress(state: Dictionary) -> void:
 	state["sequence_index"] = 0
 	state["gap_elapsed"] = 0.0
 	state["completed"] = false
-	var branch_states := state.get("branch_states", []) as Array
-	if branch_states == null:
-		return
-	for branch_state: Dictionary in branch_states:
-		_reset_branch_progress(branch_state)
+	var branch_states: Array = GFVariantData.get_option_array(state, "branch_states")
+	state["branch_states"] = branch_states
+	for branch_state_value: Variant in branch_states:
+		if branch_state_value is Dictionary:
+			_reset_branch_progress(GFVariantData.as_dictionary(branch_state_value))
 
 
 func _reset_branch_progress(branch_state: Dictionary) -> void:
@@ -359,3 +358,31 @@ func _reset_branch_progress(branch_state: Dictionary) -> void:
 	branch_state["step_elapsed"] = 0.0
 	branch_state["step_started"] = false
 	branch_state["step_was_active"] = false
+
+
+func _get_runtime_player_index(state: Dictionary) -> int:
+	return GFVariantData.get_option_int(state, "player_index", -1)
+
+
+func _is_branch_completed(branch_state: Dictionary) -> bool:
+	return GFVariantData.get_option_bool(branch_state, "completed")
+
+
+func _get_branch_sequence_index(branch_state: Dictionary) -> int:
+	return GFVariantData.get_option_int(branch_state, "sequence_index")
+
+
+func _was_step_active(branch_state: Dictionary) -> bool:
+	return GFVariantData.get_option_bool(branch_state, "step_was_active")
+
+
+func _has_step_started(branch_state: Dictionary) -> bool:
+	return GFVariantData.get_option_bool(branch_state, "step_started")
+
+
+func _get_step_elapsed(branch_state: Dictionary) -> float:
+	return GFVariantData.get_option_float(branch_state, "step_elapsed")
+
+
+func _get_gap_elapsed(branch_state: Dictionary) -> float:
+	return GFVariantData.get_option_float(branch_state, "gap_elapsed")

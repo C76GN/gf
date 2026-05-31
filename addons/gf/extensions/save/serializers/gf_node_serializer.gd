@@ -42,7 +42,8 @@ func get_serializer_id() -> StringName:
 		return serializer_id
 	if not resource_path.is_empty():
 		return StringName(resource_path)
-	return StringName(get_script().resource_path)
+	var script: Script = _get_script_value(get_script())
+	return StringName(script.resource_path) if script != null else &""
 
 
 ## 判断当前序列化器是否支持节点。
@@ -131,7 +132,7 @@ func make_result(ok: bool, error: String = "") -> Dictionary:
 ## @schema payload: Dictionary，键为属性名，值为属性当前值。
 func _copy_property_to_payload(node: Object, payload: Dictionary, property_name: String) -> void:
 	if _has_property(node, property_name):
-		payload[property_name] = node.get(property_name)
+		payload[property_name] = _read_property(node, property_name)
 
 
 ## 批量将节点属性复制到序列化载荷。
@@ -198,11 +199,14 @@ func _apply_properties_from_payload(node: Object, payload: Dictionary, property_
 func _gather_property_specs(node: Object, specs: Array[Dictionary]) -> Dictionary:
 	var result: Dictionary = {}
 	for spec: Dictionary in specs:
-		var key := String(spec.get("key", spec.get("property", "")))
-		var property_name := String(spec.get("property", key))
+		var key: String = GFVariantData.get_option_string(spec, "key", GFVariantData.get_option_string(spec, "property"))
+		var property_name: String = GFVariantData.get_option_string(spec, "property", key)
 		if key.is_empty() or property_name.is_empty() or not _has_property(node, property_name):
 			continue
-		result[key] = _encode_property_value(node.get(property_name), StringName(spec.get("kind", &"")))
+		result[key] = _encode_property_value(
+			_read_property(node, property_name),
+			GFVariantData.get_option_string_name(spec, "kind")
+		)
 	return result
 
 
@@ -221,14 +225,14 @@ func _gather_property_specs(node: Object, specs: Array[Dictionary]) -> Dictionar
 ## @schema specs: Array[Dictionary]，每项可包含 key: String、property: String 与 kind: StringName。
 func _apply_property_specs(node: Object, payload: Dictionary, specs: Array[Dictionary]) -> void:
 	for spec: Dictionary in specs:
-		var key := String(spec.get("key", spec.get("property", "")))
-		var property_name := String(spec.get("property", key))
+		var key: String = GFVariantData.get_option_string(spec, "key", GFVariantData.get_option_string(spec, "property"))
+		var property_name: String = GFVariantData.get_option_string(spec, "property", key)
 		if key.is_empty() or property_name.is_empty() or not payload.has(key) or not _has_property(node, property_name):
 			continue
 		node.set(property_name, _decode_property_value(
 			payload[key],
-			node.get(property_name),
-			StringName(spec.get("kind", &""))
+			_read_property(node, property_name),
+			GFVariantData.get_option_string_name(spec, "kind")
 		))
 
 
@@ -242,12 +246,7 @@ func _apply_property_specs(node: Object, payload: Dictionary, specs: Array[Dicti
 ## [br]
 ## @return 对象属性列表中是否存在该属性。
 func _has_property(object: Object, property_name: String) -> bool:
-	if object == null:
-		return false
-	for property: Dictionary in object.get_property_list():
-		if String(property.get("name", "")) == property_name:
-			return true
-	return false
+	return GFObjectPropertyTools.has_property(object, StringName(property_name))
 
 
 # --- 私有/辅助方法 ---
@@ -258,7 +257,7 @@ func _matches_supported_class_name(node: Node, type_name: String) -> bool:
 	if node.is_class(type_name):
 		return true
 
-	var script := node.get_script() as Script
+	var script: Script = _get_script_value(node.get_script())
 	while script != null:
 		if String(script.get_global_name()) == type_name or script.resource_path == type_name:
 			return true
@@ -293,11 +292,11 @@ func _array_to_color(value: Variant, fallback: Color) -> Color:
 func _encode_property_value(value: Variant, kind: StringName) -> Variant:
 	match kind:
 		&"vector2":
-			return _vector2_to_array(value as Vector2)
+			return _vector2_to_array(GFVariantData.to_vector2(value))
 		&"vector3":
-			return _vector3_to_array(value as Vector3)
+			return _vector3_to_array(GFVariantData.to_vector3(value))
 		&"color":
-			return _color_to_array(value as Color)
+			return _color_to_array(_get_color_value(value))
 		_:
 			return value
 
@@ -305,16 +304,34 @@ func _encode_property_value(value: Variant, kind: StringName) -> Variant:
 func _decode_property_value(value: Variant, fallback: Variant, kind: StringName) -> Variant:
 	match kind:
 		&"vector2":
-			return _array_to_vector2(value, fallback as Vector2)
+			return _array_to_vector2(value, GFVariantData.to_vector2(fallback))
 		&"vector3":
-			return _array_to_vector3(value, fallback as Vector3)
+			return _array_to_vector3(value, GFVariantData.to_vector3(fallback))
 		&"color":
-			return _array_to_color(value, fallback as Color)
+			return _array_to_color(value, _get_color_value(fallback))
 		&"float":
-			return float(value)
+			return GFVariantData.to_float(value)
 		&"int":
-			return int(value)
+			return GFVariantData.to_int(value)
 		&"bool":
-			return bool(value)
+			return GFVariantData.to_bool(value)
 		_:
 			return value
+
+
+func _read_property(object: Object, property_name: String) -> Variant:
+	return GFObjectPropertyTools.read_property(object, NodePath(property_name))
+
+
+func _get_script_value(value: Variant) -> Script:
+	if value is Script:
+		var script: Script = value
+		return script
+	return null
+
+
+func _get_color_value(value: Variant, fallback: Color = Color.WHITE) -> Color:
+	if value is Color:
+		var color_value: Color = value
+		return color_value
+	return fallback

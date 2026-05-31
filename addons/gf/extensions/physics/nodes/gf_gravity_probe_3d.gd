@@ -67,7 +67,7 @@ func sample() -> Vector3:
 		_store_sample_cache()
 		return last_acceleration
 
-	var fields := get_tree().get_nodes_in_group(String(field_group))
+	var fields: Array[Node] = get_tree().get_nodes_in_group(String(field_group))
 	last_acceleration = sample_fields(fields)
 	_store_sample_cache()
 	return last_acceleration
@@ -83,14 +83,15 @@ func sample() -> Vector3:
 ## [br]
 ## @return 汇总后的加速度。
 func sample_fields(fields: Array) -> Vector3:
-	var acceleration_sum := Vector3.ZERO
-	var sampled_count := 0
+	var acceleration_sum: Vector3 = Vector3.ZERO
+	var sampled_count: int = 0
 	for field: Object in fields:
 		if field == null or not field.has_method("get_acceleration_at"):
 			continue
 		var value: Variant = field.call("get_acceleration_at", global_position)
 		if value is Vector3:
-			acceleration_sum += value
+			var acceleration_value: Vector3 = value
+			acceleration_sum += acceleration_value
 			sampled_count += 1
 
 	if sampled_count == 0 and use_fallback_when_empty:
@@ -104,7 +105,7 @@ func sample_fields(fields: Array) -> Vector3:
 ## [br]
 ## @return 向下方向。
 func get_down_direction() -> Vector3:
-	var acceleration := last_acceleration
+	var acceleration: Vector3 = last_acceleration
 	if acceleration.is_zero_approx():
 		acceleration = sample()
 	if acceleration.is_zero_approx():

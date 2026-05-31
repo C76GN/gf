@@ -36,7 +36,8 @@ signal value_changed(old_value: Variant, new_value: Variant)
 
 # --- 常量 ---
 
-const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
+const _INSTANCE_GUARD = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
 
 
 # --- 公共变量 ---
@@ -129,7 +130,7 @@ func subscribe(callback: Callable, emit_current: bool = false) -> Callable:
 		push_error("[GFBindableProperty] subscribe 失败：callback 无效。")
 		return Callable()
 	if not value_changed.is_connected(callback):
-		value_changed.connect(callback)
+		var _connect_result_133: Variant = value_changed.connect(callback)
 	if emit_current:
 		callback.call(_value, _value)
 	return _make_unsubscribe_callable(callback)
@@ -173,7 +174,7 @@ func mutate(mutator: Callable) -> bool:
 func append_to_array(item: Variant) -> bool:
 	if not (_value is Array):
 		return false
-	var array_value := _value as Array
+	var array_value: Array = _GF_VARIANT_ACCESS_SCRIPT.as_array(_value)
 	array_value.append(item)
 	force_emit()
 	return true
@@ -194,7 +195,7 @@ func append_to_array(item: Variant) -> bool:
 func append_array(items: Array) -> bool:
 	if not (_value is Array):
 		return false
-	var array_value := _value as Array
+	var array_value: Array = _GF_VARIANT_ACCESS_SCRIPT.as_array(_value)
 	array_value.append_array(items)
 	force_emit()
 	return true
@@ -215,7 +216,7 @@ func append_array(items: Array) -> bool:
 func erase_from_array(item: Variant) -> bool:
 	if not (_value is Array):
 		return false
-	var array_value := _value as Array
+	var array_value: Array = _GF_VARIANT_ACCESS_SCRIPT.as_array(_value)
 	if not array_value.has(item):
 		return false
 	array_value.erase(item)
@@ -245,7 +246,7 @@ func erase_from_array(item: Variant) -> bool:
 func set_dictionary_value(key: Variant, new_value: Variant) -> bool:
 	if not (_value is Dictionary):
 		return false
-	var dictionary_value := _value as Dictionary
+	var dictionary_value: Dictionary = _GF_VARIANT_ACCESS_SCRIPT.as_dictionary(_value)
 	dictionary_value[key] = new_value
 	force_emit()
 	return true
@@ -266,10 +267,10 @@ func set_dictionary_value(key: Variant, new_value: Variant) -> bool:
 func erase_dictionary_key(key: Variant) -> bool:
 	if not (_value is Dictionary):
 		return false
-	var dictionary_value := _value as Dictionary
+	var dictionary_value: Dictionary = _GF_VARIANT_ACCESS_SCRIPT.as_dictionary(_value)
 	if not dictionary_value.has(key):
 		return false
-	dictionary_value.erase(key)
+	var _erase_result_273: Variant = dictionary_value.erase(key)
 	force_emit()
 	return true
 
@@ -281,14 +282,14 @@ func erase_dictionary_key(key: Variant) -> bool:
 ## @return 成功返回 true。
 func clear_collection() -> bool:
 	if _value is Array:
-		var array_value := _value as Array
+		var array_value: Array = _GF_VARIANT_ACCESS_SCRIPT.as_array(_value)
 		if array_value.is_empty():
 			return false
 		array_value.clear()
 		force_emit()
 		return true
 	if _value is Dictionary:
-		var dictionary_value := _value as Dictionary
+		var dictionary_value: Dictionary = _GF_VARIANT_ACCESS_SCRIPT.as_dictionary(_value)
 		if dictionary_value.is_empty():
 			return false
 		dictionary_value.clear()
@@ -314,7 +315,8 @@ func unbind(node: Variant, callable: Callable) -> void:
 		return
 
 	if is_instance_valid(node) and node is Node:
-		_disconnect_node_binding(node as Node, callable)
+		var bound_node: Node = node
+		_disconnect_node_binding(bound_node, callable)
 	else:
 		_prune_invalid_node_bindings()
 	_release_value_connection_if_unbound(callable)
@@ -332,8 +334,8 @@ func unbind_all() -> void:
 ## @api public
 func unbind_all_node_bindings() -> void:
 	for binding: Dictionary in _node_bindings:
-		var node_ref: WeakRef = binding.get("node_ref")
-		var exit_callable: Callable = binding.get("exit_callable", Callable())
+		var node_ref: WeakRef = _get_binding_weak_ref(binding, "node_ref")
+		var exit_callable: Callable = _get_binding_callable(binding, "exit_callable")
 		var node: Node = _INSTANCE_GUARD._get_live_node_from_ref(node_ref)
 		if is_instance_valid(node) and node.tree_exited.is_connected(exit_callable):
 			node.tree_exited.disconnect(exit_callable)
@@ -350,11 +352,13 @@ func unbind_all_node_bindings() -> void:
 ## @api public
 func disconnect_all_subscribers() -> void:
 	for connection: Dictionary in value_changed.get_connections():
-		value_changed.disconnect(connection["callable"])
+		var connection_callable: Callable = _get_binding_callable(connection, "callable")
+		if connection_callable.is_valid():
+			value_changed.disconnect(connection_callable)
 
 	for binding: Dictionary in _node_bindings:
-		var node_ref: WeakRef = binding.get("node_ref")
-		var exit_callable: Callable = binding.get("exit_callable", Callable())
+		var node_ref: WeakRef = _get_binding_weak_ref(binding, "node_ref")
+		var exit_callable: Callable = _get_binding_callable(binding, "exit_callable")
 		var node: Node = _INSTANCE_GUARD._get_live_node_from_ref(node_ref)
 		if is_instance_valid(node) and node.tree_exited.is_connected(exit_callable):
 			node.tree_exited.disconnect(exit_callable)
@@ -383,12 +387,12 @@ func bind_to(node: Node, callable: Callable) -> void:
 		return
 
 	if not value_changed.is_connected(callable):
-		value_changed.connect(callable)
+		var _connect_result_390: Variant = value_changed.connect(callable)
 		_track_owned_value_connection(callable)
 
-	var exit_callable := _on_node_exited.bind(node, callable)
+	var exit_callable: Callable = _on_node_exited.bind(node, callable)
 	if not node.tree_exited.is_connected(exit_callable):
-		node.tree_exited.connect(exit_callable, CONNECT_ONE_SHOT)
+		var _connect_result_395: Variant = node.tree_exited.connect(exit_callable, CONNECT_ONE_SHOT)
 
 	_node_bindings.append({
 		"node_ref": weakref(node),
@@ -406,11 +410,12 @@ func _on_node_exited(node: Node, callable: Callable) -> void:
 
 
 func _make_unsubscribe_callable(callback: Callable) -> Callable:
-	var property_ref := weakref(self)
+	var property_ref: WeakRef = weakref(self)
 	return func() -> void:
-		var property := property_ref.get_ref() as GFBindableProperty
-		if property == null or not callback.is_valid():
+		var raw_property: Variant = property_ref.get_ref()
+		if not raw_property is GFBindableProperty or not callback.is_valid():
 			return
+		var property: GFBindableProperty = raw_property
 		if property.value_changed.is_connected(callback):
 			property.value_changed.disconnect(callback)
 
@@ -419,21 +424,21 @@ func _find_node_binding_index(node: Node, callable: Callable) -> int:
 	_prune_invalid_node_bindings()
 	for i: int in range(_node_bindings.size()):
 		var binding: Dictionary = _node_bindings[i]
-		var node_ref: WeakRef = binding.get("node_ref")
+		var node_ref: WeakRef = _get_binding_weak_ref(binding, "node_ref")
 		var tracked_node: Node = _INSTANCE_GUARD._get_live_node_from_ref(node_ref)
-		if tracked_node == node and binding.get("callable") == callable:
+		if tracked_node == node and _get_binding_callable(binding, "callable") == callable:
 			return i
 
 	return -1
 
 
 func _disconnect_node_binding(node: Node, callable: Callable) -> void:
-	var binding_index := _find_node_binding_index(node, callable)
+	var binding_index: int = _find_node_binding_index(node, callable)
 	if binding_index == -1:
 		return
 
 	var binding: Dictionary = _node_bindings[binding_index]
-	var exit_callable: Callable = binding.get("exit_callable", Callable())
+	var exit_callable: Callable = _get_binding_callable(binding, "exit_callable")
 	if is_instance_valid(node) and exit_callable.is_valid() and node.tree_exited.is_connected(exit_callable):
 		node.tree_exited.disconnect(exit_callable)
 	_node_bindings.remove_at(binding_index)
@@ -444,7 +449,7 @@ func _has_node_binding_for_callable(callable: Callable, prune_invalid: bool = tr
 		_prune_invalid_node_bindings()
 
 	for binding: Dictionary in _node_bindings:
-		if binding.get("callable") == callable:
+		if _get_binding_callable(binding, "callable") == callable:
 			return true
 
 	return false
@@ -452,12 +457,12 @@ func _has_node_binding_for_callable(callable: Callable, prune_invalid: bool = tr
 
 func _prune_invalid_node_bindings() -> void:
 	var pruned_callables: Array[Callable] = []
-	for i in range(_node_bindings.size() - 1, -1, -1):
+	for i: int in range(_node_bindings.size() - 1, -1, -1):
 		var binding: Dictionary = _node_bindings[i]
-		var node_ref: WeakRef = binding.get("node_ref")
+		var node_ref: WeakRef = _get_binding_weak_ref(binding, "node_ref")
 		var tracked_node: Node = _INSTANCE_GUARD._get_live_node_from_ref(node_ref)
 		if not is_instance_valid(tracked_node):
-			var pruned_callable: Callable = binding.get("callable", Callable())
+			var pruned_callable: Callable = _get_binding_callable(binding, "callable")
 			if pruned_callable.is_valid() and not pruned_callables.has(pruned_callable):
 				pruned_callables.append(pruned_callable)
 			_node_bindings.remove_at(i)
@@ -469,6 +474,22 @@ func _prune_invalid_node_bindings() -> void:
 func _track_owned_value_connection(callable: Callable) -> void:
 	if callable.is_valid() and not _owned_value_connections.has(callable):
 		_owned_value_connections.append(callable)
+
+
+func _get_binding_weak_ref(binding: Dictionary, key: String) -> WeakRef:
+	var raw_value: Variant = _GF_VARIANT_ACCESS_SCRIPT.get_option_value(binding, key)
+	if raw_value is WeakRef:
+		var weak_ref: WeakRef = raw_value
+		return weak_ref
+	return null
+
+
+func _get_binding_callable(binding: Dictionary, key: String) -> Callable:
+	var raw_value: Variant = _GF_VARIANT_ACCESS_SCRIPT.get_option_value(binding, key, Callable())
+	if raw_value is Callable:
+		var binding_callable: Callable = raw_value
+		return binding_callable
+	return Callable()
 
 
 func _release_value_connection_if_unbound(callable: Callable, prune_invalid: bool = true) -> void:

@@ -100,11 +100,11 @@ func define_attribute(
 	if attribute_id == &"":
 		return
 
-	var safe_min := minf(min_value, max_value)
-	var safe_max := maxf(min_value, max_value)
-	var resolved_current := base_value
+	var safe_min: float = minf(min_value, max_value)
+	var safe_max: float = maxf(min_value, max_value)
+	var resolved_current: float = base_value
 	if current_value != null:
-		var parsed_current := float(current_value)
+		var parsed_current: float = GFVariantData.to_float(current_value, NAN)
 		resolved_current = base_value if is_nan(parsed_current) else parsed_current
 	attributes[attribute_id] = {
 		"base": clampf(base_value, safe_min, safe_max),
@@ -134,7 +134,7 @@ func has_attribute(attribute_id: StringName) -> bool:
 ## [br]
 ## @param attribute_id: 属性标识。
 func remove_attribute(attribute_id: StringName) -> void:
-	attributes.erase(attribute_id)
+	var _removed_attribute: bool = attributes.erase(attribute_id)
 	_recalculate_derived_dependents(attribute_id)
 
 
@@ -158,9 +158,13 @@ func set_value(attribute_id: StringName, value: float) -> bool:
 	if not attributes.has(attribute_id):
 		return false
 
-	var record := attributes[attribute_id] as Dictionary
-	var previous_value := float(record.get("current", 0.0))
-	var next_value := clampf(value, float(record.get("min", DEFAULT_MIN_VALUE)), float(record.get("max", DEFAULT_MAX_VALUE)))
+	var record: Dictionary = _get_attribute_record(attribute_id)
+	var previous_value: float = GFVariantData.get_option_float(record, "current", 0.0)
+	var next_value: float = clampf(
+		value,
+		GFVariantData.get_option_float(record, "min", DEFAULT_MIN_VALUE),
+		GFVariantData.get_option_float(record, "max", DEFAULT_MAX_VALUE)
+	)
 	record["current"] = next_value
 	if not is_equal_approx(previous_value, next_value):
 		attribute_changed.emit(attribute_id, next_value, previous_value)
@@ -196,10 +200,14 @@ func set_base_value(attribute_id: StringName, value: float, sync_current: bool =
 	if not attributes.has(attribute_id):
 		return false
 
-	var record := attributes[attribute_id] as Dictionary
-	var previous_base := float(record.get("base", 0.0))
-	var previous_current := float(record.get("current", 0.0))
-	var next_base := clampf(value, float(record.get("min", DEFAULT_MIN_VALUE)), float(record.get("max", DEFAULT_MAX_VALUE)))
+	var record: Dictionary = _get_attribute_record(attribute_id)
+	var previous_base: float = GFVariantData.get_option_float(record, "base", 0.0)
+	var previous_current: float = GFVariantData.get_option_float(record, "current", 0.0)
+	var next_base: float = clampf(
+		value,
+		GFVariantData.get_option_float(record, "min", DEFAULT_MIN_VALUE),
+		GFVariantData.get_option_float(record, "max", DEFAULT_MAX_VALUE)
+	)
 	record["base"] = next_base
 	if sync_current:
 		record["current"] = next_base
@@ -225,15 +233,15 @@ func set_limits(attribute_id: StringName, min_value: float, max_value: float) ->
 	if not attributes.has(attribute_id):
 		return false
 
-	var record := attributes[attribute_id] as Dictionary
-	var previous_min := float(record.get("min", DEFAULT_MIN_VALUE))
-	var previous_max := float(record.get("max", DEFAULT_MAX_VALUE))
-	var previous_base := float(record.get("base", 0.0))
-	var previous_current := float(record.get("current", 0.0))
-	var next_min := minf(min_value, max_value)
-	var next_max := maxf(min_value, max_value)
-	var next_base := clampf(previous_base, next_min, next_max)
-	var next_current := clampf(previous_current, next_min, next_max)
+	var record: Dictionary = _get_attribute_record(attribute_id)
+	var previous_min: float = GFVariantData.get_option_float(record, "min", DEFAULT_MIN_VALUE)
+	var previous_max: float = GFVariantData.get_option_float(record, "max", DEFAULT_MAX_VALUE)
+	var previous_base: float = GFVariantData.get_option_float(record, "base", 0.0)
+	var previous_current: float = GFVariantData.get_option_float(record, "current", 0.0)
+	var next_min: float = minf(min_value, max_value)
+	var next_max: float = maxf(min_value, max_value)
+	var next_base: float = clampf(previous_base, next_min, next_max)
+	var next_current: float = clampf(previous_current, next_min, next_max)
 	record["min"] = next_min
 	record["max"] = next_max
 	record["base"] = next_base
@@ -260,10 +268,10 @@ func set_limits(attribute_id: StringName, min_value: float, max_value: float) ->
 ## [br]
 ## @return: 当前值。
 func get_value(attribute_id: StringName, default_value: float = 0.0) -> float:
-	var record := attributes.get(attribute_id) as Dictionary
-	if record == null:
+	if not attributes.has(attribute_id):
 		return default_value
-	return float(record.get("current", default_value))
+	var record: Dictionary = _get_attribute_record(attribute_id)
+	return GFVariantData.get_option_float(record, "current", default_value)
 
 
 ## 获取基础值。
@@ -276,10 +284,10 @@ func get_value(attribute_id: StringName, default_value: float = 0.0) -> float:
 ## [br]
 ## @return: 基础值。
 func get_base_value(attribute_id: StringName, default_value: float = 0.0) -> float:
-	var record := attributes.get(attribute_id) as Dictionary
-	if record == null:
+	if not attributes.has(attribute_id):
 		return default_value
-	return float(record.get("base", default_value))
+	var record: Dictionary = _get_attribute_record(attribute_id)
+	return GFVariantData.get_option_float(record, "base", default_value)
 
 
 ## 通过 TraitSet 计算属性值。
@@ -292,7 +300,7 @@ func get_base_value(attribute_id: StringName, default_value: float = 0.0) -> flo
 ## [br]
 ## @return: Trait 修饰后的值。
 func get_value_with_traits(attribute_id: StringName, trait_set: GFTraitSet) -> float:
-	var value := get_value(attribute_id)
+	var value: float = get_value(attribute_id)
 	if trait_set == null:
 		return value
 	return trait_set.calculate_number(attribute_id, value)
@@ -308,13 +316,10 @@ func get_value_with_traits(attribute_id: StringName, trait_set: GFTraitSet) -> f
 ## [br]
 ## @schema return: Dictionary，属性的项目自定义 metadata 副本；属性不存在时为空字典。
 func get_metadata(attribute_id: StringName) -> Dictionary:
-	var record := attributes.get(attribute_id) as Dictionary
-	if record == null:
+	if not attributes.has(attribute_id):
 		return {}
-	var metadata := record.get("metadata", {}) as Dictionary
-	if metadata == null:
-		return {}
-	return metadata.duplicate(true)
+	var record: Dictionary = _get_attribute_record(attribute_id)
+	return GFVariantData.get_option_dictionary(record, "metadata")
 
 
 ## 设置属性元数据。
@@ -329,9 +334,9 @@ func get_metadata(attribute_id: StringName) -> Dictionary:
 ## [br]
 ## @schema metadata: Dictionary，项目自定义属性元数据；GF 会深拷贝保存。
 func set_metadata(attribute_id: StringName, metadata: Dictionary) -> bool:
-	var record := attributes.get(attribute_id) as Dictionary
-	if record == null:
+	if not attributes.has(attribute_id):
 		return false
+	var record: Dictionary = _get_attribute_record(attribute_id)
 	record["metadata"] = metadata.duplicate(true)
 	return true
 
@@ -347,7 +352,7 @@ func add_derived_rule(rule: GFDerivedAttributeRule) -> bool:
 	if rule == null or rule.attribute_id == &"":
 		return false
 
-	remove_derived_rule(rule.attribute_id)
+	var _removed_previous_rule: bool = remove_derived_rule(rule.attribute_id)
 	derived_rules.append(rule)
 	recalculate_derived(rule.attribute_id)
 	return true
@@ -361,9 +366,9 @@ func add_derived_rule(rule: GFDerivedAttributeRule) -> bool:
 ## [br]
 ## @return: 至少移除一个规则时返回 true。
 func remove_derived_rule(attribute_id: StringName) -> bool:
-	var removed := false
+	var removed: bool = false
 	for index: int in range(derived_rules.size() - 1, -1, -1):
-		var rule := derived_rules[index]
+		var rule: GFDerivedAttributeRule = derived_rules[index]
 		if rule != null and rule.attribute_id == attribute_id:
 			derived_rules.remove_at(index)
 			removed = true
@@ -394,13 +399,13 @@ func recalculate_derived(attribute_id: StringName = &"") -> void:
 		return
 
 	if attribute_id != &"":
-		var rule := get_derived_rule(attribute_id)
+		var rule: GFDerivedAttributeRule = get_derived_rule(attribute_id)
 		if rule != null:
-			_apply_derived_rule(rule, {})
+			var _target_rule_applied: bool = _apply_derived_rule(rule, {})
 		return
 
 	for rule: GFDerivedAttributeRule in derived_rules:
-		_apply_derived_rule(rule, {})
+		var _rule_applied: bool = _apply_derived_rule(rule, {})
 
 
 ## 导出快照。
@@ -413,10 +418,10 @@ func recalculate_derived(attribute_id: StringName = &"") -> void:
 func get_snapshot() -> Dictionary:
 	var snapshot: Dictionary = {}
 	for attribute_id_variant: Variant in attributes.keys():
-		var record := attributes[attribute_id_variant] as Dictionary
-		if record == null:
+		var record: Dictionary = GFVariantData.as_dictionary(GFVariantData.get_option_value(attributes, attribute_id_variant, {}))
+		if record.is_empty():
 			continue
-		snapshot[String(attribute_id_variant)] = record.duplicate(true)
+		snapshot[GFVariantData.to_text(attribute_id_variant)] = record.duplicate(true)
 	return snapshot
 
 
@@ -431,17 +436,18 @@ func restore_snapshot(snapshot: Dictionary) -> void:
 	_suspend_derived_recalculation = true
 	attributes.clear()
 	for attribute_id_variant: Variant in snapshot.keys():
-		var record := snapshot[attribute_id_variant] as Dictionary
-		if record == null:
+		var attribute_id: StringName = GFVariantData.to_string_name(attribute_id_variant)
+		var record: Dictionary = GFVariantData.as_dictionary(GFVariantData.get_option_value(snapshot, attribute_id_variant, {}))
+		if attribute_id == &"" or record.is_empty():
 			continue
-		var metadata := record.get("metadata", {}) as Dictionary
+		var metadata: Dictionary = GFVariantData.get_option_dictionary(record, "metadata")
 		define_attribute(
-			StringName(attribute_id_variant),
-			float(record.get("base", 0.0)),
-			float(record.get("current", record.get("base", 0.0))),
-			float(record.get("min", DEFAULT_MIN_VALUE)),
-			float(record.get("max", DEFAULT_MAX_VALUE)),
-			metadata if metadata != null else {}
+			attribute_id,
+			GFVariantData.get_option_float(record, "base", 0.0),
+			GFVariantData.get_option_float(record, "current", GFVariantData.get_option_float(record, "base", 0.0)),
+			GFVariantData.get_option_float(record, "min", DEFAULT_MIN_VALUE),
+			GFVariantData.get_option_float(record, "max", DEFAULT_MAX_VALUE),
+			metadata
 		)
 	_suspend_derived_recalculation = false
 	recalculate_derived()
@@ -471,29 +477,33 @@ func from_dict(data: Dictionary) -> void:
 
 # --- 私有/辅助方法 ---
 
+func _get_attribute_record(attribute_id: StringName) -> Dictionary:
+	return GFVariantData.as_dictionary(GFVariantData.get_option_value(attributes, attribute_id, {}))
+
+
 func _recalculate_derived_dependents(source_attribute_id: StringName, visited: Dictionary = {}) -> void:
 	if _suspend_derived_recalculation:
 		return
 
 	for rule: GFDerivedAttributeRule in derived_rules:
 		if rule != null and rule.depends_on(source_attribute_id):
-			_apply_derived_rule(rule, visited)
+			var _dependent_rule_applied: bool = _apply_derived_rule(rule, visited)
 
 
 func _apply_derived_rule(rule: GFDerivedAttributeRule, visited: Dictionary) -> bool:
 	if rule == null or rule.attribute_id == &"":
 		return false
-	if bool(visited.get(rule.attribute_id, false)):
+	if GFVariantData.get_option_bool(visited, rule.attribute_id, false):
 		push_warning("[GFAttributeSet] 检测到派生属性循环，已跳过：" + String(rule.attribute_id))
 		return false
 
 	visited[rule.attribute_id] = true
-	var next_value := rule.calculate(self)
-	var changed := _write_derived_value(rule, next_value)
-	if changed:
+	var next_value: float = rule.calculate(self)
+	var did_change: bool = _write_derived_value(rule, next_value)
+	if did_change:
 		_recalculate_derived_dependents(rule.attribute_id, visited)
-	visited.erase(rule.attribute_id)
-	return changed
+	var _visited_removed: bool = visited.erase(rule.attribute_id)
+	return did_change
 
 
 func _write_derived_value(rule: GFDerivedAttributeRule, value: float) -> bool:
@@ -501,12 +511,16 @@ func _write_derived_value(rule: GFDerivedAttributeRule, value: float) -> bool:
 		define_attribute(rule.attribute_id, value, value, rule.min_value, rule.max_value)
 		return true
 
-	var record := attributes[rule.attribute_id] as Dictionary
-	if record == null:
+	var record: Dictionary = _get_attribute_record(rule.attribute_id)
+	if record.is_empty():
 		return false
 
-	var previous_value := float(record.get("current", 0.0))
-	var next_value := clampf(value, float(record.get("min", DEFAULT_MIN_VALUE)), float(record.get("max", DEFAULT_MAX_VALUE)))
+	var previous_value: float = GFVariantData.get_option_float(record, "current", 0.0)
+	var next_value: float = clampf(
+		value,
+		GFVariantData.get_option_float(record, "min", DEFAULT_MIN_VALUE),
+		GFVariantData.get_option_float(record, "max", DEFAULT_MAX_VALUE)
+	)
 	if rule.sync_base_value:
 		record["base"] = next_value
 	record["current"] = next_value

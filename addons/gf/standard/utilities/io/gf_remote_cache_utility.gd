@@ -168,16 +168,16 @@ func has_valid_cache(
 	if url.is_empty():
 		return false
 
-	var path := _get_cache_path(_build_cache_key(url, headers, format))
+	var path: String = _get_cache_path(_build_cache_key(url, headers, format))
 	if not FileAccess.file_exists(path):
 		return false
 
-	var ttl := _resolve_ttl(ttl_seconds)
+	var ttl: int = _resolve_ttl(ttl_seconds)
 	if ttl <= 0:
 		return false
 
-	var modified_time := FileAccess.get_modified_time(path)
-	var now := int(Time.get_unix_time_from_system())
+	var modified_time: int = FileAccess.get_modified_time(path)
+	var now: int = int(Time.get_unix_time_from_system())
 	return now - modified_time <= ttl
 
 
@@ -218,7 +218,7 @@ func remove_cache(
 	headers: PackedStringArray = PackedStringArray(),
 	format: StringName = &"text"
 ) -> Error:
-	var path := _get_cache_path(_build_cache_key(url, headers, format))
+	var path: String = _get_cache_path(_build_cache_key(url, headers, format))
 	if not FileAccess.file_exists(path):
 		return OK
 	return DirAccess.remove_absolute(path)
@@ -252,7 +252,7 @@ func cancel(
 ## [br]
 ## @return 已取消的回调数量。
 func cancel_all() -> int:
-	var cancelled := _pending_requests.size()
+	var cancelled: int = _pending_requests.size()
 	_pending_requests.clear()
 	if not _active_request.is_empty():
 		cancelled += _get_request_callbacks(_active_request).size()
@@ -266,16 +266,20 @@ func cancel_all() -> int:
 ## [br]
 ## @api public
 func clear_cache() -> void:
-	var dir_path := _get_cache_dir_path()
-	var dir := DirAccess.open(dir_path)
+	var dir_path: String = _get_cache_dir_path()
+	var dir: DirAccess = DirAccess.open(dir_path)
 	if dir == null:
 		return
 
-	dir.list_dir_begin()
-	var file_name := dir.get_next()
+	var list_error: Error = dir.list_dir_begin()
+	if list_error != OK:
+		return
+
+	var file_name: String = dir.get_next()
 	while not file_name.is_empty():
 		if not dir.current_is_dir():
-			DirAccess.remove_absolute("%s/%s" % [dir_path, file_name])
+			var path: String = "%s/%s" % [dir_path, file_name]
+			var _remove_error: Error = DirAccess.remove_absolute(path)
 		file_name = dir.get_next()
 	dir.list_dir_end()
 
@@ -296,8 +300,8 @@ func get_debug_snapshot() -> Dictionary:
 		"max_cache_entries": max_cache_entries,
 		"max_pending_requests": max_pending_requests,
 		"pending_count": _pending_requests.size(),
-		"active_url": String(_active_request.get("url", "")),
-		"active_cache_key": String(_active_request.get("cache_key", "")),
+		"active_url": GFVariantData.get_option_string(_active_request, "url"),
+		"active_cache_key": GFVariantData.get_option_string(_active_request, "cache_key"),
 		"has_active_request": not _active_request.is_empty(),
 	}
 
@@ -314,14 +318,14 @@ func get_debug_snapshot() -> Dictionary:
 ## [br]
 ## @schema request_data: Dictionary，包含 url、headers、ttl_seconds、format、cache_key 和 callbacks。
 func _start_http_request(request_data: Dictionary) -> Error:
-	var request := _ensure_http_request()
+	var request: HTTPRequest = _ensure_http_request()
 	if request == null:
 		return ERR_UNAVAILABLE
 
 	request.timeout = timeout_seconds
 	return request.request(
-		String(request_data["url"]),
-		request_data["headers"] as PackedStringArray
+		GFVariantData.get_option_string(request_data, "url"),
+		GFVariantData.get_option_packed_string_array(request_data, "headers")
 	)
 
 
@@ -345,21 +349,21 @@ func _complete_active_request(
 	if _active_request.is_empty():
 		return
 
-	var request_data := _active_request.duplicate(true)
+	var request_data: Dictionary = _active_request.duplicate(true)
 	_active_request.clear()
 
-	var url := String(request_data["url"])
-	var format := request_data["format"] as StringName
-	var callbacks := _get_request_callbacks(request_data)
-	var cache_key := String(request_data["cache_key"])
+	var url: String = GFVariantData.get_option_string(request_data, "url")
+	var format: StringName = GFVariantData.get_option_string_name(request_data, "format", &"text")
+	var callbacks: Array[Callable] = _get_request_callbacks(request_data)
+	var cache_key: String = GFVariantData.get_option_string(request_data, "cache_key")
 	var result: Dictionary
 
 	if success:
 		result = _build_success(url, content, false, false, response_code, format)
-		if bool(result.get("success", false)):
-			_write_cache_text(cache_key, content)
+		if GFVariantData.get_option_bool(result, "success"):
+			var _cache_write_error: Error = _write_cache_text(cache_key, content)
 		elif _has_cache_file(cache_key):
-			var parse_error := String(result.get("error", ""))
+			var parse_error: String = GFVariantData.get_option_string(result, "error")
 			result = _build_success(url, _read_cache_text(cache_key), true, true, response_code, format)
 			result["error"] = parse_error
 	else:
@@ -386,10 +390,10 @@ func _queue_fetch(
 		_finish_immediate(callback, _build_failure(url, 0, "URL is empty"))
 		return
 
-	var ttl := _resolve_ttl(ttl_seconds)
-	var cache_key := _build_cache_key(url, headers, format)
+	var ttl: int = _resolve_ttl(ttl_seconds)
+	var cache_key: String = _build_cache_key(url, headers, format)
 	if not force_refresh and _has_valid_cache_key(cache_key, ttl):
-		var cached_result := _build_success(url, _read_cache_text(cache_key), true, false, 200, format)
+		var cached_result: Dictionary = _build_success(url, _read_cache_text(cache_key), true, false, 200, format)
 		_finish_immediate(callback, cached_result)
 		return
 
@@ -400,9 +404,11 @@ func _queue_fetch(
 		_finish_immediate(callback, _build_failure(url, 0, "Pending request limit exceeded"))
 		return
 
+	var callbacks: Array[Callable] = []
+	callbacks.append(callback)
 	_pending_requests.append({
 		"url": url,
-		"callbacks": [callback],
+		"callbacks": callbacks,
 		"ttl_seconds": ttl,
 		"headers": headers,
 		"format": format,
@@ -415,35 +421,36 @@ func _process_next_request() -> void:
 	if not _active_request.is_empty() or _pending_requests.is_empty():
 		return
 
-	_active_request = _pending_requests.pop_front()
-	var error := _start_http_request(_active_request)
+	_active_request = _pending_requests[0]
+	_pending_requests.remove_at(0)
+	var error: Error = _start_http_request(_active_request)
 	if error != OK:
 		_complete_active_request(false, 0, "", "Request failed: %s" % error_string(error))
 
 
 func _append_callback_to_existing_request(cache_key: String, callback: Callable) -> bool:
-	if not _active_request.is_empty() and String(_active_request.get("cache_key", "")) == cache_key:
-		(_active_request["callbacks"] as Array).append(callback)
+	if not _active_request.is_empty() and GFVariantData.get_option_string(_active_request, "cache_key") == cache_key:
+		_append_request_callback(_active_request, callback)
 		return true
 
 	for request_data: Dictionary in _pending_requests:
-		if String(request_data.get("cache_key", "")) == cache_key:
-			(request_data["callbacks"] as Array).append(callback)
+		if GFVariantData.get_option_string(request_data, "cache_key") == cache_key:
+			_append_request_callback(request_data, callback)
 			return true
 	return false
 
 
 func _cancel_by_cache_key(cache_key: String) -> int:
-	var cancelled := 0
+	var cancelled: int = 0
 	var next_pending: Array[Dictionary] = []
 	for request_data: Dictionary in _pending_requests:
-		if String(request_data.get("cache_key", "")) == cache_key:
+		if GFVariantData.get_option_string(request_data, "cache_key") == cache_key:
 			cancelled += _get_request_callbacks(request_data).size()
 		else:
 			next_pending.append(request_data)
 	_pending_requests = next_pending
 
-	if not _active_request.is_empty() and String(_active_request.get("cache_key", "")) == cache_key:
+	if not _active_request.is_empty() and GFVariantData.get_option_string(_active_request, "cache_key") == cache_key:
 		cancelled += _get_request_callbacks(_active_request).size()
 		_cancel_http_request()
 		_active_request.clear()
@@ -456,37 +463,60 @@ func _cancel_http_request() -> void:
 		_http_request.cancel_request()
 
 
-func _get_request_callbacks(request_data: Dictionary) -> Array:
-	var callbacks: Variant = request_data.get("callbacks", [])
-	return callbacks as Array if callbacks is Array else []
+func _get_request_callbacks(request_data: Dictionary) -> Array[Callable]:
+	var result: Array[Callable] = []
+	var callbacks: Variant = GFVariantData.get_option_value(request_data, "callbacks", [])
+	if not callbacks is Array:
+		return result
+
+	var callback_values: Array = callbacks
+	for callback_value: Variant in callback_values:
+		if callback_value is Callable:
+			var callback: Callable = callback_value
+			result.append(callback)
+	return result
+
+
+func _append_request_callback(request_data: Dictionary, callback: Callable) -> void:
+	var callbacks: Array[Callable] = _get_request_callbacks(request_data)
+	callbacks.append(callback)
+	request_data["callbacks"] = callbacks
 
 
 func _ensure_http_request() -> HTTPRequest:
 	if is_instance_valid(_http_request):
 		return _http_request
 
-	var tree := Engine.get_main_loop() as SceneTree
-	if tree == null:
+	var main_loop: MainLoop = Engine.get_main_loop()
+	if not (main_loop is SceneTree):
 		return null
 
+	var tree: SceneTree = main_loop
 	_http_request = HTTPRequest.new()
 	_http_request.name = "GFRemoteCacheHTTPRequest"
-	_http_request.request_completed.connect(_on_request_completed)
+	var connect_error: Error = _http_request.request_completed.connect(_on_request_completed) as Error
+	if connect_error != OK:
+		_http_request.queue_free()
+		_http_request = null
+		return null
+
 	tree.root.add_child(_http_request)
 	return _http_request
 
 
 func _finish_immediate(callback: Callable, result: Dictionary) -> void:
-	_finish_callbacks([callback], result)
+	var callbacks: Array[Callable] = []
+	callbacks.append(callback)
+	_finish_callbacks(callbacks, result)
 
 
-func _finish_callbacks(callbacks: Array, result: Dictionary) -> void:
+func _finish_callbacks(callbacks: Array[Callable], result: Dictionary) -> void:
 	for callback: Callable in callbacks:
 		if callback.is_valid():
 			callback.call(result)
 
-	var url := String(result.get("url", ""))
-	if bool(result.get("success", false)):
+	var url: String = GFVariantData.get_option_string(result, "url")
+	if GFVariantData.get_option_bool(result, "success"):
 		fetch_completed.emit(url, result)
 	else:
 		fetch_failed.emit(url, result)
@@ -500,7 +530,7 @@ func _build_success(
 	response_code: int,
 	format: StringName
 ) -> Dictionary:
-	var result := {
+	var result: Dictionary = {
 		"success": true,
 		"url": url,
 		"content": content,
@@ -512,8 +542,8 @@ func _build_success(
 	}
 
 	if format == &"json":
-		var json := JSON.new()
-		var parse_error := json.parse(content)
+		var json: JSON = JSON.new()
+		var parse_error: Error = json.parse(content)
 		if parse_error != OK:
 			result["success"] = false
 			result["error"] = "JSON parse failed: %s" % json.get_error_message()
@@ -543,9 +573,11 @@ func _resolve_ttl(ttl_seconds: int) -> int:
 
 
 func _ensure_cache_dir() -> void:
-	var dir_path := _get_cache_dir_path()
+	var dir_path: String = _get_cache_dir_path()
 	if not DirAccess.dir_exists_absolute(dir_path):
-		DirAccess.make_dir_recursive_absolute(dir_path)
+		var error: Error = DirAccess.make_dir_recursive_absolute(dir_path)
+		if error != OK:
+			push_warning("[GFRemoteCacheUtility] 创建缓存目录失败：%s，错误码：%s" % [dir_path, error])
 
 
 func _get_cache_dir_path() -> String:
@@ -554,9 +586,10 @@ func _get_cache_dir_path() -> String:
 
 func _build_cache_key(url: String, headers: PackedStringArray, format: StringName) -> String:
 	if cache_key_builder.is_valid():
-		return String(cache_key_builder.call(url, headers, format))
+		var custom_key: Variant = cache_key_builder.call(url, headers, format)
+		return GFVariantData.to_text(custom_key)
 
-	var sorted_headers := headers.duplicate()
+	var sorted_headers: PackedStringArray = headers.duplicate()
 	sorted_headers.sort()
 	return JSON.stringify([String(format), url, sorted_headers])
 
@@ -577,16 +610,16 @@ func _has_valid_cache_key(cache_key: String, ttl_seconds: int) -> bool:
 	if cache_key.is_empty():
 		return false
 
-	var path := _get_cache_path(cache_key)
+	var path: String = _get_cache_path(cache_key)
 	if not FileAccess.file_exists(path):
 		return false
 
-	var ttl := _resolve_ttl(ttl_seconds)
+	var ttl: int = _resolve_ttl(ttl_seconds)
 	if ttl <= 0:
 		return false
 
-	var modified_time := FileAccess.get_modified_time(path)
-	var now := int(Time.get_unix_time_from_system())
+	var modified_time: int = FileAccess.get_modified_time(path)
+	var now: int = int(Time.get_unix_time_from_system())
 	return now - modified_time <= ttl
 
 
@@ -595,89 +628,104 @@ func _has_cache_file(cache_key: String) -> bool:
 
 
 func _read_cache_text(cache_key: String) -> String:
-	var file := FileAccess.open(_get_cache_path(cache_key), FileAccess.READ)
+	var file: FileAccess = FileAccess.open(_get_cache_path(cache_key), FileAccess.READ)
 	if file == null:
 		return ""
 
-	var content := file.get_as_text()
+	var content: String = file.get_as_text()
 	file.close()
 	return content
 
 
 func _write_cache_text(cache_key: String, content: String) -> Error:
 	_ensure_cache_dir()
-	var path := _get_cache_path(cache_key)
-	var temp_path := _get_cache_temp_path(cache_key)
-	var backup_path := _get_cache_backup_path(cache_key)
+	var path: String = _get_cache_path(cache_key)
+	var temp_path: String = _get_cache_temp_path(cache_key)
+	var backup_path: String = _get_cache_backup_path(cache_key)
 
-	DirAccess.remove_absolute(temp_path)
-	DirAccess.remove_absolute(backup_path)
+	var _temp_cleanup_error: Error = _remove_absolute_file_if_exists(temp_path)
+	var _backup_cleanup_error: Error = _remove_absolute_file_if_exists(backup_path)
 
-	var file := FileAccess.open(temp_path, FileAccess.WRITE)
+	var file: FileAccess = FileAccess.open(temp_path, FileAccess.WRITE)
 	if file == null:
 		push_warning("[GFRemoteCacheUtility] 写入缓存失败：%s" % cache_key)
 		return FileAccess.get_open_error()
 
-	file.store_string(content)
-	var write_error := file.get_error()
+	_store_string_checked(file, content)
+	var write_error: Error = file.get_error()
 	file.close()
 	if write_error != OK:
-		DirAccess.remove_absolute(temp_path)
+		var _failed_temp_remove_error: Error = _remove_absolute_file_if_exists(temp_path)
 		push_warning("[GFRemoteCacheUtility] 写入缓存失败：%s" % cache_key)
 		return write_error
 
 	if FileAccess.file_exists(path):
-		var backup_error := DirAccess.rename_absolute(path, backup_path)
+		var backup_error: Error = DirAccess.rename_absolute(path, backup_path)
 		if backup_error != OK:
-			DirAccess.remove_absolute(temp_path)
+			var _backup_failed_temp_remove_error: Error = _remove_absolute_file_if_exists(temp_path)
 			push_warning("[GFRemoteCacheUtility] 写入缓存失败：%s" % cache_key)
 			return backup_error
 
-	var commit_error := DirAccess.rename_absolute(temp_path, path)
+	var commit_error: Error = DirAccess.rename_absolute(temp_path, path)
 	if commit_error != OK:
 		if FileAccess.file_exists(backup_path):
-			DirAccess.rename_absolute(backup_path, path)
-		DirAccess.remove_absolute(temp_path)
+			var _rollback_error: Error = DirAccess.rename_absolute(backup_path, path)
+		var _commit_failed_temp_remove_error: Error = _remove_absolute_file_if_exists(temp_path)
 		push_warning("[GFRemoteCacheUtility] 写入缓存失败：%s" % cache_key)
 		return commit_error
 
-	DirAccess.remove_absolute(backup_path)
+	var _stale_backup_remove_error: Error = _remove_absolute_file_if_exists(backup_path)
 	_prune_cache()
 	return OK
 
 
 func _prune_cache() -> void:
-	var max_entries := maxi(max_cache_entries, 1)
-	var dir_path := _get_cache_dir_path()
-	var dir := DirAccess.open(dir_path)
+	var max_entries: int = maxi(max_cache_entries, 1)
+	var dir_path: String = _get_cache_dir_path()
+	var dir: DirAccess = DirAccess.open(dir_path)
 	if dir == null:
 		return
 
-	var entries: Array[Dictionary] = []
-	dir.list_dir_begin()
-	var file_name := dir.get_next()
+	var entries: Array[_CacheEntry] = []
+	var list_error: Error = dir.list_dir_begin()
+	if list_error != OK:
+		return
+
+	var file_name: String = dir.get_next()
 	while not file_name.is_empty():
 		if not dir.current_is_dir() and file_name.ends_with(".cache"):
-			var path := "%s/%s" % [dir_path, file_name]
-			entries.append({
-				"path": path,
-				"modified_time": FileAccess.get_modified_time(path),
-			})
+			var path: String = "%s/%s" % [dir_path, file_name]
+			var modified_time: int = FileAccess.get_modified_time(path)
+			entries.append(_CacheEntry.new(path, modified_time))
 		elif not dir.current_is_dir() and (file_name.ends_with(".cache.tmp") or file_name.ends_with(".cache.bak")):
-			DirAccess.remove_absolute("%s/%s" % [dir_path, file_name])
+			var sidecar_path: String = "%s/%s" % [dir_path, file_name]
+			var _sidecar_remove_error: Error = _remove_absolute_file_if_exists(sidecar_path)
 		file_name = dir.get_next()
 	dir.list_dir_end()
 
 	if entries.size() <= max_entries:
 		return
 
-	entries.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
-		return int(left["modified_time"]) < int(right["modified_time"])
+	entries.sort_custom(func(left: _CacheEntry, right: _CacheEntry) -> bool:
+		return left._modified_time < right._modified_time
 	)
 
 	while entries.size() > max_entries:
-		var entry := entries.pop_front() as Dictionary
-		DirAccess.remove_absolute(String(entry["path"]))
+		var entry: _CacheEntry = entries[0]
+		entries.remove_at(0)
+		var _remove_error: Error = _remove_absolute_file_if_exists(entry._path)
+
+
+func _store_string_checked(file: FileAccess, value: String) -> void:
+	var store_result: Variant = file.store_string(value)
+	if store_result != null:
+		return
+
+
+func _remove_absolute_file_if_exists(path: String) -> Error:
+	if not FileAccess.file_exists(path):
+		return OK
+	return DirAccess.remove_absolute(path)
 
 
 # --- 信号处理函数 ---
@@ -688,7 +736,7 @@ func _on_request_completed(
 	_headers: PackedStringArray,
 	body: PackedByteArray
 ) -> void:
-	var content := body.get_string_from_utf8()
+	var content: String = body.get_string_from_utf8()
 	if result != HTTPRequest.RESULT_SUCCESS:
 		_complete_active_request(false, response_code, content, "HTTP request result: %d" % result)
 		return
@@ -698,3 +746,14 @@ func _on_request_completed(
 		return
 
 	_complete_active_request(true, response_code, content, "")
+
+
+# --- 内部类 ---
+
+class _CacheEntry:
+	var _path: String = ""
+	var _modified_time: int = 0
+
+	func _init(entry_path: String, entry_modified_time: int) -> void:
+		_path = entry_path
+		_modified_time = entry_modified_time

@@ -97,7 +97,7 @@ func can_accept(
 	if not _matches_categories(definition):
 		return false
 	if acceptance_checker.is_valid():
-		return bool(acceptance_checker.call(
+		return GFVariantData.to_bool(acceptance_checker.call(
 			item_id,
 			definition,
 			instance_data.duplicate(true),
@@ -133,13 +133,12 @@ func to_dict() -> Dictionary:
 ## [br]
 ## @schema data: Dictionary，可包含 display_name、accepted_item_ids、rejected_item_ids、accepted_categories、require_all_categories 与 metadata。
 func apply_dict(data: Dictionary) -> void:
-	display_name = String(data.get("display_name", display_name))
-	accepted_item_ids = _variant_array_to_string_name_array(data.get("accepted_item_ids", accepted_item_ids))
-	rejected_item_ids = _variant_array_to_string_name_array(data.get("rejected_item_ids", rejected_item_ids))
-	accepted_categories = _variant_array_to_string_name_array(data.get("accepted_categories", accepted_categories))
-	require_all_categories = bool(data.get("require_all_categories", require_all_categories))
-	var metadata_data := data.get("metadata", {}) as Dictionary
-	metadata = metadata_data.duplicate(true) if metadata_data != null else {}
+	display_name = GFVariantData.get_option_string(data, "display_name", display_name)
+	accepted_item_ids = GFVariantData.get_option_string_name_array(data, "accepted_item_ids", accepted_item_ids)
+	rejected_item_ids = GFVariantData.get_option_string_name_array(data, "rejected_item_ids", rejected_item_ids)
+	accepted_categories = GFVariantData.get_option_string_name_array(data, "accepted_categories", accepted_categories)
+	require_all_categories = GFVariantData.get_option_bool(data, "require_all_categories", require_all_categories)
+	metadata = GFVariantData.get_option_dictionary(data, "metadata", metadata)
 
 
 ## 从字典创建槽位定义。
@@ -152,7 +151,7 @@ func apply_dict(data: Dictionary) -> void:
 ## [br]
 ## @schema data: Dictionary，可包含 display_name、accepted_item_ids、rejected_item_ids、accepted_categories、require_all_categories 与 metadata。
 static func from_dict(data: Dictionary) -> GFInventorySlotDefinition:
-	var definition := GFInventorySlotDefinition.new()
+	var definition: GFInventorySlotDefinition = GFInventorySlotDefinition.new()
 	definition.apply_dict(data)
 	return definition
 
@@ -174,14 +173,7 @@ func _matches_categories(definition: GFInventoryItemDefinition) -> bool:
 
 
 static func _string_name_array_to_packed_string_array(values: Array[StringName]) -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	for value: StringName in values:
-		result.append(String(value))
-	return result
-
-
-static func _variant_array_to_string_name_array(values: Variant) -> Array[StringName]:
-	var result: Array[StringName] = []
-	for value: Variant in values:
-		result.append(StringName(String(value)))
+		var _appended: bool = result.append(String(value))
 	return result

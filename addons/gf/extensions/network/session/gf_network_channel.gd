@@ -73,7 +73,7 @@ func get_display_name() -> String:
 ## [br]
 ## @schema return: Dictionary，后端发送选项，至少包含 channel 和 reliable。
 func build_send_options(overrides: Dictionary = {}) -> Dictionary:
-	var result := overrides.duplicate(true)
+	var result: Dictionary = overrides.duplicate(true)
 	if not result.has("channel"):
 		result["channel"] = transfer_channel
 	if not result.has("reliable"):

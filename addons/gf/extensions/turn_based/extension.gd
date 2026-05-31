@@ -4,7 +4,7 @@ extends GFInstaller
 
 # --- 常量 ---
 
-const _GF_TURN_FLOW_SYSTEM_SCRIPT: Script = preload("res://addons/gf/extensions/turn_based/runtime/gf_turn_flow_system.gd")
+const _GF_TURN_FLOW_SYSTEM_SCRIPT = preload("res://addons/gf/extensions/turn_based/runtime/gf_turn_flow_system.gd")
 
 
 # --- 框架内部方法 ---

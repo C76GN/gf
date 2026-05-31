@@ -95,14 +95,17 @@ func watch_response(response: GFHttpResponse, key: Variant = null) -> bool:
 		return false
 
 	if response.is_finished():
-		mark_completed(item_key, response)
+		var _mark_completed_result_98: Variant = mark_completed(item_key, response)
 	else:
-		var callback := _on_response_completed.bind(item_key)
+		var callback: Callable = _on_response_completed.bind(item_key)
 		_watched_responses[item_key] = {
 			"response": response,
 			"callback": callback,
 		}
-		response.completed.connect(callback, CONNECT_ONE_SHOT)
+		var _connect_error: Error = response.completed.connect(
+			callback,
+			CONNECT_ONE_SHOT as Object.ConnectFlags
+		) as Error
 	return true
 
 
@@ -123,8 +126,8 @@ func mark_completed(key: Variant, result: Variant = null) -> bool:
 	if not _items.has(key):
 		return false
 
-	var item := _items[key] as Dictionary
-	if bool(item.get("done", false)):
+	var item: Dictionary = _get_item(key)
+	if _is_item_done(item):
 		return false
 
 	item["done"] = true
@@ -160,10 +163,10 @@ func get_count() -> int:
 ## [br]
 ## @return 已完成条目的数量。
 func get_completed_count() -> int:
-	var count := 0
+	var count: int = 0
 	for item_variant: Variant in _items.values():
-		var item := item_variant as Dictionary
-		if item != null and bool(item.get("done", false)):
+		var item: Dictionary = GFVariantData.as_dictionary(item_variant)
+		if _is_item_done(item):
 			count += 1
 	return count
 
@@ -178,8 +181,8 @@ func get_completed_count() -> int:
 func get_results() -> Dictionary:
 	var result: Dictionary = {}
 	for key: Variant in _items.keys():
-		var item := _items[key] as Dictionary
-		result[key] = item.get("result") if item != null else null
+		var item: Dictionary = _get_item(key)
+		result[key] = _get_item_result(item)
 	return result
 
 
@@ -223,13 +226,13 @@ func _emit_completed_if_ready() -> void:
 
 
 func _disconnect_watched_response(key: Variant) -> void:
-	var entry := _watched_responses.get(key, {}) as Dictionary
-	_watched_responses.erase(key)
-	if entry == null or entry.is_empty():
+	var entry: Dictionary = _get_watched_response_entry(key)
+	var _erase_result_230: Variant = _watched_responses.erase(key)
+	if entry.is_empty():
 		return
 
-	var response := entry.get("response") as GFHttpResponse
-	var callback := entry.get("callback", Callable()) as Callable
+	var response: GFHttpResponse = _get_entry_response(entry)
+	var callback: Callable = _get_entry_callback(entry)
 	if response != null and callback.is_valid() and response.completed.is_connected(callback):
 		response.completed.disconnect(callback)
 
@@ -240,8 +243,43 @@ func _disconnect_all_watched_responses() -> void:
 	_watched_responses.clear()
 
 
+func _get_item(key: Variant) -> Dictionary:
+	return GFVariantData.as_dictionary(GFVariantData.get_option_value(_items, key, {}))
+
+
+func _is_item_done(item: Dictionary) -> bool:
+	return GFVariantData.get_option_bool(item, "done", false)
+
+
+func _get_item_result(item: Dictionary) -> Variant:
+	return GFVariantData.get_option_value(item, "result")
+
+
+func _get_watched_response_entry(key: Variant) -> Dictionary:
+	return GFVariantData.as_dictionary(GFVariantData.get_option_value(_watched_responses, key, {}))
+
+
+func _get_entry_response(entry: Dictionary) -> GFHttpResponse:
+	return _variant_to_http_response(GFVariantData.get_option_value(entry, "response"))
+
+
+func _get_entry_callback(entry: Dictionary) -> Callable:
+	var value: Variant = GFVariantData.get_option_value(entry, "callback", Callable())
+	if value is Callable:
+		var callback: Callable = value
+		return callback
+	return Callable()
+
+
+func _variant_to_http_response(value: Variant) -> GFHttpResponse:
+	if value is GFHttpResponse:
+		var response: GFHttpResponse = value
+		return response
+	return null
+
+
 # --- 信号处理函数 ---
 
 func _on_response_completed(response: GFHttpResponse, key: Variant) -> void:
 	_disconnect_watched_response(key)
-	mark_completed(key, response)
+	var _mark_completed_result_285: Variant = mark_completed(key, response)

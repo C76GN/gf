@@ -175,7 +175,7 @@
 	@export var grid_size: int = 4
 
 	## 存储棋盘上所有方块节点的二维数组引用。'null'代表空格。
-	var grid = []
+	var grid: Array[Array] = []
 	```
 
 *   **函数 (Function)**
@@ -317,23 +317,42 @@
 *   **函数返回值**: `func my_function() -> ReturnType:` (无返回值时用 `-> void:`)
 
 ### 4.2 类型推断 (`:=`)
-*   **何时使用**: 当赋值运算符右侧的类型非常明确时（例如调用构造函数、字面量），使用 `:=` 来让编译器自动推断类型，避免冗余。
-	```gdscript
-	var direction := Vector3.UP
-	var state_machine := StateMachine.new()
-	```
-*   **何时避免**: 当类型不明确或可能存在歧义时，必须使用显式类型声明。最常见的场景是 `get_node()`。
-	```gdscript
-	# 推荐 - 类型明确
-	@onready var health_bar: ProgressBar = %HealthBar
+GF 框架源码以长期维护和 Godot strict warning clean 为优先级。`addons/gf/**` 中的局部变量、成员变量和 `@onready` 变量默认使用显式类型声明，不依赖 `:=` 承担 API 边界或框架语义。
 
-	# 不推荐 - 类型被推断为基类 Node，丢失了 ProgressBar 的特定方法和属性
-	@onready var health_bar := %HealthBar
-	```
-*   **类型转换**: 可以使用 `as` 关键字来辅助类型推断。
+*   **推荐做法**: 直接写出维护者期望的类型，让读者和编译器看到同一份契约。
 	```gdscript
-	@onready var health_bar := get_node("UI/HealthBar") as ProgressBar
+	var direction: Vector3 = Vector3.UP
+	var state_machine: GFStateMachine = GFStateMachine.new()
+	@onready var health_bar: ProgressBar = %HealthBar
 	```
+*   **受限例外**: 仅在非常局部、不会跨 API 边界、不会接触 `Variant` 的算法临时量中，才可以使用 `:=`。这类右值必须是编译器稳定知道类型的字面量、构造函数或强类型函数返回值。
+	```gdscript
+	var next_index := index + 1
+	var bounds := Rect2(Vector2.ZERO, size)
+	```
+*   **禁止场景**: 只要右值来自动态边界，就必须显式声明类型并做必要的类型检查。动态边界包括但不限于 `Dictionary.get()`、`Array`/`Dictionary` 下标、`Object.get()`、`call()`、`load()`、`get_script()`、`WeakRef.get_ref()`、`JSON.parse_string()`、`FileAccess.get_var()`、`ResourceLoader.load()`、信号参数、反射调用和 `await` 结果。
+	```gdscript
+	var value: Variant = payload.get("enabled", false)
+	var enabled: bool = bool(value) if value is bool else false
+	```
+
+### 4.3 Variant 边界与类型收窄
+从 `Variant` 边界进入框架强类型代码时，应把类型收窄集中、显式、可复用地表达出来，避免让不安全 cast 分散在业务逻辑中。
+
+*   **对象类型**: 先用 `is` 判断，再赋给显式类型变量。不要把 `Variant as Object`、`Variant as Script`、`Variant as Dictionary`、`Variant as Array` 直接和 `:=` 组合。
+	```gdscript
+	var raw_script: Variant = instance.get_script()
+	if raw_script is Script:
+		var script: Script = raw_script
+	```
+*   **字典与数组**: 读取 `Dictionary` / `Array` 时先接收为 `Variant`，再按目标类型校验或通过私有 helper 收口。通用 helper 应返回强类型结果，例如 `Dictionary`、`Array`、`Script` 或 `Object`，调用方不要重复写裸 cast。
+	```gdscript
+	var raw_entry: Variant = entries.get(id)
+	if raw_entry is Dictionary:
+		var entry: Dictionary = raw_entry
+	```
+*   **布尔、数字和字符串**: 对来自 `Variant` 的标量值先确认可转换类型，再调用 `bool()`、`int()`、`float()`、`String()` 或 `StringName()`，避免 Godot 4.6 的 unsafe call argument 警告。
+*   **命名防御**: 局部变量和参数不得使用容易遮蔽基类 API 或 Godot 属性的名字，例如 `name`、`reference`。使用语义名，如 `property_name`、`object_ref`、`weak_ref`。
 
 ---
 

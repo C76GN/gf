@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFVariantData" path="addons/gf/standard/foundation/variant/gf_variant_data.gd" module="standard" extends="RefCounted" classDigest="9f4547b1e50b65b15bded1d74e0983610e3e33dc560e8b0aa40885f11442c6a0">
+<class name="GFVariantData" path="addons/gf/standard/foundation/variant/gf_variant_data.gd" module="standard" extends="RefCounted" classDigest="1394a6b5663b292ce9f133f1efba9cb472c3b83e3054c26843e0b8fc4fc359e9">
 	<description>GFVariantData: 通用 Variant 数据复制与默认值合并。
 提供不依赖 GFArchitecture 的集合复制、Resource 可选复制和默认值递归补齐。
 JSON 兼容编码由 GFVariantJsonCodec 负责。</description>
@@ -22,8 +22,8 @@ JSON 兼容编码由 GFVariantJsonCodec 负责。</description>
 				<tag name="param">deep: 是否深拷贝集合或 Resource。</tag>
 				<tag name="param">duplicate_resources: 是否复制 Resource；默认为 false 以保留引用语义。</tag>
 				<tag name="return">复制后的值。</tag>
-				<tag name="schema">value: Variant value to duplicate.</tag>
-				<tag name="schema">return: Variant duplicated value.</tag>
+				<tag name="schema">value: 待复制的 Variant 值。</tag>
+				<tag name="schema">return: 复制后的 Variant 值。</tag>
 			</tags>
 		</member>
 		<member kind="method" name="duplicate_collection">
@@ -34,8 +34,8 @@ JSON 兼容编码由 GFVariantJsonCodec 负责。</description>
 				<tag name="param">value: 待复制的值。</tag>
 				<tag name="param">deep: 是否深拷贝集合。</tag>
 				<tag name="return">复制后的值。</tag>
-				<tag name="schema">value: Variant collection value to duplicate.</tag>
-				<tag name="schema">return: Variant duplicated collection value.</tag>
+				<tag name="schema">value: 待复制的 Variant 集合值。</tag>
+				<tag name="schema">return: 复制后的 Variant 集合值。</tag>
 			</tags>
 		</member>
 		<member kind="method" name="to_dictionary">
@@ -47,9 +47,165 @@ JSON 兼容编码由 GFVariantJsonCodec 负责。</description>
 				<tag name="param">default_value: value 不是 Dictionary 时使用的默认值。</tag>
 				<tag name="param">deep: 是否深拷贝集合。</tag>
 				<tag name="return">Dictionary 副本。</tag>
-				<tag name="schema">value: Variant value expected to be a Dictionary.</tag>
-				<tag name="schema">default_value: Dictionary default copied when value is not a Dictionary.</tag>
-				<tag name="schema">return: Dictionary copied result.</tag>
+				<tag name="schema">value: 期望为 Dictionary 的 Variant 值。</tag>
+				<tag name="schema">default_value: value 不是 Dictionary 时复制的默认 Dictionary。</tag>
+				<tag name="schema">return: 复制后的 Dictionary 结果。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="as_dictionary">
+			<signature>static func as_dictionary(value: Variant, default_value: Variant = null) -&gt; Dictionary:</signature>
+			<description>将 Variant 收窄为 Dictionary 引用；value 不是 Dictionary 时返回 default_value 引用。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 待读取的值。</tag>
+				<tag name="param">default_value: value 不是 Dictionary 时使用的默认值；不是 Dictionary 时忽略。</tag>
+				<tag name="return">Dictionary 引用。</tag>
+				<tag name="schema">value: 期望为 Dictionary 的 Variant 值。</tag>
+				<tag name="schema">default_value: 为 Dictionary 时按引用返回的 Variant 兜底值。</tag>
+				<tag name="schema">return: 收窄后的 Dictionary 结果。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_array">
+			<signature>static func to_array(value: Variant, default_value: Array = [], deep: bool = true) -&gt; Array:</signature>
+			<description>将 Variant 归一为 Array 副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 待读取的值。</tag>
+				<tag name="param">default_value: value 不是 Array 时使用的默认值。</tag>
+				<tag name="param">deep: 是否深拷贝集合。</tag>
+				<tag name="return">Array 副本。</tag>
+				<tag name="schema">value: 期望为 Array 的 Variant 值。</tag>
+				<tag name="schema">default_value: value 不是 Array 时复制的默认 Array。</tag>
+				<tag name="schema">return: 复制后的 Array 结果。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="as_array">
+			<signature>static func as_array(value: Variant, default_value: Variant = null) -&gt; Array:</signature>
+			<description>将 Variant 收窄为 Array 引用；value 不是 Array 时返回 default_value 引用。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 待读取的值。</tag>
+				<tag name="param">default_value: value 不是 Array 时使用的默认值；不是 Array 时忽略。</tag>
+				<tag name="return">Array 引用。</tag>
+				<tag name="schema">value: 期望为 Array 的 Variant 值。</tag>
+				<tag name="schema">default_value: 为 Array 时按引用返回的 Variant 兜底值。</tag>
+				<tag name="schema">return: 收窄后的 Array 结果。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_bool">
+			<signature>static func to_bool(value: Variant, default_value: bool = false) -&gt; bool:</signature>
+			<description>将 Variant 安全归一为 bool。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 待读取的值。</tag>
+				<tag name="param">default_value: 无法安全归一时返回的默认值。</tag>
+				<tag name="return">bool 值。</tag>
+				<tag name="schema">value: 期望可表示 bool 的 Variant 值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_int">
+			<signature>static func to_int(value: Variant, default_value: int = 0) -&gt; int:</signature>
+			<description>将 Variant 安全归一为 int。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 待读取的值。</tag>
+				<tag name="param">default_value: 无法安全归一时返回的默认值。</tag>
+				<tag name="return">int 值。</tag>
+				<tag name="schema">value: 期望可表示 int 的 Variant 值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_float">
+			<signature>static func to_float(value: Variant, default_value: float = 0.0) -&gt; float:</signature>
+			<description>将 Variant 安全归一为 float。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 待读取的值。</tag>
+				<tag name="param">default_value: 无法安全归一时返回的默认值。</tag>
+				<tag name="return">float 值。</tag>
+				<tag name="schema">value: 期望可表示 float 的 Variant 值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_text">
+			<signature>static func to_text(value: Variant, default_value: String = "") -&gt; String:</signature>
+			<description>将 Variant 归一为 String。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 待读取的值。</tag>
+				<tag name="param">default_value: value 为 null 时返回的默认值。</tag>
+				<tag name="return">String 值。</tag>
+				<tag name="schema">value: 期望可表示文本的 Variant 值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_string_name">
+			<signature>static func to_string_name(value: Variant, default_value: StringName = &amp;"") -&gt; StringName:</signature>
+			<description>将 Variant 归一为 StringName。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 待读取的值。</tag>
+				<tag name="param">default_value: value 为 null 时返回的默认值。</tag>
+				<tag name="return">StringName 值。</tag>
+				<tag name="schema">value: 期望可表示 StringName 的 Variant 值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_vector2">
+			<signature>static func to_vector2(value: Variant, default_value: Vector2 = Vector2.ZERO) -&gt; Vector2:</signature>
+			<description>将 Variant 归一为 Vector2。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 待读取的值。</tag>
+				<tag name="param">default_value: 无法安全归一时返回的默认值。</tag>
+				<tag name="return">Vector2 值。</tag>
+				<tag name="schema">value: 期望可表示 Vector2 的 Variant 值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_vector3">
+			<signature>static func to_vector3(value: Variant, default_value: Vector3 = Vector3.ZERO) -&gt; Vector3:</signature>
+			<description>将 Variant 归一为 Vector3。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 待读取的值。</tag>
+				<tag name="param">default_value: 无法安全归一时返回的默认值。</tag>
+				<tag name="return">Vector3 值。</tag>
+				<tag name="schema">value: 期望可表示 Vector3 的 Variant 值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_string_array">
+			<signature>static func to_string_array(value: Variant, default_value: Array[String] = []) -&gt; Array[String]:</signature>
+			<description>将 Variant 归一为 String 数组副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 待读取的值。</tag>
+				<tag name="param">default_value: 无法安全归一时返回的默认数组。</tag>
+				<tag name="return">String 数组副本。</tag>
+				<tag name="schema">value: 期望可表示 String 值集合的 Variant。</tag>
+				<tag name="schema">default_value: value 无法收窄时复制的默认 Array[String]。</tag>
+				<tag name="schema">return: 收窄后的 Array[String] 结果。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_string_name_array">
+			<signature>static func to_string_name_array(value: Variant, default_value: Array[StringName] = []) -&gt; Array[StringName]:</signature>
+			<description>将 Variant 归一为 StringName 数组副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 待读取的值。</tag>
+				<tag name="param">default_value: 无法安全归一时返回的默认数组。</tag>
+				<tag name="return">StringName 数组副本。</tag>
+				<tag name="schema">value: 期望可表示 StringName 值集合的 Variant。</tag>
+				<tag name="schema">default_value: value 无法收窄时复制的默认 Array[StringName]。</tag>
+				<tag name="schema">return: 收窄后的 Array[StringName] 结果。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_int_array">
+			<signature>static func to_int_array(value: Variant, default_value: Array[int] = []) -&gt; Array[int]:</signature>
+			<description>将 Variant 归一为 int 数组副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 待读取的值。</tag>
+				<tag name="param">default_value: 无法安全归一时返回的默认数组。</tag>
+				<tag name="return">int 数组副本。</tag>
+				<tag name="schema">value: 期望可表示 int 值集合的 Variant。</tag>
+				<tag name="schema">default_value: value 无法收窄时复制的默认 Array[int]。</tag>
+				<tag name="schema">return: 收窄后的 Array[int] 结果。</tag>
 			</tags>
 		</member>
 		<member kind="method" name="duplicate_metadata">
@@ -59,13 +215,14 @@ JSON 兼容编码由 GFVariantJsonCodec 负责。</description>
 				<tag name="api">public</tag>
 				<tag name="param">metadata: 待复制的元数据。</tag>
 				<tag name="return">元数据副本。</tag>
-				<tag name="schema">metadata: Dictionary caller metadata.</tag>
-				<tag name="schema">return: Dictionary duplicated metadata.</tag>
+				<tag name="schema">metadata: 调用方元数据 Dictionary。</tag>
+				<tag name="schema">return: 复制后的元数据 Dictionary。</tag>
 			</tags>
 		</member>
 		<member kind="method" name="merge_dictionary">
 			<signature>static func merge_dictionary( target: Dictionary, source: Dictionary, overwrite: bool = true, recursive: bool = true ) -&gt; Dictionary:</signature>
-			<description>将 source 合并到 target。</description>
+			<description>将 source 合并到 target。
+`String` 与 `StringName` 等价键会复用 target 中已有字段，避免重复键。</description>
 			<tags>
 				<tag name="api">public</tag>
 				<tag name="param">target: 会被原地修改的目标字典。</tag>
@@ -73,9 +230,9 @@ JSON 兼容编码由 GFVariantJsonCodec 负责。</description>
 				<tag name="param">overwrite: 为 true 时覆盖已有字段。</tag>
 				<tag name="param">recursive: 为 true 时递归合并嵌套 Dictionary。</tag>
 				<tag name="return">已合并的 target 字典。</tag>
-				<tag name="schema">target: Dictionary target mutated in place.</tag>
-				<tag name="schema">source: Dictionary source values copied into target.</tag>
-				<tag name="schema">return: Dictionary merged target.</tag>
+				<tag name="schema">target: 会被原地修改的目标 Dictionary。</tag>
+				<tag name="schema">source: 会复制到目标中的来源 Dictionary 值。</tag>
+				<tag name="schema">return: 合并后的目标 Dictionary。</tag>
 			</tags>
 		</member>
 		<member kind="method" name="merge_metadata">
@@ -88,9 +245,9 @@ JSON 兼容编码由 GFVariantJsonCodec 负责。</description>
 				<tag name="param">overwrite: 为 true 时覆盖已有字段。</tag>
 				<tag name="param">recursive: 为 true 时递归合并嵌套 Dictionary。</tag>
 				<tag name="return">已合并的 target 元数据。</tag>
-				<tag name="schema">target: Dictionary metadata mutated in place.</tag>
-				<tag name="schema">source: Dictionary metadata copied into target.</tag>
-				<tag name="schema">return: Dictionary merged metadata.</tag>
+				<tag name="schema">target: 会被原地修改的元数据 Dictionary。</tag>
+				<tag name="schema">source: 会复制到目标中的元数据 Dictionary。</tag>
+				<tag name="schema">return: 合并后的元数据 Dictionary。</tag>
 			</tags>
 		</member>
 		<member kind="method" name="deep_merge_defaults">
@@ -101,9 +258,9 @@ JSON 兼容编码由 GFVariantJsonCodec 负责。</description>
 				<tag name="param">base: 会被原地补齐的目标字典。</tag>
 				<tag name="param">defaults: 默认值字典。</tag>
 				<tag name="return">已补齐的 base 字典。</tag>
-				<tag name="schema">base: Dictionary target mutated in place.</tag>
-				<tag name="schema">defaults: Dictionary default values merged into base.</tag>
-				<tag name="schema">return: Dictionary merged base dictionary.</tag>
+				<tag name="schema">base: 会被原地修改的目标 Dictionary。</tag>
+				<tag name="schema">defaults: 会合并到 base 中的默认 Dictionary 值。</tag>
+				<tag name="schema">return: 合并后的 base Dictionary。</tag>
 			</tags>
 		</member>
 		<member kind="method" name="get_option_value">
@@ -115,10 +272,10 @@ JSON 兼容编码由 GFVariantJsonCodec 负责。</description>
 				<tag name="param">key: 字段名，可传 String 或 StringName。</tag>
 				<tag name="param">default_value: 缺少字段时返回的默认值。</tag>
 				<tag name="return">读取到的值或默认值。</tag>
-				<tag name="schema">options: Dictionary options payload.</tag>
-				<tag name="schema">key: Variant option key.</tag>
-				<tag name="schema">default_value: Variant default value.</tag>
-				<tag name="schema">return: Variant option value or default.</tag>
+				<tag name="schema">options: 选项载荷 Dictionary。</tag>
+				<tag name="schema">key: Variant 选项键。</tag>
+				<tag name="schema">default_value: Variant 默认值。</tag>
+				<tag name="schema">return: Variant 选项值或默认值。</tag>
 			</tags>
 		</member>
 		<member kind="method" name="get_option_bool">
@@ -130,8 +287,8 @@ JSON 兼容编码由 GFVariantJsonCodec 负责。</description>
 				<tag name="param">key: 字段名，可传 String 或 StringName。</tag>
 				<tag name="param">default_value: 缺少字段时返回的默认值。</tag>
 				<tag name="return">bool 值。</tag>
-				<tag name="schema">options: Dictionary options payload.</tag>
-				<tag name="schema">key: Variant option key.</tag>
+				<tag name="schema">options: 选项载荷 Dictionary。</tag>
+				<tag name="schema">key: Variant 选项键。</tag>
 			</tags>
 		</member>
 		<member kind="method" name="get_option_int">
@@ -143,8 +300,8 @@ JSON 兼容编码由 GFVariantJsonCodec 负责。</description>
 				<tag name="param">key: 字段名，可传 String 或 StringName。</tag>
 				<tag name="param">default_value: 缺少字段时返回的默认值。</tag>
 				<tag name="return">int 值。</tag>
-				<tag name="schema">options: Dictionary options payload.</tag>
-				<tag name="schema">key: Variant option key.</tag>
+				<tag name="schema">options: 选项载荷 Dictionary。</tag>
+				<tag name="schema">key: Variant 选项键。</tag>
 			</tags>
 		</member>
 		<member kind="method" name="get_option_float">
@@ -156,8 +313,8 @@ JSON 兼容编码由 GFVariantJsonCodec 负责。</description>
 				<tag name="param">key: 字段名，可传 String 或 StringName。</tag>
 				<tag name="param">default_value: 缺少字段时返回的默认值。</tag>
 				<tag name="return">float 值。</tag>
-				<tag name="schema">options: Dictionary options payload.</tag>
-				<tag name="schema">key: Variant option key.</tag>
+				<tag name="schema">options: 选项载荷 Dictionary。</tag>
+				<tag name="schema">key: Variant 选项键。</tag>
 			</tags>
 		</member>
 		<member kind="method" name="get_option_string">
@@ -169,8 +326,8 @@ JSON 兼容编码由 GFVariantJsonCodec 负责。</description>
 				<tag name="param">key: 字段名，可传 String 或 StringName。</tag>
 				<tag name="param">default_value: 缺少字段时返回的默认值。</tag>
 				<tag name="return">String 值。</tag>
-				<tag name="schema">options: Dictionary options payload.</tag>
-				<tag name="schema">key: Variant option key.</tag>
+				<tag name="schema">options: 选项载荷 Dictionary。</tag>
+				<tag name="schema">key: Variant 选项键。</tag>
 			</tags>
 		</member>
 		<member kind="method" name="get_option_string_name">
@@ -182,8 +339,34 @@ JSON 兼容编码由 GFVariantJsonCodec 负责。</description>
 				<tag name="param">key: 字段名，可传 String 或 StringName。</tag>
 				<tag name="param">default_value: 缺少字段时返回的默认值。</tag>
 				<tag name="return">StringName 值。</tag>
-				<tag name="schema">options: Dictionary options payload.</tag>
-				<tag name="schema">key: Variant option key.</tag>
+				<tag name="schema">options: 选项载荷 Dictionary。</tag>
+				<tag name="schema">key: Variant 选项键。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_option_vector2">
+			<signature>static func get_option_vector2(options: Dictionary, key: Variant, default_value: Vector2 = Vector2.ZERO) -&gt; Vector2:</signature>
+			<description>读取 Vector2 选项。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">options: 可选项字典。</tag>
+				<tag name="param">key: 字段名，可传 String 或 StringName。</tag>
+				<tag name="param">default_value: 缺少字段时返回的默认值。</tag>
+				<tag name="return">Vector2 值。</tag>
+				<tag name="schema">options: 选项载荷 Dictionary。</tag>
+				<tag name="schema">key: Variant 选项键。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_option_vector3">
+			<signature>static func get_option_vector3(options: Dictionary, key: Variant, default_value: Vector3 = Vector3.ZERO) -&gt; Vector3:</signature>
+			<description>读取 Vector3 选项。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">options: 可选项字典。</tag>
+				<tag name="param">key: 字段名，可传 String 或 StringName。</tag>
+				<tag name="param">default_value: 缺少字段时返回的默认值。</tag>
+				<tag name="return">Vector3 值。</tag>
+				<tag name="schema">options: 选项载荷 Dictionary。</tag>
+				<tag name="schema">key: Variant 选项键。</tag>
 			</tags>
 		</member>
 		<member kind="method" name="get_option_dictionary">
@@ -195,10 +378,10 @@ JSON 兼容编码由 GFVariantJsonCodec 负责。</description>
 				<tag name="param">key: 字段名，可传 String 或 StringName。</tag>
 				<tag name="param">default_value: 缺少字段时返回的默认值。</tag>
 				<tag name="return">Dictionary 副本。</tag>
-				<tag name="schema">options: Dictionary options payload.</tag>
-				<tag name="schema">key: Variant option key.</tag>
-				<tag name="schema">default_value: Dictionary default copied when option is not a Dictionary.</tag>
-				<tag name="schema">return: Dictionary option value.</tag>
+				<tag name="schema">options: 选项载荷 Dictionary。</tag>
+				<tag name="schema">key: Variant 选项键。</tag>
+				<tag name="schema">default_value: 选项不是 Dictionary 时复制的默认 Dictionary。</tag>
+				<tag name="schema">return: Dictionary 选项值。</tag>
 			</tags>
 		</member>
 		<member kind="method" name="get_option_array">
@@ -210,10 +393,55 @@ JSON 兼容编码由 GFVariantJsonCodec 负责。</description>
 				<tag name="param">key: 字段名，可传 String 或 StringName。</tag>
 				<tag name="param">default_value: 缺少字段时返回的默认值。</tag>
 				<tag name="return">Array 副本。</tag>
-				<tag name="schema">options: Dictionary options payload.</tag>
-				<tag name="schema">key: Variant option key.</tag>
-				<tag name="schema">default_value: Array default copied when option is not an Array.</tag>
-				<tag name="schema">return: Array option value.</tag>
+				<tag name="schema">options: 选项载荷 Dictionary。</tag>
+				<tag name="schema">key: Variant 选项键。</tag>
+				<tag name="schema">default_value: 选项不是 Array 时复制的默认 Array。</tag>
+				<tag name="schema">return: Array 选项值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_option_string_array">
+			<signature>static func get_option_string_array( options: Dictionary, key: Variant, default_value: Array[String] = [] ) -&gt; Array[String]:</signature>
+			<description>读取 String 数组选项副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">options: 可选项字典。</tag>
+				<tag name="param">key: 字段名，可传 String 或 StringName。</tag>
+				<tag name="param">default_value: 缺少字段时返回的默认数组。</tag>
+				<tag name="return">String 数组副本。</tag>
+				<tag name="schema">options: 选项载荷 Dictionary。</tag>
+				<tag name="schema">key: Variant 选项键。</tag>
+				<tag name="schema">default_value: 选项无法收窄时复制的默认 Array[String]。</tag>
+				<tag name="schema">return: Array[String] 选项值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_option_string_name_array">
+			<signature>static func get_option_string_name_array( options: Dictionary, key: Variant, default_value: Array[StringName] = [] ) -&gt; Array[StringName]:</signature>
+			<description>读取 StringName 数组选项副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">options: 可选项字典。</tag>
+				<tag name="param">key: 字段名，可传 String 或 StringName。</tag>
+				<tag name="param">default_value: 缺少字段时返回的默认数组。</tag>
+				<tag name="return">StringName 数组副本。</tag>
+				<tag name="schema">options: 选项载荷 Dictionary。</tag>
+				<tag name="schema">key: Variant 选项键。</tag>
+				<tag name="schema">default_value: 选项无法收窄时复制的默认 Array[StringName]。</tag>
+				<tag name="schema">return: Array[StringName] 选项值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_option_int_array">
+			<signature>static func get_option_int_array( options: Dictionary, key: Variant, default_value: Array[int] = [] ) -&gt; Array[int]:</signature>
+			<description>读取 int 数组选项副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">options: 可选项字典。</tag>
+				<tag name="param">key: 字段名，可传 String 或 StringName。</tag>
+				<tag name="param">default_value: 缺少字段时返回的默认数组。</tag>
+				<tag name="return">int 数组副本。</tag>
+				<tag name="schema">options: 选项载荷 Dictionary。</tag>
+				<tag name="schema">key: Variant 选项键。</tag>
+				<tag name="schema">default_value: 选项无法收窄时复制的默认 Array[int]。</tag>
+				<tag name="schema">return: Array[int] 选项值。</tag>
 			</tags>
 		</member>
 		<member kind="method" name="get_option_packed_string_array">
@@ -225,8 +453,8 @@ JSON 兼容编码由 GFVariantJsonCodec 负责。</description>
 				<tag name="param">key: 字段名，可传 String 或 StringName。</tag>
 				<tag name="param">default_value: 缺少字段时返回的默认值。</tag>
 				<tag name="return">PackedStringArray 值。</tag>
-				<tag name="schema">options: Dictionary options payload.</tag>
-				<tag name="schema">key: Variant option key.</tag>
+				<tag name="schema">options: 选项载荷 Dictionary。</tag>
+				<tag name="schema">key: Variant 选项键。</tag>
 			</tags>
 		</member>
 	</methods>

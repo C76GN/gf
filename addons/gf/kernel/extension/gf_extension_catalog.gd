@@ -59,7 +59,7 @@ static func load_all_manifests() -> Array[GFExtensionManifest]:
 static func load_manifests_in(root_path: String) -> Array[GFExtensionManifest]:
 	var manifests: Array[GFExtensionManifest] = []
 	for manifest_path: String in get_manifest_paths(root_path):
-		var manifest := GFExtensionManifestBase.from_json_file(manifest_path)
+		var manifest: GFExtensionManifest = GFExtensionManifestBase.from_json_file(manifest_path)
 		if manifest != null:
 			manifests.append(manifest)
 	return manifests
@@ -77,15 +77,15 @@ static func get_manifest_paths(root_path: String) -> Array[String]:
 	if root_path.is_empty():
 		return paths
 
-	var dir := DirAccess.open(root_path)
+	var dir: DirAccess = DirAccess.open(root_path)
 	if dir == null:
 		return paths
 
-	dir.list_dir_begin()
-	var entry := dir.get_next()
+	var _list_dir_begin_result_84: Variant = dir.list_dir_begin()
+	var entry: String = dir.get_next()
 	while not entry.is_empty():
 		if dir.current_is_dir() and not entry.begins_with("."):
-			var manifest_path := root_path.path_join(entry).path_join(GFExtensionManifestBase.FILE_NAME)
+			var manifest_path: String = root_path.path_join(entry).path_join(GFExtensionManifestBase.FILE_NAME)
 			if FileAccess.file_exists(manifest_path):
 				paths.append(manifest_path)
 		entry = dir.get_next()

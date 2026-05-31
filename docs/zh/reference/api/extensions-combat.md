@@ -6599,7 +6599,7 @@ Parameters:
 - API: `public`
 
 ```gdscript
-signal activation_failed(skill: GFSkill, context)
+signal activation_failed(skill: GFSkill, context: RefCounted)
 ```
 
 当技能激活失败时发出。
@@ -6616,7 +6616,7 @@ Parameters:
 - API: `public`
 
 ```gdscript
-signal activation_committed(skill: GFSkill, context)
+signal activation_committed(skill: GFSkill, context: RefCounted)
 ```
 
 当技能完成激活提交并进入冷却时发出。

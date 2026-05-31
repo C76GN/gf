@@ -70,7 +70,9 @@ func set_definition(definition: GFInventoryItemDefinition) -> void:
 ## [br]
 ## @param item_id: 物品标识。
 func remove_definition(item_id: StringName) -> void:
-	definitions.erase(item_id)
+	var erased: bool = definitions.erase(item_id)
+	if erased:
+		return
 
 
 ## 清空所有物品定义。
@@ -99,10 +101,10 @@ func has_definition(item_id: StringName) -> bool:
 ## [br]
 ## @return: 物品定义；不存在时返回 null。
 func get_definition(item_id: StringName) -> GFInventoryItemDefinition:
-	var definition := definitions.get(item_id) as GFInventoryItemDefinition
+	var definition: GFInventoryItemDefinition = _get_item_definition_value(GFVariantData.get_option_value(definitions, item_id))
 	if definition != null:
 		return definition
-	return definitions.get(String(item_id)) as GFInventoryItemDefinition
+	return _get_item_definition_value(GFVariantData.get_option_value(definitions, String(item_id)))
 
 
 ## 检查物品是否可被库存接受。
@@ -126,7 +128,7 @@ func accepts_item(item_id: StringName) -> bool:
 ## [br]
 ## @return: 单堆叠容量。
 func get_max_stack_amount(item_id: StringName) -> int:
-	var definition := get_definition(item_id)
+	var definition: GFInventoryItemDefinition = get_definition(item_id)
 	if definition == null:
 		return default_max_stack_amount
 	return definition.max_stack_amount
@@ -140,7 +142,7 @@ func get_max_stack_amount(item_id: StringName) -> int:
 ## [br]
 ## @return: 堆叠数量上限；小于等于 0 表示不限制。
 func get_max_stack_count(item_id: StringName) -> int:
-	var definition := get_definition(item_id)
+	var definition: GFInventoryItemDefinition = get_definition(item_id)
 	if definition == null:
 		return default_max_stack_count
 	return definition.max_stack_count
@@ -160,7 +162,7 @@ func get_max_stack_count(item_id: StringName) -> int:
 ## [br]
 ## @schema return: Dictionary，规范化后的物品实例数据副本。
 func normalize_instance_data(item_id: StringName, instance_data: Dictionary = {}) -> Dictionary:
-	var definition := get_definition(item_id)
+	var definition: GFInventoryItemDefinition = get_definition(item_id)
 	if definition == null:
 		return instance_data.duplicate(true)
 	return definition.normalize_instance_data(instance_data)
@@ -186,7 +188,7 @@ func are_instance_data_compatible(
 	left: Dictionary = {},
 	right: Dictionary = {}
 ) -> bool:
-	var definition := get_definition(item_id)
+	var definition: GFInventoryItemDefinition = get_definition(item_id)
 	if definition == null:
 		return left == right
 	return definition.are_instance_data_compatible(left, right)
@@ -202,9 +204,9 @@ func are_instance_data_compatible(
 func to_dict() -> Dictionary:
 	var definition_data: Dictionary = {}
 	for item_id_variant: Variant in definitions.keys():
-		var definition := definitions[item_id_variant] as GFInventoryItemDefinition
+		var definition: GFInventoryItemDefinition = _get_item_definition_value(definitions[item_id_variant])
 		if definition != null:
-			definition_data[String(item_id_variant)] = definition.to_dict()
+			definition_data[GFVariantData.to_text(item_id_variant)] = definition.to_dict()
 	return {
 		"definitions": definition_data,
 		"default_max_stack_amount": default_max_stack_amount,
@@ -222,18 +224,18 @@ func to_dict() -> Dictionary:
 ## @schema data: Dictionary，可包含 definitions、default_max_stack_amount、default_max_stack_count 与 allow_unregistered_items。
 func apply_dict(data: Dictionary) -> void:
 	definitions.clear()
-	var raw_definitions := data.get("definitions", {}) as Dictionary
-	if raw_definitions != null:
-		for key: Variant in raw_definitions.keys():
-			var definition_data := raw_definitions[key] as Dictionary
-			if definition_data != null:
-				var definition := GFInventoryItemDefinition.from_dict(definition_data)
-				if definition.item_id == &"":
-					definition.item_id = StringName(String(key))
-				set_definition(definition)
-	default_max_stack_amount = int(data.get("default_max_stack_amount", default_max_stack_amount))
-	default_max_stack_count = int(data.get("default_max_stack_count", default_max_stack_count))
-	allow_unregistered_items = bool(data.get("allow_unregistered_items", allow_unregistered_items))
+	var raw_definitions: Dictionary = GFVariantData.get_option_dictionary(data, "definitions")
+	for key: Variant in raw_definitions.keys():
+		var definition_data: Dictionary = GFVariantData.as_dictionary(raw_definitions[key])
+		if definition_data.is_empty():
+			continue
+		var definition: GFInventoryItemDefinition = GFInventoryItemDefinition.from_dict(definition_data)
+		if definition.item_id == &"":
+			definition.item_id = StringName(GFVariantData.to_text(key))
+		set_definition(definition)
+	default_max_stack_amount = GFVariantData.get_option_int(data, "default_max_stack_amount", default_max_stack_amount)
+	default_max_stack_count = GFVariantData.get_option_int(data, "default_max_stack_count", default_max_stack_count)
+	allow_unregistered_items = GFVariantData.get_option_bool(data, "allow_unregistered_items", allow_unregistered_items)
 
 
 ## 从字典创建注册表。
@@ -246,6 +248,15 @@ func apply_dict(data: Dictionary) -> void:
 ## [br]
 ## @schema data: Dictionary，可包含 definitions、default_max_stack_amount、default_max_stack_count 与 allow_unregistered_items。
 static func from_dict(data: Dictionary) -> GFInventoryItemRegistry:
-	var registry := GFInventoryItemRegistry.new()
+	var registry: GFInventoryItemRegistry = GFInventoryItemRegistry.new()
 	registry.apply_dict(data)
 	return registry
+
+
+# --- 私有/辅助方法 ---
+
+func _get_item_definition_value(value: Variant) -> GFInventoryItemDefinition:
+	if value is GFInventoryItemDefinition:
+		var definition: GFInventoryItemDefinition = value
+		return definition
+	return null

@@ -51,8 +51,8 @@ func is_instant() -> bool:
 func sample_weight(elapsed_seconds: float) -> float:
 	if is_instant():
 		return 1.0
-	var clamped_elapsed := clampf(elapsed_seconds, 0.0, duration_seconds)
-	return clampf(float(Tween.interpolate_value(
+	var clamped_elapsed: float = clampf(elapsed_seconds, 0.0, duration_seconds)
+	return clampf(GFVariantData.to_float(Tween.interpolate_value(
 		0.0,
 		1.0,
 		clamped_elapsed,
@@ -68,7 +68,7 @@ func sample_weight(elapsed_seconds: float) -> float:
 ## [br]
 ## @return 新过渡资源。
 func duplicate_blend() -> GFCameraBlend:
-	var blend := GFCameraBlend.new()
+	var blend: GFCameraBlend = GFCameraBlend.new()
 	blend.duration_seconds = duration_seconds
 	blend.transition_type = transition_type
 	blend.ease_type = ease_type

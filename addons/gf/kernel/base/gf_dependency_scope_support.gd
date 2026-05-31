@@ -5,6 +5,11 @@
 extends RefCounted
 
 
+# --- 常量 ---
+
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
+
+
 # --- 私有/辅助方法 ---
 
 static func _make_scope() -> Dictionary:
@@ -27,37 +32,55 @@ static func _bind_scope(scope: Dictionary, architecture: GFArchitecture) -> void
 
 static func _release_scope(scope: Dictionary) -> void:
 	scope["architecture_ref"] = null
-	if bool(scope.get("was_bound", false)):
+	if _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(scope, "was_bound"):
 		scope["released"] = true
 
 
 static func _get_architecture_or_null(scope: Dictionary, owner_label: String) -> GFArchitecture:
-	if bool(scope.get("released", false)):
+	if _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(scope, "released"):
 		push_error("[%s] 依赖作用域已释放，无法继续访问架构。" % owner_label)
 		return null
 
-	var architecture_ref := scope.get("architecture_ref") as WeakRef
+	var architecture_ref: WeakRef = _get_scope_architecture_ref_or_null(scope)
 	if architecture_ref != null:
-		var architecture := architecture_ref.get_ref() as GFArchitecture
+		var architecture: GFArchitecture = _get_architecture_from_ref_or_null(architecture_ref)
 		if architecture != null:
 			return architecture
-		if bool(scope.get("was_bound", false)):
+		if _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(scope, "was_bound"):
 			push_error("[%s] 注入的架构已失效，无法回退到全局架构。" % owner_label)
 			return null
 	return GFAutoload.get_architecture_or_null()
 
 
 static func _get_architecture_or_global(scope: Dictionary, owner_label: String) -> GFArchitecture:
-	var architecture := _get_architecture_or_null(scope, owner_label)
+	var architecture: GFArchitecture = _get_architecture_or_null(scope, owner_label)
 	if architecture != null:
 		return architecture
-	if bool(scope.get("was_bound", false)) or bool(scope.get("released", false)):
+	if (
+		_GF_VARIANT_ACCESS_SCRIPT.get_option_bool(scope, "was_bound")
+		or _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(scope, "released")
+	):
 		return null
 	return GFAutoload.get_architecture()
 
 
 static func _get_bound_architecture_or_null(scope: Dictionary) -> GFArchitecture:
-	var architecture_ref := scope.get("architecture_ref") as WeakRef
+	var architecture_ref: WeakRef = _get_scope_architecture_ref_or_null(scope)
 	if architecture_ref == null:
 		return null
-	return architecture_ref.get_ref() as GFArchitecture
+	return _get_architecture_from_ref_or_null(architecture_ref)
+
+
+static func _get_scope_architecture_ref_or_null(scope: Dictionary) -> WeakRef:
+	var raw_ref: Variant = _GF_VARIANT_ACCESS_SCRIPT.get_option_value(scope, "architecture_ref")
+	if raw_ref is WeakRef:
+		return raw_ref
+	return null
+
+
+static func _get_architecture_from_ref_or_null(architecture_ref: WeakRef) -> GFArchitecture:
+	var raw_architecture: Variant = architecture_ref.get_ref()
+	if raw_architecture is GFArchitecture:
+		var architecture: GFArchitecture = raw_architecture
+		return architecture
+	return null

@@ -14,16 +14,6 @@ class_name GFNodeStateMachineValidator
 extends RefCounted
 
 
-# --- 常量 ---
-
-const _GF_NODE_STATE_BASE := preload("res://addons/gf/standard/state_machine/node/gf_node_state.gd")
-const _GF_NODE_STATE_BEHAVIOR_BASE := preload("res://addons/gf/standard/state_machine/node/gf_node_state_behavior.gd")
-const _GF_NODE_STATE_CONDITION_BASE := preload("res://addons/gf/standard/state_machine/node/gf_node_state_condition.gd")
-const _GF_NODE_STATE_GROUP_BASE := preload("res://addons/gf/standard/state_machine/node/gf_node_state_group.gd")
-const _GF_NODE_STATE_MACHINE_BASE := preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine.gd")
-const _GF_VALIDATION_REPORT_BASE := preload("res://addons/gf/standard/foundation/validation/gf_validation_report.gd")
-
-
 # --- 公共方法 ---
 
 ## 校验一个节点状态机的直接子状态和显式状态组。
@@ -38,51 +28,55 @@ const _GF_VALIDATION_REPORT_BASE := preload("res://addons/gf/standard/foundation
 ## [br]
 ## @return: 校验报告。
 static func validate_machine(machine: GFNodeStateMachine, options: Dictionary = {}) -> GFValidationReport:
-	var report := _GF_VALIDATION_REPORT_BASE.new("GFNodeStateMachine") as GFValidationReport
+	var report: GFValidationReport = GFValidationReport.new("GFNodeStateMachine")
 	if machine == null:
-		report.add_error(&"missing_state_machine", "State machine is null.")
+		_add_error(report, &"missing_state_machine", "State machine is null.")
 		return report
 
 	var internal_states: Array[GFNodeState] = []
 	var groups: Array[GFNodeStateGroup] = []
 	for child: Node in machine.get_children():
-		if bool(child.get_meta(_GF_NODE_STATE_MACHINE_BASE.META_INTERNAL_GROUP, false)):
+		if GFVariantData.to_bool(child.get_meta(GFNodeStateMachine.META_INTERNAL_GROUP, false)):
 			continue
-		if child is _GF_NODE_STATE_GROUP_BASE:
-			groups.append(child as GFNodeStateGroup)
-		elif child is _GF_NODE_STATE_BASE:
-			internal_states.append(child as GFNodeState)
+		if child is GFNodeStateGroup:
+			var group_child: GFNodeStateGroup = child
+			groups.append(group_child)
+		elif child is GFNodeState:
+			var state_child: GFNodeState = child
+			internal_states.append(state_child)
 
 	var group_names: Dictionary = {}
 	if not internal_states.is_empty():
 		_validate_group_shape(
 			report,
-			_GF_NODE_STATE_MACHINE_BASE.INTERNAL_GROUP_NAME,
+			GFNodeStateMachine.INTERNAL_GROUP_NAME,
 			internal_states,
 			_get_machine_initial_state(machine),
 			_should_require_machine_initial_state(machine, options),
 			_get_node_path_text(machine),
 			options
 		)
-		group_names[_GF_NODE_STATE_MACHINE_BASE.INTERNAL_GROUP_NAME] = _get_node_path_text(machine)
+		group_names[GFNodeStateMachine.INTERNAL_GROUP_NAME] = _get_node_path_text(machine)
 
 	for group: GFNodeStateGroup in groups:
-		var group_name := _get_group_name(group)
-		var group_path := _get_node_path_text(group)
+		var group_name: StringName = _get_group_name(group)
+		var group_path: String = _get_node_path_text(group)
 		if group_names.has(group_name):
-			report.add_error(
+			_add_error(
+				report,
 				&"duplicate_state_group",
 				"State group name is duplicated.",
 				group_name,
 				group_path,
-				{ "first_path": String(group_names[group_name]) }
+				{ "first_path": GFVariantData.get_option_string(group_names, group_name) }
 			)
 		else:
 			group_names[group_name] = group_path
-		report.merge(validate_group(group, options), false)
+		_merge_report(report, validate_group(group, options), false)
 
 	if internal_states.is_empty() and groups.is_empty():
-		report.add_error(
+		_add_error(
+			report,
 			&"empty_state_machine",
 			"State machine has no direct states or state groups.",
 			null,
@@ -106,12 +100,12 @@ static func validate_machine(machine: GFNodeStateMachine, options: Dictionary = 
 ## [br]
 ## @return: 校验报告。
 static func validate_group(group: GFNodeStateGroup, options: Dictionary = {}) -> GFValidationReport:
-	var report := _GF_VALIDATION_REPORT_BASE.new("GFNodeStateGroup") as GFValidationReport
+	var report: GFValidationReport = GFValidationReport.new("GFNodeStateGroup")
 	if group == null:
-		report.add_error(&"missing_state_group", "State group is null.")
+		_add_error(report, &"missing_state_group", "State group is null.")
 		return report
 
-	var states := _collect_direct_states(group)
+	var states: Array[GFNodeState] = _collect_direct_states(group)
 	_validate_group_shape(
 		report,
 		_get_group_name(group),
@@ -147,13 +141,13 @@ static func validate_state_list(
 	subject: String = "GFNodeStateList",
 	options: Dictionary = {}
 ) -> GFValidationReport:
-	var report := _GF_VALIDATION_REPORT_BASE.new(subject) as GFValidationReport
+	var report: GFValidationReport = GFValidationReport.new(subject)
 	_validate_group_shape(
 		report,
 		StringName(subject),
 		states,
 		initial_state,
-		bool(options.get("require_initial_state", false)),
+		GFVariantData.get_option_bool(options, "require_initial_state"),
 		"",
 		options
 	)
@@ -172,29 +166,68 @@ static func validate_state_list(
 ## [br]
 ## @return Inspector 可显示的配置警告列表。
 static func make_configuration_warnings(report: GFValidationReport) -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	if report == null:
 		return result
 
 	for issue: RefCounted in report.issues:
 		if issue == null:
 			continue
-		result.append(_format_configuration_warning_issue(issue))
+		var _warning_appended: bool = result.append(_format_configuration_warning_issue(issue))
 	return result
 
 
 # --- 私有/辅助方法 ---
 
+static func _add_error(
+	report: GFValidationReport,
+	kind: StringName,
+	message: String,
+	key: Variant = null,
+	path: String = "",
+	metadata: Dictionary = {}
+) -> void:
+	if report == null:
+		return
+	var _issue: RefCounted = report.add_error(kind, message, key, path, metadata)
+
+
+static func _add_warning(
+	report: GFValidationReport,
+	kind: StringName,
+	message: String,
+	key: Variant = null,
+	path: String = "",
+	metadata: Dictionary = {}
+) -> void:
+	if report == null:
+		return
+	var _issue: RefCounted = report.add_warning(kind, message, key, path, metadata)
+
+
+static func _merge_report(target: GFValidationReport, source: GFValidationReport, include_metadata: bool) -> void:
+	if target == null or source == null:
+		return
+	var _merged_report: RefCounted = target.merge(source, include_metadata)
+
+
+static func _variant_to_resource(value: Variant) -> Resource:
+	if value is Resource:
+		var resource: Resource = value
+		return resource
+	return null
+
+
 static func _format_configuration_warning_issue(issue: RefCounted) -> String:
-	var severity := "Error"
-	if bool(issue.call("is_warning")):
+	var severity: String = "Error"
+	if GFVariantData.to_bool(issue.call("is_warning")):
 		severity = "Warning"
-	elif bool(issue.call("is_info")):
+	elif GFVariantData.to_bool(issue.call("is_info")):
 		severity = "Info"
 
-	var kind := String(issue.call("get_kind_key"))
-	var message := String(issue.get("message")).strip_edges()
-	var location := _get_issue_location_text(issue)
+	var kind: String = GFVariantData.to_text(issue.call("get_kind_key"))
+	var message: String = GFVariantData.to_text(_read_property(issue, &"message")).strip_edges()
+	var location: String = _get_issue_location_text(issue)
 	if message.is_empty():
 		message = "No message."
 	if kind.is_empty():
@@ -203,20 +236,21 @@ static func _format_configuration_warning_issue(issue: RefCounted) -> String:
 
 
 static func _get_issue_location_text(issue: RefCounted) -> String:
-	var parts := PackedStringArray()
-	var path := String(issue.get("path")).strip_edges()
+	var parts: PackedStringArray = PackedStringArray()
+	var path: String = GFVariantData.to_text(_read_property(issue, &"path")).strip_edges()
 	if not path.is_empty():
-		parts.append(path)
+		var _path_appended: bool = parts.append(path)
 
-	var key: Variant = issue.get("key")
+	var key: Variant = _read_property(issue, &"key")
 	if key != null:
-		var key_text := String(key).strip_edges()
+		var key_text: String = GFVariantData.to_text(key).strip_edges()
 		if not key_text.is_empty():
-			parts.append(key_text)
+			var _key_appended: bool = parts.append(key_text)
 
 	if parts.is_empty():
 		return ""
 	return " (%s)" % " / ".join(parts)
+
 
 static func _validate_group_shape(
 	report: GFValidationReport,
@@ -228,7 +262,8 @@ static func _validate_group_shape(
 	options: Dictionary
 ) -> void:
 	if states.is_empty():
-		report.add_error(
+		_add_error(
+			report,
 			&"empty_state_group",
 			"State group has no states.",
 			group_name,
@@ -241,14 +276,16 @@ static func _validate_group_shape(
 		_validate_state(report, group_name, state, state_paths_by_name, options)
 
 	if require_initial_state and initial_state == &"":
-		report.add_warning(
+		_add_warning(
+			report,
 			&"missing_initial_state",
 			"State group has no initial state.",
 			group_name,
 			group_path
 		)
 	elif initial_state != &"" and not state_paths_by_name.has(initial_state):
-		report.add_error(
+		_add_error(
+			report,
 			&"invalid_initial_state",
 			"Initial state does not exist in this state group.",
 			initial_state,
@@ -256,7 +293,7 @@ static func _validate_group_shape(
 			{ "group_name": group_name }
 		)
 
-	report.metadata["state_count"] = int(report.metadata.get("state_count", 0)) + states.size()
+	report.metadata["state_count"] = GFVariantData.get_option_int(report.metadata, "state_count") + states.size()
 
 
 static func _validate_state(
@@ -267,33 +304,35 @@ static func _validate_state(
 	options: Dictionary
 ) -> void:
 	if state == null:
-		report.add_error(&"missing_state", "State entry is null.", group_name)
+		_add_error(report, &"missing_state", "State entry is null.", group_name)
 		return
 
-	var state_name := _get_state_name(state)
-	var state_path := _get_node_path_text(state)
+	var state_name: StringName = _get_state_name(state)
+	var state_path: String = _get_node_path_text(state)
 	if state_name == &"":
-		report.add_error(
+		_add_error(
+			report,
 			&"empty_state_name",
 			"State name is empty.",
 			group_name,
 			state_path
 		)
 	elif state_paths_by_name.has(state_name):
-		report.add_error(
+		_add_error(
+			report,
 			&"duplicate_state_name",
 			"State name is duplicated inside the group.",
 			state_name,
 			state_path,
 			{
 				"group_name": group_name,
-				"first_path": String(state_paths_by_name[state_name]),
+				"first_path": GFVariantData.get_option_string(state_paths_by_name, state_name),
 			}
 		)
 	else:
 		state_paths_by_name[state_name] = state_path
 
-	if bool(options.get("check_state_resources", true)):
+	if GFVariantData.get_option_bool(options, "check_state_resources", true):
 		_validate_resource_list(
 			report,
 			_get_resource_array_property(state, &"enter_conditions"),
@@ -328,14 +367,15 @@ static func _validate_resource_list(
 ) -> void:
 	var ids: Dictionary = {}
 	for index: int in range(resources.size()):
-		var resource := resources[index]
-		var metadata := {
+		var resource: Resource = resources[index]
+		var metadata: Dictionary = {
 			"field": field_name,
 			"index": index,
 			"state_name": state_name,
 		}
 		if resource == null:
-			report.add_warning(
+			_add_warning(
+				report,
 				&"missing_state_resource",
 				"State resource slot is empty.",
 				state_name,
@@ -344,7 +384,8 @@ static func _validate_resource_list(
 			)
 			continue
 		if not _resource_exposes_required_method(resource, field_name, required_method):
-			report.add_error(
+			_add_error(
+				report,
 				&"invalid_state_resource",
 				"State resource does not expose the required method.",
 				state_name,
@@ -362,14 +403,15 @@ static func _validate_behavior_resources(
 ) -> void:
 	var ids: Dictionary = {}
 	for index: int in range(behaviors.size()):
-		var behavior := behaviors[index]
-		var metadata := {
+		var behavior: Resource = behaviors[index]
+		var metadata: Dictionary = {
 			"field": &"behaviors",
 			"index": index,
 			"state_name": state_name,
 		}
 		if behavior == null:
-			report.add_warning(
+			_add_warning(
+				report,
 				&"missing_state_resource",
 				"State behavior slot is empty.",
 				state_name,
@@ -378,7 +420,8 @@ static func _validate_behavior_resources(
 			)
 			continue
 		if not _has_any_behavior_method(behavior):
-			report.add_warning(
+			_add_warning(
+				report,
 				&"inert_state_behavior",
 				"State behavior exposes no known lifecycle hook.",
 				state_name,
@@ -397,26 +440,27 @@ static func _track_duplicate_resource_id(
 	state_path: String,
 	metadata: Dictionary
 ) -> void:
-	var id_value := _get_resource_id(resource, field_name)
+	var id_value: StringName = _get_resource_id(resource, field_name)
 	if id_value == &"":
 		return
 	if ids.has(id_value):
-		report.add_warning(
+		_add_warning(
+			report,
 			&"duplicate_state_resource_id",
 			"State resource id is duplicated inside the same resource list.",
 			state_name,
 			state_path,
 			metadata.merged({
 				"resource_id": id_value,
-				"first_index": int(ids[id_value]),
+				"first_index": GFVariantData.get_option_int(ids, id_value, -1),
 			})
 		)
 	else:
-		ids[id_value] = int(metadata.get("index", -1))
+		ids[id_value] = GFVariantData.get_option_int(metadata, "index", -1)
 
 
 static func _has_any_behavior_method(resource: Resource) -> bool:
-	if resource is _GF_NODE_STATE_BEHAVIOR_BASE:
+	if resource is GFNodeStateBehavior:
 		return true
 	return (
 		resource.has_method(&"initialize")
@@ -432,21 +476,21 @@ static func _resource_exposes_required_method(resource: Resource, field_name: St
 	if resource == null:
 		return false
 	if field_name == &"enter_conditions" or field_name == &"exit_conditions":
-		if resource is _GF_NODE_STATE_CONDITION_BASE:
+		if resource is GFNodeStateCondition:
 			return true
 	return resource.has_method(required_method)
 
 
 static func _get_resource_id(resource: Resource, field_name: StringName) -> StringName:
 	if field_name == &"behaviors":
-		var behavior_id := _get_string_name_property(resource, &"behavior_id", &"")
+		var behavior_id: StringName = _get_string_name_property(resource, &"behavior_id", &"")
 		if behavior_id != &"":
 			return behavior_id
 
-	var condition_id := _get_string_name_property(resource, &"condition_id", &"")
+	var condition_id: StringName = _get_string_name_property(resource, &"condition_id", &"")
 	if condition_id != &"":
 		return condition_id
-	var resource_id := _get_string_name_property(resource, &"resource_id", &"")
+	var resource_id: StringName = _get_string_name_property(resource, &"resource_id", &"")
 	if resource_id != &"":
 		return resource_id
 	return &""
@@ -455,13 +499,14 @@ static func _get_resource_id(resource: Resource, field_name: StringName) -> Stri
 static func _collect_direct_states(parent: Node) -> Array[GFNodeState]:
 	var result: Array[GFNodeState] = []
 	for child: Node in parent.get_children():
-		if child is _GF_NODE_STATE_BASE:
-			result.append(child as GFNodeState)
+		if child is GFNodeState:
+			var state: GFNodeState = child
+			result.append(state)
 	return result
 
 
 static func _get_machine_initial_state(machine: GFNodeStateMachine) -> StringName:
-	var config := machine.get("config") as Resource
+	var config: Resource = _variant_to_resource(_read_property(machine, &"config"))
 	if config != null:
 		return _get_string_name_property(config, &"initial_state", &"")
 	return _get_string_name_property(machine, &"initial_state", &"")
@@ -469,14 +514,14 @@ static func _get_machine_initial_state(machine: GFNodeStateMachine) -> StringNam
 
 static func _should_require_machine_initial_state(machine: GFNodeStateMachine, options: Dictionary) -> bool:
 	if options.has("require_initial_state"):
-		return bool(options["require_initial_state"])
-	var start_mode := int(machine.get("start_mode"))
-	return start_mode != _GF_NODE_STATE_MACHINE_BASE.StartMode.MANUAL
+		return GFVariantData.get_option_bool(options, "require_initial_state")
+	var start_mode: int = GFVariantData.to_int(_read_property(machine, &"start_mode"), GFNodeStateMachine.StartMode.MANUAL)
+	return start_mode != GFNodeStateMachine.StartMode.MANUAL
 
 
 static func _should_require_group_initial_state(group: GFNodeStateGroup, options: Dictionary) -> bool:
 	if options.has("require_initial_state"):
-		return bool(options["require_initial_state"])
+		return GFVariantData.get_option_bool(options, "require_initial_state")
 	return _get_bool_property(group, &"auto_start", true)
 
 
@@ -496,12 +541,13 @@ static func _get_string_name_property(object: Object, property_name: StringName,
 	if object == null:
 		return fallback
 
-	var value: Variant = object.get(property_name)
+	var value: Variant = _read_property(object, property_name)
 	if value is StringName:
-		var string_name := value as StringName
+		var string_name: StringName = value
 		return fallback if string_name == &"" else string_name
 	if value is String:
-		var text := String(value).strip_edges()
+		var string_value: String = value
+		var text: String = string_value.strip_edges()
 		return fallback if text.is_empty() else StringName(text)
 	return fallback
 
@@ -510,8 +556,8 @@ static func _get_bool_property(object: Object, property_name: StringName, fallba
 	if object == null:
 		return fallback
 
-	var value: Variant = object.get(property_name)
-	return bool(value) if value is bool else fallback
+	var value: Variant = _read_property(object, property_name)
+	return GFVariantData.to_bool(value, fallback)
 
 
 static func _get_resource_array_property(object: Object, property_name: StringName) -> Array[Resource]:
@@ -519,13 +565,18 @@ static func _get_resource_array_property(object: Object, property_name: StringNa
 	if object == null:
 		return result
 
-	var value: Variant = object.get(property_name)
+	var value: Variant = _read_property(object, property_name)
 	if not value is Array:
 		return result
 
-	for entry: Variant in value as Array:
-		result.append(entry as Resource)
+	var entries: Array = value
+	for entry: Variant in entries:
+		result.append(_variant_to_resource(entry))
 	return result
+
+
+static func _read_property(object: Object, property_name: StringName, fallback: Variant = null) -> Variant:
+	return GFObjectPropertyTools.read_property(object, NodePath(property_name), fallback)
 
 
 static func _get_node_path_text(node: Node) -> String:

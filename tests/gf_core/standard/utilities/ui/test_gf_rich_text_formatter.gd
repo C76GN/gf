@@ -2,17 +2,12 @@
 extends GutTest
 
 
-# --- 常量 ---
-
-const GFRichTextFormatterBase = preload("res://addons/gf/standard/utilities/ui/gf_rich_text_formatter.gd")
-
-
 # --- 测试方法 ---
 
 ## 验证普通文本模式会转义 BBCode 控制字符。
 func test_plain_markup_escapes_bbcode() -> void:
-	var result := GFRichTextFormatterBase.to_bbcode("[b]Hello[/b]", {
-		"markup": GFRichTextFormatterBase.MARKUP_PLAIN,
+	var result: String = GFRichTextFormatter.to_bbcode("[b]Hello[/b]", {
+		"markup": GFRichTextFormatter.MARKUP_PLAIN,
 	})
 
 	assert_eq(result, "[lb]b[rb]Hello[lb]/b[rb]", "普通文本不应被 RichTextLabel 当作 BBCode 执行。")
@@ -20,7 +15,7 @@ func test_plain_markup_escapes_bbcode() -> void:
 
 ## 验证 Markdown 子集会转换为 BBCode，未识别的 BBCode 会保持转义。
 func test_markdown_to_bbcode_converts_supported_subset_safely() -> void:
-	var result := GFRichTextFormatterBase.markdown_to_bbcode(
+	var result: String = GFRichTextFormatter.markdown_to_bbcode(
 		"**Bold** *It* [Link](https://example.com) ![Alt](res://icon.png) `code [x]` ~~Gone~~ [raw]"
 	)
 
@@ -33,8 +28,8 @@ func test_markdown_to_bbcode_converts_supported_subset_safely() -> void:
 
 ## 验证变量替换默认会转义变量值。
 func test_replace_variables_escapes_values_by_default() -> void:
-	var result := GFRichTextFormatterBase.to_bbcode("Hello {{name}}", {
-		"markup": GFRichTextFormatterBase.MARKUP_PLAIN,
+	var result: String = GFRichTextFormatter.to_bbcode("Hello {{name}}", {
+		"markup": GFRichTextFormatter.MARKUP_PLAIN,
 		"variables": {
 			"name": "[Ada]",
 		},
@@ -50,7 +45,7 @@ func test_replace_variables_uses_resolver_and_missing_text() -> void:
 			return "ok"
 		return null
 
-	var result := GFRichTextFormatterBase.replace_variables(
+	var result: String = GFRichTextFormatter.replace_variables(
 		"{{known}}/{{missing}}",
 		{},
 		resolver,
@@ -67,7 +62,7 @@ func test_replace_tokens_ignores_unsafe_token_names() -> void:
 	var resolver: Callable = func(token: String) -> String:
 		return "[img]res://icons/%s.png[/img]" % token
 
-	var result := GFRichTextFormatterBase.replace_tokens(
+	var result: String = GFRichTextFormatter.replace_tokens(
 		"Press :confirm: and :bad token:",
 		resolver
 	)
@@ -84,15 +79,15 @@ func test_invalid_callable_options_and_null_tokens_are_safe() -> void:
 	var null_resolver: Callable = func(_token: String) -> Variant:
 		return null
 
-	var ignored_options_result := GFRichTextFormatterBase.to_bbcode("Hello {{name}} :confirm:", {
-		"markup": GFRichTextFormatterBase.MARKUP_PLAIN,
+	var ignored_options_result: String = GFRichTextFormatter.to_bbcode("Hello {{name}} :confirm:", {
+		"markup": GFRichTextFormatter.MARKUP_PLAIN,
 		"variables": {
 			"name": "Ada",
 		},
 		"variable_resolver": "not_callable",
 		"token_resolver": ["not_callable"],
 	})
-	var null_token_result := GFRichTextFormatterBase.replace_tokens(":missing:", null_resolver)
+	var null_token_result: String = GFRichTextFormatter.replace_tokens(":missing:", null_resolver)
 
 	assert_eq(ignored_options_result, "Hello Ada :confirm:", "错误类型的 resolver 配置不应影响普通格式化。")
 	assert_eq(null_token_result, ":missing:", "resolver 返回 null 时应保留原 token。")
@@ -100,7 +95,7 @@ func test_invalid_callable_options_and_null_tokens_are_safe() -> void:
 
 ## 验证移除 BBCode 标签时保留已转义的字面量方括号。
 func test_strip_bbcode_preserves_escaped_brackets() -> void:
-	var escaped := GFRichTextFormatterBase.escape_bbcode("[value]")
-	var result := GFRichTextFormatterBase.strip_bbcode("[b]Hi[/b] %s" % escaped)
+	var escaped: String = GFRichTextFormatter.escape_bbcode("[value]")
+	var result: String = GFRichTextFormatter.strip_bbcode("[b]Hi[/b] %s" % escaped)
 
 	assert_eq(result, "Hi [value]", "strip_bbcode 应移除标签但保留 [lb]/[rb] 表达的字面量括号。")

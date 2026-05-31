@@ -6,7 +6,7 @@ extends RefCounted
 
 # --- 常量 ---
 
-const _CAPABILITY_UTILITY_SCRIPT: Script = preload("res://addons/gf/extensions/capability/core/gf_capability_utility.gd")
+const _CAPABILITY_UTILITY_SCRIPT = preload("res://addons/gf/extensions/capability/core/gf_capability_utility.gd")
 
 
 # --- 框架内部方法 ---
@@ -32,7 +32,7 @@ static func make_architecture_ref(architecture: GFArchitecture) -> WeakRef:
 ## [br]
 ## @return: Model 实例；不可用时返回 null。
 static func get_model(architecture_ref: WeakRef, model_type: Script) -> Object:
-	var architecture := get_architecture_or_null(architecture_ref)
+	var architecture: GFArchitecture = get_architecture_or_null(architecture_ref)
 	if architecture == null:
 		return null
 	return architecture.get_model(model_type)
@@ -48,7 +48,7 @@ static func get_model(architecture_ref: WeakRef, model_type: Script) -> Object:
 ## [br]
 ## @return: System 实例；不可用时返回 null。
 static func get_system(architecture_ref: WeakRef, system_type: Script) -> Object:
-	var architecture := get_architecture_or_null(architecture_ref)
+	var architecture: GFArchitecture = get_architecture_or_null(architecture_ref)
 	if architecture == null:
 		return null
 	return architecture.get_system(system_type)
@@ -64,7 +64,7 @@ static func get_system(architecture_ref: WeakRef, system_type: Script) -> Object
 ## [br]
 ## @return: Utility 实例；不可用时返回 null。
 static func get_utility(architecture_ref: WeakRef, utility_type: Script) -> Object:
-	var architecture := get_architecture_or_null(architecture_ref)
+	var architecture: GFArchitecture = get_architecture_or_null(architecture_ref)
 	if architecture == null:
 		return null
 	return architecture.get_utility(utility_type)
@@ -85,7 +85,7 @@ static func get_capability(receiver: Object, architecture_ref: WeakRef, capabili
 	if receiver == null:
 		return null
 
-	var capability_utility := get_utility(architecture_ref, _CAPABILITY_UTILITY_SCRIPT)
+	var capability_utility: GFCapabilityUtility = _get_capability_utility(architecture_ref)
 	if capability_utility == null:
 		return null
 
@@ -101,7 +101,18 @@ static func get_capability(receiver: Object, architecture_ref: WeakRef, capabili
 ## @return: 当前架构；不可用时返回 null。
 static func get_architecture_or_null(architecture_ref: WeakRef) -> GFArchitecture:
 	if architecture_ref != null:
-		var architecture := architecture_ref.get_ref() as GFArchitecture
-		if architecture != null:
+		var architecture_value: Object = architecture_ref.get_ref()
+		if architecture_value is GFArchitecture:
+			var architecture: GFArchitecture = architecture_value
 			return architecture
 	return GFAutoload.get_architecture_or_null()
+
+
+# --- 私有/辅助方法 ---
+
+static func _get_capability_utility(architecture_ref: WeakRef) -> GFCapabilityUtility:
+	var utility: Object = get_utility(architecture_ref, _CAPABILITY_UTILITY_SCRIPT)
+	if utility is GFCapabilityUtility:
+		var capability_utility: GFCapabilityUtility = utility
+		return capability_utility
+	return null

@@ -95,7 +95,7 @@ func add_operation(operation: Callable, rollback: Callable = Callable(), metadat
 	if not operation.is_valid():
 		return -1
 
-	var operation_id := _next_operation_id
+	var operation_id: int = _next_operation_id
 	_next_operation_id += 1
 	_pending_operations.append({
 		"operation_id": operation_id,
@@ -117,18 +117,18 @@ func add_operation(operation: Callable, rollback: Callable = Callable(), metadat
 ## [br]
 ## @schema return: Dictionary commit summary.
 func commit(max_operations: int = -1) -> Dictionary:
-	var committed_count := 0
-	var failed_count := 0
+	var committed_count: int = 0
+	var failed_count: int = 0
 	var errors: Array[Dictionary] = []
 	while not _pending_operations.is_empty() and (max_operations < 0 or committed_count + failed_count < max_operations):
-		var entry := _pending_operations[0] as Dictionary
-		var operation: Callable = entry.get("operation", Callable())
-		var operation_result := _normalize_operation_result(operation.call(), entry)
-		if bool(operation_result.get("ok", false)):
+		var entry: Dictionary = _pending_operations[0]
+		var operation: Callable = _variant_to_callable(GFVariantData.get_option_value(entry, "operation", Callable()))
+		var operation_result: Dictionary = _normalize_operation_result(operation.call(), entry)
+		if GFVariantData.get_option_bool(operation_result, "ok"):
 			_pending_operations.remove_at(0)
 			_committed_operations.append(entry)
 			committed_count += 1
-			operation_committed.emit(int(entry.get("operation_id", -1)), operation_result)
+			operation_committed.emit(GFVariantData.get_option_int(entry, "operation_id", -1), operation_result)
 			continue
 
 		failed_count += 1
@@ -137,8 +137,8 @@ func commit(max_operations: int = -1) -> Dictionary:
 			break
 		_pending_operations.remove_at(0)
 
-	var summary := _make_commit_summary(committed_count, failed_count, errors)
-	if bool(summary.get("ok", false)) and auto_clear_committed_on_success:
+	var summary: Dictionary = _make_commit_summary(committed_count, failed_count, errors)
+	if GFVariantData.get_option_bool(summary, "ok") and auto_clear_committed_on_success:
 		_committed_operations.clear()
 	batch_committed.emit(summary)
 	return summary
@@ -154,19 +154,19 @@ func commit(max_operations: int = -1) -> Dictionary:
 ## [br]
 ## @schema return: Dictionary rollback summary.
 func rollback_committed(max_operations: int = -1) -> Dictionary:
-	var rolled_back_count := 0
-	var failed_count := 0
-	var skipped_count := 0
+	var rolled_back_count: int = 0
+	var failed_count: int = 0
+	var skipped_count: int = 0
 	var errors: Array[Dictionary] = []
 	while not _committed_operations.is_empty() and (max_operations < 0 or rolled_back_count + failed_count + skipped_count < max_operations):
-		var entry := _committed_operations.pop_back() as Dictionary
-		var rollback: Callable = entry.get("rollback", Callable())
+		var entry: Dictionary = _committed_operations.pop_back()
+		var rollback: Callable = _variant_to_callable(GFVariantData.get_option_value(entry, "rollback", Callable()))
 		if not rollback.is_valid():
 			skipped_count += 1
 			continue
 
-		var rollback_result := _normalize_operation_result(rollback.call(), entry)
-		if bool(rollback_result.get("ok", false)):
+		var rollback_result: Dictionary = _normalize_operation_result(rollback.call(), entry)
+		if GFVariantData.get_option_bool(rollback_result, "ok"):
 			rolled_back_count += 1
 		else:
 			failed_count += 1
@@ -175,7 +175,7 @@ func rollback_committed(max_operations: int = -1) -> Dictionary:
 				_committed_operations.append(entry)
 				break
 
-	var summary := {
+	var summary: Dictionary = {
 		"ok": failed_count == 0,
 		"rolled_back_count": rolled_back_count,
 		"failed_count": failed_count,
@@ -235,20 +235,21 @@ func get_debug_snapshot() -> Dictionary:
 # --- 私有/辅助方法 ---
 
 func _normalize_operation_result(raw_result: Variant, entry: Dictionary) -> Dictionary:
-	var metadata := (entry.get("metadata", {}) as Dictionary).duplicate(true) if entry.get("metadata", {}) is Dictionary else {}
+	var metadata: Dictionary = GFVariantData.get_option_dictionary(entry, "metadata")
 	if raw_result is Dictionary:
-		var data := raw_result as Dictionary
+		var data: Dictionary = GFVariantData.as_dictionary(raw_result)
 		if data.has("ok"):
+			var result_value: Variant = GFVariantData.get_option_value(data, "value", GFVariantData.get_option_value(data, "data"))
 			return {
-				"ok": bool(data.get("ok", false)),
-				"operation_id": int(entry.get("operation_id", -1)),
-				"value": data.get("value", data.get("data", null)),
-				"error": String(data.get("error", "")),
+				"ok": GFVariantData.get_option_bool(data, "ok"),
+				"operation_id": GFVariantData.get_option_int(entry, "operation_id", -1),
+				"value": result_value,
+				"error": GFVariantData.get_option_string(data, "error"),
 				"metadata": metadata,
 			}
 	return {
 		"ok": true,
-		"operation_id": int(entry.get("operation_id", -1)),
+		"operation_id": GFVariantData.get_option_int(entry, "operation_id", -1),
 		"value": raw_result,
 		"error": "",
 		"metadata": metadata,
@@ -264,3 +265,10 @@ func _make_commit_summary(committed_count: int, failed_count: int, errors: Array
 		"stored_committed_count": _committed_operations.size(),
 		"errors": errors,
 	}
+
+
+func _variant_to_callable(value: Variant) -> Callable:
+	if value is Callable:
+		var callback: Callable = value
+		return callback
+	return Callable()

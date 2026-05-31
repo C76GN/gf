@@ -15,7 +15,7 @@ extends RefCounted
 
 # --- 常量 ---
 
-const _READ_ONLY_BINDABLE_PROPERTY_SCRIPT: Script = preload("res://addons/gf/kernel/core/gf_read_only_bindable_property.gd")
+const _READ_ONLY_BINDABLE_PROPERTY_SCRIPT = preload("res://addons/gf/kernel/core/gf_read_only_bindable_property.gd")
 
 
 # --- 公共变量 ---
@@ -99,14 +99,14 @@ func remove_modifier(p_modifier: GFModifier) -> void:
 ## @param p_source_id: 来源标识。
 func remove_modifiers_by_source(p_source_id: StringName) -> void:
 	var to_remove: Array[GFModifier] = []
-	for modifier in _modifiers:
+	for modifier: GFModifier in _modifiers:
 		if modifier.source_id == p_source_id:
 			to_remove.append(modifier)
 	
 	if to_remove.is_empty():
 		return
 		
-	for modifier in to_remove:
+	for modifier: GFModifier in to_remove:
 		_modifiers.erase(modifier)
 	_recalculate()
 

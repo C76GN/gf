@@ -46,7 +46,7 @@ extends GFConfigValidationRule
 ## [br]
 ## @schema return: Dictionary，包含基础规则字段和本地化 key 来源设置。
 func describe() -> Dictionary:
-	var result := super.describe()
+	var result: Dictionary = super.describe()
 	result["allow_empty"] = allow_empty
 	result["known_keys"] = known_keys.duplicate()
 	result["text_map"] = text_map.duplicate(true)
@@ -85,7 +85,7 @@ func _validate_value(value: Variant, context: Dictionary, report: Dictionary) ->
 		_add_issue(report, context, "localization_key_invalid_type", "文本 key 校验只支持 String 或 StringName。")
 		return
 
-	var key := String(value).strip_edges()
+	var key: String = GFVariantData.to_text(value).strip_edges()
 	if key.is_empty() and allow_empty:
 		return
 	if _has_explicit_key_source() and _explicit_key_exists(key):

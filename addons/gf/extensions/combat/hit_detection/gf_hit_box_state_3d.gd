@@ -132,14 +132,17 @@ func _is_managed_node(node: Node) -> bool:
 func _apply_to_node(node: Node) -> void:
 	if manage_enabled:
 		if node is GFHitBox3D:
-			(node as GFHitBox3D).enabled = active
+			var hit_box: GFHitBox3D = node
+			hit_box.enabled = active
 		elif node is GFHurtBox3D:
-			(node as GFHurtBox3D).enabled = active
+			var hurt_box: GFHurtBox3D = node
+			hurt_box.enabled = active
 
 	if manage_monitoring and node is Area3D:
-		var area := node as Area3D
+		var area: Area3D = node
 		area.monitoring = active
 		area.monitorable = active
 
 	if manage_visibility and node is Node3D:
-		(node as Node3D).visible = active
+		var node_3d: Node3D = node
+		node_3d.visible = active

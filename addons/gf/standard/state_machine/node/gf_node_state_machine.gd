@@ -82,12 +82,7 @@ const INTERNAL_GROUP_NAME: StringName = &"_internal"
 ## [br]
 ## @api framework_internal
 const META_INTERNAL_GROUP: StringName = &"_gf_node_state_machine_internal_group"
-
-const _GF_AUTOLOAD_BASE = preload("res://addons/gf/kernel/core/gf_autoload.gd")
-const _GF_NODE_CONTEXT_BASE = preload("res://addons/gf/kernel/core/gf_node_context.gd")
-const _GF_NODE_STATE_BASE = preload("res://addons/gf/standard/state_machine/node/gf_node_state.gd")
-const _GF_NODE_STATE_GROUP_BASE = preload("res://addons/gf/standard/state_machine/node/gf_node_state_group.gd")
-const _GF_NODE_STATE_MACHINE_VALIDATOR_PATH: String = "res://addons/gf/standard/state_machine/node/gf_node_state_machine_validator.gd"
+const _GF_ASYNC_CALL_SCRIPT = preload("res://addons/gf/kernel/core/gf_async_call.gd")
 
 
 # --- 导出变量 ---
@@ -153,9 +148,9 @@ var _lifecycle_serial: int = 0
 func _enter_tree() -> void:
 	_lifecycle_serial += 1
 	if not child_entered_tree.is_connected(_on_child_entered_tree):
-		child_entered_tree.connect(_on_child_entered_tree)
+		var _entered_connect_error: int = child_entered_tree.connect(_on_child_entered_tree)
 	if not child_exiting_tree.is_connected(_on_child_exiting_tree):
-		child_exiting_tree.connect(_on_child_exiting_tree)
+		var _exiting_connect_error: int = child_exiting_tree.connect(_on_child_exiting_tree)
 	_queue_configuration_warning_update()
 
 
@@ -168,7 +163,7 @@ func _ready() -> void:
 	if reload_on_ready:
 		reload_from_children()
 	if start_mode == StartMode.AFTER_HOST_READY:
-		_start_after_host_ready()
+		_GF_ASYNC_CALL_SCRIPT.run_detached(Callable(self, &"_start_after_host_ready"))
 
 
 func _exit_tree() -> void:
@@ -187,13 +182,8 @@ func _exit_tree() -> void:
 # --- Godot 回调方法 ---
 
 func _get_configuration_warnings() -> PackedStringArray:
-	var validator: Variant = load(_GF_NODE_STATE_MACHINE_VALIDATOR_PATH)
-	if validator == null:
-		return PackedStringArray()
-
-	var report := validator.validate_machine(self) as GFValidationReport
-	var warnings: PackedStringArray = validator.make_configuration_warnings(report)
-	return warnings
+	var report: GFValidationReport = GFNodeStateMachineValidator.validate_machine(self)
+	return GFNodeStateMachineValidator.make_configuration_warnings(report)
 
 
 # --- 公共方法 ---
@@ -208,8 +198,8 @@ func _get_configuration_warnings() -> PackedStringArray:
 ## [br]
 ## @schema args: 状态切换参数 Dictionary；键和值由调用方约定。
 func transition_to(path: StringName, args: Dictionary = {}) -> void:
-	var text := String(path)
-	var parts := text.split("/", false)
+	var text: String = String(path)
+	var parts: PackedStringArray = text.split("/", false)
 	if parts.size() == 1:
 		transition_group_to(INTERNAL_GROUP_NAME, StringName(parts[0]), args)
 	elif parts.size() == 2:
@@ -230,11 +220,11 @@ func transition_to(path: StringName, args: Dictionary = {}) -> void:
 ## [br]
 ## @schema args: 状态切换参数 Dictionary；键和值由调用方约定。
 func transition_group_to(group_name: StringName, state_name: StringName, args: Dictionary = {}) -> void:
-	var group := get_state_group(group_name)
+	var group: GFNodeStateGroup = get_state_group(group_name)
 	if group == null:
 		push_warning("[GFNodeStateMachine] 切换失败，未找到状态组：%s" % group_name)
 		return
-	group.call("transition_to", state_name, args)
+	group.transition_to(state_name, args)
 
 
 ## 暂停当前内部状态并叠加进入一个子状态。path 可为 "State" 或 "Group/State"。
@@ -247,8 +237,8 @@ func transition_group_to(group_name: StringName, state_name: StringName, args: D
 ## [br]
 ## @schema args: 状态切换参数 Dictionary；键和值由调用方约定。
 func push_state(path: StringName, args: Dictionary = {}) -> void:
-	var text := String(path)
-	var parts := text.split("/", false)
+	var text: String = String(path)
+	var parts: PackedStringArray = text.split("/", false)
 	if parts.size() == 1:
 		push_group_state(INTERNAL_GROUP_NAME, StringName(parts[0]), args)
 	elif parts.size() == 2:
@@ -269,14 +259,11 @@ func push_state(path: StringName, args: Dictionary = {}) -> void:
 ## [br]
 ## @schema args: 状态切换参数 Dictionary；键和值由调用方约定。
 func push_group_state(group_name: StringName, state_name: StringName, args: Dictionary = {}) -> void:
-	var group := get_state_group(group_name)
+	var group: GFNodeStateGroup = get_state_group(group_name)
 	if group == null:
 		push_warning("[GFNodeStateMachine] push_state 失败，未找到状态组：%s" % group_name)
 		return
-	if not group.has_method("push_state"):
-		push_warning("[GFNodeStateMachine] push_state 失败，状态组不支持栈式状态。")
-		return
-	group.call("push_state", state_name, args)
+	group.push_state(state_name, args)
 
 
 ## 弹出指定状态组的栈式子状态。
@@ -291,14 +278,11 @@ func push_group_state(group_name: StringName, state_name: StringName, args: Dict
 ## [br]
 ## @return: 成功恢复上一层状态时返回 true。
 func pop_state(group_name: StringName = INTERNAL_GROUP_NAME, args: Dictionary = {}) -> bool:
-	var group := get_state_group(group_name)
+	var group: GFNodeStateGroup = get_state_group(group_name)
 	if group == null:
 		push_warning("[GFNodeStateMachine] pop_state 失败，未找到状态组：%s" % group_name)
 		return false
-	if not group.has_method("pop_state"):
-		push_warning("[GFNodeStateMachine] pop_state 失败，状态组不支持栈式状态。")
-		return false
-	return bool(group.call("pop_state", args))
+	return group.pop_state(args)
 
 
 ## 启动所有已加载状态组的初始状态。若尚未加载状态，则会先从子节点加载。
@@ -312,7 +296,7 @@ func start(args: Dictionary = {}) -> void:
 	if _groups.is_empty():
 		reload_from_children()
 
-	for group: GFNodeStateGroup in _groups.values():
+	for group: GFNodeStateGroup in _get_registered_groups():
 		_start_group_node(group, args)
 
 
@@ -329,7 +313,7 @@ func start_group(group_name: StringName = INTERNAL_GROUP_NAME, args: Dictionary 
 	if _groups.is_empty():
 		reload_from_children()
 
-	var group := get_state_group(group_name)
+	var group: GFNodeStateGroup = get_state_group(group_name)
 	if group == null:
 		push_warning("[GFNodeStateMachine] start_group 失败，未找到状态组：%s" % group_name)
 		return
@@ -346,19 +330,16 @@ func add_state_group(group: GFNodeStateGroup) -> void:
 	if not _is_node_state_group(group):
 		return
 
-	var key := group.call("get_group_name") as StringName
+	var key: StringName = group.get_group_name()
 	if _groups.has(key):
 		push_warning("[GFNodeStateMachine] 状态组已存在，已忽略重复添加：%s" % key)
 		return
 
 	_groups[key] = group
-	var changed_callable := _on_group_current_state_changed.bind(group)
+	var changed_callable: Callable = _on_group_current_state_changed.bind(group)
 	_group_state_changed_callables[key] = changed_callable
 	_connect_state_group_signals(group, changed_callable)
-	if group is _GF_NODE_STATE_GROUP_BASE:
-		group.call("initialize", self, _should_start_group_on_initialize())
-	else:
-		group.call("initialize", self)
+	group.initialize(self, _should_start_group_on_initialize())
 	state_group_added.emit(group)
 
 
@@ -373,13 +354,13 @@ func remove_state_group(group: GFNodeStateGroup) -> bool:
 	if not _is_node_state_group(group):
 		return false
 
-	var key := group.call("get_group_name") as StringName
+	var key: StringName = group.get_group_name()
 	if not _groups.has(key):
 		return false
-	var changed_callable: Callable = _group_state_changed_callables.get(key, Callable())
+	var changed_callable: Callable = _get_dictionary_callable(_group_state_changed_callables, key)
 	_disconnect_state_group_signals(group, changed_callable)
-	_groups.erase(key)
-	_group_state_changed_callables.erase(key)
+	_erase_dictionary_key(_groups, key)
+	_erase_dictionary_key(_group_state_changed_callables, key)
 	state_group_removed.emit(group)
 	return true
 
@@ -392,7 +373,7 @@ func remove_state_group(group: GFNodeStateGroup) -> bool:
 ## [br]
 ## @return: 注册名对应的状态组；不存在时返回 null。
 func get_state_group(group_name: StringName) -> GFNodeStateGroup:
-	return _groups.get(group_name) as GFNodeStateGroup
+	return _variant_to_state_group(GFVariantData.get_option_value(_groups, group_name))
 
 
 ## 获取内部状态组当前状态。
@@ -401,7 +382,7 @@ func get_state_group(group_name: StringName) -> GFNodeStateGroup:
 ## [br]
 ## @return: 内部状态组当前状态；未启动或不存在时返回 null。
 func get_current_state() -> GFNodeState:
-	var group := get_state_group(INTERNAL_GROUP_NAME)
+	var group: GFNodeStateGroup = get_state_group(INTERNAL_GROUP_NAME)
 	if group == null:
 		return null
 	return group.get_current_state()
@@ -415,7 +396,7 @@ func get_current_state() -> GFNodeState:
 ## [br]
 ## @return: 当前状态；未找到状态组或未启动时返回 null。
 func get_current_group_state(group_name: StringName = INTERNAL_GROUP_NAME) -> GFNodeState:
-	var group := get_state_group(group_name)
+	var group: GFNodeStateGroup = get_state_group(group_name)
 	if group == null:
 		return null
 	return group.get_current_state()
@@ -429,10 +410,10 @@ func get_current_group_state(group_name: StringName = INTERNAL_GROUP_NAME) -> GF
 ## [br]
 ## @return: 当前状态名；未找到状态组或未启动时返回空 StringName。
 func get_current_state_name(group_name: StringName = INTERNAL_GROUP_NAME) -> StringName:
-	var group := get_state_group(group_name)
-	if group == null or not group.has_method("get_current_state_name"):
+	var group: GFNodeStateGroup = get_state_group(group_name)
+	if group == null:
 		return &""
-	return group.call("get_current_state_name") as StringName
+	return group.get_current_state_name()
 
 
 ## 获取指定状态组状态历史。
@@ -446,14 +427,11 @@ func get_current_state_name(group_name: StringName = INTERNAL_GROUP_NAME) -> Str
 ## @schema return: 状态历史 Array[StringName]，按进入顺序排列。
 func get_state_history(group_name: StringName = INTERNAL_GROUP_NAME) -> Array[StringName]:
 	var result: Array[StringName] = []
-	var group := get_state_group(group_name)
-	if group == null or not group.has_method("get_state_history"):
+	var group: GFNodeStateGroup = get_state_group(group_name)
+	if group == null:
 		return result
 
-	var history := group.call("get_state_history") as Array
-	for state_name: Variant in history:
-		result.append(state_name as StringName)
-	return result
+	return group.get_state_history()
 
 
 ## 获取指定状态组暂停栈深度。
@@ -464,10 +442,10 @@ func get_state_history(group_name: StringName = INTERNAL_GROUP_NAME) -> Array[St
 ## [br]
 ## @return: 指定状态组的暂停栈深度；未找到状态组时返回 0。
 func get_stack_depth(group_name: StringName = INTERNAL_GROUP_NAME) -> int:
-	var group := get_state_group(group_name)
-	if group == null or not group.has_method("get_stack_depth"):
+	var group: GFNodeStateGroup = get_state_group(group_name)
+	if group == null:
 		return 0
-	return int(group.call("get_stack_depth"))
+	return group.get_stack_depth()
 
 
 ## 判断 path 指向的状态是否为当前状态或暂停栈中的状态。
@@ -478,8 +456,8 @@ func get_stack_depth(group_name: StringName = INTERNAL_GROUP_NAME) -> int:
 ## [br]
 ## @return: 指定状态位于当前状态或暂停栈中时返回 true。
 func is_in_state(path: StringName) -> bool:
-	var text := String(path)
-	var parts := text.split("/", false)
+	var text: String = String(path)
+	var parts: PackedStringArray = text.split("/", false)
 	if parts.size() == 1:
 		return _is_group_in_state(INTERNAL_GROUP_NAME, StringName(parts[0]))
 	if parts.size() == 2:
@@ -498,14 +476,11 @@ func is_in_state(path: StringName) -> bool:
 ## [br]
 ## @schema args: 状态切换参数 Dictionary；键和值由调用方约定。
 func restart_group(group_name: StringName = INTERNAL_GROUP_NAME, args: Dictionary = {}) -> void:
-	var group := get_state_group(group_name)
+	var group: GFNodeStateGroup = get_state_group(group_name)
 	if group == null:
 		push_warning("[GFNodeStateMachine] restart_group 失败，未找到状态组：%s" % group_name)
 		return
-	if not group.has_method("restart"):
-		push_warning("[GFNodeStateMachine] restart_group 失败，状态组不支持重启。")
-		return
-	group.call("restart", args)
+	group.restart(args)
 
 
 ## 派发状态事件。group_name 为空时会按已注册状态组顺序广播到所有组。
@@ -523,12 +498,12 @@ func restart_group(group_name: StringName = INTERNAL_GROUP_NAME, args: Dictionar
 ## @return: 有状态处理该事件时返回 true。
 func dispatch_state_event(event_id: StringName, payload: Variant = null, group_name: StringName = &"") -> bool:
 	if group_name != &"":
-		var group := get_state_group(group_name)
+		var group: GFNodeStateGroup = get_state_group(group_name)
 		if group == null:
 			return false
 		return group.dispatch_state_event(event_id, payload)
 
-	for group: GFNodeStateGroup in _groups.values():
+	for group: GFNodeStateGroup in _get_registered_groups():
 		if group.dispatch_state_event(event_id, payload):
 			return true
 	return false
@@ -544,7 +519,7 @@ func dispatch_state_event(event_id: StringName, payload: Variant = null, group_n
 func get_state_snapshot() -> Dictionary:
 	var groups: Dictionary = {}
 	for group_key: Variant in _groups.keys():
-		var group := _groups[group_key] as GFNodeStateGroup
+		var group: GFNodeStateGroup = _variant_to_state_group(_groups[group_key])
 		if group == null:
 			continue
 		groups[group_key] = group.get_state_snapshot()
@@ -573,7 +548,7 @@ func get_architecture_or_null() -> GFArchitecture:
 ## [br]
 ## @return: 模型实例；不可用时返回 null。
 func get_model(model_type: Script, require_ready: bool = false) -> Object:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_model(model_type, require_ready)
@@ -589,7 +564,7 @@ func get_model(model_type: Script, require_ready: bool = false) -> Object:
 ## [br]
 ## @return: 系统实例；不可用时返回 null。
 func get_system(system_type: Script, require_ready: bool = false) -> Object:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_system(system_type, require_ready)
@@ -605,7 +580,7 @@ func get_system(system_type: Script, require_ready: bool = false) -> Object:
 ## [br]
 ## @return: 工具实例；不可用时返回 null。
 func get_utility(utility_type: Script, require_ready: bool = false) -> Object:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_utility(utility_type, require_ready)
@@ -621,7 +596,7 @@ func get_utility(utility_type: Script, require_ready: bool = false) -> Object:
 ## [br]
 ## @return: 当前架构中的模型实例；不可用时返回 null。
 func get_local_model(model_type: Script, require_ready: bool = false) -> Object:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_local_model(model_type, require_ready)
@@ -637,7 +612,7 @@ func get_local_model(model_type: Script, require_ready: bool = false) -> Object:
 ## [br]
 ## @return: 当前架构中的系统实例；不可用时返回 null。
 func get_local_system(system_type: Script, require_ready: bool = false) -> Object:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_local_system(system_type, require_ready)
@@ -653,7 +628,7 @@ func get_local_system(system_type: Script, require_ready: bool = false) -> Objec
 ## [br]
 ## @return: 当前架构中的工具实例；不可用时返回 null。
 func get_local_utility(utility_type: Script, require_ready: bool = false) -> Object:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_local_utility(utility_type, require_ready)
@@ -669,7 +644,7 @@ func get_local_utility(utility_type: Script, require_ready: bool = false) -> Obj
 ## [br]
 ## @schema return: 命令返回值；具体结构由 GFCommand 实现决定。
 func send_command(command: Object) -> Variant:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.send_command(command)
@@ -685,7 +660,7 @@ func send_command(command: Object) -> Variant:
 ## [br]
 ## @schema return: 查询返回值；具体结构由 GFQuery 实现决定。
 func send_query(query: Object) -> Variant:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.send_query(query)
@@ -697,7 +672,7 @@ func send_query(query: Object) -> Variant:
 ## [br]
 ## @param event_instance: 要分发的事件实例。
 func send_event(event_instance: Object) -> void:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
 		architecture.send_event(event_instance)
 
@@ -712,7 +687,7 @@ func send_event(event_instance: Object) -> void:
 ## [br]
 ## @schema payload: 轻量事件载荷；具体结构由 event_id 和项目逻辑约定。
 func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
 		architecture.send_simple_event(event_id, payload)
 
@@ -721,17 +696,17 @@ func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
 ## [br]
 ## @api public
 ## [br]
-## @param owner: 监听器拥有者。
+## @param listener_owner: 监听器拥有者。
 ## [br]
 ## @param event_type: 要监听的脚本类型。
 ## [br]
 ## @param callback: 回调函数。
 ## [br]
 ## @param priority: 回调优先级，数值越大越先执行，默认为 0。
-func register_event_owned(owner: Object, event_type: Script, callback: Callable, priority: int = 0) -> void:
-	var architecture := _get_architecture_or_null()
+func register_event_owned(listener_owner: Object, event_type: Script, callback: Callable, priority: int = 0) -> void:
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
-		architecture.register_event_owned(owner, event_type, callback, priority)
+		architecture.register_event_owned(listener_owner, event_type, callback, priority)
 		_remember_event_architecture(architecture)
 
 
@@ -751,7 +726,7 @@ func unregister_event(event_type: Script, callback: Callable) -> void:
 ## [br]
 ## @api public
 ## [br]
-## @param owner: 监听器拥有者。
+## @param listener_owner: 监听器拥有者。
 ## [br]
 ## @param base_event_type: 要监听的基类脚本类型。
 ## [br]
@@ -759,14 +734,14 @@ func unregister_event(event_type: Script, callback: Callable) -> void:
 ## [br]
 ## @param priority: 回调优先级，数值越大越先执行，默认为 0。
 func register_assignable_event_owned(
-	owner: Object,
+	listener_owner: Object,
 	base_event_type: Script,
 	callback: Callable,
 	priority: int = 0
 ) -> void:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
-		architecture.register_assignable_event_owned(owner, base_event_type, callback, priority)
+		architecture.register_assignable_event_owned(listener_owner, base_event_type, callback, priority)
 		_remember_event_architecture(architecture)
 
 
@@ -786,15 +761,15 @@ func unregister_assignable_event(base_event_type: Script, callback: Callable) ->
 ## [br]
 ## @api public
 ## [br]
-## @param owner: 监听器拥有者。
+## @param listener_owner: 监听器拥有者。
 ## [br]
 ## @param event_id: StringName 事件标识符。
 ## [br]
 ## @param callback: 回调函数，签名为 func(payload: Variant)。
-func register_simple_event_owned(owner: Object, event_id: StringName, callback: Callable) -> void:
-	var architecture := _get_architecture_or_null()
+func register_simple_event_owned(listener_owner: Object, event_id: StringName, callback: Callable) -> void:
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture != null:
-		architecture.register_simple_event_owned(owner, event_id, callback)
+		architecture.register_simple_event_owned(listener_owner, event_id, callback)
 		_remember_event_architecture(architecture)
 
 
@@ -814,10 +789,10 @@ func unregister_simple_event(event_id: StringName, callback: Callable) -> void:
 ## [br]
 ## @api public
 ## [br]
-## @param owner: 要清理监听器的拥有者。
-func unregister_owner_events(owner: Object) -> void:
+## @param listener_owner: 要清理监听器的拥有者。
+func unregister_owner_events(listener_owner: Object) -> void:
 	for architecture: GFArchitecture in _get_tracked_event_architectures():
-		architecture.unregister_owner_events(owner)
+		architecture.unregister_owner_events(listener_owner)
 
 
 ## 从子节点重新加载状态和状态组。
@@ -828,31 +803,33 @@ func reload_from_children() -> void:
 		_queue_configuration_warning_update()
 		return
 
-	var should_preserve_state := preserve_current_state_on_reload and not _groups.is_empty()
-	var state_snapshot := _capture_state_snapshot() if should_preserve_state else {}
+	var should_preserve_state: bool = preserve_current_state_on_reload and not _groups.is_empty()
+	var state_snapshot: Dictionary = _capture_state_snapshot() if should_preserve_state else {}
 	_preserve_reload_state_active = should_preserve_state
 	_is_reloading = true
 	clear_state_groups()
-	_internal_group = _GF_NODE_STATE_GROUP_BASE.new() as GFNodeStateGroup
+	_internal_group = GFNodeStateGroup.new()
 	_internal_group.name = String(INTERNAL_GROUP_NAME)
 	_internal_group.set_meta(META_INTERNAL_GROUP, true)
-	_internal_group.set("group_name", INTERNAL_GROUP_NAME)
-	_internal_group.set("initial_state", _get_effective_initial_state())
-	_internal_group.set("initial_args", _get_effective_initial_args())
-	_internal_group.set("history_max_size", _get_effective_history_max_size())
-	_internal_group.set("max_stack_depth", _get_effective_max_stack_depth())
-	_internal_group.set("reload_states_on_ready", false)
+	_internal_group.group_name = INTERNAL_GROUP_NAME
+	_internal_group.initial_state = _get_effective_initial_state()
+	_internal_group.initial_args = _get_effective_initial_args()
+	_internal_group.history_max_size = _get_effective_history_max_size()
+	_internal_group.max_stack_depth = _get_effective_max_stack_depth()
+	_internal_group.reload_states_on_ready = false
 	add_child(_internal_group, true, Node.INTERNAL_MODE_BACK)
 
 	for child: Node in get_children():
 		if child == _internal_group or child.get_meta(META_INTERNAL_GROUP, false):
 			continue
 		if _is_node_state_group(child):
-			add_state_group(child as GFNodeStateGroup)
+			var state_group: GFNodeStateGroup = _variant_to_state_group(child)
+			add_state_group(state_group)
 		elif _is_node_state(child):
-			_internal_group.add_state(child as GFNodeState)
+			var state_node: GFNodeState = _variant_to_node_state(child)
+			_internal_group.add_state(state_node)
 
-	if not (_internal_group.call("get_states") as Array).is_empty():
+	if not _internal_group.get_states().is_empty():
 		add_state_group(_internal_group)
 	else:
 		_free_internal_group(_internal_group)
@@ -869,13 +846,13 @@ func reload_from_children() -> void:
 ## [br]
 ## @param free_groups: 清理状态组时是否释放节点。
 func clear_state_groups(free_groups: bool = false) -> void:
-	var old_internal_group := _internal_group
+	var old_internal_group: GFNodeStateGroup = _internal_group
 	var groups: Array[GFNodeStateGroup] = []
-	for group: GFNodeStateGroup in _groups.values():
+	for group: GFNodeStateGroup in _get_registered_groups():
 		groups.append(group)
 	for group: GFNodeStateGroup in groups:
-		var key := group.call("get_group_name") as StringName
-		var changed_callable: Callable = _group_state_changed_callables.get(key, Callable())
+		var key: StringName = group.get_group_name()
+		var changed_callable: Callable = _get_dictionary_callable(_group_state_changed_callables, key)
 		_disconnect_state_group_signals(group, changed_callable)
 	_groups.clear()
 	_group_state_changed_callables.clear()
@@ -895,20 +872,21 @@ func clear_state_groups(free_groups: bool = false) -> void:
 # --- 私有/辅助方法 ---
 
 func _get_architecture_or_null() -> GFArchitecture:
-	var context := _find_nearest_context()
+	var context: GFNodeContext = _find_nearest_context()
 	if context != null:
-		var context_architecture := context.get_architecture()
+		var context_architecture: GFArchitecture = context.get_architecture()
 		if context_architecture != null:
 			return context_architecture
 
-	return _GF_AUTOLOAD_BASE.get_architecture_or_null()
+	return GFAutoload.get_architecture_or_null()
 
 
-func _find_nearest_context() -> _GF_NODE_CONTEXT_BASE:
+func _find_nearest_context() -> GFNodeContext:
 	var current_node: Node = self
 	while current_node != null:
-		if current_node is _GF_NODE_CONTEXT_BASE:
-			return current_node as _GF_NODE_CONTEXT_BASE
+		if current_node is GFNodeContext:
+			var context: GFNodeContext = current_node
+			return context
 		current_node = current_node.get_parent()
 	return null
 
@@ -932,54 +910,47 @@ func _get_tracked_event_architectures() -> Array[GFArchitecture]:
 
 
 func _is_node_state(node: Node) -> bool:
-	return node is _GF_NODE_STATE_BASE
+	return node is GFNodeState
 
 
 func _is_node_state_group(node: Node) -> bool:
-	return node is _GF_NODE_STATE_GROUP_BASE
+	return node is GFNodeStateGroup
 
 
 func _connect_state_group_signals(group: GFNodeStateGroup, changed_callable: Callable) -> void:
-	var changed_signal: Signal = group.get("current_state_changed")
-	var transition_signal: Signal = group.get("requested_transition")
+	var changed_signal: Signal = group.current_state_changed
+	var transition_signal: Signal = group.requested_transition
 	if changed_callable.is_valid() and not changed_signal.is_connected(changed_callable):
-		changed_signal.connect(changed_callable)
+		var _changed_connect_error: int = changed_signal.connect(changed_callable)
 	if not transition_signal.is_connected(transition_group_to):
-		transition_signal.connect(transition_group_to)
-	if group.get("state_event_handled") is Signal:
-		var key := group.call("get_group_name") as StringName
-		var handled_signal: Signal = group.get("state_event_handled")
-		var handled_callable := _on_group_state_event_handled.bind(group)
-		_group_state_event_handled_callables[key] = handled_callable
-		if not handled_signal.is_connected(handled_callable):
-			handled_signal.connect(handled_callable)
+		var _transition_connect_error: int = transition_signal.connect(transition_group_to)
+	var key: StringName = group.get_group_name()
+	var handled_signal: Signal = group.state_event_handled
+	var handled_callable: Callable = _on_group_state_event_handled.bind(group)
+	_group_state_event_handled_callables[key] = handled_callable
+	if not handled_signal.is_connected(handled_callable):
+		var _handled_connect_error: int = handled_signal.connect(handled_callable)
 
 
 func _disconnect_state_group_signals(group: GFNodeStateGroup, changed_callable: Callable) -> void:
-	var changed_signal: Signal = group.get("current_state_changed")
-	var transition_signal: Signal = group.get("requested_transition")
+	var changed_signal: Signal = group.current_state_changed
+	var transition_signal: Signal = group.requested_transition
 	if changed_callable.is_valid() and changed_signal.is_connected(changed_callable):
 		changed_signal.disconnect(changed_callable)
 	if transition_signal.is_connected(transition_group_to):
 		transition_signal.disconnect(transition_group_to)
-	if group.get("state_event_handled") is Signal:
-		var key := group.call("get_group_name") as StringName
-		var handled_signal: Signal = group.get("state_event_handled")
-		var handled_callable: Callable = _group_state_event_handled_callables.get(key, Callable())
-		if handled_signal.is_connected(handled_callable):
-			handled_signal.disconnect(handled_callable)
-		_group_state_event_handled_callables.erase(key)
+	var key: StringName = group.get_group_name()
+	var handled_signal: Signal = group.state_event_handled
+	var handled_callable: Callable = _get_dictionary_callable(_group_state_event_handled_callables, key)
+	if handled_signal.is_connected(handled_callable):
+		handled_signal.disconnect(handled_callable)
+	_erase_dictionary_key(_group_state_event_handled_callables, key)
 
 
 func _start_group_node(group: GFNodeStateGroup, args: Dictionary) -> void:
-	if group.has_method("start"):
-		group.call("start", args)
+	if group == null:
 		return
-
-	var initial_state_name := StringName(group.get("initial_state"))
-	if initial_state_name == &"":
-		return
-	group.call("transition_to", initial_state_name, args)
+	group.start(args)
 
 
 func _should_start_group_on_initialize() -> bool:
@@ -997,7 +968,7 @@ func _should_start_group_on_initialize() -> bool:
 
 
 func _is_host_ready() -> bool:
-	var host := get_parent()
+	var host: Node = get_parent()
 	return host == null or host.is_node_ready()
 
 
@@ -1006,8 +977,8 @@ func _is_lifecycle_current(lifecycle_serial: int) -> bool:
 
 
 func _start_after_host_ready() -> void:
-	var current_serial := _lifecycle_serial
-	var host := get_parent()
+	var current_serial: int = _lifecycle_serial
+	var host: Node = get_parent()
 	if host != null and not host.is_node_ready():
 		await host.ready
 	if not _is_lifecycle_current(current_serial):
@@ -1046,8 +1017,8 @@ func _queue_reload_from_children() -> void:
 func _free_internal_group(group: GFNodeStateGroup) -> void:
 	if group == null or not is_instance_valid(group):
 		return
-	group.call("clear_states", false)
-	var parent := group.get_parent()
+	group.clear_states(false)
+	var parent: Node = group.get_parent()
 	if parent != null:
 		parent.remove_child(group)
 	group.free()
@@ -1056,7 +1027,7 @@ func _free_internal_group(group: GFNodeStateGroup) -> void:
 func _queue_free_detached(node: Node) -> void:
 	if not is_instance_valid(node):
 		return
-	var parent := node.get_parent()
+	var parent: Node = node.get_parent()
 	if parent != null:
 		parent.remove_child(node)
 	if not node.is_queued_for_deletion():
@@ -1064,8 +1035,8 @@ func _queue_free_detached(node: Node) -> void:
 
 
 func _is_group_in_state(group_name: StringName, state_name: StringName) -> bool:
-	var group := get_state_group(group_name)
-	if group == null or not group.has_method("is_in_state"):
+	var group: GFNodeStateGroup = get_state_group(group_name)
+	if group == null:
 		return false
 	return group.is_in_state(state_name)
 
@@ -1135,13 +1106,48 @@ func _should_reload_for_child(child: Node) -> bool:
 	return _is_node_state(child) or _is_node_state_group(child)
 
 
+func _get_registered_groups() -> Array[GFNodeStateGroup]:
+	var result: Array[GFNodeStateGroup] = []
+	for group_variant: Variant in _groups.values():
+		var group: GFNodeStateGroup = _variant_to_state_group(group_variant)
+		if group != null:
+			result.append(group)
+	return result
+
+
+func _get_dictionary_callable(source: Dictionary, key: Variant) -> Callable:
+	return _variant_to_callable(GFVariantData.get_option_value(source, key, Callable()))
+
+
+func _erase_dictionary_key(source: Dictionary, key: Variant) -> void:
+	var _erased: bool = source.erase(key)
+
+
+func _variant_to_callable(value: Variant) -> Callable:
+	if value is Callable:
+		return value
+	return Callable()
+
+
+func _variant_to_node_state(value: Variant) -> GFNodeState:
+	if value is GFNodeState:
+		return value
+	return null
+
+
+func _variant_to_state_group(value: Variant) -> GFNodeStateGroup:
+	if value is GFNodeStateGroup:
+		return value
+	return null
+
+
 func _capture_state_snapshot() -> Dictionary:
 	var result: Dictionary = {}
 	for group_key: Variant in _groups.keys():
-		var group := _groups[group_key] as GFNodeStateGroup
-		if group == null or not group.has_method("get_current_state_name"):
+		var group: GFNodeStateGroup = _variant_to_state_group(_groups[group_key])
+		if group == null:
 			continue
-		var current_state_name := group.call("get_current_state_name") as StringName
+		var current_state_name: StringName = group.get_current_state_name()
 		if current_state_name == &"":
 			continue
 		result[group_key] = {
@@ -1152,13 +1158,13 @@ func _capture_state_snapshot() -> Dictionary:
 
 func _restore_state_snapshot(snapshot: Dictionary) -> void:
 	for group_key: Variant in _groups.keys():
-		var group := _groups[group_key] as GFNodeStateGroup
+		var group: GFNodeStateGroup = _variant_to_state_group(_groups[group_key])
 		if group == null:
 			continue
 
-		var group_snapshot := snapshot.get(group_key, {}) as Dictionary
-		var current_state_name := StringName(group_snapshot.get("current_state", &"")) if group_snapshot != null else &""
-		if current_state_name != &"" and group.has_method("get_state") and group.call("get_state", current_state_name) != null:
-			group.call("transition_to", current_state_name, {})
+		var group_snapshot: Dictionary = GFVariantData.get_option_dictionary(snapshot, group_key)
+		var current_state_name: StringName = GFVariantData.get_option_string_name(group_snapshot, "current_state")
+		if current_state_name != &"" and group.get_state(current_state_name) != null:
+			group.transition_to(current_state_name, {})
 		elif _should_start_group_on_initialize():
 			_start_group_node(group, {})

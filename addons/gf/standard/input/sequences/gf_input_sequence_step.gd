@@ -46,7 +46,11 @@ extends Resource
 ## [br]
 ## @return 步骤副本。
 func duplicate_step() -> GFInputSequenceStep:
-	return duplicate(true) as GFInputSequenceStep
+	var step: Resource = duplicate(true)
+	if step is GFInputSequenceStep:
+		var sequence_step: GFInputSequenceStep = step
+		return sequence_step
+	return null
 
 
 ## 创建只包含动作 ID 的步骤。
@@ -57,6 +61,6 @@ func duplicate_step() -> GFInputSequenceStep:
 ## [br]
 ## @return 新步骤。
 static func from_action_id(p_action_id: StringName) -> GFInputSequenceStep:
-	var step := GFInputSequenceStep.new()
+	var step: GFInputSequenceStep = GFInputSequenceStep.new()
 	step.action_id = p_action_id
 	return step

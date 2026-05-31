@@ -230,21 +230,21 @@ func submit_resource_load(
 	apply_callback: Callable = Callable(),
 	options: Dictionary = {}
 ) -> GFBackgroundWorkTask:
-	var task: Variant = _create_task(GFBackgroundWorkTask.Kind.RESOURCE, Callable(), apply_callback, options)
+	var task: GFBackgroundWorkTask = _create_task(GFBackgroundWorkTask.Kind.RESOURCE, Callable(), apply_callback, options)
 	task.resource_path = path
 	task.resource_type_hint = type_hint
 
 	if path.is_empty():
 		_fail_task(task, "[GFBackgroundWorkUtility] submit_resource_load 失败：资源路径为空。")
-		return task as GFBackgroundWorkTask
+		return task
 
 	if not _register_task(task):
 		_fail_task(task, "[GFBackgroundWorkUtility] submit_resource_load 失败：工作 ID 已存在。")
-		return task as GFBackgroundWorkTask
+		return task
 
 	work_queued.emit(task)
 	_start_resource_task(task)
-	return task as GFBackgroundWorkTask
+	return task
 
 
 ## 取消指定工作。
@@ -255,7 +255,7 @@ func submit_resource_load(
 ## [br]
 ## @return 取消成功返回 true。
 func cancel_work(work_id: StringName) -> bool:
-	var task: Variant = get_task(work_id)
+	var task: GFBackgroundWorkTask = get_task(work_id)
 	if task == null or task.is_finished():
 		return false
 
@@ -277,11 +277,11 @@ func cancel_work(work_id: StringName) -> bool:
 ## [br]
 ## @api public
 func cancel_all() -> void:
-	var task_values := _tasks.values()
+	var task_values: Array = _tasks.values()
 	for task_variant: Variant in task_values:
-		var task: Variant = task_variant
+		var task: GFBackgroundWorkTask = _as_task(task_variant)
 		if task != null and not task.is_finished():
-			cancel_work(task.work_id)
+			var _cancelled: bool = cancel_work(task.work_id)
 
 
 ## 暂停启动新的 CPU/IO 线程工作；已运行和资源加载中的工作会继续推进。
@@ -320,7 +320,7 @@ func is_paused() -> bool:
 ## [br]
 ## @return 更新成功返回 true。
 func update_work_progress(work_id: StringName, progress: float, message: String = "") -> bool:
-	var task: Variant = get_task(work_id)
+	var task: GFBackgroundWorkTask = get_task(work_id)
 	if task == null or task.is_finished():
 		return false
 	task.progress = clampf(progress, 0.0, 1.0)
@@ -336,7 +336,7 @@ func update_work_progress(work_id: StringName, progress: float, message: String 
 ## [br]
 ## @return 工作记录；不存在时返回 null。
 func get_task(work_id: StringName) -> GFBackgroundWorkTask:
-	return _tasks.get(work_id) as GFBackgroundWorkTask
+	return _as_task(GFVariantData.get_option_value(_tasks, work_id))
 
 
 ## 清理已完成的历史工作记录。
@@ -344,8 +344,9 @@ func get_task(work_id: StringName) -> GFBackgroundWorkTask:
 ## @api public
 func clear_finished_tasks() -> void:
 	for task: Variant in _finished_tasks:
-		if task != null:
-			_tasks.erase(task.work_id)
+		var finished_task: GFBackgroundWorkTask = _as_task(task)
+		if finished_task != null:
+			var _removed_task: bool = _tasks.erase(finished_task.work_id)
 	_finished_tasks.clear()
 
 
@@ -391,41 +392,41 @@ func get_debug_snapshot() -> Dictionary:
 # --- 私有/辅助方法 ---
 
 func _submit_threaded_work(
-	kind: int,
+	kind: GFBackgroundWorkTask.Kind,
 	worker: Callable,
 	input_data: Variant,
 	apply_callback: Callable,
 	options: Dictionary
 ) -> GFBackgroundWorkTask:
-	var task: Variant = _create_task(kind, worker, apply_callback, options)
+	var task: GFBackgroundWorkTask = _create_task(kind, worker, apply_callback, options)
 	if not worker.is_valid():
 		_fail_task(task, "[GFBackgroundWorkUtility] 提交后台工作失败：worker 无效。")
-		return task as GFBackgroundWorkTask
+		return task
 
-	var allow_payload_objects := allow_object_payloads or GFVariantData.get_option_bool(options, "allow_object_payloads", false)
+	var allow_payload_objects: bool = allow_object_payloads or GFVariantData.get_option_bool(options, "allow_object_payloads", false)
 	if not allow_payload_objects and not _is_thread_payload_safe(input_data):
 		_fail_task(task, "[GFBackgroundWorkUtility] 提交后台工作失败：payload 只能包含纯 Variant 数据。")
-		return task as GFBackgroundWorkTask
+		return task
 
 	task.input_data = GFVariantData.duplicate_variant(input_data)
 	if not _register_task(task):
 		_fail_task(task, "[GFBackgroundWorkUtility] 提交后台工作失败：工作 ID 已存在。")
-		return task as GFBackgroundWorkTask
+		return task
 
 	_insert_queued_thread_task(task, GFVariantData.get_option_bool(options, "front", false))
 	work_queued.emit(task)
 	_start_queued_thread_tasks()
-	return task as GFBackgroundWorkTask
+	return task
 
 
 func _create_task(
-	kind: int,
+	kind: GFBackgroundWorkTask.Kind,
 	worker: Callable,
 	apply_callback: Callable,
 	options: Dictionary
-) -> Variant:
+) -> GFBackgroundWorkTask:
 	_work_serial += 1
-	var task: Variant = GFBackgroundWorkTask.new()
+	var task: GFBackgroundWorkTask = GFBackgroundWorkTask.new()
 	task.kind = kind
 	task.work_id = GFVariantData.get_option_string_name(options, "id")
 	if task.work_id == &"":
@@ -433,12 +434,11 @@ func _create_task(
 	task.priority = GFVariantData.get_option_int(options, "priority", 0)
 	task.metadata = GFVariantData.get_option_dictionary(options, "metadata")
 	task.created_msec = Time.get_ticks_msec()
-	task._worker_callback = worker
-	task._apply_callback = apply_callback
+	task.set_internal_callbacks(worker, apply_callback)
 	return task
 
 
-func _register_task(task: Variant) -> bool:
+func _register_task(task: GFBackgroundWorkTask) -> bool:
 	if task == null or task.work_id == &"" or _tasks.has(task.work_id):
 		return false
 	_tasks[task.work_id] = task
@@ -450,7 +450,7 @@ func _start_queued_thread_tasks() -> void:
 		return
 
 	while _active_thread_tasks.size() < max_threaded_tasks and not _queued_thread_tasks.is_empty():
-		var task: Variant = _queued_thread_tasks.pop_front()
+		var task: GFBackgroundWorkTask = _as_task(_queued_thread_tasks.pop_front())
 		if task == null or task.status != GFBackgroundWorkTask.Status.QUEUED:
 			continue
 		if task.cancel_requested:
@@ -459,25 +459,25 @@ func _start_queued_thread_tasks() -> void:
 		_start_thread_task(task)
 
 
-func _insert_queued_thread_task(task: Variant, front: bool) -> void:
-	var insert_index := _queued_thread_tasks.size()
-	for i in range(_queued_thread_tasks.size()):
-		var current: Variant = _queued_thread_tasks[i]
+func _insert_queued_thread_task(task: GFBackgroundWorkTask, front: bool) -> void:
+	var insert_index: int = _queued_thread_tasks.size()
+	for i: int in range(_queued_thread_tasks.size()):
+		var current: GFBackgroundWorkTask = _as_task(_queued_thread_tasks[i])
 		if current == null:
 			insert_index = i
 			break
-		if int(task.priority) > int(current.priority):
+		if task.priority > current.priority:
 			insert_index = i
 			break
-		if front and int(task.priority) == int(current.priority):
+		if front and task.priority == current.priority:
 			insert_index = i
 			break
-	_queued_thread_tasks.insert(insert_index, task)
+	var _insert_result: int = _queued_thread_tasks.insert(insert_index, task)
 
 
-func _start_thread_task(task: Variant) -> void:
-	var thread := Thread.new()
-	var error := thread.start(Callable(self, "_run_threaded_task").bind(task._worker_callback, task.input_data))
+func _start_thread_task(task: GFBackgroundWorkTask) -> void:
+	var thread: Thread = Thread.new()
+	var error: Error = thread.start(Callable(self, "_run_threaded_task").bind(task.get_worker_callback(), task.input_data))
 	if error != OK:
 		_fail_task(task, "[GFBackgroundWorkUtility] 启动线程失败：%d。" % error)
 		return
@@ -492,72 +492,76 @@ func _start_thread_task(task: Variant) -> void:
 
 
 func _poll_thread_tasks() -> void:
-	var active_ids := _active_thread_tasks.keys()
+	var active_ids: Array = _active_thread_tasks.keys()
 	for work_id: StringName in active_ids:
-		var entry := _active_thread_tasks.get(work_id) as Dictionary
-		if entry == null:
+		var entry: Dictionary = _get_active_thread_entry(work_id)
+		if entry.is_empty():
 			continue
-		var thread := entry.get("thread") as Thread
+		var thread: Thread = _get_thread_entry_thread(entry)
 		if thread == null or thread.is_alive():
 			continue
 
 		var result_variant: Variant = thread.wait_to_finish()
-		_active_thread_tasks.erase(work_id)
-		var task: Variant = entry.get("task")
+		var _removed_active: bool = _active_thread_tasks.erase(work_id)
+		var task: GFBackgroundWorkTask = _get_thread_entry_task(entry)
 		_finish_thread_task(task, result_variant)
 
 
-func _finish_thread_task(task: Variant, result_variant: Variant) -> void:
+func _finish_thread_task(task: GFBackgroundWorkTask, result_variant: Variant) -> void:
 	if task == null or task.is_finished():
 		return
 	if task.cancel_requested:
 		_cancel_task(task)
 		return
 
-	var result := result_variant as Dictionary
-	if result == null:
+	if not result_variant is Dictionary:
 		_fail_task(task, "[GFBackgroundWorkUtility] 后台工作返回了无效结果。", result_variant)
 		return
-	var normalized_result := GFResultDictionary.normalize(result, false)
+	var result: Dictionary = GFVariantData.as_dictionary(result_variant)
+	var normalized_result: Dictionary = GFResultDictionary.normalize(result, false)
 	if not GFResultDictionary.is_ok(normalized_result):
-		_fail_task(task, _get_result_error_text(normalized_result, "background work failed"), normalized_result.get("result", normalized_result))
+		_fail_task(task, _get_result_error_text(normalized_result, "background work failed"), _get_failure_result_payload(normalized_result))
 		return
 
-	task.result = normalized_result.get("result")
+	task.result = _get_result_payload(normalized_result)
 	_queue_apply_or_complete(task)
 
 
 func _run_threaded_task(worker: Callable, input_data: Variant) -> Dictionary:
 	var value: Variant = worker.call(input_data)
-	if value is Dictionary and not bool((value as Dictionary).get("ok", true)):
-		var result := GFResultDictionary.normalize(value as Dictionary, false)
-		return GFResultDictionary.make_failure(_get_result_error_text(result), {
-			"result": value,
-		})
-	if value is bool and not bool(value):
-		return GFResultDictionary.make_failure("", {
-			"result": value,
-		})
+	if value is Dictionary:
+		var value_dictionary: Dictionary = value
+		if not GFVariantData.get_option_bool(value_dictionary, GFResultDictionary.KEY_OK, true):
+			var result: Dictionary = GFResultDictionary.normalize(value_dictionary, false)
+			return GFResultDictionary.make_failure(_get_result_error_text(result), {
+				"result": value,
+			})
+	if value is bool:
+		var bool_value: bool = value
+		if not bool_value:
+			return GFResultDictionary.make_failure("", {
+				"result": value,
+			})
 	return GFResultDictionary.make_success({
 		"result": value,
 	})
 
 
-func _start_resource_task(task: Variant) -> void:
+func _start_resource_task(task: GFBackgroundWorkTask) -> void:
 	var path: String = task.resource_path
 	if _resource_requests.has(path):
-		var request := _resource_requests[path] as Dictionary
-		var pending_type_hint := String(request.get("type_hint", ""))
+		var request: Dictionary = _get_resource_request(path)
+		var pending_type_hint: String = GFVariantData.get_option_string(request, "type_hint")
 		if not _type_hints_are_compatible(pending_type_hint, task.resource_type_hint):
 			_fail_task(task, "[GFBackgroundWorkUtility] 相同资源路径已有不同 type_hint 的加载请求：%s。" % path)
 			return
 
-		var tasks := request.get("tasks", []) as Array
+		var tasks: Array = _get_resource_request_tasks(request)
 		tasks.append(task)
 		_start_task_without_thread(task)
 		return
 
-	var error := _request_threaded_resource(path, task.resource_type_hint)
+	var error: Error = _request_threaded_resource(path, task.resource_type_hint)
 	if error != OK:
 		_fail_task(task, "[GFBackgroundWorkUtility] 发起资源线程加载失败：%s (%d)。" % [path, error])
 		return
@@ -569,47 +573,50 @@ func _start_resource_task(task: Variant) -> void:
 	_start_task_without_thread(task)
 
 
-func _start_task_without_thread(task: Variant) -> void:
+func _start_task_without_thread(task: GFBackgroundWorkTask) -> void:
 	task.status = GFBackgroundWorkTask.Status.RUNNING
 	task.started_msec = Time.get_ticks_msec()
 	work_started.emit(task)
 
 
 func _poll_resource_requests() -> void:
-	var paths := _resource_requests.keys()
+	var paths: Array = _resource_requests.keys()
 	for path: String in paths:
 		if not _resource_requests.has(path):
 			continue
 
-		var request := _resource_requests[path] as Dictionary
+		var request: Dictionary = _get_resource_request(path)
 		var progress: Array = []
-		var status := ResourceLoader.load_threaded_get_status(path, progress)
-		var ratio: float = progress[0] if progress.size() > 0 else 0.0
-		var tasks := request.get("tasks", []) as Array
-		for task: Variant in tasks:
+		var status: ResourceLoader.ThreadLoadStatus = _to_thread_load_status(ResourceLoader.load_threaded_get_status(path, progress))
+		var ratio: float = GFVariantData.to_float(progress[0]) if progress.size() > 0 else 0.0
+		var tasks: Array = _get_resource_request_tasks(request)
+		for task_variant: Variant in tasks:
+			var task: GFBackgroundWorkTask = _as_task(task_variant)
 			if task != null and not task.cancel_requested and not task.is_finished():
-				update_work_progress(task.work_id, ratio)
+				var _progress_updated: bool = update_work_progress(task.work_id, ratio)
 
 		match status:
 			ResourceLoader.THREAD_LOAD_IN_PROGRESS:
 				pass
 
 			ResourceLoader.THREAD_LOAD_LOADED:
-				var resource := ResourceLoader.load_threaded_get(path)
-				_resource_requests.erase(path)
-				for task: Variant in tasks:
+				var resource: Resource = _variant_to_resource(ResourceLoader.load_threaded_get(path))
+				var _removed_loaded_request: bool = _resource_requests.erase(path)
+				for task_variant: Variant in tasks:
+					var task: GFBackgroundWorkTask = _as_task(task_variant)
 					_finish_resource_task(task, resource)
 
 			ResourceLoader.THREAD_LOAD_FAILED, ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
-				_resource_requests.erase(path)
-				for task: Variant in tasks:
+				var _removed_failed_request: bool = _resource_requests.erase(path)
+				for task_variant: Variant in tasks:
+					var task: GFBackgroundWorkTask = _as_task(task_variant)
 					if task != null and task.cancel_requested:
 						_cancel_task(task)
 					else:
 						_fail_task(task, "[GFBackgroundWorkUtility] 资源线程加载失败：%s。" % path)
 
 
-func _finish_resource_task(task: Variant, resource: Resource) -> void:
+func _finish_resource_task(task: GFBackgroundWorkTask, resource: Resource) -> void:
 	if task == null or task.is_finished():
 		return
 	if task.cancel_requested:
@@ -624,11 +631,11 @@ func _finish_resource_task(task: Variant, resource: Resource) -> void:
 	_queue_apply_or_complete(task)
 
 
-func _queue_apply_or_complete(task: Variant) -> void:
+func _queue_apply_or_complete(task: GFBackgroundWorkTask) -> void:
 	if task.cancel_requested:
 		_cancel_task(task)
 		return
-	if task._apply_callback.is_valid():
+	if task.get_apply_callback().is_valid():
 		task.status = GFBackgroundWorkTask.Status.APPLYING
 		_apply_queue.append(task)
 		return
@@ -636,37 +643,42 @@ func _queue_apply_or_complete(task: Variant) -> void:
 
 
 func _process_apply_queue() -> void:
-	var remaining := maxi(max_apply_per_tick, 1)
-	var started_usec := Time.get_ticks_usec()
-	var applied_count := 0
+	var remaining: int = maxi(max_apply_per_tick, 1)
+	var started_usec: int = Time.get_ticks_usec()
+	var applied_count: int = 0
 	while remaining > 0 and not _apply_queue.is_empty():
 		if _is_apply_time_budget_exhausted(started_usec, applied_count):
 			break
 
 		remaining -= 1
-		var task: Variant = _apply_queue.pop_front()
+		var task: GFBackgroundWorkTask = _as_task(_apply_queue.pop_front())
 		if task == null or task.is_finished():
 			continue
 		if task.cancel_requested:
 			_cancel_task(task)
 			continue
 
-		var value: Variant = task._apply_callback.call(task)
+		var apply_callback: Callable = task.get_apply_callback()
+		var value: Variant = apply_callback.call(task)
 		applied_count += 1
 		task.apply_result = value
-		if value is Dictionary and not bool((value as Dictionary).get("ok", true)):
-			var normalized_result := GFResultDictionary.normalize(value as Dictionary, false)
-			_fail_task(task, _get_result_error_text(normalized_result), normalized_result)
-			continue
-		if value is bool and not bool(value):
-			_fail_task(task, "", value)
-			continue
+		if value is Dictionary:
+			var value_dictionary: Dictionary = value
+			if not GFVariantData.get_option_bool(value_dictionary, GFResultDictionary.KEY_OK, true):
+				var normalized_result: Dictionary = GFResultDictionary.normalize(value_dictionary, false)
+				_fail_task(task, _get_result_error_text(normalized_result), normalized_result)
+				continue
+		if value is bool:
+			var bool_value: bool = value
+			if not bool_value:
+				_fail_task(task, "", value)
+				continue
 
 		work_applied.emit(task)
 		_complete_task(task)
 
 
-func _complete_task(task: Variant) -> void:
+func _complete_task(task: GFBackgroundWorkTask) -> void:
 	if task == null or task.is_finished():
 		return
 	task.status = GFBackgroundWorkTask.Status.COMPLETED
@@ -677,7 +689,7 @@ func _complete_task(task: Variant) -> void:
 	work_completed.emit(task)
 
 
-func _fail_task(task: Variant, error_message: String = "", result: Variant = null) -> void:
+func _fail_task(task: GFBackgroundWorkTask, error_message: String = "", result: Variant = null) -> void:
 	if task == null or task.is_finished():
 		return
 	_queued_thread_tasks.erase(task)
@@ -692,19 +704,19 @@ func _fail_task(task: Variant, error_message: String = "", result: Variant = nul
 
 
 func _get_result_error_text(result: Dictionary, fallback: String = "") -> String:
-	var error_text := String(result.get(GFResultDictionary.KEY_ERROR, ""))
+	var error_text: String = GFVariantData.get_option_string(result, GFResultDictionary.KEY_ERROR)
 	if not error_text.is_empty():
 		return error_text
-	error_text = String(result.get(GFResultDictionary.KEY_MESSAGE, ""))
+	error_text = GFVariantData.get_option_string(result, GFResultDictionary.KEY_MESSAGE)
 	if not error_text.is_empty():
 		return error_text
-	error_text = String(result.get(GFResultDictionary.KEY_REASON, ""))
+	error_text = GFVariantData.get_option_string(result, GFResultDictionary.KEY_REASON)
 	if not error_text.is_empty():
 		return error_text
 	return fallback
 
 
-func _cancel_task(task: Variant) -> void:
+func _cancel_task(task: GFBackgroundWorkTask) -> void:
 	if task == null or task.is_finished():
 		return
 	_queued_thread_tasks.erase(task)
@@ -718,30 +730,30 @@ func _cancel_task(task: Variant) -> void:
 
 func _wait_for_active_thread_tasks() -> void:
 	for work_id: StringName in _active_thread_tasks.keys():
-		var entry := _active_thread_tasks.get(work_id) as Dictionary
-		if entry == null:
+		var entry: Dictionary = _get_active_thread_entry(work_id)
+		if entry.is_empty():
 			continue
-		var thread := entry.get("thread") as Thread
+		var thread: Thread = _get_thread_entry_thread(entry)
 		var result_variant: Variant = null
 		if thread != null:
 			result_variant = thread.wait_to_finish()
-		var task: Variant = entry.get("task")
+		var task: GFBackgroundWorkTask = _get_thread_entry_task(entry)
 		_finish_thread_task(task, result_variant)
 	_active_thread_tasks.clear()
 
 
 func _trim_finished_tasks() -> void:
-	var limit := maxi(max_finished_tasks, 0)
+	var limit: int = maxi(max_finished_tasks, 0)
 	while _finished_tasks.size() > limit:
-		var removed: Variant = _finished_tasks.pop_front()
+		var removed: GFBackgroundWorkTask = _as_task(_finished_tasks.pop_front())
 		if removed != null and removed.is_finished():
-			_tasks.erase(removed.work_id)
+			var _removed_task: bool = _tasks.erase(removed.work_id)
 
 
 func _is_apply_time_budget_exhausted(started_usec: int, applied_count: int) -> bool:
 	if max_apply_seconds_per_tick <= 0.0 or applied_count <= 0:
 		return false
-	var elapsed_seconds := float(Time.get_ticks_usec() - started_usec) / 1000000.0
+	var elapsed_seconds: float = float(Time.get_ticks_usec() - started_usec) / 1000000.0
 	return elapsed_seconds >= max_apply_seconds_per_tick
 
 
@@ -767,13 +779,13 @@ func _is_thread_payload_safe(value: Variant, depth: int = 0) -> bool:
 		TYPE_PACKED_COLOR_ARRAY, TYPE_PACKED_VECTOR4_ARRAY:
 			return true
 		TYPE_ARRAY:
-			var array := value as Array
+			var array: Array = GFVariantData.as_array(value)
 			for item: Variant in array:
 				if not _is_thread_payload_safe(item, depth + 1):
 					return false
 			return true
 		TYPE_DICTIONARY:
-			var dictionary := value as Dictionary
+			var dictionary: Dictionary = GFVariantData.as_dictionary(value)
 			for key: Variant in dictionary.keys():
 				if not _is_thread_payload_safe(key, depth + 1):
 					return false
@@ -793,16 +805,90 @@ func _type_hints_are_compatible(left: String, right: String) -> bool:
 	return left.is_empty() or right.is_empty() or left == right
 
 
+func _get_active_thread_entry(work_id: StringName) -> Dictionary:
+	return GFVariantData.as_dictionary(GFVariantData.get_option_value(_active_thread_tasks, work_id))
+
+
+func _get_thread_entry_task(entry: Dictionary) -> GFBackgroundWorkTask:
+	return _as_task(GFVariantData.get_option_value(entry, "task"))
+
+
+func _get_thread_entry_thread(entry: Dictionary) -> Thread:
+	return _variant_to_thread(GFVariantData.get_option_value(entry, "thread"))
+
+
+func _get_resource_request(path: String) -> Dictionary:
+	return GFVariantData.as_dictionary(GFVariantData.get_option_value(_resource_requests, path))
+
+
+func _get_resource_request_tasks(request: Dictionary) -> Array:
+	return GFVariantData.as_array(GFVariantData.get_option_value(request, "tasks", []))
+
+
+func _get_result_payload(result: Dictionary) -> Variant:
+	return GFVariantData.get_option_value(result, "result")
+
+
+func _get_failure_result_payload(result: Dictionary) -> Variant:
+	return GFVariantData.get_option_value(result, "result", result)
+
+
 func _task_ids(tasks: Array) -> PackedStringArray:
-	var result := PackedStringArray()
-	for task: Variant in tasks:
+	var result: PackedStringArray = PackedStringArray()
+	for task_variant: Variant in tasks:
+		var task: GFBackgroundWorkTask = _as_task(task_variant)
 		if task != null:
-			result.append(String(task.work_id))
+			_append_packed_string(result, String(task.work_id))
 	return result
 
 
 func _active_thread_task_ids() -> PackedStringArray:
-	var result := PackedStringArray()
-	for work_id: StringName in _active_thread_tasks.keys():
-		result.append(String(work_id))
+	var result: PackedStringArray = PackedStringArray()
+	for work_id: Variant in _active_thread_tasks.keys():
+		var normalized_work_id: StringName = GFVariantData.to_string_name(work_id)
+		if normalized_work_id != &"":
+			_append_packed_string(result, String(normalized_work_id))
 	return result
+
+
+static func _as_task(value: Variant) -> GFBackgroundWorkTask:
+	if value is GFBackgroundWorkTask:
+		var task: GFBackgroundWorkTask = value
+		return task
+	return null
+
+
+static func _variant_to_thread(value: Variant) -> Thread:
+	if value is Thread:
+		var thread: Thread = value
+		return thread
+	return null
+
+
+static func _variant_to_resource(value: Variant) -> Resource:
+	if value is Resource:
+		var resource: Resource = value
+		return resource
+	return null
+
+
+static func _to_thread_load_status(value: Variant) -> ResourceLoader.ThreadLoadStatus:
+	var status_value: int = GFVariantData.to_int(value, ResourceLoader.THREAD_LOAD_INVALID_RESOURCE)
+	match status_value:
+		ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+			return ResourceLoader.THREAD_LOAD_IN_PROGRESS
+
+		ResourceLoader.THREAD_LOAD_LOADED:
+			return ResourceLoader.THREAD_LOAD_LOADED
+
+		ResourceLoader.THREAD_LOAD_FAILED:
+			return ResourceLoader.THREAD_LOAD_FAILED
+
+		ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
+			return ResourceLoader.THREAD_LOAD_INVALID_RESOURCE
+
+	return ResourceLoader.THREAD_LOAD_INVALID_RESOURCE
+
+
+static func _append_packed_string(target: PackedStringArray, value: String) -> void:
+	var _added: bool = target.append(value)

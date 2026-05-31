@@ -65,7 +65,7 @@ signal hit_rejected(context: GFCombatHitContext, receiver: Object, report: Dicti
 
 # --- 常量 ---
 
-const _MESSAGE_DISPATCH_SUPPORT: Script = preload("res://addons/gf/standard/common/gf_message_dispatch_support.gd")
+const _MESSAGE_DISPATCH_SUPPORT = preload("res://addons/gf/standard/common/gf_message_dispatch_support.gd")
 
 
 # --- 导出变量 ---
@@ -136,8 +136,8 @@ func build_hit_context(
 	hit_id_override: StringName = &""
 ) -> GFCombatHitContext:
 	var context_payload: Variant = payload.duplicate(true) if payload_override == null else GFVariantData.duplicate_variant(payload_override)
-	var effective_hit_id := hit_id_override if hit_id_override != &"" else hit_id
-	var context := GFCombatHitContext.new(_resolve_sender(), target, context_payload, effective_hit_id)
+	var effective_hit_id: StringName = hit_id_override if hit_id_override != &"" else hit_id
+	var context: GFCombatHitContext = GFCombatHitContext.new(_resolve_sender(), target, context_payload, effective_hit_id)
 	context.magnitude = magnitude
 	context.tags = tags.duplicate()
 	context.position_2d = get_collision_point() if is_colliding() else global_position
@@ -167,9 +167,9 @@ func scan(payload_override: Variant = null, hit_id_override: StringName = &"") -
 	if not is_colliding():
 		return _emit_missed(&"no_collision")
 
-	var receiver := get_collider()
-	var context := build_hit_context(receiver, payload_override, hit_id_override)
-	var report: Dictionary = _MESSAGE_DISPATCH_SUPPORT._dispatch_to_receiver(
+	var receiver: Object = get_collider()
+	var context: GFCombatHitContext = build_hit_context(receiver, payload_override, hit_id_override)
+	var report_value: Variant = _MESSAGE_DISPATCH_SUPPORT._dispatch_to_receiver(
 		hit_enabled,
 		metadata,
 		receiver,
@@ -181,7 +181,8 @@ func scan(payload_override: Variant = null, hit_id_override: StringName = &"") -
 		"Hit scan receiver is null.",
 		"Receiver does not expose receive_hit().",
 		"Receiver returned an invalid hit report."
-	) as Dictionary
+	)
+	var report: Dictionary = GFVariantData.as_dictionary(report_value)
 	_emit_scan_result(context, receiver, report)
 	return report
 
@@ -189,7 +190,7 @@ func scan(payload_override: Variant = null, hit_id_override: StringName = &"") -
 # --- 私有/辅助方法 ---
 
 func _emit_missed(reason: StringName) -> Dictionary:
-	var report := {
+	var report: Dictionary = {
 		"ok": false,
 		"reason": reason,
 		"metadata": metadata.duplicate(true),
@@ -200,7 +201,7 @@ func _emit_missed(reason: StringName) -> Dictionary:
 
 func _emit_scan_result(context: GFCombatHitContext, receiver: Object, report: Dictionary) -> void:
 	scan_hit.emit(context, receiver, report)
-	if bool(report.get("ok", false)):
+	if GFVariantData.get_option_bool(report, "ok", false):
 		hit_accepted.emit(context, receiver, report)
 	else:
 		hit_rejected.emit(context, receiver, report)
@@ -208,7 +209,7 @@ func _emit_scan_result(context: GFCombatHitContext, receiver: Object, report: Di
 
 func _resolve_sender() -> Object:
 	if sender_path != NodePath(""):
-		var sender := get_node_or_null(sender_path)
+		var sender: Node = get_node_or_null(sender_path)
 		if sender != null:
 			return sender
 	return self

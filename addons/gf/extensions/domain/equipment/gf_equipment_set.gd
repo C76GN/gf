@@ -42,7 +42,7 @@ func set_slot(slot: GFEquipmentSlot) -> void:
 ## [br]
 ## @return 槽位资源；不存在时返回 null。
 func get_slot(slot_id: StringName) -> GFEquipmentSlot:
-	return slots.get(slot_id) as GFEquipmentSlot
+	return _get_equipment_slot_value(GFVariantData.get_option_value(slots, slot_id))
 
 
 ## 挂载物品到槽位。
@@ -59,7 +59,7 @@ func get_slot(slot_id: StringName) -> GFEquipmentSlot:
 ## [br]
 ## @schema item_tags: Array[StringName]，当前物品拥有的标签列表。
 func equip(slot_id: StringName, item_id: StringName, item_tags: Array[StringName] = []) -> bool:
-	var slot := get_slot(slot_id)
+	var slot: GFEquipmentSlot = get_slot(slot_id)
 	if slot == null:
 		return false
 	return slot.equip(item_id, item_tags)
@@ -71,7 +71,7 @@ func equip(slot_id: StringName, item_id: StringName, item_tags: Array[StringName
 ## [br]
 ## @param slot_id: 槽位 ID。
 func unequip(slot_id: StringName) -> void:
-	var slot := get_slot(slot_id)
+	var slot: GFEquipmentSlot = get_slot(slot_id)
 	if slot != null:
 		slot.unequip()
 
@@ -84,7 +84,16 @@ func unequip(slot_id: StringName) -> void:
 ## [br]
 ## @return 物品 ID。
 func get_equipped_item(slot_id: StringName) -> StringName:
-	var slot := get_slot(slot_id)
+	var slot: GFEquipmentSlot = get_slot(slot_id)
 	if slot == null:
 		return &""
 	return slot.item_id
+
+
+# --- 私有/辅助方法 ---
+
+func _get_equipment_slot_value(value: Variant) -> GFEquipmentSlot:
+	if value is GFEquipmentSlot:
+		var slot: GFEquipmentSlot = value
+		return slot
+	return null

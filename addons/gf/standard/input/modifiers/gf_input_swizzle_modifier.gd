@@ -55,7 +55,7 @@ enum SwizzleOrder {
 ## [br]
 ## @return 分量重排后的二维输入值。
 func modify(value: Vector2, _event: InputEvent = null, _action: GFInputAction = null) -> Vector2:
-	var swizzled := _swizzle(Vector3(value.x, value.y, 0.0))
+	var swizzled: Vector3 = _swizzle(Vector3(value.x, value.y, 0.0))
 	return Vector2(swizzled.x, swizzled.y)
 
 

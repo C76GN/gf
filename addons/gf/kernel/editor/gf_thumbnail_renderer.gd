@@ -68,9 +68,10 @@ func render_node3d(source: Node3D, size: Vector2i = Vector2i(256, 256), transpar
 	_ensure_viewport()
 	_clear_world_root()
 
-	var instance := source.duplicate() as Node3D
-	if instance == null:
+	var duplicated: Node = source.duplicate()
+	if not (duplicated is Node3D):
 		return null
+	var instance: Node3D = duplicated
 
 	_world_root.add_child(instance)
 	_prepare_instance(instance)
@@ -117,7 +118,7 @@ func render_mesh(mesh: Mesh, size: Vector2i = Vector2i(256, 256), transparent: b
 	if mesh == null:
 		return null
 
-	var instance := MeshInstance3D.new()
+	var instance: MeshInstance3D = MeshInstance3D.new()
 	instance.mesh = mesh
 	var image: Image = await render_node3d(instance, size, transparent)
 	instance.free()
@@ -166,9 +167,9 @@ func render_mesh_library_previews(
 		return 0
 
 	cancel_preview_generation = false
-	var safe_size := _normalize_render_size(size)
-	var generated_count := 0
-	var was_blocking := mesh_library.is_blocking_signals()
+	var safe_size: Vector2i = _normalize_render_size(size)
+	var generated_count: int = 0
+	var was_blocking: bool = mesh_library.is_blocking_signals()
 	mesh_library.set_block_signals(true)
 	for item_id: int in mesh_library.get_item_list():
 		if cancel_preview_generation:
@@ -176,7 +177,7 @@ func render_mesh_library_previews(
 		if not overwrite_existing and mesh_library.get_item_preview(item_id) != null:
 			continue
 
-		var mesh := mesh_library.get_item_mesh(item_id)
+		var mesh: Mesh = mesh_library.get_item_mesh(item_id)
 		if mesh == null:
 			continue
 
@@ -237,26 +238,26 @@ func _clear_world_root() -> void:
 
 func _prepare_instance(instance: Node3D) -> void:
 	instance.transform = Transform3D.IDENTITY
-	var bounds := _get_combined_aabb(instance)
-	var largest := maxf(bounds.size.x, maxf(bounds.size.y, bounds.size.z))
+	var bounds: AABB = _get_combined_aabb(instance)
+	var largest: float = maxf(bounds.size.x, maxf(bounds.size.y, bounds.size.z))
 	if largest > 0.0001:
 		instance.scale *= 2.0 / largest
 	bounds = _get_combined_aabb(instance)
-	var center := bounds.position + bounds.size * 0.5
+	var center: Vector3 = bounds.position + bounds.size * 0.5
 	instance.global_position -= center
 
 
 func _render_prepare(size: Vector2i, transparent: bool, bounds: AABB) -> void:
 	_viewport.size = size
 	_viewport.transparent_bg = transparent
-	var environment := _viewport.world_3d.environment
+	var environment: Environment = _viewport.world_3d.environment
 	environment.background_mode = Environment.BG_CLEAR_COLOR if transparent else Environment.BG_COLOR
 
-	var center := bounds.position + bounds.size * 0.5
-	var largest := maxf(bounds.size.x, maxf(bounds.size.y, bounds.size.z))
+	var center: Vector3 = bounds.position + bounds.size * 0.5
+	var largest: float = maxf(bounds.size.x, maxf(bounds.size.y, bounds.size.z))
 	if largest < 0.01:
 		largest = 1.0
-	var camera_direction := Vector3(0.45, 0.4, 1.0).normalized()
+	var camera_direction: Vector3 = Vector3(0.45, 0.4, 1.0).normalized()
 	_camera.position = center + camera_direction * largest * 4.0
 	_camera.look_at(center, Vector3.UP)
 	_camera.size = _calculate_orthographic_size_for_aabb(bounds, _camera) * 1.08
@@ -269,17 +270,20 @@ func _normalize_render_size(size: Vector2i) -> Vector2i:
 
 
 func _get_combined_aabb(root: Node) -> AABB:
-	var combined := AABB()
-	var has_bounds := false
+	var combined: AABB = AABB()
+	var has_bounds: bool = false
 	var stack: Array[Node] = [root]
 	while not stack.is_empty():
-		var current := stack.pop_back()
+		var current_variant: Variant = stack.pop_back()
+		if not current_variant is Node:
+			continue
+		var current: Node = current_variant
 		if current is MeshInstance3D:
-			var mesh_instance := current as MeshInstance3D
+			var mesh_instance: MeshInstance3D = current
 			if mesh_instance.mesh != null:
-				var aabb := mesh_instance.get_aabb()
-				var transform := mesh_instance.global_transform
-				var corners := [
+				var aabb: AABB = mesh_instance.get_aabb()
+				var transform: Transform3D = mesh_instance.global_transform
+				var corners: Array[Vector3] = [
 					transform * aabb.position,
 					transform * (aabb.position + Vector3(aabb.size.x, 0.0, 0.0)),
 					transform * (aabb.position + Vector3(0.0, aabb.size.y, 0.0)),
@@ -304,10 +308,10 @@ func _get_combined_aabb(root: Node) -> AABB:
 
 
 func _calculate_orthographic_size_for_aabb(bounds: AABB, camera: Camera3D) -> float:
-	var camera_transform := camera.global_transform
-	var camera_right := camera_transform.basis.x.normalized()
-	var camera_up := camera_transform.basis.y.normalized()
-	var corners := [
+	var camera_transform: Transform3D = camera.global_transform
+	var camera_right: Vector3 = camera_transform.basis.x.normalized()
+	var camera_up: Vector3 = camera_transform.basis.y.normalized()
+	var corners: Array[Vector3] = [
 		bounds.position,
 		bounds.position + Vector3(bounds.size.x, 0.0, 0.0),
 		bounds.position + Vector3(0.0, bounds.size.y, 0.0),
@@ -318,14 +322,14 @@ func _calculate_orthographic_size_for_aabb(bounds: AABB, camera: Camera3D) -> fl
 		bounds.position + bounds.size,
 	]
 
-	var min_u := INF
-	var max_u := -INF
-	var min_v := INF
-	var max_v := -INF
+	var min_u: float = INF
+	var max_u: float = -INF
+	var min_v: float = INF
+	var max_v: float = -INF
 	for corner: Vector3 in corners:
-		var offset := corner - camera.global_position
-		var u := offset.dot(camera_right)
-		var v := offset.dot(camera_up)
+		var offset: Vector3 = corner - camera.global_position
+		var u: float = offset.dot(camera_right)
+		var v: float = offset.dot(camera_up)
 		min_u = minf(min_u, u)
 		max_u = maxf(max_u, u)
 		min_v = minf(min_v, v)

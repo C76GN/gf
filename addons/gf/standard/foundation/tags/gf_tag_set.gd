@@ -35,14 +35,15 @@ extends Resource
 func set_tags(source_tags: Variant) -> GFTagSet:
 	clear()
 	if source_tags is Dictionary:
-		for tag_variant: Variant in (source_tags as Dictionary).keys():
-			add_tag(StringName(tag_variant), int((source_tags as Dictionary)[tag_variant]))
+		var source_data: Dictionary = GFVariantData.as_dictionary(source_tags)
+		for tag_variant: Variant in source_data.keys():
+			var _add_tag_result_40: Variant = add_tag(GFVariantData.to_string_name(tag_variant), GFVariantData.to_int(source_data[tag_variant]))
 	elif source_tags is PackedStringArray:
 		for tag_text: String in source_tags:
-			add_tag(StringName(tag_text))
+			var _add_tag_result_43: Variant = add_tag(StringName(tag_text))
 	elif source_tags is Array:
 		for tag_variant: Variant in source_tags:
-			add_tag(StringName(tag_variant))
+			var _add_tag_result_46: Variant = add_tag(GFVariantData.to_string_name(tag_variant))
 	return self
 
 
@@ -59,7 +60,7 @@ func add_tag(tag: StringName, count: int = 1) -> GFTagSet:
 	if tag == &"" or count <= 0:
 		return self
 
-	tag_counts[tag] = int(tag_counts.get(tag, 0)) + count
+	tag_counts[tag] = GFVariantData.get_option_int(tag_counts, tag, 0) + count
 	return self
 
 
@@ -76,14 +77,14 @@ func remove_tag(tag: StringName, count: int = 1) -> GFTagSet:
 	if tag == &"" or not tag_counts.has(tag):
 		return self
 	if count == -1:
-		tag_counts.erase(tag)
+		var _erase_result_80: Variant = tag_counts.erase(tag)
 		return self
 	if count <= 0:
 		return self
 
-	var updated_count := int(tag_counts.get(tag, 0)) - count
+	var updated_count: int = GFVariantData.get_option_int(tag_counts, tag, 0) - count
 	if updated_count <= 0:
-		tag_counts.erase(tag)
+		var _erase_result_87: Variant = tag_counts.erase(tag)
 	else:
 		tag_counts[tag] = updated_count
 	return self
@@ -117,14 +118,14 @@ func get_tag_count(tag: StringName, include_child_tags: bool = false) -> int:
 	if tag == &"":
 		return 0
 	if not include_child_tags:
-		return int(tag_counts.get(tag, 0))
+		return GFVariantData.get_option_int(tag_counts, tag, 0)
 
-	var count := 0
-	var prefix := "%s." % String(tag)
+	var count: int = 0
+	var prefix: String = "%s." % String(tag)
 	for candidate_variant: Variant in tag_counts.keys():
-		var candidate := StringName(candidate_variant)
+		var candidate: StringName = GFVariantData.to_string_name(candidate_variant)
 		if candidate == tag or String(candidate).begins_with(prefix):
-			count += int(tag_counts.get(candidate_variant, 0))
+			count += GFVariantData.get_option_int(tag_counts, candidate_variant, 0)
 	return count
 
 
@@ -134,10 +135,10 @@ func get_tag_count(tag: StringName, include_child_tags: bool = false) -> int:
 ## [br]
 ## @return 排序后的标签名。
 func get_tags() -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	for tag_variant: Variant in tag_counts.keys():
-		if int(tag_counts.get(tag_variant, 0)) > 0:
-			result.append(String(tag_variant))
+		if GFVariantData.get_option_int(tag_counts, tag_variant, 0) > 0:
+			var _appended: bool = result.append(GFVariantData.to_text(tag_variant))
 	result.sort()
 	return result
 
@@ -166,7 +167,7 @@ func clear() -> void:
 ## [br]
 ## @return 新标签集合。
 func duplicate_set() -> GFTagSet:
-	var next_set := GFTagSet.new()
+	var next_set: GFTagSet = GFTagSet.new()
 	next_set.tag_counts = tag_counts.duplicate(true)
 	return next_set
 
@@ -194,6 +195,6 @@ func to_dictionary() -> Dictionary:
 ## [br]
 ## @return 新标签集合。
 static func from_dictionary(data: Dictionary) -> GFTagSet:
-	var next_set := GFTagSet.new()
-	next_set.set_tags(data.get("tag_counts", data))
+	var next_set: GFTagSet = GFTagSet.new()
+	var _set_tags_result_199: Variant = next_set.set_tags(GFVariantData.get_option_value(data, "tag_counts", data))
 	return next_set

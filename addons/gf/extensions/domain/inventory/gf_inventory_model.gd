@@ -33,8 +33,8 @@ func add_item(item_id: StringName, amount: int = 1, metadata: Dictionary = {}) -
 	if item_id == &"" or amount <= 0:
 		return
 
-	var stack := _stacks.get(item_id, {}) as Dictionary
-	stack["amount"] = int(stack.get("amount", 0)) + amount
+	var stack: Dictionary = _get_stack_record(item_id)
+	stack["amount"] = GFVariantData.get_option_int(stack, "amount") + amount
 	if not stack.has("metadata"):
 		stack["metadata"] = metadata.duplicate(true)
 	_stacks[item_id] = stack
@@ -53,14 +53,14 @@ func remove_item(item_id: StringName, amount: int = 1) -> bool:
 	if item_id == &"" or amount <= 0 or not _stacks.has(item_id):
 		return false
 
-	var stack := _stacks[item_id] as Dictionary
-	var current_amount := int(stack.get("amount", 0))
+	var stack: Dictionary = _get_stack_record(item_id)
+	var current_amount: int = GFVariantData.get_option_int(stack, "amount")
 	if current_amount < amount:
 		return false
 
 	current_amount -= amount
 	if current_amount <= 0:
-		_stacks.erase(item_id)
+		_erase_stack(item_id)
 	else:
 		stack["amount"] = current_amount
 		_stacks[item_id] = stack
@@ -78,10 +78,10 @@ func set_item_amount(item_id: StringName, amount: int) -> void:
 	if item_id == &"":
 		return
 	if amount <= 0:
-		_stacks.erase(item_id)
+		_erase_stack(item_id)
 		return
 
-	var stack := _stacks.get(item_id, {}) as Dictionary
+	var stack: Dictionary = _get_stack_record(item_id)
 	stack["amount"] = amount
 	if not stack.has("metadata"):
 		stack["metadata"] = {}
@@ -98,7 +98,7 @@ func set_item_amount(item_id: StringName, amount: int) -> void:
 func get_item_amount(item_id: StringName) -> int:
 	if not _stacks.has(item_id):
 		return 0
-	return int((_stacks[item_id] as Dictionary).get("amount", 0))
+	return GFVariantData.get_option_int(_get_stack_record(item_id), "amount")
 
 
 ## 检查是否拥有足够数量。
@@ -126,7 +126,7 @@ func has_item(item_id: StringName, amount: int = 1) -> bool:
 func get_item_metadata(item_id: StringName) -> Dictionary:
 	if not _stacks.has(item_id):
 		return {}
-	return ((_stacks[item_id] as Dictionary).get("metadata", {}) as Dictionary).duplicate(true)
+	return GFVariantData.get_option_dictionary(_get_stack_record(item_id), "metadata")
 
 
 ## 获取库存快照。
@@ -157,7 +157,7 @@ func clear() -> void:
 func to_dict() -> Dictionary:
 	var serialized: Dictionary = {}
 	for item_id: StringName in _stacks:
-		serialized[String(item_id)] = (_stacks[item_id] as Dictionary).duplicate(true)
+		serialized[String(item_id)] = _get_stack_record(item_id).duplicate(true)
 	return { "items": serialized }
 
 
@@ -170,8 +170,21 @@ func to_dict() -> Dictionary:
 ## @schema data: Dictionary，包含 items 字典；items 键为 String 物品 ID，值为 amount 与 metadata 记录。
 func from_dict(data: Dictionary) -> void:
 	_stacks.clear()
-	var raw_items := data.get("items", {}) as Dictionary
+	var raw_items: Dictionary = GFVariantData.get_option_dictionary(data, "items")
 	for key: Variant in raw_items:
-		var item_id := StringName(String(key))
-		var stack := raw_items[key] as Dictionary
-		_stacks[item_id] = stack.duplicate(true)
+		var item_id: StringName = StringName(GFVariantData.to_text(key))
+		var stack: Dictionary = GFVariantData.as_dictionary(raw_items[key])
+		if not stack.is_empty():
+			_stacks[item_id] = stack.duplicate(true)
+
+
+# --- 私有/辅助方法 ---
+
+func _get_stack_record(item_id: StringName) -> Dictionary:
+	return GFVariantData.as_dictionary(GFVariantData.get_option_value(_stacks, item_id, {}))
+
+
+func _erase_stack(item_id: StringName) -> void:
+	var erased: bool = _stacks.erase(item_id)
+	if erased:
+		return

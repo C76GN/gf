@@ -11,7 +11,7 @@ extends Node
 
 # --- 常量 ---
 
-const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
+const _INSTANCE_GUARD = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
 
 
 # --- 导出变量 ---
@@ -76,16 +76,16 @@ var _last_scale_offset: Vector3 = Vector3.ZERO
 func _ready() -> void:
 	_target_ref = weakref(_resolve_target())
 	if capture_on_ready:
-		capture_base_transform()
+		var _capture_base_transform_result_79: Variant = capture_base_transform()
 
 
 func _process(_delta: float) -> void:
-	apply_current_sample()
+	var _apply_current_sample_result_83: Variant = apply_current_sample()
 
 
 func _exit_tree() -> void:
 	if restore_on_exit:
-		reset_to_base()
+		var _reset_to_base_result_88: Variant = reset_to_base()
 
 
 # --- 公共方法 ---
@@ -108,7 +108,7 @@ func get_target() -> Node3D:
 	if _target_ref == null:
 		return null
 	var target: Node = _INSTANCE_GUARD._get_live_node_from_ref(_target_ref)
-	return target as Node3D if target is Node3D else null
+	return _get_node_3d_value(target)
 
 
 ## 记录当前目标基础变换。
@@ -117,7 +117,7 @@ func get_target() -> Node3D:
 ## [br]
 ## @return 记录成功返回 true。
 func capture_base_transform() -> bool:
-	var target := get_target()
+	var target: Node3D = get_target()
 	if target == null:
 		return false
 	_base_position = target.position
@@ -135,28 +135,28 @@ func capture_base_transform() -> bool:
 ## [br]
 ## @return 应用成功返回 true。
 func apply_current_sample() -> bool:
-	var target := get_target()
-	var shake_utility := _get_utility()
+	var target: Node3D = get_target()
+	var shake_utility: GFShakeUtility = _get_utility()
 	if target == null or shake_utility == null:
 		return false
 
-	var sample := shake_utility.sample_channel(channel)
+	var sample: Dictionary = shake_utility.sample_channel(channel)
 	if apply_position:
-		var position_offset := sample.get("position", Vector3.ZERO) as Vector3
+		var position_offset: Vector3 = GFVariantData.get_option_vector3(sample, "position")
 		target.position = target.position - _last_position_offset + position_offset
 		_last_position_offset = position_offset
 	elif _last_position_offset != Vector3.ZERO:
 		target.position -= _last_position_offset
 		_last_position_offset = Vector3.ZERO
 	if apply_rotation:
-		var rotation_offset := sample.get("rotation_degrees", Vector3.ZERO) as Vector3
+		var rotation_offset: Vector3 = GFVariantData.get_option_vector3(sample, "rotation_degrees")
 		target.rotation_degrees = target.rotation_degrees - _last_rotation_offset + rotation_offset
 		_last_rotation_offset = rotation_offset
 	elif _last_rotation_offset != Vector3.ZERO:
 		target.rotation_degrees -= _last_rotation_offset
 		_last_rotation_offset = Vector3.ZERO
 	if apply_scale:
-		var scale_offset := sample.get("scale", Vector3.ZERO) as Vector3
+		var scale_offset: Vector3 = GFVariantData.get_option_vector3(sample, "scale")
 		target.scale = target.scale - _last_scale_offset + scale_offset
 		_last_scale_offset = scale_offset
 	elif _last_scale_offset != Vector3.ZERO:
@@ -171,7 +171,7 @@ func apply_current_sample() -> bool:
 ## [br]
 ## @return 恢复成功返回 true。
 func reset_to_base() -> bool:
-	var target := get_target()
+	var target: Node3D = get_target()
 	if target == null:
 		return false
 	target.position -= _last_position_offset
@@ -191,13 +191,27 @@ func reset_to_base() -> bool:
 func _get_utility() -> GFShakeUtility:
 	if utility != null:
 		return utility
-	var architecture := GFAutoload.get_architecture_or_null()
+	var architecture: GFArchitecture = GFAutoload.get_architecture_or_null()
 	if architecture == null:
 		return null
-	return architecture.get_utility(GFShakeUtility) as GFShakeUtility
+	return _get_shake_utility_value(architecture.get_utility(GFShakeUtility))
 
 
 func _resolve_target() -> Node3D:
 	if target_path != NodePath(""):
-		return get_node_or_null(target_path) as Node3D
-	return get_parent() as Node3D
+		return _get_node_3d_value(get_node_or_null(target_path))
+	return _get_node_3d_value(get_parent())
+
+
+func _get_node_3d_value(value: Variant) -> Node3D:
+	if value is Node3D:
+		var node: Node3D = value
+		return node
+	return null
+
+
+func _get_shake_utility_value(value: Variant) -> GFShakeUtility:
+	if value is GFShakeUtility:
+		var shake_utility: GFShakeUtility = value
+		return shake_utility
+	return null

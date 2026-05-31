@@ -14,7 +14,7 @@ extends RefCounted
 
 # --- 常量 ---
 
-const _CAPABILITY_UTILITY_SCRIPT: Script = preload("res://addons/gf/extensions/capability/core/gf_capability_utility.gd")
+const _CAPABILITY_UTILITY_SCRIPT = preload("res://addons/gf/extensions/capability/core/gf_capability_utility.gd")
 
 
 # --- 导出变量 ---
@@ -111,7 +111,7 @@ func on_gf_capability_active_changed(_target: Object, _active: bool) -> void:
 ## [br]
 ## @return: Model 实例；不可用时返回 null。
 func get_model(model_type: Script) -> Object:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_model(model_type)
@@ -125,7 +125,7 @@ func get_model(model_type: Script) -> Object:
 ## [br]
 ## @return: System 实例；不可用时返回 null。
 func get_system(system_type: Script) -> Object:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_system(system_type)
@@ -139,7 +139,7 @@ func get_system(system_type: Script) -> Object:
 ## [br]
 ## @return: Utility 实例；不可用时返回 null。
 func get_utility(utility_type: Script) -> Object:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_utility(utility_type)
@@ -156,7 +156,7 @@ func get_capability(capability_type: Script) -> Object:
 	if receiver == null:
 		return null
 
-	var capability_utility := get_utility(_CAPABILITY_UTILITY_SCRIPT)
+	var capability_utility: GFCapabilityUtility = _get_capability_utility()
 	if capability_utility == null:
 		return null
 
@@ -167,7 +167,16 @@ func get_capability(capability_type: Script) -> Object:
 
 func _get_architecture_or_null() -> GFArchitecture:
 	if _architecture_ref != null:
-		var architecture := _architecture_ref.get_ref() as GFArchitecture
-		if architecture != null:
+		var architecture_value: Object = _architecture_ref.get_ref()
+		if architecture_value is GFArchitecture:
+			var architecture: GFArchitecture = architecture_value
 			return architecture
 	return GFAutoload.get_architecture_or_null()
+
+
+func _get_capability_utility() -> GFCapabilityUtility:
+	var utility: Object = get_utility(_CAPABILITY_UTILITY_SCRIPT)
+	if utility is GFCapabilityUtility:
+		var capability_utility: GFCapabilityUtility = utility
+		return capability_utility
+	return null

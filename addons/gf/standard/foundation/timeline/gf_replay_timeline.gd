@@ -84,14 +84,15 @@ func add_event(
 	payload: Variant = null,
 	event_metadata: Dictionary = {}
 ) -> Dictionary:
-	var event := {
-		"time_seconds": maxf(time_seconds, 0.0),
+	var clamped_time: float = maxf(time_seconds, 0.0)
+	var event: Dictionary = {
+		"time_seconds": clamped_time,
 		"event_kind": event_kind,
 		"payload": GFVariantData.duplicate_variant(payload),
 		"metadata": event_metadata.duplicate(true),
 	}
 	events.append(event)
-	duration_seconds = maxf(duration_seconds, float(event["time_seconds"]))
+	duration_seconds = maxf(duration_seconds, clamped_time)
 	sort_events()
 	return event
 
@@ -189,11 +190,11 @@ func append_timeline(
 ) -> int:
 	if timeline == null or not ("events" in timeline):
 		return 0
-	var source_events := timeline.get("events") as Array
-	if source_events == null:
+	var source_events: Array = _get_timeline_events(timeline)
+	if source_events.is_empty():
 		return 0
 
-	var appended := 0
+	var appended: int = 0
 	var filter: Dictionary = {}
 	for kind_text: String in kind_filter:
 		filter[StringName(kind_text)] = true
@@ -201,16 +202,16 @@ func append_timeline(
 	for event_value: Variant in source_events:
 		if not (event_value is Dictionary):
 			continue
-		var event := event_value as Dictionary
-		var event_kind := StringName(String(event.get("event_kind", "")))
+		var event: Dictionary = event_value
+		var event_kind: StringName = _get_event_kind(event)
 		if not filter.is_empty() and not filter.has(event_kind):
 			continue
-		var event_metadata: Variant = event.get("metadata", {})
-		add_event(
-			float(event.get("time_seconds", 0.0)) + time_offset,
+		var event_metadata: Dictionary = GFVariantData.to_dictionary(GFVariantData.get_option_value(event, "metadata", {}))
+		var _appended_event: Dictionary = add_event(
+			_get_event_time(event) + time_offset,
 			event_kind,
-			event.get("payload"),
-			event_metadata as Dictionary if event_metadata is Dictionary else {}
+			GFVariantData.get_option_value(event, "payload"),
+			event_metadata
 		)
 		appended += 1
 	return appended
@@ -247,9 +248,11 @@ func get_event_count() -> int:
 ## @api public
 func sort_events() -> void:
 	events.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
-		if is_equal_approx(float(left.get("time_seconds", 0.0)), float(right.get("time_seconds", 0.0))):
-			return String(left.get("event_kind", "")) < String(right.get("event_kind", ""))
-		return float(left.get("time_seconds", 0.0)) < float(right.get("time_seconds", 0.0))
+		var left_time: float = _get_event_time(left)
+		var right_time: float = _get_event_time(right)
+		if is_equal_approx(left_time, right_time):
+			return _get_event_kind_text(left) < _get_event_kind_text(right)
+		return left_time < right_time
 	)
 
 
@@ -263,7 +266,7 @@ func sort_events() -> void:
 func get_events() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for event: Dictionary in events:
-		result.append(GFVariantData.duplicate_variant(event) as Dictionary)
+		result.append(event.duplicate(true))
 	return result
 
 
@@ -279,8 +282,8 @@ func get_events() -> Array[Dictionary]:
 func get_events_by_kind(event_kind: StringName) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for event: Dictionary in events:
-		if StringName(String(event.get("event_kind", ""))) == event_kind:
-			result.append(GFVariantData.duplicate_variant(event) as Dictionary)
+		if _get_event_kind(event) == event_kind:
+			result.append(event.duplicate(true))
 	return result
 
 
@@ -303,15 +306,15 @@ func get_events_in_range(
 	inclusive_end: bool = false
 ) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
-	var start_time := minf(range_start, range_end)
-	var end_time := maxf(range_start, range_end)
+	var start_time: float = minf(range_start, range_end)
+	var end_time: float = maxf(range_start, range_end)
 	for event: Dictionary in events:
-		var event_time := float(event.get("time_seconds", 0.0))
-		var inside := event_time >= start_time and event_time < end_time
+		var event_time: float = _get_event_time(event)
+		var inside: bool = event_time >= start_time and event_time < end_time
 		if inclusive_end:
 			inside = event_time >= start_time and event_time <= end_time
 		if inside:
-			result.append(GFVariantData.duplicate_variant(event) as Dictionary)
+			result.append(event.duplicate(true))
 	return result
 
 
@@ -321,7 +324,7 @@ func get_events_in_range(
 ## [br]
 ## @return 新时间线。
 func duplicate_timeline() -> RefCounted:
-	var timeline := (get_script() as Script).new() as RefCounted
+	var timeline: GFReplayTimeline = GFReplayTimeline.new()
 	timeline.apply_dictionary(to_dictionary())
 	return timeline
 
@@ -357,16 +360,18 @@ func to_dictionary(json_compatible: bool = false) -> Dictionary:
 ## [br]
 ## @schema data: Dictionary，包含 timeline_id、duration_seconds、events 和 metadata。
 func apply_dictionary(data: Dictionary, json_compatible: bool = false) -> void:
-	timeline_id = StringName(String(data.get("timeline_id", "")))
-	duration_seconds = maxf(float(data.get("duration_seconds", 0.0)), 0.0)
+	timeline_id = GFVariantData.get_option_string_name(data, "timeline_id")
+	duration_seconds = maxf(GFVariantData.get_option_float(data, "duration_seconds"), 0.0)
 	events.clear()
-	for event_value: Variant in data.get("events", []):
+	var serialized_events: Array = GFVariantData.get_option_array(data, "events")
+	for event_value: Variant in serialized_events:
 		if event_value is Dictionary:
-			events.append(_event_from_dictionary(event_value as Dictionary, json_compatible))
+			var event_dictionary: Dictionary = event_value
+			events.append(_event_from_dictionary(event_dictionary, json_compatible))
 
-	var metadata_value: Variant = data.get("metadata", {})
+	var metadata_value: Variant = GFVariantData.get_option_value(data, "metadata", {})
 	metadata_value = GFVariantJsonCodec.json_compatible_to_variant(metadata_value) if json_compatible else GFVariantData.duplicate_variant(metadata_value)
-	metadata = metadata_value as Dictionary if metadata_value is Dictionary else {}
+	metadata = GFVariantData.to_dictionary(metadata_value)
 	sort_events()
 
 
@@ -382,8 +387,7 @@ func apply_dictionary(data: Dictionary, json_compatible: bool = false) -> void:
 ## [br]
 ## @schema data: Dictionary，包含 timeline_id、duration_seconds、events 和 metadata。
 static func from_dictionary(data: Dictionary, json_compatible: bool = false) -> RefCounted:
-	var script := load("res://addons/gf/standard/foundation/timeline/gf_replay_timeline.gd") as Script
-	var timeline := script.new() as RefCounted
+	var timeline: GFReplayTimeline = GFReplayTimeline.new()
 	timeline.apply_dictionary(data, json_compatible)
 	return timeline
 
@@ -392,21 +396,47 @@ static func from_dictionary(data: Dictionary, json_compatible: bool = false) -> 
 
 func _event_to_dictionary(event: Dictionary, json_compatible: bool) -> Dictionary:
 	return {
-		"time_seconds": float(event.get("time_seconds", 0.0)),
-		"event_kind": String(event.get("event_kind", "")),
-		"payload": GFVariantJsonCodec.variant_to_json_compatible(event.get("payload")) if json_compatible else GFVariantData.duplicate_variant(event.get("payload")),
-		"metadata": GFVariantJsonCodec.variant_to_json_compatible(event.get("metadata", {})) if json_compatible else GFVariantData.duplicate_variant(event.get("metadata", {})),
+		"time_seconds": _get_event_time(event),
+		"event_kind": _get_event_kind_text(event),
+		"payload": GFVariantJsonCodec.variant_to_json_compatible(GFVariantData.get_option_value(event, "payload")) if json_compatible else GFVariantData.duplicate_variant(GFVariantData.get_option_value(event, "payload")),
+		"metadata": GFVariantJsonCodec.variant_to_json_compatible(GFVariantData.get_option_value(event, "metadata", {})) if json_compatible else GFVariantData.duplicate_variant(GFVariantData.get_option_value(event, "metadata", {})),
 	}
 
 
 func _event_from_dictionary(event: Dictionary, json_compatible: bool) -> Dictionary:
-	var payload: Variant = event.get("payload", null)
+	var payload: Variant = GFVariantData.get_option_value(event, "payload")
 	payload = GFVariantJsonCodec.json_compatible_to_variant(payload) if json_compatible else GFVariantData.duplicate_variant(payload)
-	var event_metadata: Variant = event.get("metadata", {})
+	var event_metadata: Variant = GFVariantData.get_option_value(event, "metadata", {})
 	event_metadata = GFVariantJsonCodec.json_compatible_to_variant(event_metadata) if json_compatible else GFVariantData.duplicate_variant(event_metadata)
 	return {
-		"time_seconds": maxf(float(event.get("time_seconds", 0.0)), 0.0),
-		"event_kind": StringName(String(event.get("event_kind", ""))),
+		"time_seconds": maxf(_get_event_time(event), 0.0),
+		"event_kind": _get_event_kind(event),
 		"payload": payload,
-		"metadata": event_metadata as Dictionary if event_metadata is Dictionary else {},
+		"metadata": GFVariantData.to_dictionary(event_metadata),
 	}
+
+
+func _get_timeline_events(timeline: RefCounted) -> Array:
+	var value: Variant = _get_object_property(timeline, "events")
+	if value is Array:
+		var timeline_events: Array = value
+		return timeline_events
+	return []
+
+
+func _get_event_time(event: Dictionary) -> float:
+	return GFVariantData.get_option_float(event, "time_seconds")
+
+
+func _get_event_kind(event: Dictionary) -> StringName:
+	return GFVariantData.get_option_string_name(event, "event_kind")
+
+
+func _get_event_kind_text(event: Dictionary) -> String:
+	return GFVariantData.get_option_string(event, "event_kind")
+
+
+func _get_object_property(target: Object, property_name: String) -> Variant:
+	if target == null or property_name.is_empty():
+		return null
+	return target.get_indexed(NodePath(property_name))

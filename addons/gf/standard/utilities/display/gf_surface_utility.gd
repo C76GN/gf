@@ -75,8 +75,8 @@ func dispose() -> void:
 ## [br]
 ## @return 命中材质；无法解析时返回 null。
 func get_active_material(source: Object, face_index: int) -> Material:
-	var mesh_instance := _resolve_mesh_instance(source)
-	var surface_index := get_surface_index(source, face_index)
+	var mesh_instance: MeshInstance3D = _resolve_mesh_instance(source)
+	var surface_index: int = get_surface_index(source, face_index)
 	if mesh_instance == null or surface_index < 0:
 		return null
 	return mesh_instance.get_active_material(surface_index)
@@ -92,8 +92,8 @@ func get_active_material(source: Object, face_index: int) -> Material:
 ## [br]
 ## @return 覆盖材质；未设置或无法解析时返回 null。
 func get_surface_override_material(source: Object, face_index: int) -> Material:
-	var mesh_instance := _resolve_mesh_instance(source)
-	var surface_index := get_surface_index(source, face_index)
+	var mesh_instance: MeshInstance3D = _resolve_mesh_instance(source)
+	var surface_index: int = get_surface_index(source, face_index)
 	if mesh_instance == null or surface_index < 0:
 		return null
 	return mesh_instance.get_surface_override_material(surface_index)
@@ -109,8 +109,8 @@ func get_surface_override_material(source: Object, face_index: int) -> Material:
 ## [br]
 ## @return 基础材质；无法解析时返回 null。
 func get_base_material(source: Object, face_index: int) -> Material:
-	var mesh_instance := _resolve_mesh_instance(source)
-	var surface_index := get_surface_index(source, face_index)
+	var mesh_instance: MeshInstance3D = _resolve_mesh_instance(source)
+	var surface_index: int = get_surface_index(source, face_index)
 	if mesh_instance == null or mesh_instance.mesh == null or surface_index < 0:
 		return null
 	return mesh_instance.mesh.surface_get_material(surface_index)
@@ -129,14 +129,14 @@ func get_surface_index(source: Object, face_index: int) -> int:
 	if face_index < 0:
 		return -1
 
-	var mesh_instance := _resolve_mesh_instance(source)
+	var mesh_instance: MeshInstance3D = _resolve_mesh_instance(source)
 	if mesh_instance == null or mesh_instance.mesh == null:
 		return -1
 
-	var face_counts := _get_surface_face_counts(mesh_instance.mesh)
-	var remaining_face_index := face_index
+	var face_counts: Array[int] = _get_surface_face_counts(mesh_instance.mesh)
+	var remaining_face_index: int = face_index
 	for surface_index: int in range(face_counts.size()):
-		var face_count := int(face_counts[surface_index])
+		var face_count: int = face_counts[surface_index]
 		if remaining_face_index < face_count:
 			return surface_index
 		remaining_face_index -= face_count
@@ -162,11 +162,11 @@ func cache_mesh_surface(source: Object) -> bool:
 	if cache_mode == CacheMode.DISABLED:
 		return false
 
-	var mesh := _resolve_mesh(source)
+	var mesh: Mesh = _resolve_mesh(source)
 	if mesh == null:
 		return false
 
-	var cache_key := _get_mesh_cache_key(mesh)
+	var cache_key: int = _get_mesh_cache_key(mesh)
 	_store_surface_face_counts(cache_key, _compute_surface_face_counts(mesh), true)
 	return true
 
@@ -179,13 +179,13 @@ func cache_mesh_surface(source: Object) -> bool:
 ## [br]
 ## @return 移除成功返回 true。
 func erase_cached_mesh(source: Object) -> bool:
-	var mesh := _resolve_mesh(source)
+	var mesh: Mesh = _resolve_mesh(source)
 	if mesh == null:
 		return false
 
-	var cache_key := _get_mesh_cache_key(mesh)
-	var existed := _surface_face_counts_by_mesh.has(cache_key)
-	_surface_face_counts_by_mesh.erase(cache_key)
+	var cache_key: int = _get_mesh_cache_key(mesh)
+	var existed: bool = _surface_face_counts_by_mesh.has(cache_key)
+	var _face_counts_erased: bool = _surface_face_counts_by_mesh.erase(cache_key)
 	_mesh_cache_order.erase(cache_key)
 	return existed
 
@@ -219,46 +219,50 @@ func get_debug_snapshot() -> Dictionary:
 
 func _resolve_mesh_instance(source: Object) -> MeshInstance3D:
 	if source is MeshInstance3D:
-		var direct_mesh_instance := source as MeshInstance3D
+		var direct_mesh_instance: MeshInstance3D = source
 		return direct_mesh_instance if direct_mesh_instance.mesh != null else null
 
-	var node := source as Node
+	var node: Node = _variant_to_node(source)
 	if node == null:
 		return null
 
-	var parent := node.get_parent()
-	if parent is MeshInstance3D and (parent as MeshInstance3D).mesh != null:
-		return parent as MeshInstance3D
+	var parent: Node = node.get_parent()
+	var parent_mesh_instance: MeshInstance3D = _variant_to_mesh_instance_with_mesh(parent)
+	if parent_mesh_instance != null:
+		return parent_mesh_instance
 
 	for child: Node in node.get_children():
-		if child is MeshInstance3D and (child as MeshInstance3D).mesh != null:
-			return child as MeshInstance3D
+		var child_mesh_instance: MeshInstance3D = _variant_to_mesh_instance_with_mesh(child)
+		if child_mesh_instance != null:
+			return child_mesh_instance
 
 	if parent != null:
 		for sibling: Node in parent.get_children():
-			if sibling is MeshInstance3D and (sibling as MeshInstance3D).mesh != null:
-				return sibling as MeshInstance3D
+			var sibling_mesh_instance: MeshInstance3D = _variant_to_mesh_instance_with_mesh(sibling)
+			if sibling_mesh_instance != null:
+				return sibling_mesh_instance
 
 	return null
 
 
 func _resolve_mesh(source: Object) -> Mesh:
 	if source is Mesh:
-		return source as Mesh
+		var mesh: Mesh = source
+		return mesh
 
-	var mesh_instance := _resolve_mesh_instance(source)
+	var mesh_instance: MeshInstance3D = _resolve_mesh_instance(source)
 	if mesh_instance != null:
 		return mesh_instance.mesh
 	return null
 
 
 func _get_surface_face_counts(mesh: Mesh) -> Array[int]:
-	var cache_key := _get_mesh_cache_key(mesh)
+	var cache_key: int = _get_mesh_cache_key(mesh)
 	if _surface_face_counts_by_mesh.has(cache_key):
 		_touch_mesh_cache_key(cache_key)
-		return (_surface_face_counts_by_mesh[cache_key] as Array[int]).duplicate()
+		return GFVariantData.get_option_int_array(_surface_face_counts_by_mesh, cache_key)
 
-	var face_counts := _compute_surface_face_counts(mesh)
+	var face_counts: Array[int] = _compute_surface_face_counts(mesh)
 	if cache_mode == CacheMode.AUTOMATIC:
 		_store_surface_face_counts(cache_key, face_counts, false)
 	return face_counts
@@ -293,35 +297,54 @@ func _touch_mesh_cache_key(cache_key: int) -> void:
 func _trim_auto_cache() -> void:
 	auto_cache_size = maxi(auto_cache_size, 1)
 	while cache_mode == CacheMode.AUTOMATIC and _mesh_cache_order.size() > auto_cache_size:
-		var oldest_key := _mesh_cache_order.pop_front()
-		_surface_face_counts_by_mesh.erase(oldest_key)
+		var oldest_key: int = GFVariantData.to_int(_mesh_cache_order.pop_front())
+		var _face_counts_erased: bool = _surface_face_counts_by_mesh.erase(oldest_key)
 
 
 func _get_surface_face_count(mesh: Mesh, surface_index: int) -> int:
-	var arrays := mesh.surface_get_arrays(surface_index)
+	var arrays: Array = mesh.surface_get_arrays(surface_index)
 	if arrays.size() > Mesh.ARRAY_INDEX:
 		var index_data: Variant = arrays[Mesh.ARRAY_INDEX]
 		if index_data is PackedInt32Array:
 			var indices: PackedInt32Array = index_data
 			if not indices.is_empty():
-				return indices.size() / 3
+				return floori(float(indices.size()) / 3.0)
 
 	if arrays.size() > Mesh.ARRAY_VERTEX:
 		var vertex_data: Variant = arrays[Mesh.ARRAY_VERTEX]
 		if vertex_data is PackedVector3Array:
 			var vertices: PackedVector3Array = vertex_data
 			if not vertices.is_empty():
-				return vertices.size() / 3
+				return floori(float(vertices.size()) / 3.0)
 
 	return _get_surface_face_count_with_mesh_data_tool(mesh, surface_index)
 
 
 func _get_surface_face_count_with_mesh_data_tool(mesh: Mesh, surface_index: int) -> int:
-	var mesh_data_tool := MeshDataTool.new()
-	var error := mesh_data_tool.create_from_surface(mesh, surface_index)
+	if not mesh is ArrayMesh:
+		return 0
+
+	var array_mesh: ArrayMesh = mesh
+	var mesh_data_tool: MeshDataTool = MeshDataTool.new()
+	var error: Error = mesh_data_tool.create_from_surface(array_mesh, surface_index) as Error
 	if error != OK:
 		return 0
 	return mesh_data_tool.get_face_count()
+
+
+func _variant_to_node(value: Variant) -> Node:
+	if value is Node:
+		var node: Node = value
+		return node
+	return null
+
+
+func _variant_to_mesh_instance_with_mesh(value: Variant) -> MeshInstance3D:
+	if value is MeshInstance3D:
+		var mesh_instance: MeshInstance3D = value
+		if mesh_instance.mesh != null:
+			return mesh_instance
+	return null
 
 
 func _get_mesh_cache_key(mesh: Mesh) -> int:

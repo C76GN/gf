@@ -9,8 +9,6 @@ extends RefCounted
 const _MENU_ACTION_VALIDATE_SAVE_GRAPH: StringName = &"validate_save_graph"
 const _DIAGNOSTIC_DIALOG_MIN_SIZE: Vector2 = Vector2(720.0, 460.0)
 const _GF_SAVE_GRAPH_UTILITY_SCRIPT = preload("res://addons/gf/extensions/save/graph/gf_save_graph_utility.gd")
-const _GF_SAVE_SCOPE_SCRIPT = preload("res://addons/gf/extensions/save/core/gf_save_scope.gd")
-const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
 
 
 # --- 私有变量 ---
@@ -59,45 +57,49 @@ func cleanup() -> void:
 # --- 私有/辅助方法 ---
 
 func _validate_current_scene_save_graph() -> void:
-	var scene_root := EditorInterface.get_edited_scene_root()
+	var scene_root: Node = EditorInterface.get_edited_scene_root()
 	if scene_root == null:
 		_show_diagnostic_dialog("GF SaveGraph Health", "当前没有正在编辑的场景。")
 		return
 
-	var scopes: Array[Node] = []
+	var scopes: Array[GFSaveScope] = []
 	_collect_save_scopes(scene_root, scopes)
 	if scopes.is_empty():
 		_show_diagnostic_dialog("GF SaveGraph Health", "当前场景未找到 GFSaveScope。")
 		return
 
-	var utility := _GF_SAVE_GRAPH_UTILITY_SCRIPT.new()
-	var lines := PackedStringArray()
-	lines.append("Scene: %s" % scene_root.scene_file_path)
-	lines.append("Scope count: %d" % scopes.size())
-	lines.append("")
-	for scope: Node in scopes:
+	var utility: GFSaveGraphUtility = _make_save_graph_utility()
+	if utility == null:
+		_show_diagnostic_dialog("GF SaveGraph Health", "SaveGraph 工具无法创建。")
+		return
+
+	var lines: PackedStringArray = PackedStringArray()
+	var _append_result_77: Variant = lines.append("Scene: %s" % scene_root.scene_file_path)
+	var _append_result_78: Variant = lines.append("Scope count: %d" % scopes.size())
+	var _append_result_79: Variant = lines.append("")
+	for scope: GFSaveScope in scopes:
 		var report: Dictionary = utility.inspect_scope(scope)
-		lines.append("[%s] %s" % [String(scope.get_path()), String(report.get("summary", ""))])
-		lines.append("Next: %s" % String(report.get("next_action", "")))
-		for issue_variant: Variant in report.get("issues", []):
-			var issue := issue_variant as Dictionary
-			if issue == null:
+		var _append_result_82: Variant = lines.append("[%s] %s" % [String(scope.get_path()), GFVariantData.get_option_string(report, "summary")])
+		var _append_result_83: Variant = lines.append("Next: %s" % GFVariantData.get_option_string(report, "next_action"))
+		for issue_variant: Variant in GFVariantData.get_option_array(report, "issues"):
+			var issue: Dictionary = GFVariantData.as_dictionary(issue_variant)
+			if issue.is_empty():
 				continue
-			lines.append("- %s %s %s: %s" % [
-				String(issue.get("severity", "")),
-				String(issue.get("kind", "")),
-				String(issue.get("path", "")),
-				String(issue.get("message", "")),
+			var _append_result_88: Variant = lines.append("- %s %s %s: %s" % [
+				GFVariantData.get_option_string(issue, "severity"),
+				GFVariantData.get_option_string(issue, "kind"),
+				GFVariantData.get_option_string(issue, "path"),
+				GFVariantData.get_option_string(issue, "message"),
 			])
-		lines.append("")
+		var _append_result_94: Variant = lines.append("")
 
 	_show_diagnostic_dialog("GF SaveGraph Health", "\n".join(lines))
 
 
-func _collect_save_scopes(node: Node, result: Array[Node]) -> void:
-	var node_script := node.get_script() as Script
-	if _SCRIPT_TYPE_INSPECTOR.script_extends_or_equals(node_script, _GF_SAVE_SCOPE_SCRIPT):
-		result.append(node)
+func _collect_save_scopes(node: Node, result: Array[GFSaveScope]) -> void:
+	if node is GFSaveScope:
+		var scope: GFSaveScope = node
+		result.append(scope)
 
 	for child: Node in node.get_children():
 		_collect_save_scopes(child, result)
@@ -106,7 +108,7 @@ func _collect_save_scopes(node: Node, result: Array[Node]) -> void:
 func _show_diagnostic_dialog(title: String, text: String) -> void:
 	if not is_instance_valid(_diagnostic_dialog):
 		_diagnostic_dialog = AcceptDialog.new()
-		var dialog_min_size := Vector2i(
+		var dialog_min_size: Vector2i = Vector2i(
 			int(_DIAGNOSTIC_DIALOG_MIN_SIZE.x),
 			int(_DIAGNOSTIC_DIALOG_MIN_SIZE.y)
 		)
@@ -125,6 +127,14 @@ func _show_diagnostic_dialog(title: String, text: String) -> void:
 		int(_DIAGNOSTIC_DIALOG_MIN_SIZE.x),
 		int(_DIAGNOSTIC_DIALOG_MIN_SIZE.y)
 	))
+
+
+func _make_save_graph_utility() -> GFSaveGraphUtility:
+	var value: Variant = _GF_SAVE_GRAPH_UTILITY_SCRIPT.new()
+	if value is GFSaveGraphUtility:
+		var utility: GFSaveGraphUtility = value
+		return utility
+	return null
 
 
 func _cleanup_diagnostic_dialog() -> void:

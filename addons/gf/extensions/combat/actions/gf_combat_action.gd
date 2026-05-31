@@ -77,7 +77,7 @@ enum Operation {
 ## [br]
 ## @return 新动作。
 func duplicate_action() -> GFCombatAction:
-	var action := GFCombatAction.new()
+	var action: GFCombatAction = GFCombatAction.new()
 	action.action_id = action_id
 	action.action_kind = action_kind
 	action.operation = operation

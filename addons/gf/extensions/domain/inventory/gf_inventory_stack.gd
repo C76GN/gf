@@ -116,30 +116,30 @@ func can_merge(
 ## [br]
 ## @api public
 ## [br]
-## @param add_amount: 尝试增加的数量。
+## @param quantity: 尝试增加的数量。
 ## [br]
 ## @param registry: 可选物品注册表。
 ## [br]
 ## @return: 未加入的剩余数量。
-func add_amount(add_amount: int, registry: GFInventoryItemRegistry = null) -> int:
-	if add_amount <= 0 or is_empty():
-		return maxi(add_amount, 0)
-	var accepted := mini(add_amount, get_available_space(registry))
+func add_amount(quantity: int, registry: GFInventoryItemRegistry = null) -> int:
+	if quantity <= 0 or is_empty():
+		return maxi(quantity, 0)
+	var accepted: int = mini(quantity, get_available_space(registry))
 	amount += accepted
-	return add_amount - accepted
+	return quantity - accepted
 
 
 ## 移除数量并返回实际移除数量。
 ## [br]
 ## @api public
 ## [br]
-## @param remove_amount: 尝试移除的数量。
+## @param quantity: 尝试移除的数量。
 ## [br]
 ## @return: 实际移除数量。
-func remove_amount(remove_amount: int) -> int:
-	if remove_amount <= 0 or is_empty():
+func remove_amount(quantity: int) -> int:
+	if quantity <= 0 or is_empty():
 		return 0
-	var removed := mini(remove_amount, amount)
+	var removed: int = mini(quantity, amount)
 	amount -= removed
 	if amount <= 0:
 		clear()
@@ -187,10 +187,9 @@ func to_dict() -> Dictionary:
 ## [br]
 ## @schema data: Dictionary，可包含 item_id、amount 与 instance_data。
 func apply_dict(data: Dictionary) -> void:
-	item_id = StringName(String(data.get("item_id", item_id)))
-	amount = int(data.get("amount", amount))
-	var instance_data_value := data.get("instance_data", {}) as Dictionary
-	instance_data = instance_data_value.duplicate(true) if instance_data_value != null else {}
+	item_id = GFVariantData.get_option_string_name(data, "item_id", item_id)
+	amount = GFVariantData.get_option_int(data, "amount", amount)
+	instance_data = GFVariantData.get_option_dictionary(data, "instance_data")
 	if amount <= 0:
 		clear()
 
@@ -205,6 +204,6 @@ func apply_dict(data: Dictionary) -> void:
 ## [br]
 ## @schema data: Dictionary，可包含 item_id、amount 与 instance_data。
 static func from_dict(data: Dictionary) -> GFInventoryStack:
-	var stack := GFInventoryStack.new()
+	var stack: GFInventoryStack = GFInventoryStack.new()
 	stack.apply_dict(data)
 	return stack

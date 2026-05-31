@@ -81,20 +81,20 @@ func configure(metric_id: StringName, options: Dictionary = {}) -> GFMetricSerie
 	if label.is_empty():
 		label = String(metric_id)
 	if options.has("label"):
-		var option_label := str(options["label"])
+		var option_label: String = GFVariantData.get_option_string(options, "label")
 		if not option_label.is_empty():
 			label = option_label
 	if options.has("group"):
-		var option_group := str(options["group"])
+		var option_group: String = GFVariantData.get_option_string(options, "group")
 		if not option_group.is_empty():
 			group = option_group
-	if options.has("visible") and options["visible"] is bool:
-		visible = options["visible"]
+	if options.has("visible"):
+		visible = GFVariantData.get_option_bool(options, "visible", visible)
 	if options.has("max_samples"):
-		max_samples = int(options["max_samples"])
-	var metadata_value: Variant = options.get("metadata", null)
+		max_samples = GFVariantData.get_option_int(options, "max_samples", max_samples)
+	var metadata_value: Variant = GFVariantData.get_option_value(options, "metadata", null)
 	if metadata_value is Dictionary:
-		metadata = (metadata_value as Dictionary).duplicate(true)
+		metadata = GFVariantData.to_dictionary(metadata_value)
 	return self
 
 
@@ -110,7 +110,7 @@ func configure(metric_id: StringName, options: Dictionary = {}) -> GFMetricSerie
 ## [br]
 ## @schema sample_metadata: Dictionary[String, Variant]，单个采样的项目自定义元数据。
 func add_sample(value: float, timestamp_seconds: float = -1.0, sample_metadata: Dictionary = {}) -> void:
-	var timestamp := timestamp_seconds
+	var timestamp: float = timestamp_seconds
 	if timestamp < 0.0:
 		timestamp = float(Time.get_ticks_msec()) / 1000.0
 
@@ -160,7 +160,7 @@ func get_samples() -> Array[Dictionary]:
 func get_latest_value() -> float:
 	if _samples.is_empty():
 		return 0.0
-	return float(_samples[_samples.size() - 1].get("value", 0.0))
+	return _get_sample_value(_samples[_samples.size() - 1])
 
 
 ## 获取最小采样值。
@@ -171,9 +171,9 @@ func get_latest_value() -> float:
 func get_min_value() -> float:
 	if _samples.is_empty():
 		return 0.0
-	var result := float(_samples[0].get("value", 0.0))
+	var result: float = _get_sample_value(_samples[0])
 	for sample: Dictionary in _samples:
-		result = minf(result, float(sample.get("value", 0.0)))
+		result = minf(result, _get_sample_value(sample))
 	return result
 
 
@@ -185,9 +185,9 @@ func get_min_value() -> float:
 func get_max_value() -> float:
 	if _samples.is_empty():
 		return 0.0
-	var result := float(_samples[0].get("value", 0.0))
+	var result: float = _get_sample_value(_samples[0])
 	for sample: Dictionary in _samples:
-		result = maxf(result, float(sample.get("value", 0.0)))
+		result = maxf(result, _get_sample_value(sample))
 	return result
 
 
@@ -199,9 +199,9 @@ func get_max_value() -> float:
 func get_average_value() -> float:
 	if _samples.is_empty():
 		return 0.0
-	var total := 0.0
+	var total: float = 0.0
 	for sample: Dictionary in _samples:
-		total += float(sample.get("value", 0.0))
+		total += _get_sample_value(sample)
 	return total / float(_samples.size())
 
 
@@ -211,18 +211,19 @@ func get_average_value() -> float:
 ## [br]
 ## @return 归一化值数组。
 func get_normalized_values() -> PackedFloat32Array:
-	var values := PackedFloat32Array()
+	var values: PackedFloat32Array = PackedFloat32Array()
 	if _samples.is_empty():
 		return values
 
-	var min_value := get_min_value()
-	var max_value := get_max_value()
-	var span := max_value - min_value
+	var min_value: float = get_min_value()
+	var max_value: float = get_max_value()
+	var span: float = max_value - min_value
 	for sample: Dictionary in _samples:
 		if is_zero_approx(span):
-			values.append(0.5)
+			var _appended: bool = values.append(0.5)
 		else:
-			values.append(clampf((float(sample.get("value", 0.0)) - min_value) / span, 0.0, 1.0))
+			var normalized_value: float = clampf((_get_sample_value(sample) - min_value) / span, 0.0, 1.0)
+			var _appended: bool = values.append(normalized_value)
 	return values
 
 
@@ -237,13 +238,13 @@ func make_sparkline(width: int = 32) -> String:
 	if width <= 0 or _samples.is_empty():
 		return ""
 
-	var normalized := get_normalized_values()
-	var start_index := maxi(normalized.size() - width, 0)
-	var output := PackedStringArray()
+	var normalized: PackedFloat32Array = get_normalized_values()
+	var start_index: int = maxi(normalized.size() - width, 0)
+	var output: PackedStringArray = PackedStringArray()
 	for index: int in range(start_index, normalized.size()):
-		var value := normalized[index]
-		var char_index := clampi(roundi(value * float(SPARKLINE_CHARACTERS.length() - 1)), 0, SPARKLINE_CHARACTERS.length() - 1)
-		output.append(SPARKLINE_CHARACTERS.substr(char_index, 1))
+		var value: float = normalized[index]
+		var char_index: int = clampi(roundi(value * float(SPARKLINE_CHARACTERS.length() - 1)), 0, SPARKLINE_CHARACTERS.length() - 1)
+		var _appended: bool = output.append(SPARKLINE_CHARACTERS.substr(char_index, 1))
 	return "".join(output)
 
 
@@ -257,7 +258,7 @@ func make_sparkline(width: int = 32) -> String:
 ## [br]
 ## @schema return: Dictionary，包含 id、label、group、visible、max_samples、sample_count、latest_value、min_value、max_value、average_value、sparkline、metadata，可选 samples。
 func to_dict(include_samples: bool = false) -> Dictionary:
-	var result := {
+	var result: Dictionary = {
 		"id": id,
 		"label": label,
 		"group": group,
@@ -284,7 +285,7 @@ func to_dict(include_samples: bool = false) -> Dictionary:
 ## [br]
 ## @return 复制后的指标序列。
 func duplicate_series(include_samples: bool = true) -> GFMetricSeries:
-	var copy := GFMetricSeries.new()
+	var copy: GFMetricSeries = GFMetricSeries.new()
 	copy.id = id
 	copy.label = label
 	copy.group = group
@@ -302,3 +303,7 @@ func duplicate_series(include_samples: bool = true) -> GFMetricSeries:
 func _trim_samples() -> void:
 	while _samples.size() > max_samples:
 		_samples.pop_front()
+
+
+func _get_sample_value(sample: Dictionary) -> float:
+	return GFVariantData.get_option_float(sample, "value", 0.0)

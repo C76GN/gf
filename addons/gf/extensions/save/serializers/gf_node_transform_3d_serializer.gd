@@ -54,7 +54,7 @@ func supports_node(node: Node) -> bool:
 ## [br]
 ## @schema return: Dictionary，可包含 position: Array[float]、rotation: Array[float] 与 scale: Array[float]。
 func gather(node: Node, _context: Dictionary = {}) -> Dictionary:
-	var node_3d := node as Node3D
+	var node_3d: Node3D = _get_node_3d(node)
 	if node_3d == null:
 		return {}
 
@@ -79,9 +79,18 @@ func gather(node: Node, _context: Dictionary = {}) -> Dictionary:
 ## [br]
 ## @schema return: Dictionary，包含 ok: bool 与 error: String。
 func apply(node: Node, payload: Dictionary, _context: Dictionary = {}) -> Dictionary:
-	var node_3d := node as Node3D
+	var node_3d: Node3D = _get_node_3d(node)
 	if node_3d == null:
 		return make_result(false, "Node is not Node3D.")
 
 	_apply_property_specs(node_3d, payload, _PROPERTY_SPECS)
 	return make_result(true)
+
+
+# --- 私有/辅助方法 ---
+
+func _get_node_3d(node: Node) -> Node3D:
+	if node is Node3D:
+		var node_3d: Node3D = node
+		return node_3d
+	return null

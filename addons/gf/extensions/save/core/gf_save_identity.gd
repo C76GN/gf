@@ -60,7 +60,7 @@ func get_type_key() -> StringName:
 ## [br]
 ## @schema return: Dictionary，包含 descriptor_extra，并在非空时包含 persistent_id 与 type_key。
 func describe_identity() -> Dictionary:
-	var descriptor := descriptor_extra.duplicate(true)
+	var descriptor: Dictionary = descriptor_extra.duplicate(true)
 	if persistent_id != &"":
 		descriptor["persistent_id"] = persistent_id
 	if type_key != &"":

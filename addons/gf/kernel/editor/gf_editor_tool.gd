@@ -38,6 +38,7 @@ const GFEditorPickOperationBase = preload("res://addons/gf/kernel/editor/gf_edit
 ## [br]
 ## @layer kernel/editor
 const GFEditorToolOptionSchemaBase = preload("res://addons/gf/kernel/editor/gf_editor_tool_option_schema.gd")
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
 
 
 # --- 公共变量 ---
@@ -154,7 +155,7 @@ func set_option_schema(schema: GFEditorToolOptionSchemaBase, reset_values: bool 
 func set_tool_option(option_id: StringName, value: Variant) -> bool:
 	if option_schema == null or not option_schema.has_option(option_id):
 		return false
-	var option := option_schema.get_option(option_id)
+	var option: GFEditorToolOption = option_schema.get_option(option_id)
 	_option_values[option_id] = option.normalize_value(value)
 	return true
 
@@ -251,8 +252,8 @@ func apply_pick_operation() -> Dictionary:
 			"ok": false,
 			"reason": &"missing_operation",
 		}
-	var result := _pick_operation.apply()
-	if bool(result.get("ok", false)):
+	var result: Dictionary = _pick_operation.apply()
+	if _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(result, "ok", false):
 		_pick_operation = null
 	return result
 
@@ -326,8 +327,8 @@ func get_debug_snapshot() -> Dictionary:
 ## [br]
 ## @api protected
 ## [br]
-## @param _context: 编辑器工具上下文。
-func _on_activated(_context: GFEditorToolContextBase) -> void:
+## @param _tool_context: 编辑器工具上下文。
+func _on_activated(_tool_context: GFEditorToolContextBase) -> void:
 	pass
 
 
@@ -335,8 +336,8 @@ func _on_activated(_context: GFEditorToolContextBase) -> void:
 ## [br]
 ## @api protected
 ## [br]
-## @param _context: 编辑器工具上下文。
-func _on_deactivated(_context: GFEditorToolContextBase) -> void:
+## @param _tool_context: 编辑器工具上下文。
+func _on_deactivated(_tool_context: GFEditorToolContextBase) -> void:
 	pass
 
 
@@ -364,7 +365,9 @@ func _draw_tool(_viewport: Viewport) -> void:
 
 func _duplicate_variant(value: Variant) -> Variant:
 	if value is Dictionary:
-		return (value as Dictionary).duplicate(true)
+		var dictionary: Dictionary = value
+		return dictionary.duplicate(true)
 	if value is Array:
-		return (value as Array).duplicate(true)
+		var array: Array = value
+		return array.duplicate(true)
 	return value

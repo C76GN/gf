@@ -4,7 +4,7 @@ extends GFInstaller
 
 # --- 常量 ---
 
-const _GF_NETWORK_UTILITY_SCRIPT: Script = preload("res://addons/gf/extensions/network/runtime/gf_network_utility.gd")
+const _GF_NETWORK_UTILITY_SCRIPT = preload("res://addons/gf/extensions/network/runtime/gf_network_utility.gd")
 
 
 # --- 框架内部方法 ---

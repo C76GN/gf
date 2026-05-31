@@ -21,8 +21,8 @@ extends RefCounted
 ## [br]
 ## @return: 新交互流程。
 static func with_sender(sender: Object, architecture: GFArchitecture = null) -> GFInteractionFlow:
-	var context := GFInteractionContext.new(sender)
-	var flow := GFInteractionFlow.new(context)
+	var context: GFInteractionContext = GFInteractionContext.new(sender)
+	var flow: GFInteractionFlow = GFInteractionFlow.new(context)
 	_inject_if_possible(flow, architecture)
 	return flow
 
@@ -54,9 +54,9 @@ static func between(
 # --- 私有/辅助方法 ---
 
 static func _inject_if_possible(instance: Object, architecture: GFArchitecture = null) -> void:
-	var resolved_architecture := architecture
+	var resolved_architecture: GFArchitecture = architecture
 	if resolved_architecture == null:
 		resolved_architecture = GFAutoload.get_architecture_or_null()
 
 	if resolved_architecture != null and instance.has_method("inject_dependencies"):
-		instance.inject_dependencies(resolved_architecture)
+		instance.call("inject_dependencies", resolved_architecture)

@@ -44,7 +44,7 @@ signal attribute_changed(attribute_id: StringName, current_value: float, previou
 
 # --- 私有变量 ---
 
-var _attributes: Dictionary = {}
+var _attributes: Dictionary[StringName, GFModifiedAttribute] = {}
 
 
 # --- 公共方法 ---
@@ -62,8 +62,8 @@ func define_attribute(attribute_id: StringName, base_value: float = 0.0) -> GFMo
 	if attribute_id == &"":
 		return null
 
-	var attribute := GFModifiedAttribute.new(base_value)
-	set_attribute(attribute_id, attribute)
+	var attribute: GFModifiedAttribute = GFModifiedAttribute.new(base_value)
+	var _set: bool = set_attribute(attribute_id, attribute)
 	return attribute
 
 
@@ -81,7 +81,7 @@ func set_attribute(attribute_id: StringName, attribute: GFModifiedAttribute) -> 
 		return false
 
 	if _attributes.has(attribute_id):
-		_disconnect_attribute(attribute_id, _attributes[attribute_id] as GFModifiedAttribute)
+		_disconnect_attribute(attribute_id, _attributes[attribute_id])
 	_attributes[attribute_id] = attribute
 	_connect_attribute(attribute_id, attribute)
 	attribute_defined.emit(attribute_id, attribute)
@@ -97,7 +97,10 @@ func set_attribute(attribute_id: StringName, attribute: GFModifiedAttribute) -> 
 ## @schema defaults: Dictionary，键为属性标识，值为基础数值。
 func define_defaults(defaults: Dictionary) -> void:
 	for attribute_id_variant: Variant in defaults.keys():
-		define_attribute(StringName(attribute_id_variant), float(defaults[attribute_id_variant]))
+		var _defined: GFModifiedAttribute = define_attribute(
+			GFVariantData.to_string_name(attribute_id_variant),
+			GFVariantData.to_float(defaults[attribute_id_variant])
+		)
 
 
 ## 检查属性是否存在。
@@ -119,7 +122,7 @@ func has_attribute(attribute_id: StringName) -> bool:
 ## [br]
 ## @return 属性实例；不存在时返回 null。
 func get_attribute(attribute_id: StringName) -> GFModifiedAttribute:
-	return _attributes.get(attribute_id) as GFModifiedAttribute
+	return _get_attribute_value(GFVariantData.get_option_value(_attributes, attribute_id))
 
 
 ## 获取属性实例，不存在时自动定义。
@@ -132,7 +135,7 @@ func get_attribute(attribute_id: StringName) -> GFModifiedAttribute:
 ## [br]
 ## @return 属性实例；attribute_id 为空时返回 null。
 func get_or_define_attribute(attribute_id: StringName, base_value: float = 0.0) -> GFModifiedAttribute:
-	var attribute := get_attribute(attribute_id)
+	var attribute: GFModifiedAttribute = get_attribute(attribute_id)
 	if attribute != null:
 		return attribute
 	return define_attribute(attribute_id, base_value)
@@ -146,12 +149,12 @@ func get_or_define_attribute(attribute_id: StringName, base_value: float = 0.0) 
 ## [br]
 ## @return 移除成功返回 true。
 func remove_attribute(attribute_id: StringName) -> bool:
-	var attribute := get_attribute(attribute_id)
+	var attribute: GFModifiedAttribute = get_attribute(attribute_id)
 	if attribute == null:
 		return false
 
 	_disconnect_attribute(attribute_id, attribute)
-	_attributes.erase(attribute_id)
+	var _erased: bool = _attributes.erase(attribute_id)
 	attribute_removed.emit(attribute_id)
 	return true
 
@@ -161,8 +164,8 @@ func remove_attribute(attribute_id: StringName) -> bool:
 ## @api public
 func clear() -> void:
 	for attribute_id_variant: Variant in _attributes.keys():
-		var attribute_id := StringName(attribute_id_variant)
-		_disconnect_attribute(attribute_id, _attributes[attribute_id] as GFModifiedAttribute)
+		var attribute_id: StringName = GFVariantData.to_string_name(attribute_id_variant)
+		_disconnect_attribute(attribute_id, _get_attribute_value(GFVariantData.get_option_value(_attributes, attribute_id)))
 		attribute_removed.emit(attribute_id)
 	_attributes.clear()
 
@@ -177,7 +180,7 @@ func clear() -> void:
 func get_attribute_ids() -> Array[StringName]:
 	var result: Array[StringName] = []
 	for attribute_id_variant: Variant in _attributes.keys():
-		result.append(StringName(attribute_id_variant))
+		result.append(GFVariantData.to_string_name(attribute_id_variant))
 	return result
 
 
@@ -202,10 +205,10 @@ func get_attributes() -> Dictionary:
 ## [br]
 ## @return 当前值。
 func get_value(attribute_id: StringName, default_value: float = 0.0) -> float:
-	var attribute := get_attribute(attribute_id)
+	var attribute: GFModifiedAttribute = get_attribute(attribute_id)
 	if attribute == null:
 		return default_value
-	return float(attribute.current_value.get_value())
+	return GFVariantData.to_float(attribute.current_value.get_value(), default_value)
 
 
 ## 设置属性基础值。
@@ -218,7 +221,7 @@ func get_value(attribute_id: StringName, default_value: float = 0.0) -> float:
 ## [br]
 ## @return 设置成功返回 true。
 func set_base_value(attribute_id: StringName, base_value: float) -> bool:
-	var attribute := get_attribute(attribute_id)
+	var attribute: GFModifiedAttribute = get_attribute(attribute_id)
 	if attribute == null:
 		return false
 
@@ -236,7 +239,7 @@ func set_base_value(attribute_id: StringName, base_value: float) -> bool:
 ## [br]
 ## @return 基础值。
 func get_base_value(attribute_id: StringName, default_value: float = 0.0) -> float:
-	var attribute := get_attribute(attribute_id)
+	var attribute: GFModifiedAttribute = get_attribute(attribute_id)
 	if attribute == null:
 		return default_value
 	return attribute.get_base_value()
@@ -261,7 +264,7 @@ func add_modifier(
 	if modifier == null:
 		return false
 
-	var attribute := get_attribute(attribute_id)
+	var attribute: GFModifiedAttribute = get_attribute(attribute_id)
 	if attribute == null and define_if_missing:
 		attribute = define_attribute(attribute_id)
 	if attribute == null:
@@ -281,7 +284,7 @@ func add_modifier(
 ## [br]
 ## @return 属性存在且 modifier 有效时返回 true。
 func remove_modifier(attribute_id: StringName, modifier: GFModifier) -> bool:
-	var attribute := get_attribute(attribute_id)
+	var attribute: GFModifiedAttribute = get_attribute(attribute_id)
 	if attribute == null or modifier == null:
 		return false
 
@@ -298,13 +301,13 @@ func remove_modifier(attribute_id: StringName, modifier: GFModifier) -> bool:
 ## @param attribute_id: 可选属性标识。
 func remove_modifiers_by_source(source_id: StringName, attribute_id: StringName = &"") -> void:
 	if attribute_id != &"":
-		var attribute := get_attribute(attribute_id)
+		var attribute: GFModifiedAttribute = get_attribute(attribute_id)
 		if attribute != null:
 			attribute.remove_modifiers_by_source(source_id)
 		return
 
 	for attribute_variant: Variant in _attributes.values():
-		var attribute := attribute_variant as GFModifiedAttribute
+		var attribute: GFModifiedAttribute = _get_attribute_value(attribute_variant)
 		if attribute != null:
 			attribute.remove_modifiers_by_source(source_id)
 
@@ -316,13 +319,13 @@ func remove_modifiers_by_source(source_id: StringName, attribute_id: StringName 
 ## @param attribute_id: 可选属性标识。
 func force_recalculate(attribute_id: StringName = &"") -> void:
 	if attribute_id != &"":
-		var attribute := get_attribute(attribute_id)
+		var attribute: GFModifiedAttribute = get_attribute(attribute_id)
 		if attribute != null:
 			attribute.force_recalculate()
 		return
 
 	for attribute_variant: Variant in _attributes.values():
-		var attribute := attribute_variant as GFModifiedAttribute
+		var attribute: GFModifiedAttribute = _get_attribute_value(attribute_variant)
 		if attribute != null:
 			attribute.force_recalculate()
 
@@ -337,8 +340,8 @@ func force_recalculate(attribute_id: StringName = &"") -> void:
 func get_base_value_snapshot() -> Dictionary:
 	var snapshot: Dictionary = {}
 	for attribute_id_variant: Variant in _attributes.keys():
-		var attribute_id := StringName(attribute_id_variant)
-		var attribute := _attributes[attribute_id] as GFModifiedAttribute
+		var attribute_id: StringName = GFVariantData.to_string_name(attribute_id_variant)
+		var attribute: GFModifiedAttribute = _get_attribute_value(GFVariantData.get_option_value(_attributes, attribute_id))
 		if attribute != null:
 			snapshot[String(attribute_id)] = attribute.get_base_value()
 	return snapshot
@@ -357,11 +360,11 @@ func restore_base_value_snapshot(snapshot: Dictionary, clear_existing: bool = fa
 	if clear_existing:
 		clear()
 	for attribute_id_variant: Variant in snapshot.keys():
-		var attribute_id := StringName(attribute_id_variant)
-		var base_value := float(snapshot[attribute_id_variant])
-		var attribute := get_attribute(attribute_id)
+		var attribute_id: StringName = GFVariantData.to_string_name(attribute_id_variant)
+		var base_value: float = GFVariantData.to_float(snapshot[attribute_id_variant])
+		var attribute: GFModifiedAttribute = get_attribute(attribute_id)
 		if attribute == null:
-			define_attribute(attribute_id, base_value)
+			var _defined: GFModifiedAttribute = define_attribute(attribute_id, base_value)
 		else:
 			attribute.set_base_value(base_value)
 
@@ -369,15 +372,15 @@ func restore_base_value_snapshot(snapshot: Dictionary, clear_existing: bool = fa
 # --- 私有/辅助方法 ---
 
 func _connect_attribute(attribute_id: StringName, attribute: GFModifiedAttribute) -> void:
-	var callable := _get_attribute_changed_callable(attribute_id)
+	var callable: Callable = _get_attribute_changed_callable(attribute_id)
 	if not attribute.current_value.value_changed.is_connected(callable):
-		attribute.current_value.value_changed.connect(callable)
+		var _connected: int = attribute.current_value.value_changed.connect(callable)
 
 
 func _disconnect_attribute(attribute_id: StringName, attribute: GFModifiedAttribute) -> void:
 	if attribute == null:
 		return
-	var callable := _get_attribute_changed_callable(attribute_id)
+	var callable: Callable = _get_attribute_changed_callable(attribute_id)
 	if attribute.current_value.value_changed.is_connected(callable):
 		attribute.current_value.value_changed.disconnect(callable)
 
@@ -386,5 +389,16 @@ func _get_attribute_changed_callable(attribute_id: StringName) -> Callable:
 	return Callable(self, "_on_attribute_value_changed").bind(attribute_id)
 
 
+func _get_attribute_value(value: Variant) -> GFModifiedAttribute:
+	if value is GFModifiedAttribute:
+		var attribute: GFModifiedAttribute = value
+		return attribute
+	return null
+
+
 func _on_attribute_value_changed(previous_value: Variant, current_value: Variant, attribute_id: StringName) -> void:
-	attribute_changed.emit(attribute_id, float(current_value), float(previous_value))
+	attribute_changed.emit(
+		attribute_id,
+		GFVariantData.to_float(current_value),
+		GFVariantData.to_float(previous_value)
+	)

@@ -105,7 +105,7 @@ func insert(entity_id: int, rect: Rect2) -> void:
 	if _entity_rects.has(entity_id):
 		_remove_entity(entity_id, true)
 
-	var normalized_rect := _normalize_rect(rect)
+	var normalized_rect: Rect2 = _normalize_rect(rect)
 	_entity_rects[entity_id] = normalized_rect
 	_root._insert(entity_id, normalized_rect)
 
@@ -121,7 +121,7 @@ func insert(entity_id: int, rect: Rect2) -> void:
 ## @param hit_test: 可选精确命中测试，签名为 `(entity_id, point, rect) -> bool`。
 func insert_with_hit_test(entity_id: int, rect: Rect2, hit_test: Callable) -> void:
 	insert(entity_id, rect)
-	set_entity_hit_test(entity_id, hit_test)
+	var _set_entity_hit_test_result_124: Variant = set_entity_hit_test(entity_id, hit_test)
 
 
 ## 从四叉树中移除实体。
@@ -141,7 +141,7 @@ func remove(entity_id: int) -> void:
 ## [br]
 ## @param new_rect: 新的包围矩形。
 func update(entity_id: int, new_rect: Rect2) -> void:
-	var hit_test := _entity_hit_tests.get(entity_id, Callable()) as Callable
+	var hit_test: Callable = _variant_to_callable(GFVariantData.get_option_value(_entity_hit_tests, entity_id, Callable()))
 	_remove_entity(entity_id, false)
 	insert(entity_id, new_rect)
 	if hit_test.is_valid():
@@ -161,7 +161,7 @@ func set_entity_hit_test(entity_id: int, hit_test: Callable) -> bool:
 	if not _entity_rects.has(entity_id):
 		return false
 	if not hit_test.is_valid():
-		_entity_hit_tests.erase(entity_id)
+		var _removed: bool = _entity_hit_tests.erase(entity_id)
 		return true
 
 	_entity_hit_tests[entity_id] = hit_test
@@ -176,8 +176,8 @@ func set_entity_hit_test(entity_id: int, hit_test: Callable) -> bool:
 ## [br]
 ## @return 清除成功返回 true。
 func clear_entity_hit_test(entity_id: int) -> bool:
-	var existed := _entity_hit_tests.has(entity_id)
-	_entity_hit_tests.erase(entity_id)
+	var existed: bool = _entity_hit_tests.has(entity_id)
+	var _removed: bool = _entity_hit_tests.erase(entity_id)
 	return existed
 
 
@@ -189,7 +189,7 @@ func clear_entity_hit_test(entity_id: int) -> bool:
 ## [br]
 ## @return 实体矩形；不存在时返回空 Rect2。
 func get_entity_rect(entity_id: int) -> Rect2:
-	return _entity_rects.get(entity_id, Rect2()) as Rect2
+	return _variant_to_rect2(GFVariantData.get_option_value(_entity_rects, entity_id, Rect2()))
 
 
 ## 矩形范围查询：返回与查询区域有交集的所有实体 ID。
@@ -220,14 +220,14 @@ func query_radius(center: Vector2, radius: float) -> Array[int]:
 	if radius < 0.0:
 		return []
 
-	var query_bounds := Rect2(center - Vector2(radius, radius), Vector2(radius * 2.0, radius * 2.0))
+	var query_bounds: Rect2 = Rect2(center - Vector2(radius, radius), Vector2(radius * 2.0, radius * 2.0))
 	var candidates: Array[int] = query_rect(query_bounds)
 	var result: Array[int] = []
 	var radius_sq: float = radius * radius
 
 	for entity_id: int in candidates:
 		if _entity_rects.has(entity_id):
-			var rect: Rect2 = _entity_rects[entity_id]
+			var rect: Rect2 = _variant_to_rect2(_entity_rects[entity_id])
 			var closest: Vector2 = Vector2(
 				clampf(center.x, rect.position.x, rect.position.x + rect.size.x),
 				clampf(center.y, rect.position.y, rect.position.y + rect.size.y),
@@ -272,7 +272,7 @@ func query_point(point: Vector2, use_exact_hit_tests: bool = true) -> Array[int]
 ## [br]
 ## @return 第一个实体 ID；不存在时返回 -1。
 func query_first_point(point: Vector2, use_exact_hit_tests: bool = true) -> int:
-	var result := query_point(point, use_exact_hit_tests)
+	var result: Array[int] = query_point(point, use_exact_hit_tests)
 	return result[0] if not result.is_empty() else -1
 
 
@@ -280,10 +280,10 @@ func query_first_point(point: Vector2, use_exact_hit_tests: bool = true) -> int:
 ## [br]
 ## @api public
 func compact() -> void:
-	var rects := _entity_rects.duplicate()
+	var rects: Dictionary = _entity_rects.duplicate()
 	_rebuild_root()
 	for entity_id: int in rects.keys():
-		var rect := rects[entity_id] as Rect2
+		var rect: Rect2 = _variant_to_rect2(rects[entity_id])
 		_entity_rects[entity_id] = rect
 		_root._insert(entity_id, rect)
 
@@ -354,27 +354,27 @@ func _remove_entity(entity_id: int, erase_hit_test: bool) -> void:
 	if not _entity_rects.has(entity_id):
 		return
 	_ensure_root()
-	var rect: Rect2 = _entity_rects[entity_id]
+	var rect: Rect2 = _variant_to_rect2(_entity_rects[entity_id])
 	_root._remove(entity_id, rect)
-	_entity_rects.erase(entity_id)
+	var _removed: bool = _entity_rects.erase(entity_id)
 	if erase_hit_test:
-		_entity_hit_tests.erase(entity_id)
+		var _hit_test_removed: bool = _entity_hit_tests.erase(entity_id)
 
 
 func _passes_point_hit_test(entity_id: int, point: Vector2) -> bool:
 	if not _entity_rects.has(entity_id):
 		return false
 
-	var rect: Rect2 = _entity_rects[entity_id]
-	var hit_test := _entity_hit_tests.get(entity_id, Callable()) as Callable
+	var rect: Rect2 = _variant_to_rect2(_entity_rects[entity_id])
+	var hit_test: Callable = _variant_to_callable(GFVariantData.get_option_value(_entity_hit_tests, entity_id, Callable()))
 	if hit_test.is_valid():
-		return bool(hit_test.call(entity_id, point, rect))
+		return GFVariantData.to_bool(hit_test.call(entity_id, point, rect))
 	return _rect_contains_point(rect, point)
 
 
 func _normalize_rect(rect: Rect2) -> Rect2:
-	var position := rect.position
-	var size := rect.size
+	var position: Vector2 = rect.position
+	var size: Vector2 = rect.size
 	if size.x < 0.0:
 		position.x += size.x
 		size.x = -size.x
@@ -391,6 +391,20 @@ func _rect_contains_point(rect: Rect2, point: Vector2) -> bool:
 		and point.x <= rect.position.x + rect.size.x
 		and point.y <= rect.position.y + rect.size.y
 	)
+
+
+static func _variant_to_callable(value: Variant) -> Callable:
+	if value is Callable:
+		var callback: Callable = value
+		return callback
+	return Callable()
+
+
+static func _variant_to_rect2(value: Variant) -> Rect2:
+	if value is Rect2:
+		var rect: Rect2 = value
+		return rect
+	return Rect2()
 
 
 # --- 内部类 ---
@@ -439,7 +453,7 @@ class _QTNode:
 
 	func _remove(entity_id: int, rect: Rect2) -> void:
 		_entities.erase(entity_id)
-		_entity_rects.erase(entity_id)
+		var _removed: bool = _entity_rects.erase(entity_id)
 
 		if _is_split:
 			for child: _QTNode in _children:
@@ -468,7 +482,7 @@ class _QTNode:
 
 
 	func _get_node_count() -> int:
-		var count := 1
+		var count: int = 1
 		if _is_split:
 			for child: _QTNode in _children:
 				count += child._get_node_count()
@@ -476,8 +490,8 @@ class _QTNode:
 
 
 	func _split() -> void:
-		var half_size := _node_bounds.size * 0.5
-		var pos := _node_bounds.position
+		var half_size: Vector2 = _node_bounds.size * 0.5
+		var pos: Vector2 = _node_bounds.position
 		var next_depth: int = _depth + 1
 
 		_children = [
@@ -488,18 +502,18 @@ class _QTNode:
 		]
 		_is_split = true
 
-		var old_entities := _entities.duplicate()
-		var old_rects := _entity_rects.duplicate()
+		var old_entities: Array[int] = _entities.duplicate()
+		var old_rects: Dictionary = _entity_rects.duplicate()
 		_entities.clear()
 		_entity_rects.clear()
 
 		for entity_id: int in old_entities:
 			if old_rects.has(entity_id):
-				_insert(entity_id, old_rects[entity_id] as Rect2)
+				_insert(entity_id, GFQuadTreeUtility._variant_to_rect2(old_rects[entity_id]))
 
 
 	func _insert_into_children(entity_id: int, rect: Rect2) -> bool:
-		var inserted := false
+		var inserted: bool = false
 		for child: _QTNode in _children:
 			if child._node_bounds.intersects(rect):
 				child._insert(entity_id, rect)
@@ -512,7 +526,7 @@ class _QTNode:
 			if visited.has(entity_id) or not _entity_rects.has(entity_id):
 				continue
 
-			var rect: Rect2 = _entity_rects[entity_id]
+			var rect: Rect2 = GFQuadTreeUtility._variant_to_rect2(_entity_rects[entity_id])
 			if rect.intersects(query):
 				visited[entity_id] = true
 				result.append(entity_id)
@@ -523,7 +537,7 @@ class _QTNode:
 			if visited.has(entity_id) or not _entity_rects.has(entity_id):
 				continue
 
-			var rect: Rect2 = _entity_rects[entity_id]
+			var rect: Rect2 = GFQuadTreeUtility._variant_to_rect2(_entity_rects[entity_id])
 			if _contains_point(rect, point):
 				visited[entity_id] = true
 				result.append(entity_id)

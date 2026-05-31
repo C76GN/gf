@@ -119,9 +119,9 @@ func get_all_changed_paths() -> PackedStringArray:
 	for path: String in deleted:
 		lookup[path] = true
 
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	for path: String in lookup.keys():
-		result.append(path)
+		var _appended: bool = result.append(path)
 	result.sort()
 	return result
 
@@ -157,7 +157,7 @@ func to_dict() -> Dictionary:
 ## [br]
 ## @return 新变化集。
 func duplicate_change_set() -> GFDirectoryChangeSet:
-	return (get_script().new() as GFDirectoryChangeSet).configure(
+	return GFDirectoryChangeSet.new().configure(
 		root_paths,
 		created,
 		modified,

@@ -4,7 +4,7 @@ extends GFInstaller
 
 # --- 常量 ---
 
-const _GF_CAPABILITY_UTILITY_SCRIPT: Script = preload("res://addons/gf/extensions/capability/core/gf_capability_utility.gd")
+const _GF_CAPABILITY_UTILITY_SCRIPT = preload("res://addons/gf/extensions/capability/core/gf_capability_utility.gd")
 
 
 # --- 框架内部方法 ---

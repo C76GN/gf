@@ -41,7 +41,7 @@ func register_serializer(serializer: GFNodeSerializer) -> void:
 	if serializer == null:
 		return
 
-	var serializer_id := serializer.get_serializer_id()
+	var serializer_id: StringName = serializer.get_serializer_id()
 	if serializer_id == &"":
 		return
 	_serializers[serializer_id] = serializer
@@ -53,7 +53,7 @@ func register_serializer(serializer: GFNodeSerializer) -> void:
 ## [br]
 ## @param serializer_id: 序列化器标识。
 func unregister_serializer(serializer_id: StringName) -> void:
-	_serializers.erase(serializer_id)
+	var _erase_result_56: Variant = _serializers.erase(serializer_id)
 
 
 ## 清空注册表。
@@ -71,7 +71,7 @@ func clear() -> void:
 ## [br]
 ## @return 序列化器实例。
 func get_serializer(serializer_id: StringName) -> GFNodeSerializer:
-	return _serializers.get(serializer_id) as GFNodeSerializer
+	return _get_node_serializer_value(GFVariantData.get_option_value(_serializers, serializer_id))
 
 
 ## 获取所有支持指定节点的序列化器。
@@ -84,7 +84,7 @@ func get_serializer(serializer_id: StringName) -> GFNodeSerializer:
 func get_serializers_for_node(node: Node) -> Array[GFNodeSerializer]:
 	var result: Array[GFNodeSerializer] = []
 	for serializer_variant: Variant in _serializers.values():
-		var serializer := serializer_variant as GFNodeSerializer
+		var serializer: GFNodeSerializer = _get_node_serializer_value(serializer_variant)
 		if serializer != null and serializer.supports_node(node):
 			result.append(serializer)
 	return result
@@ -106,7 +106,7 @@ func get_serializers_for_node(node: Node) -> Array[GFNodeSerializer]:
 func gather_node(node: Node, context: Dictionary = {}) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for serializer: GFNodeSerializer in get_serializers_for_node(node):
-		var data := serializer.gather(node, context)
+		var data: Dictionary = serializer.gather(node, context)
 		if data.is_empty():
 			continue
 		result.append({
@@ -135,14 +135,14 @@ func gather_node(node: Node, context: Dictionary = {}) -> Array[Dictionary]:
 ## @schema return: Dictionary，包含 ok: bool、applied: int 与 errors: Array[String]。
 func apply_node(node: Node, serializer_payloads: Array, context: Dictionary = {}) -> Dictionary:
 	var errors: Array[String] = []
-	var applied := 0
+	var applied: int = 0
 	for payload_variant: Variant in serializer_payloads:
 		if not (payload_variant is Dictionary):
 			continue
 
-		var payload := payload_variant as Dictionary
-		var serializer_id := StringName(payload.get("id", &""))
-		var serializer := get_serializer(serializer_id)
+		var payload: Dictionary = GFVariantData.as_dictionary(payload_variant)
+		var serializer_id: StringName = GFVariantData.get_option_string_name(payload, "id")
+		var serializer: GFNodeSerializer = get_serializer(serializer_id)
 		if serializer == null:
 			errors.append("Missing serializer: %s" % String(serializer_id))
 			continue
@@ -150,19 +150,29 @@ func apply_node(node: Node, serializer_payloads: Array, context: Dictionary = {}
 			errors.append("Serializer does not support node: %s" % String(serializer_id))
 			continue
 
-		if not (payload.get("data", {}) is Dictionary):
+		var payload_data: Variant = GFVariantData.get_option_value(payload, "data", {})
+		if not (payload_data is Dictionary):
 			errors.append("Serializer data must be a Dictionary: %s" % String(serializer_id))
 			continue
 
-		var data := payload.get("data", {}) as Dictionary
-		var result := serializer.apply(node, data, context)
-		if bool(result.get("ok", false)):
+		var data: Dictionary = GFVariantData.as_dictionary(payload_data)
+		var result: Dictionary = serializer.apply(node, data, context)
+		if GFVariantData.get_option_bool(result, "ok", false):
 			applied += 1
 		else:
-			errors.append(String(result.get("error", "Apply failed: %s" % String(serializer_id))))
+			errors.append(GFVariantData.get_option_string(result, "error", "Apply failed: %s" % String(serializer_id)))
 
 	return {
 		"ok": errors.is_empty(),
 		"applied": applied,
 		"errors": errors,
 	}
+
+
+# --- 私有/辅助方法 ---
+
+func _get_node_serializer_value(value: Variant) -> GFNodeSerializer:
+	if value is GFNodeSerializer:
+		var serializer: GFNodeSerializer = value
+		return serializer
+	return null

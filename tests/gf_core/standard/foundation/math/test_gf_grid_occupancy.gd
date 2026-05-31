@@ -19,8 +19,8 @@ func after_each() -> void:
 # --- 测试方法 ---
 
 func test_occupy_moves_receiver_between_cells() -> void:
-	var grid := GFGridOccupancy.new(Vector2i(3, 3))
-	var actor := _make_object()
+	var grid: GFGridOccupancy = GFGridOccupancy.new(Vector2i(3, 3))
+	var actor: Object = _make_object()
 
 	assert_true(grid.occupy(actor, Vector2i.ZERO), "接收者应能占用有效格子。")
 	assert_true(grid.occupy(actor, Vector2i(1, 0)), "重复占用应移动到新格子。")
@@ -29,9 +29,9 @@ func test_occupy_moves_receiver_between_cells() -> void:
 
 
 func test_reservation_blocks_other_receivers_and_can_confirm() -> void:
-	var grid := GFGridOccupancy.new(Vector2i(3, 3))
-	var actor_a := _make_object()
-	var actor_b := _make_object()
+	var grid: GFGridOccupancy = GFGridOccupancy.new(Vector2i(3, 3))
+	var actor_a: Object = _make_object()
+	var actor_b: Object = _make_object()
 
 	assert_true(grid.reserve_cell(actor_a, Vector2i(2, 1)), "接收者应能预约空格子。")
 	assert_false(grid.can_occupy(actor_b, Vector2i(2, 1)), "其他接收者不应占用已预约格子。")
@@ -41,7 +41,7 @@ func test_reservation_blocks_other_receivers_and_can_confirm() -> void:
 
 
 func test_max_occupants_per_cell_allows_shared_cells() -> void:
-	var grid := GFGridOccupancy.new(Vector2i(2, 2), 2)
+	var grid: GFGridOccupancy = GFGridOccupancy.new(Vector2i(2, 2), 2)
 
 	assert_true(grid.occupy("a", Vector2i.ZERO), "第一个值接收者应能占用格子。")
 	assert_true(grid.occupy("b", Vector2i.ZERO), "容量允许时第二个值接收者应能共享格子。")
@@ -50,9 +50,9 @@ func test_max_occupants_per_cell_allows_shared_cells() -> void:
 
 
 func test_prune_invalid_receiver_releases_stale_reservation() -> void:
-	var grid := GFGridOccupancy.new(Vector2i(2, 2))
-	var actor := Node.new()
-	var cell := Vector2i(1, 1)
+	var grid: GFGridOccupancy = GFGridOccupancy.new(Vector2i(2, 2))
+	var actor: Node = Node.new()
+	var cell: Vector2i = Vector2i(1, 1)
 
 	assert_true(grid.reserve_cell(actor, cell), "应能为对象接收者预约格子。")
 	actor.free()
@@ -62,9 +62,9 @@ func test_prune_invalid_receiver_releases_stale_reservation() -> void:
 
 
 func test_prune_invalid_receiver_emits_cell_released() -> void:
-	var grid := GFGridOccupancy.new(Vector2i(2, 2))
-	var actor := Node.new()
-	var cell := Vector2i(1, 0)
+	var grid: GFGridOccupancy = GFGridOccupancy.new(Vector2i(2, 2))
+	var actor: Node = Node.new()
+	var cell: Vector2i = Vector2i(1, 0)
 	watch_signals(grid)
 
 	assert_true(grid.occupy(actor, cell), "应能占用格子。")
@@ -78,6 +78,6 @@ func test_prune_invalid_receiver_emits_cell_released() -> void:
 # --- 私有/辅助方法 ---
 
 func _make_object() -> Object:
-	var object := Node.new()
+	var object: Node = Node.new()
 	_objects.append(object)
 	return object

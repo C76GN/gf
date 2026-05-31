@@ -106,22 +106,22 @@ func register_target(
 
 	var entry: Dictionary = {
 		"target_ref": weakref(target),
-		"label": String(options.get("label", String(target_id))),
-		"group": String(options.get("group", "Runtime")),
-		"visible": bool(options.get("visible", true)),
+		"label": GFVariantData.get_option_string(options, "label", String(target_id)),
+		"group": GFVariantData.get_option_string(options, "group", "Runtime"),
+		"visible": GFVariantData.get_option_bool(options, "visible", true),
 		"order": _target_order_counter,
 		"properties": [],
 		"properties_by_id": {},
 	}
 	if _targets.has(target_id):
-		var old_entry := _targets[target_id] as Dictionary
-		entry["order"] = int(old_entry.get("order", _target_order_counter))
+		var old_entry: Dictionary = _get_entry(target_id)
+		entry["order"] = GFVariantData.get_option_int(old_entry, "order", _target_order_counter)
 	else:
 		_target_order_counter += 1
 
 	_targets[target_id] = entry
 	for property: GFRuntimeTunableProperty in properties:
-		register_property(target_id, property)
+		var _registered: bool = register_property(target_id, property)
 	target_registered.emit(target_id)
 	return true
 
@@ -136,7 +136,7 @@ func register_target(
 func unregister_target(target_id: StringName) -> bool:
 	if not _targets.has(target_id):
 		return false
-	_targets.erase(target_id)
+	_erase_dictionary_key(_targets, target_id)
 	target_unregistered.emit(target_id)
 	return true
 
@@ -164,12 +164,12 @@ func has_target(target_id: StringName) -> bool:
 func register_property(target_id: StringName, property: GFRuntimeTunableProperty) -> bool:
 	if property == null or property.property_id == &"":
 		return false
-	var entry := _get_entry(target_id)
+	var entry: Dictionary = _get_entry(target_id)
 	if entry.is_empty():
 		return false
 
-	var properties := entry["properties"] as Array
-	var properties_by_id := entry["properties_by_id"] as Dictionary
+	var properties: Array = _get_array_ref(entry, "properties")
+	var properties_by_id: Dictionary = GFVariantData.as_dictionary(GFVariantData.get_option_value(entry, "properties_by_id", {}))
 	if properties_by_id.has(property.property_id):
 		var existing: Variant = properties_by_id[property.property_id]
 		var index: int = properties.find(existing)
@@ -191,16 +191,16 @@ func register_property(target_id: StringName, property: GFRuntimeTunableProperty
 ## [br]
 ## @return 找到并移除时返回 true。
 func remove_property(target_id: StringName, property_id: StringName) -> bool:
-	var entry := _get_entry(target_id)
+	var entry: Dictionary = _get_entry(target_id)
 	if entry.is_empty():
 		return false
-	var properties_by_id := entry["properties_by_id"] as Dictionary
+	var properties_by_id: Dictionary = GFVariantData.as_dictionary(GFVariantData.get_option_value(entry, "properties_by_id", {}))
 	if not properties_by_id.has(property_id):
 		return false
 
 	var property: Variant = properties_by_id[property_id]
-	(entry["properties"] as Array).erase(property)
-	properties_by_id.erase(property_id)
+	_erase_array_value(_get_array_ref(entry, "properties"), property)
+	_erase_dictionary_key(properties_by_id, property_id)
 	return true
 
 
@@ -212,10 +212,10 @@ func remove_property(target_id: StringName, property_id: StringName) -> bool:
 ## [br]
 ## @return 排序后的目标 ID。
 func get_target_ids(include_hidden: bool = false) -> PackedStringArray:
-	var entries := _get_sorted_entries(include_hidden)
-	var result := PackedStringArray()
+	var entries: Array[Dictionary] = _get_sorted_entries(include_hidden)
+	var result: PackedStringArray = PackedStringArray()
 	for entry: Dictionary in entries:
-		result.append(String(entry.get("id", &"")))
+		_append_packed_string(result, GFVariantData.get_option_string(entry, "id"))
 	return result
 
 
@@ -231,8 +231,8 @@ func get_target_ids(include_hidden: bool = false) -> PackedStringArray:
 ## [br]
 ## @schema return: Variant，当前属性值，类型由对应 GFRuntimeTunableProperty 决定。
 func get_property_value(target_id: StringName, property_id: StringName) -> Variant:
-	var target := _resolve_target(target_id)
-	var property := _resolve_property(target_id, property_id)
+	var target: Object = _resolve_target(target_id)
+	var property: GFRuntimeTunableProperty = _resolve_property(target_id, property_id)
 	if target == null or property == null:
 		return null
 	return property.read_value(target)
@@ -254,8 +254,8 @@ func get_property_value(target_id: StringName, property_id: StringName) -> Varia
 func set_property_value(target_id: StringName, property_id: StringName, value: Variant) -> bool:
 	if not _writes_are_allowed():
 		return false
-	var target := _resolve_target(target_id)
-	var property := _resolve_property(target_id, property_id)
+	var target: Object = _resolve_target(target_id)
+	var property: GFRuntimeTunableProperty = _resolve_property(target_id, property_id)
 	if target == null or property == null:
 		return false
 
@@ -299,7 +299,7 @@ func clear_targets() -> void:
 ## [br]
 ## @return 注册成功返回 true。
 func attach_to_debug_overlay(panel_id: StringName = &"gf.runtime_inspector") -> bool:
-	var overlay := get_utility(GFDebugOverlayUtility) as GFDebugOverlayUtility
+	var overlay: GFDebugOverlayUtility = _get_debug_overlay_utility()
 	if overlay == null:
 		return false
 	_attached_overlay_panel_id = panel_id
@@ -315,10 +315,10 @@ func attach_to_debug_overlay(panel_id: StringName = &"gf.runtime_inspector") -> 
 ## [br]
 ## @param panel_id: Overlay 面板 ID；为空时使用当前附加的面板 ID。
 func detach_from_debug_overlay(panel_id: StringName = &"") -> void:
-	var effective_id := panel_id if panel_id != &"" else _attached_overlay_panel_id
+	var effective_id: StringName = panel_id if panel_id != &"" else _attached_overlay_panel_id
 	if effective_id == &"":
 		return
-	var overlay := get_utility(GFDebugOverlayUtility) as GFDebugOverlayUtility
+	var overlay: GFDebugOverlayUtility = _get_debug_overlay_utility()
 	if overlay != null:
 		overlay.remove_panel(effective_id)
 	if effective_id == _attached_overlay_panel_id:
@@ -345,36 +345,42 @@ func get_debug_snapshot() -> Dictionary:
 func _get_entry(target_id: StringName) -> Dictionary:
 	if not _targets.has(target_id):
 		return {}
-	return _targets[target_id] as Dictionary
+	return GFVariantData.as_dictionary(GFVariantData.get_option_value(_targets, target_id, {}))
+
+
+func _get_debug_overlay_utility() -> GFDebugOverlayUtility:
+	var utility: Variant = get_utility(GFDebugOverlayUtility)
+	if utility is GFDebugOverlayUtility:
+		var overlay: GFDebugOverlayUtility = utility
+		return overlay
+	return null
 
 
 func _resolve_target(target_id: StringName) -> Object:
-	var entry := _get_entry(target_id)
+	var entry: Dictionary = _get_entry(target_id)
 	if entry.is_empty():
 		return null
-	var target_ref := entry.get("target_ref") as WeakRef
+	var target_ref: WeakRef = _get_dictionary_weak_ref(entry, "target_ref")
 	if target_ref == null:
 		return null
-	var target := target_ref.get_ref()
+	var target: Object = target_ref.get_ref()
 	return target if is_instance_valid(target) else null
 
 
 func _resolve_property(target_id: StringName, property_id: StringName) -> GFRuntimeTunableProperty:
-	var entry := _get_entry(target_id)
+	var entry: Dictionary = _get_entry(target_id)
 	if entry.is_empty():
 		return null
-	var properties_by_id := entry.get("properties_by_id", {}) as Dictionary
-	if properties_by_id == null:
-		return null
-	return properties_by_id.get(property_id, null) as GFRuntimeTunableProperty
+	var properties_by_id: Dictionary = GFVariantData.as_dictionary(GFVariantData.get_option_value(entry, "properties_by_id", {}))
+	return _get_tunable_property(properties_by_id, property_id)
 
 
 func _get_sorted_entries(include_hidden: bool) -> Array[Dictionary]:
 	var entries: Array[Dictionary] = []
 	for target_id: StringName in _targets:
-		var entry := (_targets[target_id] as Dictionary).duplicate()
+		var entry: Dictionary = GFVariantData.to_dictionary(GFVariantData.get_option_value(_targets, target_id, {}))
 		entry["id"] = target_id
-		if not include_hidden and not bool(entry.get("visible", true)):
+		if not include_hidden and not GFVariantData.get_option_bool(entry, "visible", true):
 			continue
 		entries.append(entry)
 	entries.sort_custom(_sort_entries)
@@ -382,32 +388,32 @@ func _get_sorted_entries(include_hidden: bool) -> Array[Dictionary]:
 
 
 func _sort_entries(left: Dictionary, right: Dictionary) -> bool:
-	var left_order := int(left.get("order", 0))
-	var right_order := int(right.get("order", 0))
+	var left_order: int = GFVariantData.get_option_int(left, "order")
+	var right_order: int = GFVariantData.get_option_int(right, "order")
 	if left_order != right_order:
 		return left_order < right_order
-	return String(left.get("id", &"")) < String(right.get("id", &""))
+	return GFVariantData.get_option_string(left, "id") < GFVariantData.get_option_string(right, "id")
 
 
 func _build_target_snapshot(entry: Dictionary, include_hidden: bool) -> Dictionary:
-	var target_id: StringName = entry.get("id", &"")
-	var target := _resolve_target(target_id)
+	var target_id: StringName = GFVariantData.get_option_string_name(entry, "id")
+	var target: Object = _resolve_target(target_id)
 	var properties: Array[Dictionary] = []
-	var source_properties := entry.get("properties", []) as Array
+	var source_properties: Array = GFVariantData.get_option_array(entry, "properties")
 	for property: GFRuntimeTunableProperty in source_properties:
 		if property == null:
 			continue
 		if not include_hidden and not property.visible:
 			continue
-		var schema := property.to_schema()
+		var schema: Dictionary = property.to_schema()
 		schema["value"] = property.read_value(target) if target != null else null
 		properties.append(schema)
 
 	return {
 		"id": target_id,
-		"label": String(entry.get("label", String(target_id))),
-		"group": String(entry.get("group", "Runtime")),
-		"visible": bool(entry.get("visible", true)),
+		"label": GFVariantData.get_option_string(entry, "label", String(target_id)),
+		"group": GFVariantData.get_option_string(entry, "group", "Runtime"),
+		"visible": GFVariantData.get_option_bool(entry, "visible", true),
 		"valid": target != null,
 		"properties": properties,
 	}
@@ -422,18 +428,60 @@ func _writes_are_allowed() -> bool:
 
 
 func _build_overlay_panel_text() -> String:
-	var lines := PackedStringArray()
+	var lines: PackedStringArray = PackedStringArray()
 	for target: Dictionary in get_target_snapshot(false):
-		lines.append("[%s] %s" % [
-			String(target.get("group", "Runtime")),
-			String(target.get("label", String(target.get("id", "")))),
+		_append_packed_string(lines, "[%s] %s" % [
+			GFVariantData.get_option_string(target, "group", "Runtime"),
+			GFVariantData.get_option_string(target, "label", GFVariantData.get_option_string(target, "id")),
 		])
-		var properties := target.get("properties", []) as Array
+		var properties: Array = GFVariantData.get_option_array(target, "properties")
 		for property: Dictionary in properties:
-			lines.append("  %s: %s" % [
-				String(property.get("label", String(property.get("property_id", "")))),
-				str(property.get("value", null)),
+			_append_packed_string(lines, "  %s: %s" % [
+				GFVariantData.get_option_string(property, "label", GFVariantData.get_option_string(property, "property_id")),
+				str(GFVariantData.get_option_value(property, "value", null)),
 			])
 	if lines.is_empty():
 		return "No runtime inspector targets."
 	return "\n".join(lines)
+
+
+func _get_array_ref(source: Dictionary, key: Variant) -> Array:
+	var value: Variant = GFVariantData.get_option_value(source, key, [])
+	if value is Array:
+		var array_value: Array = value
+		return array_value
+	var new_array: Array = []
+	source[key] = new_array
+	return new_array
+
+
+func _get_dictionary_weak_ref(source: Dictionary, key: Variant) -> WeakRef:
+	var value: Variant = GFVariantData.get_option_value(source, key, null)
+	if value is WeakRef:
+		var weak_ref: WeakRef = value
+		return weak_ref
+	return null
+
+
+func _get_tunable_property(source: Dictionary, key: Variant) -> GFRuntimeTunableProperty:
+	var value: Variant = GFVariantData.get_option_value(source, key, null)
+	if value is GFRuntimeTunableProperty:
+		var property: GFRuntimeTunableProperty = value
+		return property
+	return null
+
+
+func _append_packed_string(target: PackedStringArray, value: String) -> void:
+	var appended: bool = target.append(value)
+	if appended:
+		return
+
+
+func _erase_dictionary_key(target: Dictionary, key: Variant) -> void:
+	var erased: bool = target.erase(key)
+	if erased:
+		return
+
+
+func _erase_array_value(target: Array, value: Variant) -> void:
+	target.erase(value)

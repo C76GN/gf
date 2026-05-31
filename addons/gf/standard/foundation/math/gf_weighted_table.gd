@@ -50,7 +50,7 @@ extends Resource
 ## [br]
 ## @return 新增的条目实例。
 func add_entry(value: Variant, weight: float = 1.0, metadata: Dictionary = {}) -> GFWeightedEntry:
-	var entry := GFWeightedEntry.new().configure(value, weight, metadata)
+	var entry: GFWeightedEntry = GFWeightedEntry.new().configure(value, weight, metadata)
 	entries.append(entry)
 	return entry
 
@@ -78,7 +78,7 @@ func add_weighted_entry(entry: GFWeightedEntry) -> bool:
 ## [br]
 ## @return 找到并移除时返回 true。
 func remove_entry(entry: GFWeightedEntry) -> bool:
-	var index := entries.find(entry)
+	var index: int = entries.find(entry)
 	if index < 0:
 		return false
 
@@ -113,7 +113,7 @@ func get_selectable_entries() -> Array[GFWeightedEntry]:
 ## [br]
 ## @return 所有可选条目的权重总和。
 func get_total_weight() -> float:
-	var total := 0.0
+	var total: float = 0.0
 	for entry: GFWeightedEntry in entries:
 		if entry != null and entry.is_selectable():
 			total += entry.weight
@@ -151,7 +151,7 @@ func pick_entry(rng: RandomNumberGenerator = null) -> GFWeightedEntry:
 ## [br]
 ## @schema return: Variant selected value or default_value.
 func pick_value(rng: RandomNumberGenerator = null) -> Variant:
-	var entry := pick_entry(rng)
+	var entry: GFWeightedEntry = pick_entry(rng)
 	return entry.value if entry != null else default_value
 
 
@@ -177,11 +177,11 @@ func pick_many(
 	if count <= 0:
 		return result
 
-	var active_rng := _resolve_rng(rng)
-	var available := get_selectable_entries()
+	var active_rng: RandomNumberGenerator = _resolve_rng(rng)
+	var available: Array[GFWeightedEntry] = get_selectable_entries()
 	if allow_repeats:
 		for _index: int in range(count):
-			var repeated_entry := _pick_entry_from(available, active_rng)
+			var repeated_entry: GFWeightedEntry = _pick_entry_from(available, active_rng)
 			if repeated_entry == null:
 				break
 
@@ -189,7 +189,7 @@ func pick_many(
 		return result
 
 	for _index: int in range(count):
-		var entry := _pick_entry_from(available, active_rng)
+		var entry: GFWeightedEntry = _pick_entry_from(available, active_rng)
 		if entry == null:
 			break
 
@@ -207,7 +207,7 @@ func pick_many(
 ## [br]
 ## @return 新权重表实例。
 func duplicate_table(deep: bool = true) -> GFWeightedTable:
-	var table := GFWeightedTable.new()
+	var table: GFWeightedTable = GFWeightedTable.new()
 	table.default_value = GFVariantData.duplicate_variant(default_value, deep, true)
 	table.deterministic_seed = deterministic_seed
 	for entry: GFWeightedEntry in entries:
@@ -245,16 +245,13 @@ func to_dict() -> Dictionary:
 ## @schema data: Dictionary serialized weighted table.
 func apply_dict(data: Dictionary) -> void:
 	entries.clear()
-	default_value = data.get("default_value", null)
-	deterministic_seed = int(data.get("deterministic_seed", 0))
+	default_value = GFVariantData.get_option_value(data, "default_value")
+	deterministic_seed = GFVariantData.get_option_int(data, "deterministic_seed")
 
-	var raw_entries: Variant = data.get("entries", [])
-	if typeof(raw_entries) != TYPE_ARRAY:
-		return
-
-	for raw_entry in raw_entries:
-		if typeof(raw_entry) == TYPE_DICTIONARY:
-			entries.append(GFWeightedEntry.from_dict(raw_entry))
+	var raw_entries: Array = GFVariantData.get_option_array(data, "entries")
+	for raw_entry: Variant in raw_entries:
+		if raw_entry is Dictionary:
+			entries.append(GFWeightedEntry.from_dict(GFVariantData.as_dictionary(raw_entry)))
 
 
 ## 从通用字典创建权重表。
@@ -267,7 +264,7 @@ func apply_dict(data: Dictionary) -> void:
 ## [br]
 ## @return 新权重表实例。
 static func from_dict(data: Dictionary) -> GFWeightedTable:
-	var table := GFWeightedTable.new()
+	var table: GFWeightedTable = GFWeightedTable.new()
 	table.apply_dict(data)
 	return table
 
@@ -275,7 +272,7 @@ static func from_dict(data: Dictionary) -> GFWeightedTable:
 # --- 私有/辅助方法 ---
 
 func _pick_entry_from(source_entries: Array[GFWeightedEntry], rng: RandomNumberGenerator) -> GFWeightedEntry:
-	var total := 0.0
+	var total: float = 0.0
 	for entry: GFWeightedEntry in source_entries:
 		if entry != null and entry.is_selectable():
 			total += entry.weight
@@ -283,8 +280,8 @@ func _pick_entry_from(source_entries: Array[GFWeightedEntry], rng: RandomNumberG
 	if total <= 0.0:
 		return null
 
-	var threshold := rng.randf_range(0.0, total)
-	var accumulated := 0.0
+	var threshold: float = rng.randf_range(0.0, total)
+	var accumulated: float = 0.0
 	var fallback: GFWeightedEntry = null
 	for entry: GFWeightedEntry in source_entries:
 		if entry == null or not entry.is_selectable():
@@ -302,7 +299,7 @@ func _resolve_rng(rng: RandomNumberGenerator) -> RandomNumberGenerator:
 	if rng != null:
 		return rng
 
-	var fallback := RandomNumberGenerator.new()
+	var fallback: RandomNumberGenerator = RandomNumberGenerator.new()
 	if deterministic_seed != 0:
 		fallback.seed = deterministic_seed
 	else:

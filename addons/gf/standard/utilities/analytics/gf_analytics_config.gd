@@ -93,19 +93,19 @@ extends Resource
 ## [br]
 ## @return Header 字符串数组。
 func build_headers() -> PackedStringArray:
-	var result := PackedStringArray(["Content-Type: application/json"])
+	var result: PackedStringArray = PackedStringArray(["Content-Type: application/json"])
 	for key: Variant in headers:
-		var header_name := String(key).strip_edges()
-		var header_value := String(headers[key])
+		var header_name: String = GFVariantData.to_text(key).strip_edges()
+		var header_value: String = GFVariantData.to_text(headers[key])
 		if not _is_valid_header(header_name, header_value):
 			push_warning("[GFAnalyticsConfig] 忽略非法 HTTP Header：%s" % _escape_header_for_log(header_name))
 			continue
 		if compress_payload and _is_same_header_name(header_name, "Content-Encoding"):
 			push_warning("[GFAnalyticsConfig] compress_payload 已启用，忽略自定义 Content-Encoding。")
 			continue
-		result.append("%s: %s" % [header_name, header_value])
+		var _header_appended: bool = result.append("%s: %s" % [header_name, header_value])
 	if compress_payload:
-		result.append("Content-Encoding: gzip")
+		var _gzip_header_appended: bool = result.append("Content-Encoding: gzip")
 	return result
 
 

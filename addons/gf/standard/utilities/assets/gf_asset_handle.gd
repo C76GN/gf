@@ -89,7 +89,7 @@ func release() -> bool:
 	if _released:
 		return false
 
-	var utility := _get_utility()
+	var utility: GFAssetUtility = _get_utility()
 	if utility == null:
 		release_local_reference()
 		return false
@@ -144,4 +144,8 @@ func release_local_reference() -> void:
 func _get_utility() -> GFAssetUtility:
 	if _utility_ref == null:
 		return null
-	return _utility_ref.get_ref() as GFAssetUtility
+	var utility_value: Object = _utility_ref.get_ref()
+	if utility_value is GFAssetUtility:
+		var utility: GFAssetUtility = utility_value
+		return utility
+	return null

@@ -52,16 +52,17 @@ static func _send_to_collision_candidates(
 		if max_count > 0 and reports.size() >= max_count:
 			break
 
-		var receiver := _resolve_receiver(candidate, receiver_method)
+		var receiver: Object = _resolve_receiver(candidate, receiver_method)
 		if receiver == null:
 			continue
-		var receiver_id := receiver.get_instance_id()
+		var receiver_id: int = receiver.get_instance_id()
 		if visited_receivers.has(receiver_id):
 			continue
 		visited_receivers[receiver_id] = true
 
-		var report := dispatch_host.call("send_to", receiver, payload_override, id_override) as Dictionary
-		if report != null:
+		var report_value: Variant = dispatch_host.call("send_to", receiver, payload_override, id_override)
+		if report_value is Dictionary:
+			var report: Dictionary = GFVariantData.as_dictionary(report_value)
 			reports.append(report)
 			if send_result_callback.is_valid():
 				send_result_callback.call(receiver, payload_override, id_override, report)
@@ -74,7 +75,7 @@ static func _resolve_receiver(candidate: Object, receiver_method: StringName) ->
 	if candidate.has_method(receiver_method):
 		return candidate
 
-	var node := candidate as Node
+	var node: Node = _variant_to_node(candidate)
 	while node != null:
 		if node.has_method(receiver_method):
 			return node
@@ -98,3 +99,10 @@ static func _make_report(
 		"message": message,
 		"metadata": metadata.duplicate(true),
 	}
+
+
+static func _variant_to_node(value: Variant) -> Node:
+	if value is Node:
+		var node: Node = value
+		return node
+	return null

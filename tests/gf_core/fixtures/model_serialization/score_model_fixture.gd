@@ -2,6 +2,11 @@
 extends GFModel
 
 
+# --- 常量 ---
+
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
+
+
 # --- 公共变量 ---
 
 var score: int = 0
@@ -18,5 +23,5 @@ func to_dict() -> Dictionary:
 
 
 func from_dict(data: Dictionary) -> void:
-	score = data.get("score", 0)
-	level = data.get("level", 1)
+	score = _GF_VARIANT_ACCESS_SCRIPT.get_option_int(data, "score", 0)
+	level = _GF_VARIANT_ACCESS_SCRIPT.get_option_int(data, "level", 1)

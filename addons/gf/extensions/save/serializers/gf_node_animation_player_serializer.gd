@@ -45,7 +45,7 @@ func supports_node(node: Node) -> bool:
 ## [br]
 ## @schema return: Dictionary，可包含 current_animation、assigned_animation、current_animation_position、speed_scale、playing 与 active。
 func gather(node: Node, _context: Dictionary = {}) -> Dictionary:
-	var player := node as AnimationPlayer
+	var player: AnimationPlayer = _get_animation_player(node)
 	if player == null:
 		return {}
 
@@ -77,22 +77,22 @@ func gather(node: Node, _context: Dictionary = {}) -> Dictionary:
 ## [br]
 ## @schema return: Dictionary，包含 ok: bool 与 error: String。
 func apply(node: Node, payload: Dictionary, _context: Dictionary = {}) -> Dictionary:
-	var player := node as AnimationPlayer
+	var player: AnimationPlayer = _get_animation_player(node)
 	if player == null:
 		return make_result(false, "Node is not AnimationPlayer.")
 
 	if payload.has("speed_scale"):
-		player.speed_scale = float(payload["speed_scale"])
+		player.speed_scale = GFVariantData.to_float(payload["speed_scale"])
 	if payload.has("active"):
-		player.active = bool(payload["active"])
+		player.active = GFVariantData.to_bool(payload["active"])
 	if payload.has("assigned_animation"):
-		var assigned_animation := StringName(payload["assigned_animation"])
+		var assigned_animation: StringName = GFVariantData.to_string_name(payload["assigned_animation"])
 		if assigned_animation == &"" or player.has_animation(assigned_animation):
 			player.assigned_animation = assigned_animation
 
-	var animation_name := StringName(payload.get("current_animation", &""))
-	var position := float(payload.get("current_animation_position", 0.0))
-	var should_play := bool(payload.get("playing", false))
+	var animation_name: StringName = GFVariantData.get_option_string_name(payload, "current_animation")
+	var position: float = GFVariantData.get_option_float(payload, "current_animation_position")
+	var should_play: bool = GFVariantData.get_option_bool(payload, "playing")
 	if animation_name != &"" and player.has_animation(animation_name):
 		player.play(animation_name)
 		player.seek(maxf(position, 0.0), true)
@@ -102,3 +102,12 @@ func apply(node: Node, payload: Dictionary, _context: Dictionary = {}) -> Dictio
 		player.stop(false)
 
 	return make_result(true)
+
+
+# --- 私有/辅助方法 ---
+
+func _get_animation_player(node: Node) -> AnimationPlayer:
+	if node is AnimationPlayer:
+		var player: AnimationPlayer = node
+		return player
+	return null

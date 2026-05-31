@@ -83,7 +83,7 @@ func modify_3d(value: Vector3, _event: InputEvent = null, _action: GFInputAction
 func _apply_curve(value: float) -> float:
 	if curve == null:
 		return value
-	var sign_value := signf(value) if preserve_sign else 1.0
-	var sample_value := absf(value) if preserve_sign else value
-	var sampled := curve.sample_baked(clampf(sample_value, 0.0, 1.0))
+	var sign_value: float = signf(value) if preserve_sign else 1.0
+	var sample_value: float = absf(value) if preserve_sign else value
+	var sampled: float = curve.sample_baked(clampf(sample_value, 0.0, 1.0))
 	return sampled * sign_value

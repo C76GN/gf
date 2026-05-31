@@ -69,7 +69,7 @@ func _get_script_key(script: Script) -> String:
 	if script == null:
 		return ""
 
-	var global_name := script.get_global_name()
+	var global_name: StringName = script.get_global_name()
 	if global_name != &"":
 		return String(global_name)
 	if not script.resource_path.is_empty():

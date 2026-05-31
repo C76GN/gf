@@ -60,7 +60,8 @@ func set_architecture(architecture: GFArchitecture) -> void:
 ## @return 架构实例；不可用时返回 null。
 func get_architecture() -> GFArchitecture:
 	if _architecture_ref != null:
-		var architecture := _architecture_ref.get_ref() as GFArchitecture
+		var architecture_value: Object = _architecture_ref.get_ref()
+		var architecture: GFArchitecture = _variant_to_architecture(architecture_value)
 		if architecture != null:
 			return architecture
 	return GFAutoload.get_architecture_or_null()
@@ -96,4 +97,13 @@ func set_value(key: StringName, value: Variant) -> GFSequenceContext:
 ## [br]
 ## @schema return: Variant stored value or fallback value.
 func get_value(key: StringName, default_value: Variant = null) -> Variant:
-	return values.get(key, default_value)
+	return GFVariantData.get_option_value(values, key, default_value)
+
+
+# --- 私有/辅助方法 ---
+
+func _variant_to_architecture(value: Variant) -> GFArchitecture:
+	if value is GFArchitecture:
+		var architecture: GFArchitecture = value
+		return architecture
+	return null

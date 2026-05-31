@@ -37,7 +37,7 @@ func _init(
 	p_source_id: StringName = &"virtual",
 	p_player_index: int = -1
 ) -> void:
-	configure(input_mapping, p_source_id, p_player_index)
+	var _configure_result_40: Variant = configure(input_mapping, p_source_id, p_player_index)
 
 
 # --- 公共方法 ---
@@ -76,10 +76,10 @@ func configure(
 ## [br]
 ## @return 写入成功返回 true。
 func set_action_value(action_id: StringName, value: Variant) -> bool:
-	var input_mapping := _get_input_mapping()
+	var input_mapping: GFInputMappingUtility = _get_input_mapping()
 	if input_mapping == null:
 		return false
-	return bool(input_mapping.call("set_virtual_action_value", action_id, value, source_id, player_index))
+	return GFVariantData.to_bool(input_mapping.call("set_virtual_action_value", action_id, value, source_id, player_index))
 
 
 ## 为指定玩家写入动作值。
@@ -96,10 +96,10 @@ func set_action_value(action_id: StringName, value: Variant) -> bool:
 ## [br]
 ## @return 写入成功返回 true。
 func set_action_value_for_player(action_id: StringName, value: Variant, next_player_index: int) -> bool:
-	var input_mapping := _get_input_mapping()
+	var input_mapping: GFInputMappingUtility = _get_input_mapping()
 	if input_mapping == null:
 		return false
-	return bool(input_mapping.call("set_virtual_action_value", action_id, value, source_id, next_player_index))
+	return GFVariantData.to_bool(input_mapping.call("set_virtual_action_value", action_id, value, source_id, next_player_index))
 
 
 ## 按下布尔动作。
@@ -173,10 +173,10 @@ func set_axis_3d(action_id: StringName, value: Vector3) -> bool:
 ## [br]
 ## @return 清除成功返回 true。
 func clear_action(action_id: StringName) -> bool:
-	var input_mapping := _get_input_mapping()
+	var input_mapping: GFInputMappingUtility = _get_input_mapping()
 	if input_mapping == null:
 		return false
-	return bool(input_mapping.call("clear_virtual_action", action_id, source_id, player_index))
+	return GFVariantData.to_bool(input_mapping.call("clear_virtual_action", action_id, source_id, player_index))
 
 
 ## 清除指定玩家的动作贡献。
@@ -189,17 +189,17 @@ func clear_action(action_id: StringName) -> bool:
 ## [br]
 ## @return 清除成功返回 true。
 func clear_action_for_player(action_id: StringName, next_player_index: int) -> bool:
-	var input_mapping := _get_input_mapping()
+	var input_mapping: GFInputMappingUtility = _get_input_mapping()
 	if input_mapping == null:
 		return false
-	return bool(input_mapping.call("clear_virtual_action", action_id, source_id, next_player_index))
+	return GFVariantData.to_bool(input_mapping.call("clear_virtual_action", action_id, source_id, next_player_index))
 
 
 ## 清除当前虚拟源的所有动作贡献。
 ## [br]
 ## @api public
 func clear_all() -> void:
-	var input_mapping := _get_input_mapping()
+	var input_mapping: GFInputMappingUtility = _get_input_mapping()
 	if input_mapping != null:
 		input_mapping.call("clear_virtual_source", source_id)
 
@@ -212,14 +212,15 @@ func clear_all() -> void:
 ## [br]
 ## @return 快照字典。
 func get_snapshot() -> Dictionary:
-	var input_mapping := _get_input_mapping()
+	var input_mapping: GFInputMappingUtility = _get_input_mapping()
 	if input_mapping == null:
 		return {
 			"source_id": source_id,
 			"player_index": player_index,
 			"actions": [],
 		}
-	return input_mapping.call("get_virtual_source_snapshot", source_id) as Dictionary
+	var snapshot: Variant = input_mapping.call("get_virtual_source_snapshot", source_id)
+	return GFVariantData.to_dictionary(snapshot)
 
 
 # --- 私有/辅助方法 ---
@@ -227,4 +228,7 @@ func get_snapshot() -> Dictionary:
 func _get_input_mapping() -> GFInputMappingUtility:
 	if _input_mapping_ref == null:
 		return null
-	return _input_mapping_ref.get_ref() as GFInputMappingUtility
+	var input_mapping: Variant = _input_mapping_ref.get_ref()
+	if input_mapping is GFInputMappingUtility:
+		return input_mapping
+	return null

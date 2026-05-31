@@ -4,8 +4,8 @@ extends GFInstaller
 
 # --- 常量 ---
 
-const _GF_COMBAT_SYSTEM_SCRIPT: Script = preload("res://addons/gf/extensions/combat/core/gf_combat_system.gd")
-const _GF_SKILL_TARGETING_UTILITY_SCRIPT: Script = preload("res://addons/gf/extensions/combat/skills/gf_skill_targeting_utility.gd")
+const _GF_COMBAT_SYSTEM_SCRIPT = preload("res://addons/gf/extensions/combat/core/gf_combat_system.gd")
+const _GF_SKILL_TARGETING_UTILITY_SCRIPT = preload("res://addons/gf/extensions/combat/skills/gf_skill_targeting_utility.gd")
 
 
 # --- 框架内部方法 ---

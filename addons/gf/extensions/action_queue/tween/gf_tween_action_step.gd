@@ -79,23 +79,23 @@ extends Resource
 func append_to_tween(tween: Tween, target: Object, duration_scale: float = 1.0) -> Variant:
 	if tween == null:
 		return null
-	var validation_error := get_validation_error(target)
+	var validation_error: String = get_validation_error(target)
 	if not validation_error.is_empty():
 		push_warning("[GFTweenActionStep] 跳过无效 Tween 步骤：%s" % validation_error)
 		return null
 
 	if parallel:
-		tween.parallel()
+		var _parallel_result_88: Variant = tween.parallel()
 
-	var effective_scale := maxf(duration_scale, 0.0)
-	var effective_duration := maxf(duration * effective_scale, 0.0)
-	var effective_delay := maxf(delay * effective_scale, 0.0)
-	var tweener := tween.tween_property(target, property_name, target_value, effective_duration)
-	tweener.set_trans(transition_type).set_ease(ease_type)
+	var effective_scale: float = maxf(duration_scale, 0.0)
+	var effective_duration: float = maxf(duration * effective_scale, 0.0)
+	var effective_delay: float = maxf(delay * effective_scale, 0.0)
+	var tweener: PropertyTweener = tween.tween_property(target, property_name, target_value, effective_duration)
+	var _set_ease_result_94: Variant = tweener.set_trans(transition_type).set_ease(ease_type)
 	if effective_delay > 0.0:
-		tweener.set_delay(effective_delay)
+		var _set_delay_result_96: Variant = tweener.set_delay(effective_delay)
 	if as_relative:
-		tweener.as_relative()
+		var _as_relative_result_98: Variant = tweener.as_relative()
 	return tweener
 
 
@@ -105,7 +105,7 @@ func append_to_tween(tween: Tween, target: Object, duration_scale: float = 1.0) 
 ## [br]
 ## @param target: 目标对象。
 func apply_instant(target: Object) -> void:
-	var validation_error := get_validation_error(target)
+	var validation_error: String = get_validation_error(target)
 	if not validation_error.is_empty():
 		push_warning("[GFTweenActionStep] 跳过无效即时步骤：%s" % validation_error)
 		return
@@ -121,7 +121,7 @@ func apply_instant(target: Object) -> void:
 ## [br]
 ## @return 新步骤。
 func duplicate_step() -> GFTweenActionStep:
-	var step := GFTweenActionStep.new()
+	var step: GFTweenActionStep = GFTweenActionStep.new()
 	step.property_name = property_name
 	step.target_value = target_value
 	step.duration = duration
@@ -158,7 +158,7 @@ func get_validation_error(target: Object) -> String:
 	if property_name.is_empty():
 		return "Property name is empty."
 
-	var root_property := _get_root_property_name()
+	var root_property: String = _get_root_property_name()
 	if root_property.is_empty():
 		return "Property name is empty."
 	if not _has_property(target, root_property):
@@ -188,13 +188,13 @@ func capture_initial_value(target: Object) -> Variant:
 func _resolve_relative_value(target: Object) -> Variant:
 	var current_value: Variant = target.get_indexed(property_name)
 	if current_value is float or current_value is int:
-		return float(current_value) + float(target_value)
+		return GFVariantData.to_float(current_value) + GFVariantData.to_float(target_value)
 	if current_value is Vector2 and target_value is Vector2:
-		return (current_value as Vector2) + (target_value as Vector2)
+		return _get_vector2_value(current_value) + _get_vector2_value(target_value)
 	if current_value is Vector3 and target_value is Vector3:
-		return (current_value as Vector3) + (target_value as Vector3)
+		return _get_vector3_value(current_value) + _get_vector3_value(target_value)
 	if current_value is Color and target_value is Color:
-		return (current_value as Color) + (target_value as Color)
+		return _get_color_value(current_value) + _get_color_value(target_value)
 	return target_value
 
 
@@ -216,8 +216,8 @@ func _can_resolve_relative_value(target: Object) -> bool:
 
 
 func _get_root_property_name() -> String:
-	var path_text := String(property_name)
-	var separator_index := path_text.find(":")
+	var path_text: String = String(property_name)
+	var separator_index: int = path_text.find(":")
 	if separator_index >= 0:
 		return path_text.substr(0, separator_index)
 	return path_text
@@ -225,6 +225,27 @@ func _get_root_property_name() -> String:
 
 func _has_property(target: Object, property: String) -> bool:
 	for property_info: Dictionary in target.get_property_list():
-		if String(property_info.get("name", "")) == property:
+		if GFVariantData.get_option_string(property_info, "name") == property:
 			return true
 	return false
+
+
+func _get_vector2_value(value: Variant) -> Vector2:
+	if value is Vector2:
+		var vector: Vector2 = value
+		return vector
+	return Vector2.ZERO
+
+
+func _get_vector3_value(value: Variant) -> Vector3:
+	if value is Vector3:
+		var vector: Vector3 = value
+		return vector
+	return Vector3.ZERO
+
+
+func _get_color_value(value: Variant) -> Color:
+	if value is Color:
+		var color: Color = value
+		return color
+	return Color.WHITE

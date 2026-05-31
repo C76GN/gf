@@ -107,17 +107,17 @@ func watch_node(source: Node, options: Dictionary = {}) -> Dictionary:
 	if source == null:
 		return _make_report(false, 0, 0, ["source_is_null"])
 
-	var include_names := _to_string_name_filter(options.get("include_signals", []))
-	var exclude_names := _to_string_name_filter(options.get("exclude_signals", []))
-	var include_internal := bool(options.get("include_internal", false))
-	var limit := clampi(int(options.get("max_argument_count", max_argument_count)), 0, _MAX_SUPPORTED_ARGUMENT_COUNT)
-	var connect_flags := int(options.get("connect_flags", 0))
-	var watched_count := 0
-	var skipped_count := 0
+	var include_names: Array[StringName] = GFVariantData.get_option_string_name_array(options, "include_signals")
+	var exclude_names: Array[StringName] = GFVariantData.get_option_string_name_array(options, "exclude_signals")
+	var include_internal: bool = GFVariantData.get_option_bool(options, "include_internal")
+	var limit: int = clampi(GFVariantData.get_option_int(options, "max_argument_count", max_argument_count), 0, _MAX_SUPPORTED_ARGUMENT_COUNT)
+	var connect_flags: int = GFVariantData.get_option_int(options, "connect_flags")
+	var watched_count: int = 0
+	var skipped_count: int = 0
 	var errors: Array[String] = []
 
 	for signal_info: Dictionary in source.get_signal_list():
-		var signal_name := StringName(signal_info.get("name", ""))
+		var signal_name: StringName = GFVariantData.get_option_string_name(signal_info, "name")
 		if signal_name == &"":
 			skipped_count += 1
 			continue
@@ -131,13 +131,13 @@ func watch_node(source: Node, options: Dictionary = {}) -> Dictionary:
 			skipped_count += 1
 			continue
 
-		var argument_count := _get_signal_argument_count(signal_info)
+		var argument_count: int = _get_signal_argument_count(signal_info)
 		if argument_count > limit:
 			skipped_count += 1
 			errors.append("too_many_arguments:%s" % String(signal_name))
 			continue
 
-		var error := _watch_signal(source, signal_name, argument_count, connect_flags)
+		var error: Error = _watch_signal(source, signal_name, argument_count, connect_flags)
 		if error == OK:
 			watched_count += 1
 		elif error == ERR_ALREADY_EXISTS:
@@ -166,23 +166,23 @@ func watch_tree(root: Node, options: Dictionary = {}) -> Dictionary:
 	if root == null:
 		return _make_report(false, 0, 0, ["root_is_null"])
 
-	var recursive := bool(options.get("recursive", true))
-	var include_internal_nodes := bool(options.get("include_internal_nodes", false))
-	var max_node_depth := maxi(int(options.get("max_node_depth", DEFAULT_MAX_WATCH_TREE_DEPTH)), 0)
-	var max_nodes := maxi(int(options.get("max_nodes", DEFAULT_MAX_WATCH_TREE_NODES)), 0)
+	var recursive: bool = GFVariantData.get_option_bool(options, "recursive", true)
+	var include_internal_nodes: bool = GFVariantData.get_option_bool(options, "include_internal_nodes")
+	var max_node_depth: int = maxi(GFVariantData.get_option_int(options, "max_node_depth", DEFAULT_MAX_WATCH_TREE_DEPTH), 0)
+	var max_nodes: int = maxi(GFVariantData.get_option_int(options, "max_nodes", DEFAULT_MAX_WATCH_TREE_NODES), 0)
 	var nodes: Array[Node] = []
-	var tree_scan_state := _make_tree_scan_state()
+	var tree_scan_state: Dictionary = _make_tree_scan_state()
 	_collect_nodes(root, nodes, recursive, include_internal_nodes, 0, max_node_depth, max_nodes, tree_scan_state)
 
-	var total_watched := 0
-	var total_skipped := 0
-	var errors := _get_tree_scan_errors(tree_scan_state, max_node_depth, max_nodes)
+	var total_watched: int = 0
+	var total_skipped: int = 0
+	var errors: Array[String] = _get_tree_scan_errors(tree_scan_state, max_node_depth, max_nodes)
 	for node: Node in nodes:
-		var report := watch_node(node, options)
-		total_watched += int(report.get("watched_count", 0))
-		total_skipped += int(report.get("skipped_count", 0))
-		for error_variant: Variant in report.get("errors", []):
-			errors.append(String(error_variant))
+		var report: Dictionary = watch_node(node, options)
+		total_watched += GFVariantData.get_option_int(report, "watched_count")
+		total_skipped += GFVariantData.get_option_int(report, "skipped_count")
+		for error_variant: Variant in GFVariantData.get_option_array(report, "errors"):
+			errors.append(GFVariantData.to_text(error_variant))
 
 	return _make_report(errors.is_empty(), total_watched, total_skipped, errors)
 
@@ -198,15 +198,15 @@ func unwatch_node(source: Node) -> int:
 	if source == null:
 		return 0
 
-	var source_id := source.get_instance_id()
-	var removed_count := 0
+	var source_id: int = source.get_instance_id()
+	var removed_count: int = 0
 	for key: String in _watched.keys().duplicate():
-		var entry := _watched[key] as Dictionary
-		if entry == null or int(entry.get("source_id", 0)) != source_id:
+		var entry: Dictionary = _get_watch_entry(key)
+		if entry.is_empty() or GFVariantData.get_option_int(entry, "source_id") != source_id:
 			continue
 		if _disconnect_entry(entry):
 			removed_count += 1
-		_watched.erase(key)
+		var _erased: bool = _watched.erase(key)
 	return removed_count
 
 
@@ -216,12 +216,12 @@ func unwatch_node(source: Node) -> int:
 ## [br]
 ## @return 断开的信号数量。
 func unwatch_all() -> int:
-	var removed_count := 0
+	var removed_count: int = 0
 	for key: String in _watched.keys().duplicate():
-		var entry := _watched[key] as Dictionary
-		if entry != null and _disconnect_entry(entry):
+		var entry: Dictionary = _get_watch_entry(key)
+		if not entry.is_empty() and _disconnect_entry(entry):
 			removed_count += 1
-		_watched.erase(key)
+		var _erased: bool = _watched.erase(key)
 	return removed_count
 
 
@@ -277,18 +277,18 @@ func get_debug_snapshot() -> Dictionary:
 # --- 私有/辅助方法 ---
 
 func _watch_signal(source: Node, signal_name: StringName, argument_count: int, connect_flags: int) -> Error:
-	var key := _make_watch_key(source.get_instance_id(), signal_name)
+	var key: String = _make_watch_key(source.get_instance_id(), signal_name)
 	if _watched.has(key):
 		return ERR_ALREADY_EXISTS
 
-	var source_path := _get_node_path_text(source)
-	var callback := _make_emit_callable(argument_count).bind(source.get_instance_id(), source_path, signal_name)
+	var source_path: String = _get_node_path_text(source)
+	var callback: Callable = _make_emit_callable(argument_count).bind(source.get_instance_id(), source_path, signal_name)
 	if not callback.is_valid():
 		return ERR_INVALID_PARAMETER
 	if source.is_connected(signal_name, callback):
 		return ERR_ALREADY_EXISTS
 
-	var error := source.connect(signal_name, callback, connect_flags)
+	var error: Error = source.connect(signal_name, callback, connect_flags)
 	if error != OK:
 		return error
 
@@ -305,22 +305,22 @@ func _watch_signal(source: Node, signal_name: StringName, argument_count: int, c
 
 
 func _disconnect_entry(entry: Dictionary) -> bool:
-	var source_ref := entry.get("source_ref") as WeakRef
-	var source: Node = _INSTANCE_GUARD._get_live_node_from_ref(source_ref)
-	var signal_name := StringName(entry.get("signal_name", ""))
-	var callback := entry.get("callable") as Callable
+	var source_ref: WeakRef = _get_dictionary_weak_ref(entry, "source_ref")
+	var source: Node = _get_live_node_from_ref(source_ref)
+	var signal_name: StringName = GFVariantData.get_option_string_name(entry, "signal_name")
+	var callback: Callable = _get_dictionary_callable(entry, "callable")
 	if source == null or signal_name == &"" or not callback.is_valid():
 		return false
 	if source.is_connected(signal_name, callback):
 		source.disconnect(signal_name, callback)
-		signal_watch_stopped.emit(String(entry.get("source_path", "")), signal_name)
+		signal_watch_stopped.emit(GFVariantData.get_option_string(entry, "source_path"), signal_name)
 		return true
 	return false
 
 
 func _record_signal(source_id: int, source_path: String, signal_name: StringName, arguments: Array) -> void:
-	var source := _get_live_node_from_id(source_id)
-	var event := {
+	var source: Node = _get_live_node_from_id(source_id)
+	var event: Dictionary = {
 		"timestamp_msec": Time.get_ticks_msec(),
 		"process_frame": Engine.get_process_frames(),
 		"physics_frame": Engine.get_physics_frames(),
@@ -344,12 +344,15 @@ func _describe_signal_connections(source: Node, signal_name: StringName) -> Arra
 		return result
 
 	for connection_info: Dictionary in source.get_signal_connection_list(signal_name):
-		var callable := connection_info.get("callable") as Callable
-		var target := callable.get_object() if callable.is_valid() else null
+		var callable: Callable = _get_dictionary_callable(connection_info, "callable")
+		var target: Object = callable.get_object() if callable.is_valid() else null
+		var method_name: String = ""
+		if callable.is_valid():
+			method_name = String(callable.get_method())
 		result.append({
 			"target": str(target),
-			"method_name": callable.get_method() if callable.is_valid() else "",
-			"flags": int(connection_info.get("flags", 0)),
+			"method_name": method_name,
+			"flags": GFVariantData.get_option_int(connection_info, "flags"),
 		})
 	return result
 
@@ -357,13 +360,13 @@ func _describe_signal_connections(source: Node, signal_name: StringName) -> Arra
 func _describe_watches() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for entry_variant: Variant in _watched.values():
-		var entry := entry_variant as Dictionary
-		if entry == null:
+		var entry: Dictionary = GFVariantData.as_dictionary(entry_variant)
+		if entry.is_empty():
 			continue
 		result.append({
-			"source_path": String(entry.get("source_path", "")),
-			"signal_name": String(entry.get("signal_name", "")),
-			"argument_count": int(entry.get("argument_count", 0)),
+			"source_path": GFVariantData.get_option_string(entry, "source_path"),
+			"signal_name": GFVariantData.get_option_string(entry, "signal_name"),
+			"argument_count": GFVariantData.get_option_int(entry, "argument_count"),
 		})
 	return result
 
@@ -409,21 +412,8 @@ func _make_emit_callable(argument_count: int) -> Callable:
 
 
 func _get_signal_argument_count(signal_info: Dictionary) -> int:
-	var arguments := signal_info.get("args", [])
-	return arguments.size() if arguments is Array else 0
-
-
-func _to_string_name_filter(value: Variant) -> Array[StringName]:
-	var result: Array[StringName] = []
-	if value is PackedStringArray:
-		for item: String in value:
-			result.append(StringName(item))
-	elif value is Array:
-		for item_variant: Variant in value:
-			result.append(StringName(str(item_variant)))
-	elif value is String or value is StringName:
-		result.append(StringName(value))
-	return result
+	var arguments: Array = GFVariantData.get_option_array(signal_info, "args")
+	return arguments.size()
 
 
 func _collect_nodes(
@@ -444,7 +434,7 @@ func _collect_nodes(
 	if not recursive:
 		return
 
-	var child_count := root.get_child_count(include_internal_nodes)
+	var child_count: int = root.get_child_count(include_internal_nodes)
 	if max_node_depth > 0 and depth >= max_node_depth:
 		if child_count > 0:
 			scan_state["depth_limit_reached"] = true
@@ -470,19 +460,61 @@ func _make_tree_scan_state() -> Dictionary:
 
 func _get_tree_scan_errors(scan_state: Dictionary, max_node_depth: int, max_nodes: int) -> Array[String]:
 	var errors: Array[String] = []
-	if bool(scan_state.get("depth_limit_reached", false)):
+	if GFVariantData.get_option_bool(scan_state, "depth_limit_reached"):
 		errors.append("max_node_depth_reached:%d" % max_node_depth)
-	if bool(scan_state.get("node_limit_reached", false)):
+	if GFVariantData.get_option_bool(scan_state, "node_limit_reached"):
 		errors.append("max_nodes_reached:%d" % max_nodes)
 	return errors
 
 
 func _prune_invalid_watches() -> void:
 	for key: String in _watched.keys().duplicate():
-		var entry := _watched[key] as Dictionary
-		var source_ref := entry.get("source_ref") as WeakRef if entry != null else null
-		if _INSTANCE_GUARD._get_live_object_from_ref(source_ref) == null:
-			_watched.erase(key)
+		var entry: Dictionary = _get_watch_entry(key)
+		var source_ref: WeakRef = _get_dictionary_weak_ref(entry, "source_ref")
+		if _get_live_object_from_ref(source_ref) == null:
+			var _erased: bool = _watched.erase(key)
+
+
+func _get_watch_entry(key: String) -> Dictionary:
+	return GFVariantData.get_option_dictionary(_watched, key)
+
+
+func _get_live_node_from_ref(source_ref: WeakRef) -> Node:
+	var result: Variant = _INSTANCE_GUARD.call("_get_live_node_from_ref", source_ref)
+	if result is Node:
+		var node: Node = result
+		return node
+	return null
+
+
+func _get_live_object_from_ref(source_ref: WeakRef) -> Object:
+	var result: Variant = _INSTANCE_GUARD.call("_get_live_object_from_ref", source_ref)
+	if result is Object:
+		var object: Object = result
+		return object
+	return null
+
+
+static func _get_dictionary_weak_ref(source: Dictionary, key: Variant) -> WeakRef:
+	return _variant_to_weak_ref(GFVariantData.get_option_value(source, key))
+
+
+static func _get_dictionary_callable(source: Dictionary, key: Variant) -> Callable:
+	return _variant_to_callable(GFVariantData.get_option_value(source, key, Callable()))
+
+
+static func _variant_to_weak_ref(value: Variant) -> WeakRef:
+	if value is WeakRef:
+		var source_ref: WeakRef = value
+		return source_ref
+	return null
+
+
+static func _variant_to_callable(value: Variant) -> Callable:
+	if value is Callable:
+		var callback: Callable = value
+		return callback
+	return Callable()
 
 
 func _get_node_path_text(node: Node) -> String:
@@ -494,7 +526,11 @@ func _get_node_path_text(node: Node) -> String:
 
 
 func _get_live_node_from_id(instance_id: int) -> Node:
-	return _INSTANCE_GUARD._get_live_node_from_id(instance_id)
+	var result: Variant = _INSTANCE_GUARD.call("_get_live_node_from_id", instance_id)
+	if result is Node:
+		var node: Node = result
+		return node
+	return null
 
 
 func _make_watch_key(source_id: int, signal_name: StringName) -> String:

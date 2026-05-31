@@ -90,13 +90,13 @@ func calculate(attribute_set: Object) -> float:
 	if compute_callback.is_valid():
 		var custom_value: Variant = compute_callback.call(attribute_set, self)
 		if custom_value is float or custom_value is int:
-			return _clamp_result(float(custom_value))
+			return _clamp_result(GFVariantData.to_float(custom_value))
 
-	var result := flat_bonus
+	var result: float = flat_bonus
 	for source_id: StringName in get_source_attribute_ids():
 		if source_id == &"" or not attribute_set.has_method("get_value"):
 			continue
-		result += float(attribute_set.call("get_value", source_id, 0.0)) * get_source_weight(source_id)
+		result += GFVariantData.to_float(attribute_set.call("get_value", source_id, 0.0)) * get_source_weight(source_id)
 	return _clamp_result(result)
 
 
@@ -113,7 +113,7 @@ func get_source_attribute_ids() -> Array[StringName]:
 
 	var result: Array[StringName] = []
 	for key: Variant in source_weights.keys():
-		result.append(StringName(key))
+		result.append(GFVariantData.to_string_name(key))
 	return result
 
 
@@ -125,7 +125,8 @@ func get_source_attribute_ids() -> Array[StringName]:
 ## [br]
 ## @return: 权重；未配置时返回 1。
 func get_source_weight(source_attribute_id: StringName) -> float:
-	return float(source_weights.get(source_attribute_id, source_weights.get(String(source_attribute_id), 1.0)))
+	var fallback: float = GFVariantData.get_option_float(source_weights, String(source_attribute_id), 1.0)
+	return GFVariantData.get_option_float(source_weights, source_attribute_id, fallback)
 
 
 ## 判断是否依赖指定属性。
@@ -145,12 +146,20 @@ func depends_on(source_attribute_id: StringName) -> bool:
 ## [br]
 ## @return: 规则副本。
 func duplicate_rule() -> GFDerivedAttributeRule:
-	return duplicate(true) as GFDerivedAttributeRule
+	var rule: GFDerivedAttributeRule = _get_derived_attribute_rule_value(duplicate(true))
+	return rule if rule != null else GFDerivedAttributeRule.new()
 
 
 # --- 私有/辅助方法 ---
 
 func _clamp_result(value: float) -> float:
-	var safe_min := minf(min_value, max_value)
-	var safe_max := maxf(min_value, max_value)
+	var safe_min: float = minf(min_value, max_value)
+	var safe_max: float = maxf(min_value, max_value)
 	return clampf(value, safe_min, safe_max)
+
+
+func _get_derived_attribute_rule_value(value: Variant) -> GFDerivedAttributeRule:
+	if value is GFDerivedAttributeRule:
+		var rule: GFDerivedAttributeRule = value
+		return rule
+	return null

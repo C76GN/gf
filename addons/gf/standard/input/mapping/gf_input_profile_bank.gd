@@ -53,7 +53,7 @@ func set_profile(
 	if profile_id == &"":
 		return
 	if config == null:
-		remove_profile(profile_id)
+		var _remove_profile_result_56: Variant = remove_profile(profile_id)
 		return
 
 	profiles[profile_id] = _duplicate_config(config) if duplicate_config else config
@@ -72,7 +72,7 @@ func ensure_profile(profile_id: StringName) -> GFInputRemapConfig:
 	if profile_id == &"":
 		return null
 
-	var config := _get_stored_profile(profile_id)
+	var config: GFInputRemapConfig = _get_stored_profile(profile_id)
 	if config == null:
 		config = GFInputRemapConfig.new()
 		profiles[profile_id] = config
@@ -91,7 +91,7 @@ func ensure_profile(profile_id: StringName) -> GFInputRemapConfig:
 ## [br]
 ## @return 重映射配置；不存在时返回 null。
 func get_profile(profile_id: StringName, duplicate_result: bool = false) -> GFInputRemapConfig:
-	var config := _get_stored_profile(profile_id)
+	var config: GFInputRemapConfig = _get_stored_profile(profile_id)
 	if config == null:
 		return null
 	return _duplicate_config(config) if duplicate_result else config
@@ -116,13 +116,15 @@ func has_profile(profile_id: StringName) -> bool:
 ## [br]
 ## @return 成功移除时返回 true。
 func remove_profile(profile_id: StringName) -> bool:
-	var key := _find_profile_key(profile_id)
+	var key: Variant = _find_profile_key(profile_id)
 	if key == null:
 		return false
 
-	profiles.erase(key)
+	var erased: bool = profiles.erase(key)
+	if not erased:
+		return false
 	if active_profile_id == profile_id:
-		var ids := get_profile_ids()
+		var ids: PackedStringArray = get_profile_ids()
 		active_profile_id = StringName(ids[0]) if not ids.is_empty() else &""
 	return true
 
@@ -133,11 +135,11 @@ func remove_profile(profile_id: StringName) -> bool:
 ## [br]
 ## @return 排序后的配置 ID。
 func get_profile_ids() -> PackedStringArray:
-	var ids := PackedStringArray()
+	var ids: PackedStringArray = PackedStringArray()
 	for key: Variant in profiles.keys():
-		var config := profiles[key] as GFInputRemapConfig
+		var config: GFInputRemapConfig = _variant_to_remap_config(profiles[key])
 		if config != null:
-			ids.append(String(key))
+			var _append_result_142: Variant = ids.append(GFVariantData.to_text(key))
 	ids.sort()
 	return ids
 
@@ -183,9 +185,9 @@ func get_active_profile(duplicate_result: bool = false) -> GFInputRemapConfig:
 ## [br]
 ## @return 新的配置集合。
 func duplicate_bank() -> GFInputProfileBank:
-	var bank := GFInputProfileBank.new()
+	var bank: GFInputProfileBank = GFInputProfileBank.new()
 	for profile_id_string: String in get_profile_ids():
-		var profile_id := StringName(profile_id_string)
+		var profile_id: StringName = StringName(profile_id_string)
 		bank.set_profile(profile_id, get_profile(profile_id), true)
 	bank.active_profile_id = active_profile_id
 	bank.custom_data = GFVariantData.duplicate_variant(custom_data)
@@ -195,17 +197,17 @@ func duplicate_bank() -> GFInputProfileBank:
 # --- 私有/辅助方法 ---
 
 func _get_stored_profile(profile_id: StringName) -> GFInputRemapConfig:
-	var key := _find_profile_key(profile_id)
+	var key: Variant = _find_profile_key(profile_id)
 	if key == null:
 		return null
-	return profiles[key] as GFInputRemapConfig
+	return _variant_to_remap_config(profiles[key])
 
 
 func _find_profile_key(profile_id: StringName) -> Variant:
 	if profiles.has(profile_id):
 		return profile_id
 
-	var string_key := String(profile_id)
+	var string_key: String = String(profile_id)
 	if profiles.has(string_key):
 		return string_key
 	return null
@@ -214,10 +216,11 @@ func _find_profile_key(profile_id: StringName) -> Variant:
 func _duplicate_config(config: GFInputRemapConfig) -> GFInputRemapConfig:
 	if config == null:
 		return null
-	if config.has_method("duplicate_config"):
-		return config.duplicate_config()
+	return config.duplicate_config()
 
-	var duplicated := GFInputRemapConfig.new()
-	duplicated.remapped_events = GFVariantData.duplicate_variant(config.remapped_events)
-	duplicated.custom_data = GFVariantData.duplicate_variant(config.custom_data)
-	return duplicated
+
+func _variant_to_remap_config(value: Variant) -> GFInputRemapConfig:
+	if value is GFInputRemapConfig:
+		var config: GFInputRemapConfig = value
+		return config
+	return null

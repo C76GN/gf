@@ -123,7 +123,7 @@ func tick(delta: float) -> void:
 	if _active_notification.is_empty():
 		_start_next_notification()
 		return
-	if _active_paused or bool(_active_notification.get("sticky", false)):
+	if _active_paused or GFVariantData.get_option_bool(_active_notification, "sticky"):
 		return
 
 	_active_remaining_seconds -= maxf(delta, 0.0)
@@ -163,17 +163,17 @@ func push_notification(
 	if message.is_empty() and title.is_empty():
 		return 0
 
-	var duplicate_id := _find_duplicate_notification_id(message, options)
+	var duplicate_id: int = _find_duplicate_notification_id(message, options)
 	if suppress_duplicates and duplicate_id > 0:
 		return duplicate_id
 
-	var notification := _make_notification(message, title, level, options)
-	_queue.append(notification)
-	notification_queued.emit(notification.duplicate(true))
+	var notification_record: Dictionary = _make_notification(message, title, level, options)
+	_queue.append(notification_record)
+	notification_queued.emit(notification_record.duplicate(true))
 	if _active_notification.is_empty():
 		_start_next_notification()
 	_trim_queue()
-	return int(notification["id"])
+	return GFVariantData.to_int(notification_record["id"])
 
 
 ## 结束当前通知。
@@ -185,7 +185,7 @@ func dismiss_active(reason: String = "dismissed") -> void:
 	if _active_notification.is_empty():
 		return
 
-	var finished := _active_notification.duplicate(true)
+	var finished: Dictionary = _active_notification.duplicate(true)
 	_active_notification.clear()
 	_active_remaining_seconds = 0.0
 	_active_paused = false
@@ -200,7 +200,7 @@ func dismiss_active(reason: String = "dismissed") -> void:
 ## @param reason: 结束原因。
 func clear_notifications(reason: String = "cleared") -> void:
 	if not _active_notification.is_empty():
-		var finished := _active_notification.duplicate(true)
+		var finished: Dictionary = _active_notification.duplicate(true)
 		notification_finished.emit(finished, reason)
 	_active_notification.clear()
 	_active_remaining_seconds = 0.0
@@ -254,13 +254,12 @@ func invoke_active_action(action_id: StringName) -> bool:
 	if _active_notification.is_empty() or action_id == &"":
 		return false
 
-	var actions := _active_notification.get("actions", []) as Array
-	if actions == null:
-		return false
-	for action: Dictionary in actions:
-		if StringName(action.get("id", &"")) == action_id:
+	var actions: Array = GFVariantData.get_option_array(_active_notification, "actions")
+	for action_value: Variant in actions:
+		var action: Dictionary = GFVariantData.as_dictionary(action_value)
+		if GFVariantData.get_option_string_name(action, "id") == action_id:
 			notification_action_invoked.emit(_active_notification.duplicate(true), action_id)
-			if bool(action.get("dismiss", false)):
+			if GFVariantData.get_option_bool(action, "dismiss"):
 				dismiss_active("action:%s" % action_id)
 			return true
 	return false
@@ -275,8 +274,8 @@ func invoke_active_action(action_id: StringName) -> bool:
 ## @schema return: Array，元素为通知记录 Dictionary，字段同 notification_queued 的 notification。
 func get_queue() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
-	for notification: Dictionary in _queue:
-		result.append(notification.duplicate(true))
+	for notification_record: Dictionary in _queue:
+		result.append(notification_record.duplicate(true))
 	return result
 
 
@@ -306,7 +305,7 @@ func _make_notification(
 	level: Level,
 	options: Dictionary
 ) -> Dictionary:
-	var notification := {
+	var notification_record: Dictionary = {
 		"id": _next_notification_id,
 		"key": GFVariantData.get_option_string(options, "key", message),
 		"dedupe_key": GFVariantData.get_option_string(options, "key"),
@@ -321,58 +320,62 @@ func _make_notification(
 		"metadata": GFVariantData.get_option_dictionary(options, "metadata"),
 	}
 	_next_notification_id += 1
-	return notification
+	return notification_record
 
 
 func _start_next_notification() -> void:
 	if not _active_notification.is_empty() or _queue.is_empty():
 		return
 
-	_active_notification = _queue.pop_front()
+	_active_notification = GFVariantData.as_dictionary(_queue.pop_front())
 	_active_paused = false
-	_active_remaining_seconds = float(_active_notification.get("duration_seconds", default_duration_seconds))
+	_active_remaining_seconds = GFVariantData.get_option_float(
+		_active_notification,
+		"duration_seconds",
+		default_duration_seconds
+	)
 	notification_started.emit(_active_notification.duplicate(true))
-	if _active_remaining_seconds <= 0.0 and not bool(_active_notification.get("sticky", false)):
+	if _active_remaining_seconds <= 0.0 and not GFVariantData.get_option_bool(_active_notification, "sticky"):
 		dismiss_active("timeout")
 
 
 func _trim_queue() -> void:
 	_sort_queue_by_priority()
-	var max_size := maxi(max_queue_size, 0)
+	var max_size: int = maxi(max_queue_size, 0)
 	while _queue.size() > max_size:
-		var dropped := _queue.pop_back()
+		var dropped: Dictionary = GFVariantData.as_dictionary(_queue.pop_back())
 		notification_finished.emit(dropped.duplicate(true), "dropped")
 
 
 func _find_duplicate_notification_id(message: String, options: Dictionary) -> int:
-	var key := GFVariantData.get_option_string(options, "key")
+	var key: String = GFVariantData.get_option_string(options, "key")
 	if _matches_notification(_active_notification, key, message):
-		return int(_active_notification.get("id", 0))
+		return GFVariantData.get_option_int(_active_notification, "id")
 
-	for notification: Dictionary in _queue:
-		if _matches_notification(notification, key, message):
-			return int(notification.get("id", 0))
+	for notification_record: Dictionary in _queue:
+		if _matches_notification(notification_record, key, message):
+			return GFVariantData.get_option_int(notification_record, "id")
 	return 0
 
 
-func _matches_notification(notification: Dictionary, key: String, message: String) -> bool:
-	if notification.is_empty():
+func _matches_notification(notification_record: Dictionary, key: String, message: String) -> bool:
+	if notification_record.is_empty():
 		return false
 
-	var notification_key := String(notification.get("dedupe_key", ""))
+	var notification_key: String = GFVariantData.get_option_string(notification_record, "dedupe_key")
 	if not key.is_empty():
 		return notification_key == key
 	if not notification_key.is_empty():
 		return false
-	return String(notification.get("message", "")) == message
+	return GFVariantData.get_option_string(notification_record, "message") == message
 
 
 func _sort_queue_by_priority() -> void:
 	_queue.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
-		var left_priority := int(left.get("priority", Priority.NORMAL))
-		var right_priority := int(right.get("priority", Priority.NORMAL))
+		var left_priority: int = GFVariantData.get_option_int(left, "priority", Priority.NORMAL)
+		var right_priority: int = GFVariantData.get_option_int(right, "priority", Priority.NORMAL)
 		if left_priority == right_priority:
-			return int(left.get("id", 0)) < int(right.get("id", 0))
+			return GFVariantData.get_option_int(left, "id") < GFVariantData.get_option_int(right, "id")
 		return left_priority > right_priority
 	)
 
@@ -382,12 +385,12 @@ func _normalize_actions(actions_variant: Variant) -> Array[Dictionary]:
 	if not (actions_variant is Array):
 		return result
 
-	for action_variant: Variant in (actions_variant as Array):
+	for action_variant: Variant in GFVariantData.as_array(actions_variant):
 		if action_variant is StringName or action_variant is String:
-			var action_id := StringName(action_variant)
-			if action_id != &"":
+			var simple_action_id: StringName = GFVariantData.to_string_name(action_variant)
+			if simple_action_id != &"":
 				result.append({
-					"id": action_id,
+					"id": simple_action_id,
 					"label": "",
 					"dismiss": false,
 					"metadata": {},
@@ -396,14 +399,14 @@ func _normalize_actions(actions_variant: Variant) -> Array[Dictionary]:
 		if not (action_variant is Dictionary):
 			continue
 
-		var source := action_variant as Dictionary
-		var action_id := StringName(source.get("id", &""))
-		if action_id == &"":
+		var source: Dictionary = GFVariantData.as_dictionary(action_variant)
+		var dictionary_action_id: StringName = GFVariantData.get_option_string_name(source, "id")
+		if dictionary_action_id == &"":
 			continue
 		result.append({
-			"id": action_id,
-			"label": String(source.get("label", "")),
-			"dismiss": bool(source.get("dismiss", false)),
+			"id": dictionary_action_id,
+			"label": GFVariantData.get_option_string(source, "label"),
+			"dismiss": GFVariantData.get_option_bool(source, "dismiss"),
 			"metadata": GFVariantData.get_option_dictionary(source, "metadata"),
 		})
 	return result

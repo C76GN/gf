@@ -72,7 +72,7 @@ func get_next_delay_msec() -> int:
 	if not has_attempts_remaining():
 		return -1
 
-	var delay := _get_delay_for_attempt(_attempt_count)
+	var delay: int = _get_delay_for_attempt(_attempt_count)
 	_attempt_count += 1
 	return _apply_jitter(delay)
 
@@ -98,7 +98,7 @@ func get_attempt_count() -> int:
 func _get_delay_for_attempt(attempt_index: int) -> int:
 	if delays_msec.is_empty():
 		return 0
-	var index := mini(attempt_index, delays_msec.size() - 1)
+	var index: int = mini(attempt_index, delays_msec.size() - 1)
 	return maxi(delays_msec[index], 0)
 
 
@@ -106,6 +106,6 @@ func _apply_jitter(delay_msec: int) -> int:
 	if delay_msec <= 0 or jitter_ratio <= 0.0:
 		return delay_msec
 
-	var jitter_amount := delay_msec * jitter_ratio
-	var offset := _rng.randf_range(-jitter_amount, jitter_amount)
+	var jitter_amount: float = delay_msec * jitter_ratio
+	var offset: float = _rng.randf_range(-jitter_amount, jitter_amount)
 	return maxi(int(roundf(float(delay_msec) + offset)), 0)

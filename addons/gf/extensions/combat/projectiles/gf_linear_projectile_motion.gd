@@ -54,22 +54,24 @@ extends GFProjectileMotion
 ## @schema projectile_context: Dictionary，本次发射上下文；会写入 velocity_2d 或 velocity_3d。
 func _step(projectile: Node, delta: float, projectile_context: Dictionary = {}) -> void:
 	if projectile is Node2D:
-		_step_2d(projectile as Node2D, delta, projectile_context)
+		var projectile_2d: Node2D = projectile
+		_step_2d(projectile_2d, delta, projectile_context)
 	elif projectile is Node3D:
-		_step_3d(projectile as Node3D, delta, projectile_context)
+		var projectile_3d: Node3D = projectile
+		_step_3d(projectile_3d, delta, projectile_context)
 
 
 # --- 私有/辅助方法 ---
 
 func _step_2d(projectile: Node2D, delta: float, projectile_context: Dictionary) -> void:
-	var direction := direction_2d
+	var direction: Vector2 = direction_2d
 	if use_local_direction:
-		var transform := projectile.global_transform if projectile.is_inside_tree() else projectile.transform
+		var transform: Transform2D = projectile.global_transform if projectile.is_inside_tree() else projectile.transform
 		direction = transform.x * direction_2d.x + transform.y * direction_2d.y
 	if normalize_direction and not direction.is_zero_approx():
 		direction = direction.normalized()
 
-	var velocity := direction * speed
+	var velocity: Vector2 = direction * speed
 	if projectile.is_inside_tree():
 		projectile.global_position += velocity * delta
 	else:
@@ -78,14 +80,14 @@ func _step_2d(projectile: Node2D, delta: float, projectile_context: Dictionary) 
 
 
 func _step_3d(projectile: Node3D, delta: float, projectile_context: Dictionary) -> void:
-	var direction := direction_3d
+	var direction: Vector3 = direction_3d
 	if use_local_direction:
-		var transform := projectile.global_transform if projectile.is_inside_tree() else projectile.transform
+		var transform: Transform3D = projectile.global_transform if projectile.is_inside_tree() else projectile.transform
 		direction = transform.basis * direction_3d
 	if normalize_direction and not direction.is_zero_approx():
 		direction = direction.normalized()
 
-	var velocity := direction * speed
+	var velocity: Vector3 = direction * speed
 	if projectile.is_inside_tree():
 		projectile.global_position += velocity * delta
 	else:

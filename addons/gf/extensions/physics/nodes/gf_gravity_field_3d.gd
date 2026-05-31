@@ -139,12 +139,12 @@ func get_acceleration_at(world_position: Vector3) -> Vector3:
 	if not enabled:
 		return Vector3.ZERO
 
-	var distance := global_position.distance_to(world_position)
-	var strength := get_strength_at_distance(distance)
+	var distance: float = global_position.distance_to(world_position)
+	var strength: float = get_strength_at_distance(distance)
 	if strength <= 0.0:
 		return Vector3.ZERO
 
-	var direction := _get_direction_at(world_position)
+	var direction: Vector3 = _get_direction_at(world_position)
 	if direction.is_zero_approx():
 		return Vector3.ZERO
 	return direction.normalized() * strength
@@ -169,12 +169,12 @@ func get_strength_at_distance(distance: float) -> float:
 				return acceleration
 			return acceleration * clampf(1.0 - distance / radius, 0.0, 1.0)
 		FalloffMode.INVERSE_SQUARE:
-			var effective_distance := maxf(distance, min_distance)
+			var effective_distance: float = maxf(distance, min_distance)
 			return acceleration * min_distance * min_distance / (effective_distance * effective_distance)
 		FalloffMode.CURVE:
 			if falloff_curve == null:
 				return acceleration
-			var sample_position := clampf(distance / radius, 0.0, 1.0) if radius > 0.0 else 0.0
+			var sample_position: float = clampf(distance / radius, 0.0, 1.0) if radius > 0.0 else 0.0
 			return acceleration * maxf(falloff_curve.sample(sample_position), 0.0)
 		_:
 			return acceleration

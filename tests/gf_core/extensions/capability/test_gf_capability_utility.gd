@@ -3,22 +3,13 @@ extends GutTest
 
 # --- 常量 ---
 
-const GF_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/core/gf_capability.gd")
-const GF_NODE_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/nodes/gf_node_capability.gd")
-const GF_NODE_2D_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/nodes/gf_node_2d_capability.gd")
-const GF_NODE_3D_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/nodes/gf_node_3d_capability.gd")
-const GF_CONTROL_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/nodes/gf_control_capability.gd")
-const GF_CAPABILITY_UTILITY_BASE := preload("res://addons/gf/extensions/capability/core/gf_capability_utility.gd")
-const GF_CAPABILITY_CONTAINER_BASE := preload("res://addons/gf/extensions/capability/nodes/gf_capability_container.gd")
-const GF_CAPABILITY_RECIPE_BASE := preload("res://addons/gf/extensions/capability/recipes/gf_capability_recipe.gd")
-const GF_CAPABILITY_RECIPE_ENTRY_BASE := preload("res://addons/gf/extensions/capability/recipes/gf_capability_recipe_entry.gd")
-const GF_PROPERTY_BAG_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/core/gf_property_bag_capability.gd")
-const GF_CAPABILITY_INSPECTOR_PLUGIN_BASE := preload("res://addons/gf/extensions/capability/editor/gf_capability_inspector_plugin.gd")
+const GF_CAPABILITY_INSPECTOR_PLUGIN_PATH: String = "res://addons/gf/extensions/capability/editor/gf_capability_inspector_plugin.gd"
+const GF_CONTROL_CAPABILITY_SCRIPT_PATH: String = "res://addons/gf/extensions/capability/nodes/gf_control_capability.gd"
 
 
 # --- 辅助类 ---
 
-class HealthCapability extends GF_CAPABILITY_BASE:
+class HealthCapability extends GFCapability:
 	var added_receiver: Object = null
 	var removed_receiver: Object = null
 
@@ -31,12 +22,12 @@ class HealthCapability extends GF_CAPABILITY_BASE:
 		super.on_gf_capability_removed(target)
 
 
-class DamageCapability extends GF_CAPABILITY_BASE:
+class DamageCapability extends GFCapability:
 	func _init() -> void:
 		required_capabilities = [HealthCapability]
 
 
-class NoSuperDamageCapability extends GF_CAPABILITY_BASE:
+class NoSuperDamageCapability extends GFCapability:
 	var receiver_during_added: Object = null
 	var receiver_during_removed: Object = null
 	var health_during_added: Object = null
@@ -54,25 +45,25 @@ class NoSuperDamageCapability extends GF_CAPABILITY_BASE:
 
 class KeepDependencyDamageCapability extends DamageCapability:
 	func get_dependency_removal_policy() -> int:
-		return GF_CAPABILITY_UTILITY_BASE.DependencyRemovalPolicy.KEEP_DEPENDENCIES
+		return GFCapabilityUtility.DependencyRemovalPolicy.KEEP_DEPENDENCIES
 
 
-class RollbackRootCapability extends GF_CAPABILITY_BASE:
+class RollbackRootCapability extends GFCapability:
 	func _init() -> void:
 		required_capabilities = [HealthCapability, RollbackCycleCapability]
 
 
-class RollbackCycleCapability extends GF_CAPABILITY_BASE:
+class RollbackCycleCapability extends GFCapability:
 	func _init() -> void:
 		required_capabilities = [RollbackRootCapability]
 
 
-class DynamicDependencyCapability extends GF_CAPABILITY_BASE:
+class DynamicDependencyCapability extends GFCapability:
 	func get_required_capabilities() -> Array[Script]:
 		return [HealthCapability]
 
 
-class InjectedCapability extends GF_CAPABILITY_BASE:
+class InjectedCapability extends GFCapability:
 	var injected_architecture: GFArchitecture = null
 
 	func inject_dependencies(architecture: GFArchitecture) -> void:
@@ -80,33 +71,33 @@ class InjectedCapability extends GF_CAPABILITY_BASE:
 		injected_architecture = architecture
 
 
-class ActiveCapability extends GF_CAPABILITY_BASE:
+class ActiveCapability extends GFCapability:
 	var active_events: Array[bool] = []
 
 	func on_gf_capability_active_changed(_target: Object, is_active: bool) -> void:
 		active_events.append(is_active)
 
 
-class ActiveNodeCapability extends GF_NODE_CAPABILITY_BASE:
+class ActiveNodeCapability extends GFNodeCapability:
 	var active_events: Array[bool] = []
 
 	func on_gf_capability_active_changed(_target: Object, is_active: bool) -> void:
 		active_events.append(is_active)
 
 
-class ExportDependencyCapability extends GF_NODE_CAPABILITY_BASE:
+class ExportDependencyCapability extends GFNodeCapability:
 	pass
 
 
-class RequiredByPropertyCapability extends GF_NODE_CAPABILITY_BASE:
+class RequiredByPropertyCapability extends GFNodeCapability:
 	var get_required_capabilities_called: bool = false
 
 	func get_required_capabilities() -> Array[Script]:
 		get_required_capabilities_called = true
-		return [] as Array[Script]
+		return []
 
 
-class Spatial2DCapability extends GF_NODE_2D_CAPABILITY_BASE:
+class Spatial2DCapability extends GFNode2DCapability:
 	var added_receiver: Object = null
 
 	func on_gf_capability_added(target: Object) -> void:
@@ -114,15 +105,7 @@ class Spatial2DCapability extends GF_NODE_2D_CAPABILITY_BASE:
 		added_receiver = target
 
 
-class Spatial3DCapability extends GF_NODE_3D_CAPABILITY_BASE:
-	var added_receiver: Object = null
-
-	func on_gf_capability_added(target: Object) -> void:
-		super.on_gf_capability_added(target)
-		added_receiver = target
-
-
-class UICapability extends GF_CONTROL_CAPABILITY_BASE:
+class Spatial3DCapability extends GFNode3DCapability:
 	var added_receiver: Object = null
 
 	func on_gf_capability_added(target: Object) -> void:
@@ -163,7 +146,7 @@ class CountingCapabilityNode extends CapabilityNode:
 
 
 class EnterTreeAddReceiver extends Node:
-	var utility: Object = null
+	var utility: GFCapabilityUtility = null
 	var capability_type: Script = null
 	var added_capability: Object = null
 
@@ -173,18 +156,25 @@ class EnterTreeAddReceiver extends Node:
 
 
 class EnterTreeRemoveContainer extends Node:
-	var utility: Object = null
+	var utility: GFCapabilityUtility = null
 	var receiver: Node = null
 	var capability: Node = null
 
 	func _enter_tree() -> void:
 		if utility == null or receiver == null or capability == null:
 			return
-		utility.add_capability_instance(receiver, capability, capability.get_script() as Script)
-		utility.remove_capability(receiver, capability.get_script() as Script)
+		var capability_script: Script = _capability_script()
+		var _add_capability_instance_result: Object = utility.add_capability_instance(receiver, capability, capability_script)
+		utility.remove_capability(receiver, capability_script)
+
+	func _capability_script() -> Script:
+		var script_value: Variant = capability.get_script()
+		if script_value is Script:
+			return script_value
+		return null
 
 
-class BaseCapability extends GF_CAPABILITY_BASE:
+class BaseCapability extends GFCapability:
 	pass
 
 
@@ -199,14 +189,14 @@ class ConcreteCapabilityB extends BaseCapability:
 # --- 私有变量 ---
 
 var _arch: GFArchitecture
-var _utility: Object
+var _utility: GFCapabilityUtility
 
 
 # --- Godot 生命周期方法 ---
 
 func before_each() -> void:
 	_arch = GFArchitecture.new()
-	_utility = GF_CAPABILITY_UTILITY_BASE.new()
+	_utility = GFCapabilityUtility.new()
 	await _arch.register_utility_instance(_utility)
 	await Gf.set_architecture(_arch)
 
@@ -220,9 +210,9 @@ func after_each() -> void:
 # --- 测试用例 ---
 
 func test_add_and_get_capability() -> void:
-	var receiver := RefCounted.new()
+	var receiver: RefCounted = RefCounted.new()
 
-	var capability := _utility.add_capability(receiver, HealthCapability) as HealthCapability
+	var capability: HealthCapability = _utility.add_capability(receiver, HealthCapability)
 
 	assert_not_null(capability, "应能挂载能力。")
 	assert_true(_utility.has_capability(receiver, HealthCapability), "has_capability 应能识别已挂载能力。")
@@ -231,9 +221,9 @@ func test_add_and_get_capability() -> void:
 
 
 func test_same_capability_instance_cannot_attach_to_multiple_receivers() -> void:
-	var receiver_a := RefCounted.new()
-	var receiver_b := RefCounted.new()
-	var capability := HealthCapability.new()
+	var receiver_a: RefCounted = RefCounted.new()
+	var receiver_b: RefCounted = RefCounted.new()
+	var capability: HealthCapability = HealthCapability.new()
 
 	var first: Object = _utility.add_capability_instance(receiver_a, capability, HealthCapability)
 	var second: Object = _utility.add_capability_instance(receiver_b, capability, HealthCapability)
@@ -245,10 +235,10 @@ func test_same_capability_instance_cannot_attach_to_multiple_receivers() -> void
 
 
 func test_required_capabilities_are_created_first() -> void:
-	var receiver := RefCounted.new()
+	var receiver: RefCounted = RefCounted.new()
 
-	var damage := _utility.add_capability(receiver, DamageCapability) as DamageCapability
-	var health := _utility.get_capability(receiver, HealthCapability) as HealthCapability
+	var damage: DamageCapability = _utility.add_capability(receiver, DamageCapability)
+	var health: HealthCapability = _utility.get_capability(receiver, HealthCapability)
 
 	assert_not_null(damage, "主能力应挂载成功。")
 	assert_not_null(health, "依赖能力应自动补齐。")
@@ -256,23 +246,23 @@ func test_required_capabilities_are_created_first() -> void:
 
 
 func test_dynamic_required_capability_hook_is_supported_at_runtime() -> void:
-	var receiver := RefCounted.new()
+	var receiver: RefCounted = RefCounted.new()
 
-	var capability := _utility.add_capability(receiver, DynamicDependencyCapability) as DynamicDependencyCapability
-	var health := _utility.get_capability(receiver, HealthCapability) as HealthCapability
+	var capability: DynamicDependencyCapability = _utility.add_capability(receiver, DynamicDependencyCapability)
+	var health: HealthCapability = _utility.get_capability(receiver, HealthCapability)
 
 	assert_not_null(capability, "运行时动态依赖 Hook 应仍可挂载主能力。")
 	assert_not_null(health, "运行时动态依赖 Hook 应能补齐依赖。")
 
 
 func test_required_capability_export_property_is_used_by_default_hook() -> void:
-	var receiver := Node.new()
+	var receiver: Node = Node.new()
 	add_child(receiver)
-	var capability := ExportDependencyCapability.new()
+	var capability: ExportDependencyCapability = ExportDependencyCapability.new()
 	capability.required_capabilities = [HealthCapability]
 
-	_utility.add_capability_instance(receiver, capability, ExportDependencyCapability)
-	var health := _utility.get_capability(receiver, HealthCapability) as HealthCapability
+	var _add_capability_instance_result_264: Variant = _utility.add_capability_instance(receiver, capability, ExportDependencyCapability)
+	var health: HealthCapability = _utility.get_capability(receiver, HealthCapability)
 
 	assert_not_null(health, "默认依赖 Hook 应读取 required_capabilities 导出属性。")
 
@@ -281,10 +271,10 @@ func test_required_capability_export_property_is_used_by_default_hook() -> void:
 
 
 func test_capability_receiver_does_not_depend_on_super_hook_call() -> void:
-	var receiver := RefCounted.new()
+	var receiver: RefCounted = RefCounted.new()
 
-	var damage := _utility.add_capability(receiver, NoSuperDamageCapability) as NoSuperDamageCapability
-	var health := _utility.get_capability(receiver, HealthCapability) as HealthCapability
+	var damage: NoSuperDamageCapability = _utility.add_capability(receiver, NoSuperDamageCapability)
+	var health: HealthCapability = _utility.get_capability(receiver, HealthCapability)
 
 	assert_not_null(damage, "未调用 super 的能力也应能挂载。")
 	assert_not_null(health, "未调用 super 的能力也应先补齐依赖能力。")
@@ -299,9 +289,9 @@ func test_capability_receiver_does_not_depend_on_super_hook_call() -> void:
 
 
 func test_auto_dependency_cleanup_removes_unused_auto_dependency() -> void:
-	var receiver := RefCounted.new()
+	var receiver: RefCounted = RefCounted.new()
 
-	_utility.add_capability(receiver, DamageCapability)
+	var _add_capability_result_294: Variant = _utility.add_capability(receiver, DamageCapability)
 	_utility.remove_capability(receiver, DamageCapability)
 
 	assert_false(_utility.has_capability(receiver, DamageCapability), "主能力应被移除。")
@@ -309,19 +299,19 @@ func test_auto_dependency_cleanup_removes_unused_auto_dependency() -> void:
 
 
 func test_auto_dependency_cleanup_keeps_explicit_dependency() -> void:
-	var receiver := RefCounted.new()
-	_utility.add_capability(receiver, HealthCapability)
+	var receiver: RefCounted = RefCounted.new()
+	var _add_capability_result_303: Variant = _utility.add_capability(receiver, HealthCapability)
 
-	_utility.add_capability(receiver, DamageCapability)
+	var _add_capability_result_305: Variant = _utility.add_capability(receiver, DamageCapability)
 	_utility.remove_capability(receiver, DamageCapability)
 
 	assert_true(_utility.has_capability(receiver, HealthCapability), "用户显式添加的依赖能力不应被级联清理。")
 
 
 func test_keep_dependency_policy_preserves_auto_dependency() -> void:
-	var receiver := RefCounted.new()
+	var receiver: RefCounted = RefCounted.new()
 
-	_utility.add_capability(receiver, KeepDependencyDamageCapability)
+	var _add_capability_result_314: Variant = _utility.add_capability(receiver, KeepDependencyDamageCapability)
 	_utility.remove_capability(receiver, KeepDependencyDamageCapability)
 
 	assert_false(_utility.has_capability(receiver, KeepDependencyDamageCapability), "主能力应被移除。")
@@ -329,7 +319,7 @@ func test_keep_dependency_policy_preserves_auto_dependency() -> void:
 
 
 func test_dependency_creation_failure_rolls_back_auto_created_dependencies() -> void:
-	var receiver := RefCounted.new()
+	var receiver: RefCounted = RefCounted.new()
 
 	var capability: Object = _utility.add_capability(receiver, RollbackRootCapability)
 
@@ -340,21 +330,21 @@ func test_dependency_creation_failure_rolls_back_auto_created_dependencies() -> 
 
 
 func test_capability_receives_architecture_injection() -> void:
-	var receiver := RefCounted.new()
+	var receiver: RefCounted = RefCounted.new()
 
-	var capability := _utility.add_capability(receiver, InjectedCapability) as InjectedCapability
+	var capability: InjectedCapability = _utility.add_capability(receiver, InjectedCapability)
 
 	assert_eq(capability.injected_architecture, _arch, "能力应收到当前架构注入。")
 
 
 func test_node_capability_child_tree_receives_architecture_injection() -> void:
-	var receiver := Node.new()
+	var receiver: Node = Node.new()
 	add_child(receiver)
-	var capability := ActiveNodeCapability.new()
-	var child := InjectedChildNode.new()
+	var capability: ActiveNodeCapability = ActiveNodeCapability.new()
+	var child: InjectedChildNode = InjectedChildNode.new()
 	capability.add_child(child)
 
-	_utility.add_capability_instance(receiver, capability, ActiveNodeCapability)
+	var _add_capability_instance_result_347: Variant = _utility.add_capability_instance(receiver, capability, ActiveNodeCapability)
 
 	assert_eq(child.injected_architecture, _arch, "场景能力子节点也应收到当前架构注入。")
 
@@ -363,8 +353,8 @@ func test_node_capability_child_tree_receives_architecture_injection() -> void:
 
 
 func test_remove_capability_calls_hook_and_clears_storage() -> void:
-	var receiver := RefCounted.new()
-	var capability := _utility.add_capability(receiver, HealthCapability) as HealthCapability
+	var receiver: RefCounted = RefCounted.new()
+	var capability: HealthCapability = _utility.add_capability(receiver, HealthCapability)
 
 	_utility.remove_capability(receiver, HealthCapability)
 
@@ -373,9 +363,9 @@ func test_remove_capability_calls_hook_and_clears_storage() -> void:
 
 
 func test_get_capability_prunes_freed_meta_instance_without_cast_error() -> void:
-	var receiver := Node.new()
+	var receiver: Node = Node.new()
 	add_child(receiver)
-	var capability := CapabilityNode.new()
+	var capability: CapabilityNode = CapabilityNode.new()
 	var capability_types: Array[Script] = _utility._get_capability_type_list(receiver)
 	capability_types.append(CapabilityNode)
 	receiver.set_meta(_utility._get_capability_meta_name(CapabilityNode), capability)
@@ -390,8 +380,8 @@ func test_get_capability_prunes_freed_meta_instance_without_cast_error() -> void
 
 
 func test_unregister_capability_keeps_instance_detached_from_lifecycle() -> void:
-	var receiver := RefCounted.new()
-	var capability := _utility.add_capability(receiver, HealthCapability) as HealthCapability
+	var receiver: RefCounted = RefCounted.new()
+	var capability: HealthCapability = _utility.add_capability(receiver, HealthCapability)
 
 	_utility.unregister_capability(receiver, HealthCapability)
 
@@ -401,10 +391,10 @@ func test_unregister_capability_keeps_instance_detached_from_lifecycle() -> void
 
 
 func test_node_capability_is_attached_to_container() -> void:
-	var receiver := Node.new()
+	var receiver: Node = Node.new()
 	add_child(receiver)
 
-	var capability := _utility.add_capability(receiver, CapabilityNode) as CapabilityNode
+	var capability: CapabilityNode = _utility.add_capability(receiver, CapabilityNode)
 	await get_tree().process_frame
 
 	assert_not_null(capability, "Node 能力应创建成功。")
@@ -417,12 +407,12 @@ func test_node_capability_is_attached_to_container() -> void:
 
 
 func test_removing_last_node_capability_cleans_generated_container() -> void:
-	var receiver := Node.new()
+	var receiver: Node = Node.new()
 	add_child(receiver)
 
-	var capability := _utility.add_capability(receiver, CapabilityNode) as CapabilityNode
+	var capability: CapabilityNode = _utility.add_capability(receiver, CapabilityNode)
 	await get_tree().process_frame
-	var container := capability.get_parent()
+	var container: Node = capability.get_parent()
 
 	_utility.remove_capability(receiver, CapabilityNode)
 	await get_tree().process_frame
@@ -435,10 +425,10 @@ func test_removing_last_node_capability_cleans_generated_container() -> void:
 
 
 func test_remove_node_capability_during_enter_tree_tolerates_receiver_free() -> void:
-	var receiver := Node.new()
-	var container := EnterTreeRemoveContainer.new()
+	var receiver: Node = Node.new()
+	var container: EnterTreeRemoveContainer = EnterTreeRemoveContainer.new()
 	container.name = "GFCapabilityContainer"
-	var capability := CapabilityNode.new()
+	var capability: CapabilityNode = CapabilityNode.new()
 	container.utility = _utility
 	container.receiver = receiver
 	container.capability = capability
@@ -455,10 +445,10 @@ func test_remove_node_capability_during_enter_tree_tolerates_receiver_free() -> 
 
 
 func test_node2d_capability_uses_node2d_container() -> void:
-	var receiver := Node2D.new()
+	var receiver: Node2D = Node2D.new()
 	add_child(receiver)
 
-	var capability := _utility.add_capability(receiver, Node2DCapability) as Node2DCapability
+	var capability: Node2DCapability = _utility.add_capability(receiver, Node2DCapability)
 	await get_tree().process_frame
 
 	assert_not_null(capability, "Node2D 能力应创建成功。")
@@ -471,10 +461,10 @@ func test_node2d_capability_uses_node2d_container() -> void:
 
 
 func test_node2d_capability_base_uses_node2d_container_and_helpers() -> void:
-	var receiver := Node2D.new()
+	var receiver: Node2D = Node2D.new()
 	add_child(receiver)
 
-	var capability := _utility.add_capability(receiver, Spatial2DCapability) as Spatial2DCapability
+	var capability: Spatial2DCapability = _utility.add_capability(receiver, Spatial2DCapability)
 	await get_tree().process_frame
 
 	assert_not_null(capability, "GFNode2DCapability 子类应创建成功。")
@@ -482,17 +472,17 @@ func test_node2d_capability_base_uses_node2d_container_and_helpers() -> void:
 	assert_true(capability.get_parent() is Node2D, "GFNode2DCapability 应挂入 Node2D 容器。")
 	assert_eq(capability.receiver, receiver, "GFNode2DCapability 应记录 receiver。")
 	assert_eq(capability.added_receiver, receiver, "GFNode2DCapability 应收到 added hook。")
-	assert_eq(capability.get_utility(GF_CAPABILITY_UTILITY_BASE), _utility, "GFNode2DCapability 应保留架构 helper。")
+	assert_eq(capability.get_utility(GFCapabilityUtility), _utility, "GFNode2DCapability 应保留架构 helper。")
 
 	receiver.queue_free()
 	await get_tree().process_frame
 
 
 func test_node3d_capability_base_uses_node3d_container() -> void:
-	var receiver := Node3D.new()
+	var receiver: Node3D = Node3D.new()
 	add_child(receiver)
 
-	var capability := _utility.add_capability(receiver, Spatial3DCapability) as Spatial3DCapability
+	var capability: Spatial3DCapability = _utility.add_capability(receiver, Spatial3DCapability)
 	await get_tree().process_frame
 
 	assert_not_null(capability, "GFNode3DCapability 子类应创建成功。")
@@ -506,27 +496,34 @@ func test_node3d_capability_base_uses_node3d_container() -> void:
 
 
 func test_control_capability_base_uses_control_container() -> void:
-	var receiver := Control.new()
+	var receiver: Node = _new_control_node()
+	assert_not_null(receiver, "应能创建 Control receiver。")
+	if receiver == null:
+		return
 	add_child(receiver)
+	var capability_type: Script = _load_script(GF_CONTROL_CAPABILITY_SCRIPT_PATH)
 
-	var capability := _utility.add_capability(receiver, UICapability) as UICapability
+	assert_not_null(capability_type, "应能加载 GFControlCapability 脚本。")
+	var capability: Object = _utility.add_capability(receiver, capability_type)
 	await get_tree().process_frame
+	var control_capability: Node = _get_node_value(capability)
 
-	assert_not_null(capability, "GFControlCapability 子类应创建成功。")
-	assert_true(capability is Control, "GFControlCapability 子类应保留 Control 类型。")
-	assert_true(capability.get_parent() is Control, "GFControlCapability 应挂入 Control 容器。")
-	assert_eq(capability.receiver, receiver, "GFControlCapability 应记录 receiver。")
-	assert_eq(capability.added_receiver, receiver, "GFControlCapability 应收到 added hook。")
+	assert_not_null(control_capability, "GFControlCapability 应创建为 Control。")
+	if control_capability != null:
+		assert_true(control_capability.is_class("Control"), "GFControlCapability 应保留 Control 类型。")
+		assert_true(control_capability.get_parent().is_class("Control"), "GFControlCapability 应挂入 Control 容器。")
+		assert_eq(control_capability.get_parent().get_parent(), receiver, "GFControlCapability 容器应挂在 receiver 下。")
+		assert_eq(_object_value(control_capability.call(&"get", &"receiver")), receiver, "GFControlCapability 应记录 receiver。")
 
 	receiver.queue_free()
 	await get_tree().process_frame
 
 
 func test_scene_container_registers_child_capabilities() -> void:
-	var receiver := Node.new()
-	var container := Node.new()
-	container.set_script(GF_CAPABILITY_CONTAINER_BASE)
-	var child_capability := CapabilityNode.new()
+	var receiver: Node = Node.new()
+	var container: Node = Node.new()
+	container.set_script(GFCapabilityContainer)
+	var child_capability: CapabilityNode = CapabilityNode.new()
 	container.add_child(child_capability)
 	receiver.add_child(container)
 	add_child(receiver)
@@ -541,10 +538,10 @@ func test_scene_container_registers_child_capabilities() -> void:
 
 
 func test_scene_container_registers_child_capabilities_before_ready_frame() -> void:
-	var receiver := Node.new()
-	var container := Node.new()
-	container.set_script(GF_CAPABILITY_CONTAINER_BASE)
-	var child_capability := CapabilityNode.new()
+	var receiver: Node = Node.new()
+	var container: Node = Node.new()
+	container.set_script(GFCapabilityContainer)
+	var child_capability: CapabilityNode = CapabilityNode.new()
 	container.add_child(child_capability)
 	receiver.add_child(container)
 
@@ -558,12 +555,12 @@ func test_scene_container_registers_child_capabilities_before_ready_frame() -> v
 
 
 func test_scene_spatial_container_keeps_existing_plain_node_capability() -> void:
-	var receiver := Node2D.new()
-	var container := Node2D.new()
+	var receiver: Node2D = Node2D.new()
+	var container: Node2D = Node2D.new()
 	container.name = "GFCapabilityContainer2D"
-	container.set_meta(GF_CAPABILITY_UTILITY_BASE.META_CAPABILITY_CONTAINER, true)
-	container.set_script(GF_CAPABILITY_CONTAINER_BASE)
-	var child_capability := CapabilityNode.new()
+	container.set_meta(GFCapabilityUtility.META_CAPABILITY_CONTAINER, true)
+	container.set_script(GFCapabilityContainer)
+	var child_capability: CapabilityNode = CapabilityNode.new()
 	container.add_child(child_capability)
 	receiver.add_child(container)
 
@@ -579,11 +576,11 @@ func test_scene_spatial_container_keeps_existing_plain_node_capability() -> void
 
 
 func test_meta_only_spatial_container_lazily_registers_child_capability_on_query() -> void:
-	var receiver := Node2D.new()
-	var container := Node2D.new()
+	var receiver: Node2D = Node2D.new()
+	var container: Node2D = Node2D.new()
 	container.name = "GFCapabilityContainer2D"
-	container.set_meta(GF_CAPABILITY_UTILITY_BASE.META_CAPABILITY_CONTAINER, true)
-	var child_capability := Node2DCapability.new()
+	container.set_meta(GFCapabilityUtility.META_CAPABILITY_CONTAINER, true)
+	var child_capability: Node2DCapability = Node2DCapability.new()
 	container.add_child(child_capability)
 	receiver.add_child(container)
 	add_child(receiver)
@@ -596,10 +593,10 @@ func test_meta_only_spatial_container_lazily_registers_child_capability_on_query
 
 
 func test_named_spatial_container_lazily_registers_plain_node_child_capability_on_query() -> void:
-	var receiver := Node2D.new()
-	var container := Node2D.new()
+	var receiver: Node2D = Node2D.new()
+	var container: Node2D = Node2D.new()
 	container.name = "GFCapabilityContainer2D"
-	var child_capability := CapabilityNode.new()
+	var child_capability: CapabilityNode = CapabilityNode.new()
 	container.add_child(child_capability)
 	receiver.add_child(container)
 	add_child(receiver)
@@ -612,7 +609,7 @@ func test_named_spatial_container_lazily_registers_plain_node_child_capability_o
 
 
 func test_add_capability_during_receiver_enter_tree_defers_container_attachment() -> void:
-	var receiver := EnterTreeAddReceiver.new()
+	var receiver: EnterTreeAddReceiver = EnterTreeAddReceiver.new()
 	receiver.utility = _utility
 	receiver.capability_type = CapabilityNode
 
@@ -623,7 +620,7 @@ func test_add_capability_during_receiver_enter_tree_defers_container_attachment(
 
 	await get_tree().process_frame
 
-	var capability := receiver.added_capability as CapabilityNode
+	var capability: CapabilityNode = receiver.added_capability
 	assert_not_null(capability.get_parent(), "延迟后能力应挂入容器。")
 	assert_eq(capability.get_parent().get_parent(), receiver, "延迟创建的容器应挂在 receiver 下。")
 
@@ -632,10 +629,10 @@ func test_add_capability_during_receiver_enter_tree_defers_container_attachment(
 
 
 func test_scene_container_unregisters_children_when_removed() -> void:
-	var receiver := Node.new()
-	var container := Node.new()
-	container.set_script(GF_CAPABILITY_CONTAINER_BASE)
-	var child_capability := CapabilityNode.new()
+	var receiver: Node = Node.new()
+	var container: Node = Node.new()
+	container.set_script(GFCapabilityContainer)
+	var child_capability: CapabilityNode = CapabilityNode.new()
 	container.add_child(child_capability)
 	receiver.add_child(container)
 	add_child(receiver)
@@ -656,15 +653,15 @@ func test_scene_container_unregisters_children_when_removed() -> void:
 
 
 func test_add_scene_capability_frees_ignored_duplicate_instance() -> void:
-	var receiver := Node.new()
+	var receiver: Node = Node.new()
 	add_child(receiver)
-	var existing := CountingCapabilityNode.new()
+	var existing: CountingCapabilityNode = CountingCapabilityNode.new()
 	CountingCapabilityNode.created_nodes.clear()
-	_utility.add_capability_instance(receiver, existing, CountingCapabilityNode)
-	var scene := _make_counting_capability_scene()
+	var _add_capability_instance_result_660: Variant = _utility.add_capability_instance(receiver, existing, CountingCapabilityNode)
+	var scene: PackedScene = _make_counting_capability_scene()
 
 	var result: Object = _utility.add_scene_capability(receiver, scene, CountingCapabilityNode)
-	var duplicate_node := CountingCapabilityNode.created_nodes.back() as CountingCapabilityNode
+	var duplicate_node: CountingCapabilityNode = CountingCapabilityNode.created_nodes.back()
 
 	assert_eq(result, existing, "重复挂载场景能力时应返回已有实例。")
 	assert_true(duplicate_node.is_queued_for_deletion(), "被忽略的新场景能力实例应被释放。")
@@ -673,22 +670,79 @@ func test_add_scene_capability_frees_ignored_duplicate_instance() -> void:
 	await get_tree().process_frame
 
 
+func test_dispose_clears_ref_counted_capability_state() -> void:
+	var receiver: RefCounted = RefCounted.new()
+	var capability: HealthCapability = _utility.add_capability(receiver, HealthCapability)
+
+	_utility.dispose()
+
+	assert_eq(capability.removed_receiver, receiver, "dispose 应触发 removed hook。")
+	assert_null(capability.receiver, "dispose 后能力不应继续指向 receiver。")
+	assert_false(receiver.has_meta(_utility._get_capability_meta_name(HealthCapability)), "dispose 应清理 receiver 上的能力实例元数据。")
+
+
+func test_dispose_releases_owned_runtime_node_capability() -> void:
+	var receiver: Node = Node.new()
+	add_child(receiver)
+	var capability: CapabilityNode = _utility.add_capability(receiver, CapabilityNode)
+	await get_tree().process_frame
+	var container: Node = capability.get_parent()
+
+	_utility.dispose()
+
+	assert_eq(capability.removed_receiver, receiver, "dispose 应触发 Node 能力 removed hook。")
+	assert_true(capability.is_queued_for_deletion(), "Utility 创建的 Node 能力应在 dispose 中进入释放队列。")
+	await get_tree().process_frame
+
+	assert_false(is_instance_valid(capability), "Utility 创建的 Node 能力应随 dispose 释放。")
+	assert_false(is_instance_valid(container), "Utility 创建的空能力容器应随 dispose 释放。")
+	assert_false(receiver.has_meta(_utility._get_capability_meta_name(CapabilityNode)), "dispose 应清理 receiver 上的 Node 能力元数据。")
+
+	receiver.queue_free()
+	await get_tree().process_frame
+
+
+func test_dispose_unregisters_external_scene_capability_without_freeing_node() -> void:
+	var receiver: Node = Node.new()
+	var container: Node = Node.new()
+	container.set_script(GFCapabilityContainer)
+	var child_capability: CapabilityNode = CapabilityNode.new()
+	container.add_child(child_capability)
+	receiver.add_child(container)
+	add_child(receiver)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_eq(_utility.get_capability(receiver, CapabilityNode), child_capability, "场景中已有的能力应先注册成功。")
+
+	_utility.dispose()
+	await get_tree().process_frame
+
+	assert_eq(child_capability.removed_receiver, receiver, "dispose 应注销外部场景能力。")
+	assert_true(is_instance_valid(child_capability), "外部场景能力不应被 Utility dispose 释放。")
+	assert_eq(child_capability.get_parent(), container, "外部场景能力应留在原容器中。")
+	assert_false(receiver.has_meta(_utility._get_capability_meta_name(CapabilityNode)), "dispose 应清理 receiver 上的外部能力元数据。")
+
+	receiver.queue_free()
+	await get_tree().process_frame
+
+
 func test_base_type_lookup_requires_unique_match() -> void:
-	var receiver := RefCounted.new()
-	var capability_a := _utility.add_capability(receiver, ConcreteCapabilityA) as ConcreteCapabilityA
+	var receiver: RefCounted = RefCounted.new()
+	var capability_a: ConcreteCapabilityA = _utility.add_capability(receiver, ConcreteCapabilityA)
 
 	assert_eq(_utility.get_capability(receiver, BaseCapability), capability_a, "单个子类能力可通过基类查询。")
 
-	_utility.add_capability(receiver, ConcreteCapabilityB)
-	var ambiguous = _utility.get_capability(receiver, BaseCapability)
+	var _add_capability_result_736: Variant = _utility.add_capability(receiver, ConcreteCapabilityB)
+	var ambiguous: Variant = _utility.get_capability(receiver, BaseCapability)
 
 	assert_push_warning("[GFCapabilityUtility] get_capability(")
-	assert_null(ambiguous, "多个子类能力匹配同一基类时应返回 null。")
+	assert_true(ambiguous == null, "多个子类能力匹配同一基类时应返回 null。")
 
 
 func test_capability_active_state_updates_property_and_hook() -> void:
-	var receiver := RefCounted.new()
-	var capability := _utility.add_capability(receiver, ActiveCapability) as ActiveCapability
+	var receiver: RefCounted = RefCounted.new()
+	var capability: ActiveCapability = _utility.add_capability(receiver, ActiveCapability)
 
 	_utility.set_capability_active(receiver, ActiveCapability, false)
 
@@ -703,13 +757,13 @@ func test_capability_active_state_updates_property_and_hook() -> void:
 
 
 func test_node_capability_active_state_disables_processing() -> void:
-	var receiver := Node.new()
+	var receiver: Node = Node.new()
 	add_child(receiver)
 
-	var capability := _utility.add_capability(receiver, ActiveNodeCapability) as ActiveNodeCapability
+	var capability: ActiveNodeCapability = _utility.add_capability(receiver, ActiveNodeCapability)
 	await get_tree().process_frame
 
-	var original_process_mode := capability.process_mode
+	var original_process_mode: int = capability.process_mode
 	_utility.set_capability_active(receiver, ActiveNodeCapability, false)
 
 	assert_false(capability.active, "Node 能力停用后 active 属性应同步。")
@@ -726,10 +780,10 @@ func test_node_capability_active_state_disables_processing() -> void:
 
 
 func test_node_capability_active_restore_preserves_runtime_process_mode_change() -> void:
-	var receiver := Node.new()
+	var receiver: Node = Node.new()
 	add_child(receiver)
 
-	var capability := _utility.add_capability(receiver, ActiveNodeCapability) as ActiveNodeCapability
+	var capability: ActiveNodeCapability = _utility.add_capability(receiver, ActiveNodeCapability)
 	await get_tree().process_frame
 
 	_utility.set_capability_active(receiver, ActiveNodeCapability, false)
@@ -743,10 +797,10 @@ func test_node_capability_active_restore_preserves_runtime_process_mode_change()
 
 
 func test_capability_reverse_index_and_groups() -> void:
-	var receiver_a := RefCounted.new()
-	var receiver_b := RefCounted.new()
-	var capability_a := _utility.add_capability(receiver_a, ConcreteCapabilityA) as ConcreteCapabilityA
-	var capability_b := _utility.add_capability(receiver_b, ConcreteCapabilityB) as ConcreteCapabilityB
+	var receiver_a: RefCounted = RefCounted.new()
+	var receiver_b: RefCounted = RefCounted.new()
+	var capability_a: ConcreteCapabilityA = _utility.add_capability(receiver_a, ConcreteCapabilityA)
+	var capability_b: ConcreteCapabilityB = _utility.add_capability(receiver_b, ConcreteCapabilityB)
 
 	_utility.add_receiver_to_group(receiver_a, &"targets")
 	_utility.add_receiver_to_group(receiver_b, &"targets")
@@ -767,9 +821,9 @@ func test_capability_reverse_index_and_groups() -> void:
 
 
 func test_prune_invalid_receivers_removes_stale_indices() -> void:
-	var receiver := Object.new()
-	_utility.add_capability(receiver, HealthCapability)
-	var receiver_id := receiver.get_instance_id()
+	var receiver: Object = Object.new()
+	var _add_capability_result_825: Variant = _utility.add_capability(receiver, HealthCapability)
+	var receiver_id: int = receiver.get_instance_id()
 
 	receiver.free()
 	_utility.prune_invalid_receivers()
@@ -778,10 +832,10 @@ func test_prune_invalid_receivers_removes_stale_indices() -> void:
 
 
 func test_tick_prune_invalid_receivers_uses_budget() -> void:
-	var receiver_a := Object.new()
-	var receiver_b := Object.new()
-	_utility.add_capability(receiver_a, HealthCapability)
-	_utility.add_capability(receiver_b, HealthCapability)
+	var receiver_a: Object = Object.new()
+	var receiver_b: Object = Object.new()
+	var _add_capability_result_837: Variant = _utility.add_capability(receiver_a, HealthCapability)
+	var _add_capability_result_838: Variant = _utility.add_capability(receiver_b, HealthCapability)
 	_utility.prune_invalid_receivers_per_tick = 1
 
 	receiver_a.free()
@@ -796,8 +850,8 @@ func test_tick_prune_invalid_receivers_uses_budget() -> void:
 
 
 func test_property_bag_capability_stores_typed_values() -> void:
-	var receiver := RefCounted.new()
-	var bag: Object = _utility.add_capability(receiver, GF_PROPERTY_BAG_CAPABILITY_BASE)
+	var receiver: RefCounted = RefCounted.new()
+	var bag: GFPropertyBagCapability = _property_bag(_utility.add_capability(receiver, GFPropertyBagCapability))
 
 	bag.set_property_value(&"count", 3)
 	bag.set_property_value(&"title", "hello")
@@ -811,8 +865,8 @@ func test_property_bag_capability_stores_typed_values() -> void:
 
 
 func test_property_bag_typed_getters_return_default_on_type_mismatch() -> void:
-	var receiver := RefCounted.new()
-	var bag: Object = _utility.add_capability(receiver, GF_PROPERTY_BAG_CAPABILITY_BASE)
+	var receiver: RefCounted = RefCounted.new()
+	var bag: GFPropertyBagCapability = _property_bag(_utility.add_capability(receiver, GFPropertyBagCapability))
 	bag.set_property_value(&"count", "3")
 	bag.set_property_value(&"enabled", 1)
 
@@ -821,105 +875,103 @@ func test_property_bag_typed_getters_return_default_on_type_mismatch() -> void:
 
 
 func test_inspect_receiver_reports_dependencies_and_groups() -> void:
-	var receiver := RefCounted.new()
+	var receiver: RefCounted = RefCounted.new()
 	_utility.add_receiver_to_group(receiver, &"targets")
-	_utility.add_capability(receiver, DamageCapability)
+	var _add_capability_result_880: Variant = _utility.add_capability(receiver, DamageCapability)
 
 	var report: Dictionary = _utility.inspect_receiver(receiver)
 	var validation: Dictionary = _utility.validate_receiver_dependencies(receiver)
 	var dependency_report: Dictionary = _find_capability_report_with_dependencies(report)
 
-	assert_true(bool(report["ok"]), "自动补齐依赖后 receiver 诊断应为 ok。")
-	assert_true(bool(validation["ok"]), "依赖校验应复用诊断结果。")
-	assert_eq(report["capability_count"], 2, "诊断应包含主能力和自动补齐的依赖能力。")
-	assert_true((report["groups"] as Array).has(&"targets"), "诊断应包含 receiver 分组。")
+	assert_true(GFVariantData.get_option_bool(report, "ok"), "自动补齐依赖后 receiver 诊断应为 ok。")
+	assert_true(GFVariantData.get_option_bool(validation, "ok"), "依赖校验应复用诊断结果。")
+	assert_eq(GFVariantData.get_option_int(report, "capability_count"), 2, "诊断应包含主能力和自动补齐的依赖能力。")
+	assert_true(GFVariantData.get_option_array(report, "groups").has(&"targets"), "诊断应包含 receiver 分组。")
 	assert_false(dependency_report.is_empty(), "诊断应标出拥有依赖的能力。")
-	assert_eq((dependency_report["registered_dependencies"] as PackedStringArray).size(), 1, "主能力应记录一个已注册依赖。")
+	assert_eq(GFVariantData.get_option_packed_string_array(dependency_report, "registered_dependencies").size(), 1, "主能力应记录一个已注册依赖。")
 
 
 func test_inspect_invalid_receiver_returns_error_report() -> void:
 	var report: Dictionary = _utility.inspect_receiver(null)
 
-	assert_false(bool(report["ok"]), "无效 receiver 的诊断应失败。")
-	assert_eq(report["receiver_id"], -1, "无效 receiver 应返回哨兵 id。")
-	assert_eq(report["error"], "Receiver is invalid.", "无效 receiver 应返回错误原因。")
+	assert_false(GFVariantData.get_option_bool(report, "ok"), "无效 receiver 的诊断应失败。")
+	assert_eq(GFVariantData.get_option_int(report, "receiver_id"), -1, "无效 receiver 应返回哨兵 id。")
+	assert_eq(GFVariantData.get_option_string(report, "error"), "Receiver is invalid.", "无效 receiver 应返回错误原因。")
 
 
 func test_capability_recipe_applies_entries_and_groups() -> void:
-	var receiver := RefCounted.new()
-	var recipe := GF_CAPABILITY_RECIPE_BASE.new()
+	var receiver: RefCounted = RefCounted.new()
+	var recipe: GFCapabilityRecipe = GFCapabilityRecipe.new()
 	recipe.recipe_id = &"test_recipe"
 	recipe.groups = [&"targets"]
-	var entry := GF_CAPABILITY_RECIPE_ENTRY_BASE.new()
+	var entry: GFCapabilityRecipeEntry = GFCapabilityRecipeEntry.new()
 	entry.capability_type = ActiveCapability
 	entry.active = false
 	recipe.entries = [entry]
 
 	var result: Dictionary = _utility.apply_recipe(receiver, recipe)
 
-	assert_true(bool(result["ok"]), "有效 Recipe 应应用成功。")
+	assert_true(GFVariantData.get_option_bool(result, "ok"), "有效 Recipe 应应用成功。")
 	assert_true(_utility.has_capability(receiver, ActiveCapability), "Recipe 应挂载能力。")
 	assert_false(_utility.is_capability_active(receiver, ActiveCapability), "Recipe 应应用默认启停状态。")
 	assert_true(_utility.get_receivers_in_group(&"targets").has(receiver), "Recipe 应添加分组。")
 
 	var removed: Dictionary = _utility.remove_recipe(receiver, recipe)
 
-	assert_true(bool(removed["ok"]), "移除 Recipe 应成功。")
+	assert_true(GFVariantData.get_option_bool(removed, "ok"), "移除 Recipe 应成功。")
 	assert_false(_utility.has_capability(receiver, ActiveCapability), "remove_recipe 应移除能力。")
 	assert_false(_utility.get_receivers_in_group(&"targets").has(receiver), "remove_recipe 应移除分组。")
 
 
 func test_capability_recipe_rolls_back_added_entries_and_groups_on_failure() -> void:
-	var receiver := RefCounted.new()
-	var recipe := GF_CAPABILITY_RECIPE_BASE.new()
+	var receiver: RefCounted = RefCounted.new()
+	var recipe: GFCapabilityRecipe = GFCapabilityRecipe.new()
 	recipe.groups = [&"targets"]
-	var valid_entry := GF_CAPABILITY_RECIPE_ENTRY_BASE.new()
+	var valid_entry: GFCapabilityRecipeEntry = GFCapabilityRecipeEntry.new()
 	valid_entry.capability_type = ActiveCapability
-	var failing_entry := GF_CAPABILITY_RECIPE_ENTRY_BASE.new()
+	var failing_entry: GFCapabilityRecipeEntry = GFCapabilityRecipeEntry.new()
 	failing_entry.capability_type = RollbackRootCapability
 	recipe.entries = [valid_entry, failing_entry]
 
 	var result: Dictionary = _utility.apply_recipe(receiver, recipe)
 
-	assert_false(bool(result["ok"]), "事务化 Recipe 中任一条目失败时整体应失败。")
-	assert_true(bool(result["rolled_back"]), "默认 transactional=true 时应执行回滚。")
+	assert_false(GFVariantData.get_option_bool(result, "ok"), "事务化 Recipe 中任一条目失败时整体应失败。")
+	assert_true(GFVariantData.get_option_bool(result, "rolled_back"), "默认 transactional=true 时应执行回滚。")
 	assert_false(_utility.has_capability(receiver, ActiveCapability), "失败前已新增的能力应被移除。")
 	assert_false(_utility.get_receivers_in_group(&"targets").has(receiver), "失败前新增的分组也应回滚。")
 	assert_push_error("[GFCapabilityUtility] 检测到循环能力依赖：")
 
 
 func test_capability_recipe_validation_reports_invalid_entries() -> void:
-	var recipe := GF_CAPABILITY_RECIPE_BASE.new()
-	recipe.entries = [GF_CAPABILITY_RECIPE_ENTRY_BASE.new()]
+	var recipe: GFCapabilityRecipe = GFCapabilityRecipe.new()
+	recipe.entries = [GFCapabilityRecipeEntry.new()]
 
 	var report: Dictionary = recipe.validate_recipe()
 
-	assert_false(bool(report["ok"]), "无效条目应使 Recipe 校验失败。")
+	assert_false(GFVariantData.get_option_bool(report, "ok"), "无效条目应使 Recipe 校验失败。")
 	assert_true(_has_issue(report, "invalid_entry"), "Recipe 校验应报告 invalid_entry。")
-	assert_false(String(report["next_action"]).is_empty(), "Recipe 校验应提供下一步建议。")
+	assert_false(GFVariantData.get_option_string(report, "next_action").is_empty(), "Recipe 校验应提供下一步建议。")
 
 
 func test_capability_recipe_validation_reports_empty_recipe_as_healthy() -> void:
-	var recipe := GF_CAPABILITY_RECIPE_BASE.new()
+	var recipe: GFCapabilityRecipe = GFCapabilityRecipe.new()
 
 	var report: Dictionary = recipe.validate_recipe()
 
-	assert_true(bool(report["ok"]), "空 Recipe 没有结构错误时应通过校验。")
-	assert_true(bool(report["healthy"]), "空 Recipe 没有警告时应视为健康。")
-	assert_eq(int(report["entry_count"]), 0, "报告应保留条目数量。")
-	assert_eq(String(report["summary"]), "Capability recipe is healthy.", "健康报告应提供稳定摘要。")
+	assert_true(GFVariantData.get_option_bool(report, "ok"), "空 Recipe 没有结构错误时应通过校验。")
+	assert_true(GFVariantData.get_option_bool(report, "healthy"), "空 Recipe 没有警告时应视为健康。")
+	assert_eq(GFVariantData.get_option_int(report, "entry_count"), 0, "报告应保留条目数量。")
+	assert_eq(GFVariantData.get_option_string(report, "summary"), "Capability recipe is healthy.", "健康报告应提供稳定摘要。")
 
 
 func test_capability_inspector_reads_required_property_without_calling_capability_method() -> void:
-	var capability := RequiredByPropertyCapability.new()
+	var capability: RequiredByPropertyCapability = RequiredByPropertyCapability.new()
 	capability.name = "RequiredByPropertyCapability"
 	capability.required_capabilities = [HealthCapability]
+	var inspector_plugin: Script = _load_capability_inspector_plugin()
 
-	var required_types: Array[Script] = GF_CAPABILITY_INSPECTOR_PLUGIN_BASE.collect_required_capability_types(
-		capability,
-		null,
-		"RequiredByPropertyCapability"
-	)
+	assert_not_null(inspector_plugin, "应能加载 Capability Inspector 插件。")
+	var required_types: Array[Script] = _collect_required_capability_types(inspector_plugin, capability)
 
 	assert_false(capability.get_required_capabilities_called, "编辑器 Inspector 不应调用能力脚本方法。")
 	assert_eq(required_types, [HealthCapability], "编辑器 Inspector 应从 required_capabilities 读取依赖。")
@@ -930,25 +982,84 @@ func test_capability_inspector_reads_required_property_without_calling_capabilit
 # --- 私有/辅助方法 ---
 
 func _make_counting_capability_scene() -> PackedScene:
-	var node := CountingCapabilityNode.new()
-	var scene := PackedScene.new()
-	scene.pack(node)
+	var node: CountingCapabilityNode = CountingCapabilityNode.new()
+	var scene: PackedScene = PackedScene.new()
+	var _pack_result_987: Variant = scene.pack(node)
 	node.free()
 	CountingCapabilityNode.created_nodes.clear()
 	return scene
 
 
 func _find_capability_report_with_dependencies(report: Dictionary) -> Dictionary:
-	for entry: Dictionary in report.get("capabilities", []):
-		var dependencies := entry.get("registered_dependencies", PackedStringArray()) as PackedStringArray
+	for entry: Dictionary in GFVariantData.get_option_array(report, "capabilities"):
+		var dependencies: PackedStringArray = GFVariantData.get_option_packed_string_array(entry, "registered_dependencies")
 		if dependencies.size() > 0:
 			return entry
 	return {}
 
 
 func _has_issue(report: Dictionary, kind: String) -> bool:
-	for issue_variant: Variant in report.get("issues", []):
-		var issue := issue_variant as Dictionary
-		if issue != null and String(issue.get("kind", "")) == kind:
+	for issue_variant: Variant in GFVariantData.get_option_array(report, "issues"):
+		if not issue_variant is Dictionary:
+			continue
+		var issue: Dictionary = issue_variant
+		if GFVariantData.get_option_string(issue, "kind") == kind:
 			return true
 	return false
+
+
+func _load_capability_inspector_plugin() -> Script:
+	return _load_script(GF_CAPABILITY_INSPECTOR_PLUGIN_PATH)
+
+
+func _load_script(script_path: String) -> Script:
+	var resource: Resource = ResourceLoader.load(script_path, "", ResourceLoader.CACHE_MODE_IGNORE)
+	if resource is Script:
+		var script: Script = resource
+		return script
+	return null
+
+
+func _collect_required_capability_types(inspector_plugin: Script, capability: Node) -> Array[Script]:
+	if inspector_plugin == null:
+		return []
+
+	var value: Variant = inspector_plugin.call(
+		&"collect_required_capability_types",
+		capability,
+		null,
+		"RequiredByPropertyCapability"
+	)
+	var result: Array[Script] = []
+	if value is Array:
+		for item: Variant in GFVariantData.as_array(value):
+			if item is Script:
+				var script: Script = item
+				result.append(script)
+	return result
+
+
+func _new_control_node() -> Node:
+	var instance: Variant = ClassDB.instantiate("Control")
+	return _get_node_value(instance)
+
+
+func _get_node_value(value: Variant) -> Node:
+	if value is Node:
+		var node: Node = value
+		return node
+	return null
+
+
+func _object_value(value: Variant) -> Object:
+	if value is Object:
+		var object_value: Object = value
+		return object_value
+	return null
+
+
+func _property_bag(value: Object) -> GFPropertyBagCapability:
+	if value is GFPropertyBagCapability:
+		var bag: GFPropertyBagCapability = value
+		return bag
+	return null

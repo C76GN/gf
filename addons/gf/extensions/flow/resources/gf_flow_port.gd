@@ -153,7 +153,7 @@ func has_semantic_tag(tag: StringName) -> bool:
 ## [br]
 ## @return: 兼容返回 true。
 func is_compatible_with(target_port: GFFlowPort) -> bool:
-	return bool(_get_compatibility_report(target_port).get("ok", false))
+	return GFVariantData.get_option_bool(_get_compatibility_report(target_port), "ok", false)
 
 
 ## 获取当前端口连接到目标端口的兼容性报告。
@@ -177,7 +177,7 @@ func get_compatibility_report(target_port: GFFlowPort) -> Dictionary:
 ## [br]
 ## @schema return: 包含 port_id、display_name、direction、value_type、allow_multiple、editor_color、type_hint、class_name_hint、semantic_tags 和 metadata 字段的 Dictionary。
 func describe() -> Dictionary:
-	var effective_port_id := _get_effective_port_id(self)
+	var effective_port_id: StringName = _get_effective_port_id(self)
 	return {
 		"port_id": effective_port_id,
 		"display_name": _get_effective_display_name(self, effective_port_id),
@@ -198,8 +198,8 @@ func _get_compatibility_report(target_port: GFFlowPort) -> Dictionary:
 	if target_port == null:
 		return _make_compatibility_report(self, null, false, "missing_target_port", "Target port is null.")
 
-	var source_port := self
-	var input_port := target_port
+	var source_port: GFFlowPort = self
+	var input_port: GFFlowPort = target_port
 	if direction == Direction.INPUT and target_port.direction == Direction.OUTPUT:
 		source_port = target_port
 		input_port = self

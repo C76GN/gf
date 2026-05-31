@@ -110,10 +110,11 @@ func connect_any(
 ) -> Array[GFSignalConnection]:
 	var result: Array[GFSignalConnection] = []
 	for source_signal_variant: Variant in source_signals:
-		if not source_signal_variant is Signal:
+		var typed_signal: Signal = _variant_to_signal(source_signal_variant)
+		if typed_signal.is_null():
 			continue
-		var connection := connect_signal(
-			source_signal_variant as Signal,
+		var connection: GFSignalConnection = connect_signal(
+			typed_signal,
 			callback,
 			owner,
 			default_args,
@@ -135,7 +136,7 @@ func connect_any(
 ## @param owner: 监听或连接的拥有者。
 func disconnect_signal(source_signal: Signal, callback: Callable, owner: Object = null) -> void:
 	for i: int in range(_connections.size() - 1, -1, -1):
-		var connection := _connections[i]
+		var connection: GFSignalConnection = _connections[i]
 		if connection == null:
 			_connections.remove_at(i)
 			continue
@@ -154,7 +155,7 @@ func disconnect_owner(owner: Object) -> void:
 		return
 
 	for i: int in range(_connections.size() - 1, -1, -1):
-		var connection := _connections[i]
+		var connection: GFSignalConnection = _connections[i]
 		if connection == null or connection.is_owned_by(owner):
 			if connection != null:
 				connection.disconnect_signal()
@@ -170,7 +171,7 @@ func disconnect_owner(owner: Object) -> void:
 ## @schema connections: Array，由 connect_signal()、connect_once() 或 connect_any() 返回的 GFSignalConnection 句柄。
 func disconnect_connections(connections: Array) -> void:
 	for connection_variant: Variant in connections:
-		var connection := connection_variant as GFSignalConnection
+		var connection: GFSignalConnection = _variant_to_connection(connection_variant)
 		if connection == null:
 			continue
 		connection.disconnect_signal()
@@ -192,7 +193,7 @@ func disconnect_all() -> void:
 ## @api public
 func prune_invalid_connections() -> void:
 	for i: int in range(_connections.size() - 1, -1, -1):
-		var connection := _connections[i]
+		var connection: GFSignalConnection = _connections[i]
 		if connection == null or connection.prune_if_invalid():
 			_connections.remove_at(i)
 
@@ -217,11 +218,11 @@ func _connect_signal(
 	connect_flags: int,
 	once: bool
 ) -> GFSignalConnection:
-	var existing := _find_connection(source_signal, callback, owner, default_args, connect_flags, once)
+	var existing: GFSignalConnection = _find_connection(source_signal, callback, owner, default_args, connect_flags, once)
 	if existing != null:
 		return existing
 
-	var connection := GFSignalConnection.new(
+	var connection: GFSignalConnection = GFSignalConnection.new(
 		source_signal,
 		callback,
 		owner,
@@ -230,9 +231,9 @@ func _connect_signal(
 		self
 	)
 	if once:
-		connection.once()
+		var _once_result_234: Variant = connection.once()
 	_connections.append(connection)
-	connection.start()
+	var _start_result_236: Variant = connection.start()
 	if not connection.is_active():
 		_connections.erase(connection)
 	return connection
@@ -262,6 +263,20 @@ func _connection_matches(
 	if connection == null:
 		return false
 	return connection.matches(source_signal, callback, owner)
+
+
+func _variant_to_signal(value: Variant) -> Signal:
+	if value is Signal:
+		var source_signal: Signal = value
+		return source_signal
+	return Signal()
+
+
+func _variant_to_connection(value: Variant) -> GFSignalConnection:
+	if value is GFSignalConnection:
+		var connection: GFSignalConnection = value
+		return connection
+	return null
 
 
 func _untrack_connection(connection: GFSignalConnection) -> void:

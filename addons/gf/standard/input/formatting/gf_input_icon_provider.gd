@@ -77,11 +77,11 @@ func get_event_icon(_input_event: InputEvent, _options: Dictionary = {}) -> Text
 ## [br]
 ## @return BBCode；返回空字符串会回退到文本格式化。
 func get_event_rich_text(input_event: InputEvent, options: Dictionary = {}) -> String:
-	var icon := get_event_icon(input_event, options)
+	var icon: Texture2D = get_event_icon(input_event, options)
 	if icon == null or icon.resource_path.is_empty():
 		return ""
 
-	var size := int(options.get("icon_size", icon_size))
+	var size: int = GFVariantData.get_option_int(options, "icon_size", icon_size)
 	if size > 0:
 		return "[img=%d]%s[/img]" % [size, icon.resource_path]
 	return "[img]%s[/img]" % icon.resource_path

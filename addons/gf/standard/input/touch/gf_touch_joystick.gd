@@ -46,6 +46,11 @@ enum PositionMode {
 }
 
 
+# --- 常量 ---
+
+const _INPUT_EVENT_TOOLS = preload("res://addons/gf/standard/input/common/gf_input_event_tools.gd")
+
+
 # --- 导出变量 ---
 
 @export_group("Shape")
@@ -163,10 +168,14 @@ func _input(event: InputEvent) -> void:
 	if Engine.is_editor_hint():
 		return
 
-	if event is InputEventScreenTouch:
-		_handle_touch(event as InputEventScreenTouch)
-	elif event is InputEventScreenDrag:
-		_handle_drag(event as InputEventScreenDrag)
+	var screen_touch: InputEventScreenTouch = _INPUT_EVENT_TOOLS.get_screen_touch_event(event)
+	if screen_touch != null:
+		_handle_touch(screen_touch)
+		return
+
+	var screen_drag: InputEventScreenDrag = _INPUT_EVENT_TOOLS.get_screen_drag_event(event)
+	if screen_drag != null:
+		_handle_drag(screen_drag)
 
 
 func _draw() -> void:
@@ -202,8 +211,8 @@ func release() -> void:
 # --- 私有/辅助方法 ---
 
 func _handle_touch(event: InputEventScreenTouch) -> void:
-	var global_pos := _screen_to_global_position(event.position)
-	var local_pos := to_local(global_pos)
+	var global_pos: Vector2 = _screen_to_global_position(event.position)
+	var local_pos: Vector2 = to_local(global_pos)
 	if event.pressed:
 		if _active_touch_index == -1 and _can_begin_at(local_pos):
 			_begin_touch(event.index, global_pos, local_pos)
@@ -234,9 +243,9 @@ func _can_begin_at(local_pos: Vector2) -> bool:
 
 
 func _update_from_local_position(local_pos: Vector2) -> void:
-	var knob_pos := local_pos.limit_length(radius)
-	var raw_direction := knob_pos / radius
-	var next_direction := raw_direction
+	var knob_pos: Vector2 = local_pos.limit_length(radius)
+	var raw_direction: Vector2 = knob_pos / radius
+	var next_direction: Vector2 = raw_direction
 	if next_direction.length() < deadzone:
 		next_direction = Vector2.ZERO
 	else:
@@ -293,7 +302,7 @@ func _emit_joypad_motion(direction: Vector2) -> void:
 
 
 func _emit_joypad_axis(axis: JoyAxis, value: float) -> void:
-	var event := InputEventJoypadMotion.new()
+	var event: InputEventJoypadMotion = InputEventJoypadMotion.new()
 	event.device = joypad_device_id
 	event.axis = axis
 	event.axis_value = clampf(value, -1.0, 1.0)
@@ -301,7 +310,7 @@ func _emit_joypad_axis(axis: JoyAxis, value: float) -> void:
 
 
 func _screen_to_global_position(screen_position: Vector2) -> Vector2:
-	var viewport := get_viewport()
+	var viewport: Viewport = get_viewport()
 	if viewport == null:
 		return screen_position
 	return viewport.get_canvas_transform().affine_inverse() * screen_position

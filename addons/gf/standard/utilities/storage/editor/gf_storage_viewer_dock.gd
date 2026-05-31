@@ -15,11 +15,10 @@ extends VBoxContainer
 
 # --- 常量 ---
 
-const _SAVE_VIEWER_CODEC_SCRIPT_PATH: String = "res://addons/gf/standard/utilities/storage/gf_storage_codec.gd"
 const _SAVE_VIEWER_FORMAT_JSON: int = 0
 const _SAVE_VIEWER_FORMAT_BINARY: int = 1
 const _SAVE_VIEWER_LABEL_WIDTH: float = 72.0
-const _GFEditorWorkspaceUI := preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
+const _GFEditorWorkspaceUI = preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
 
 
 # --- 私有变量 ---
@@ -46,7 +45,7 @@ func _init() -> void:
 # --- 私有/辅助方法 ---
 
 func _build_ui() -> void:
-	var path_row := _GFEditorWorkspaceUI.make_toolbar()
+	var path_row: HBoxContainer = _GFEditorWorkspaceUI.make_toolbar()
 	add_child(path_row)
 
 	_path_edit = LineEdit.new()
@@ -82,7 +81,7 @@ func _build_ui() -> void:
 	_strict_check.button_pressed = true
 	add_child(_strict_check)
 
-	var button_row := _GFEditorWorkspaceUI.make_toolbar()
+	var button_row: HBoxContainer = _GFEditorWorkspaceUI.make_toolbar()
 	add_child(button_row)
 
 	button_row.add_child(_GFEditorWorkspaceUI.make_button("加载", "读取并解码当前存档文件。", _on_load_pressed))
@@ -98,15 +97,15 @@ func _build_ui() -> void:
 	_file_dialog = FileDialog.new()
 	_file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
 	_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
-	_file_dialog.file_selected.connect(_on_file_selected)
+	var _connect_result_100: Variant = _file_dialog.file_selected.connect(_on_file_selected)
 	add_child(_file_dialog)
 
 
 func _make_labeled_row(label_text: String, control: Control) -> HBoxContainer:
-	var row := HBoxContainer.new()
+	var row: HBoxContainer = HBoxContainer.new()
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
-	var label := Label.new()
+	var label: Label = Label.new()
 	label.text = label_text
 	label.custom_minimum_size = Vector2(_SAVE_VIEWER_LABEL_WIDTH, 0.0)
 	row.add_child(label)
@@ -116,11 +115,8 @@ func _make_labeled_row(label_text: String, control: Control) -> HBoxContainer:
 	return row
 
 
-func _create_codec() -> Variant:
-	var codec_script := load(_SAVE_VIEWER_CODEC_SCRIPT_PATH) as Script
-	if codec_script == null or not codec_script.can_instantiate():
-		return null
-	return codec_script.new()
+func _create_codec() -> GFStorageCodec:
+	return GFStorageCodec.new()
 
 
 func _get_selected_format() -> int:
@@ -148,7 +144,7 @@ func _on_file_selected(path: String) -> void:
 
 
 func _on_load_pressed() -> void:
-	var path := _path_edit.text.strip_edges()
+	var path: String = _path_edit.text.strip_edges()
 	if path.is_empty():
 		_set_status("路径为空。", true)
 		return
@@ -156,15 +152,15 @@ func _on_load_pressed() -> void:
 		_set_status("文件不存在：%s" % path, true)
 		return
 
-	var file := FileAccess.open(path, FileAccess.READ)
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		_set_status("无法打开文件：%s" % error_string(FileAccess.get_open_error()), true)
 		return
 
-	var bytes := file.get_buffer(file.get_length())
+	var bytes: PackedByteArray = file.get_buffer(file.get_length())
 	file.close()
 
-	var codec := _create_codec()
+	var codec: GFStorageCodec = _create_codec()
 	if codec == null:
 		_output.text = ""
 		_set_status("Storage codec 不可用。", true)
@@ -178,24 +174,24 @@ func _on_load_pressed() -> void:
 		"strict_integrity": _strict_check.button_pressed,
 	})
 
-	if not bool(result.get("ok", false)):
+	if not GFVariantData.get_option_bool(result, "ok", false):
 		_output.text = ""
-		_set_status(String(result.get("error", "解码失败。")), true)
+		_set_status(GFVariantData.get_option_string(result, "error", "解码失败。"), true)
 		return
 
-	var data_value: Variant = result.get("data", {})
+	var data_value: Variant = GFVariantData.get_option_value(result, "data", {})
 	if not (data_value is Dictionary):
 		_output.text = ""
 		_set_status("解码后的存档 payload 不是 Dictionary。", true)
 		return
 
-	var data := data_value as Dictionary
+	var data: Dictionary = GFVariantData.as_dictionary(data_value)
 	_output.text = JSON.stringify(data, "\t")
 	_set_status(
 		"已加载：%d bytes，%d 个顶层键，完整性=%s" % [
 			bytes.size(),
 			data.size(),
-			str(result.get("integrity_valid", true)),
+			str(GFVariantData.get_option_bool(result, "integrity_valid", true)),
 		],
 		false
 	)

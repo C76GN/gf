@@ -72,7 +72,7 @@ func add_event(
 	source_id: StringName = &"",
 	event_metadata: Dictionary = {}
 ) -> Dictionary:
-	var event := {
+	var event: Dictionary = {
 		"time_seconds": maxf(time_seconds, 0.0),
 		"action_id": action_id,
 		"value": GFVariantData.duplicate_variant(value),
@@ -81,7 +81,7 @@ func add_event(
 		"metadata": event_metadata.duplicate(true),
 	}
 	events.append(event)
-	duration_seconds = maxf(duration_seconds, float(event["time_seconds"]))
+	duration_seconds = maxf(duration_seconds, _get_event_time_seconds(event))
 	sort_events()
 	return event
 
@@ -117,7 +117,7 @@ func get_event_count() -> int:
 ## @api public
 func sort_events() -> void:
 	events.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
-		return float(left.get("time_seconds", 0.0)) < float(right.get("time_seconds", 0.0))
+		return _get_event_time_seconds(left) < _get_event_time_seconds(right)
 	)
 
 
@@ -131,7 +131,7 @@ func sort_events() -> void:
 func get_events() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for event: Dictionary in events:
-		result.append(GFVariantData.duplicate_variant(event) as Dictionary)
+		result.append(GFVariantData.to_dictionary(event))
 	return result
 
 
@@ -141,7 +141,7 @@ func get_events() -> Array[Dictionary]:
 ## [br]
 ## @return 新录制。
 func duplicate_recording() -> GFInputRecording:
-	var duplicated := (get_script() as Script).new() as GFInputRecording
+	var duplicated: GFInputRecording = _new_recording_instance()
 	duplicated.apply_dict(to_dict())
 	return duplicated
 
@@ -178,16 +178,17 @@ func to_dict(json_compatible: bool = false) -> Dictionary:
 ## [br]
 ## @schema data: Dictionary，包含 recording_id、duration_seconds、events 和 metadata。
 func apply_dict(data: Dictionary, json_compatible: bool = false) -> void:
-	recording_id = StringName(String(data.get("recording_id", "")))
-	duration_seconds = maxf(float(data.get("duration_seconds", 0.0)), 0.0)
+	recording_id = GFVariantData.get_option_string_name(data, "recording_id")
+	duration_seconds = maxf(GFVariantData.get_option_float(data, "duration_seconds"), 0.0)
 	events.clear()
-	for event_value: Variant in data.get("events", []):
+	for event_value: Variant in GFVariantData.get_option_array(data, "events"):
 		if event_value is Dictionary:
-			events.append(_event_from_dict(event_value as Dictionary, json_compatible))
+			var event_data: Dictionary = event_value
+			events.append(_event_from_dict(event_data, json_compatible))
 
-	var metadata_value: Variant = data.get("metadata", {})
+	var metadata_value: Variant = GFVariantData.get_option_value(data, "metadata", {})
 	metadata_value = GFVariantJsonCodec.json_compatible_to_variant(metadata_value) if json_compatible else GFVariantData.duplicate_variant(metadata_value)
-	metadata = metadata_value as Dictionary if metadata_value is Dictionary else {}
+	metadata = GFVariantData.as_dictionary(metadata_value)
 	sort_events()
 
 
@@ -203,35 +204,97 @@ func apply_dict(data: Dictionary, json_compatible: bool = false) -> void:
 ## [br]
 ## @return 录制。
 static func from_dict(data: Dictionary, json_compatible: bool = false) -> GFInputRecording:
-	var script := load("res://addons/gf/standard/input/recording/gf_input_recording.gd") as Script
-	var recording := script.new() as GFInputRecording
+	var recording: GFInputRecording = GFInputRecording.new()
 	recording.apply_dict(data, json_compatible)
 	return recording
 
 
 # --- 私有/辅助方法 ---
 
+func _new_recording_instance() -> GFInputRecording:
+	var recording_script: Script = _variant_to_script(get_script())
+	if recording_script != null:
+		var recording: GFInputRecording = _variant_to_recording(recording_script.call("new"))
+		if recording != null:
+			return recording
+	return GFInputRecording.new()
+
+
+func _variant_to_script(value: Variant) -> Script:
+	if value is Script:
+		var script: Script = value
+		return script
+	return null
+
+
+func _variant_to_recording(value: Variant) -> GFInputRecording:
+	if value is GFInputRecording:
+		var recording: GFInputRecording = value
+		return recording
+	return null
+
+
 func _event_to_dict(event: Dictionary, json_compatible: bool) -> Dictionary:
 	return {
-		"time_seconds": float(event.get("time_seconds", 0.0)),
-		"action_id": String(event.get("action_id", "")),
-		"value": GFVariantJsonCodec.variant_to_json_compatible(event.get("value")) if json_compatible else GFVariantData.duplicate_variant(event.get("value")),
-		"player_index": int(event.get("player_index", -1)),
-		"source_id": String(event.get("source_id", "")),
-		"metadata": GFVariantJsonCodec.variant_to_json_compatible(event.get("metadata", {})) if json_compatible else GFVariantData.duplicate_variant(event.get("metadata", {})),
+		"time_seconds": _get_event_time_seconds(event),
+		"action_id": String(_get_event_action_id(event)),
+		"value": (
+			GFVariantJsonCodec.variant_to_json_compatible(_get_event_value(event))
+			if json_compatible
+			else GFVariantData.duplicate_variant(_get_event_value(event))
+		),
+		"player_index": _get_event_player_index(event),
+		"source_id": String(_get_event_source_id(event)),
+		"metadata": (
+			GFVariantJsonCodec.variant_to_json_compatible(_get_event_metadata(event))
+			if json_compatible
+			else GFVariantData.duplicate_variant(_get_event_metadata(event))
+		),
 	}
 
 
 func _event_from_dict(event: Dictionary, json_compatible: bool) -> Dictionary:
-	var value: Variant = event.get("value", null)
-	value = GFVariantJsonCodec.json_compatible_to_variant(value) if json_compatible else GFVariantData.duplicate_variant(value)
-	var event_metadata: Variant = event.get("metadata", {})
-	event_metadata = GFVariantJsonCodec.json_compatible_to_variant(event_metadata) if json_compatible else GFVariantData.duplicate_variant(event_metadata)
+	var value: Variant = _get_event_value(event)
+	value = (
+		GFVariantJsonCodec.json_compatible_to_variant(value)
+		if json_compatible
+		else GFVariantData.duplicate_variant(value)
+	)
+	var event_metadata: Variant = GFVariantData.get_option_value(event, "metadata", {})
+	event_metadata = (
+		GFVariantJsonCodec.json_compatible_to_variant(event_metadata)
+		if json_compatible
+		else GFVariantData.duplicate_variant(event_metadata)
+	)
 	return {
-		"time_seconds": maxf(float(event.get("time_seconds", 0.0)), 0.0),
-		"action_id": StringName(String(event.get("action_id", ""))),
+		"time_seconds": maxf(_get_event_time_seconds(event), 0.0),
+		"action_id": _get_event_action_id(event),
 		"value": value,
-		"player_index": int(event.get("player_index", -1)),
-		"source_id": StringName(String(event.get("source_id", ""))),
-		"metadata": event_metadata if event_metadata is Dictionary else {},
+		"player_index": _get_event_player_index(event),
+		"source_id": _get_event_source_id(event),
+		"metadata": GFVariantData.as_dictionary(event_metadata),
 	}
+
+
+func _get_event_time_seconds(event: Dictionary) -> float:
+	return GFVariantData.get_option_float(event, "time_seconds")
+
+
+func _get_event_action_id(event: Dictionary) -> StringName:
+	return GFVariantData.get_option_string_name(event, "action_id")
+
+
+func _get_event_value(event: Dictionary) -> Variant:
+	return GFVariantData.get_option_value(event, "value")
+
+
+func _get_event_player_index(event: Dictionary) -> int:
+	return GFVariantData.get_option_int(event, "player_index", -1)
+
+
+func _get_event_source_id(event: Dictionary) -> StringName:
+	return GFVariantData.get_option_string_name(event, "source_id")
+
+
+func _get_event_metadata(event: Dictionary) -> Dictionary:
+	return GFVariantData.get_option_dictionary(event, "metadata")

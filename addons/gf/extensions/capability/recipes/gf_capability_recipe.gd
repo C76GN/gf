@@ -12,11 +12,6 @@ class_name GFCapabilityRecipe
 extends Resource
 
 
-# --- 常量 ---
-
-const _GF_VALIDATION_REPORT_SCRIPT = preload("res://addons/gf/standard/foundation/validation/gf_validation_report.gd")
-
-
 # --- 导出变量 ---
 
 ## Recipe 稳定标识。为空时可由项目层按资源路径管理。
@@ -95,21 +90,21 @@ func describe_recipe() -> Dictionary:
 ## [br]
 ## @schema return: GFValidationReport.to_dict() 生成的 Dictionary，包含 ok、healthy、summary、issues、next_action 和 entry_count 等字段。
 func validate_recipe() -> Dictionary:
-	var report := _GF_VALIDATION_REPORT_SCRIPT.new("Capability recipe")
+	var report: GFValidationReport = GFValidationReport.new("Capability recipe")
 
 	var seen_keys: Dictionary = {}
 	for index: int in range(entries.size()):
-		var entry := entries[index]
+		var entry: GFCapabilityRecipeEntry = entries[index]
 		if entry == null:
-			report.add_warning(&"null_entry", "Recipe contains a null entry.", str(index))
+			var _add_warning_result_99: Variant = report.add_warning(&"null_entry", "Recipe contains a null entry.", str(index))
 			continue
 		if not entry.is_valid_entry():
-			report.add_error(&"invalid_entry", "Recipe entry requires capability_type or scene.", str(index))
+			var _add_error_result_102: Variant = report.add_error(&"invalid_entry", "Recipe entry requires capability_type or scene.", str(index))
 			continue
 
-		var key := _get_entry_key(entry)
+		var key: String = _get_entry_key(entry)
 		if not key.is_empty() and seen_keys.has(key):
-			report.add_warning(&"duplicate_entry", "Recipe contains duplicate capability entries.", key)
+			var _add_warning_result_107: Variant = report.add_warning(&"duplicate_entry", "Recipe contains duplicate capability entries.", key)
 		seen_keys[key] = true
 
 	return report.to_dict(
@@ -131,7 +126,7 @@ func _get_entry_key(entry: GFCapabilityRecipeEntry) -> String:
 	if entry == null:
 		return ""
 	if entry.capability_type != null:
-		var global_name := entry.capability_type.get_global_name()
+		var global_name: StringName = entry.capability_type.get_global_name()
 		if global_name != &"":
 			return String(global_name)
 		if not entry.capability_type.resource_path.is_empty():

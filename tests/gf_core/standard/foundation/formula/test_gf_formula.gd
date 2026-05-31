@@ -21,15 +21,15 @@ class ValueFormula extends GFFormula:
 
 ## 验证公式参数容器可链式写入并复制。
 func test_formula_parameter_stores_values() -> void:
-	var source := Object.new()
-	var target := Object.new()
-	var parameter := GFFormulaParameter.new(source, target).set_value(&"power", 12)
-	var copy := parameter.duplicate_parameter()
+	var source: Object = Object.new()
+	var target: Object = Object.new()
+	var parameter: GFFormulaParameter = GFFormulaParameter.new(source, target).set_value(&"power", 12)
+	var copy: GFFormulaParameter = parameter.duplicate_parameter()
 
 	assert_eq(parameter.source, source, "参数应保留 source。")
 	assert_eq(parameter.target, target, "参数应保留 target。")
-	assert_eq(parameter.get_value(&"power"), 12, "应能读取写入的参数。")
-	assert_eq(copy.get_value(&"power"), 12, "复制后的参数应保留数值。")
+	assert_eq(GFVariantData.to_int(parameter.get_value(&"power")), 12, "应能读取写入的参数。")
+	assert_eq(GFVariantData.to_int(copy.get_value(&"power")), 12, "复制后的参数应保留数值。")
 
 	source.free()
 	target.free()
@@ -37,8 +37,8 @@ func test_formula_parameter_stores_values() -> void:
 
 ## 验证公式类型转换使用稳定兜底。
 func test_formula_type_helpers() -> void:
-	var formula := ValueFormula.new(&"value", "3.5")
-	var parameter := GFFormulaParameter.new().set_value(&"value", "4.25")
+	var formula: ValueFormula = ValueFormula.new(&"value", "3.5")
+	var parameter: GFFormulaParameter = GFFormulaParameter.new().set_value(&"value", "4.25")
 
 	assert_almost_eq(formula.calculate_float(parameter), 4.25, 0.001, "字符串数值应可转为 float。")
 	assert_eq(formula.calculate_int(parameter), 4, "int helper 应四舍五入。")
@@ -49,19 +49,19 @@ func test_formula_type_helpers() -> void:
 
 ## 验证非法数字字符串不会静默变成 0。
 func test_formula_float_uses_fallback_for_invalid_string() -> void:
-	var formula := ValueFormula.new(&"value", 0.0)
-	var parameter := GFFormulaParameter.new().set_value(&"value", "not-a-number")
+	var formula: ValueFormula = ValueFormula.new(&"value", 0.0)
+	var parameter: GFFormulaParameter = GFFormulaParameter.new().set_value(&"value", "not-a-number")
 
 	assert_almost_eq(formula.calculate_float(parameter, -3.5), -3.5, 0.001, "非法数字字符串应返回 fallback。")
 
 
 ## 验证公式集合按 StringName 调度公式。
 func test_formula_set_calculates_registered_formula() -> void:
-	var formula_set := GFFormulaSet.new()
+	var formula_set: GFFormulaSet = GFFormulaSet.new()
 	formula_set.set_formula(&"score", ValueFormula.new(&"score", 0))
 
-	var parameter := GFFormulaParameter.new().set_value(&"score", 99)
+	var parameter: GFFormulaParameter = GFFormulaParameter.new().set_value(&"score", 99)
 
 	assert_true(formula_set.has_formula(&"score"), "注册后应能查询到公式。")
-	assert_eq(formula_set.calculate(&"score", parameter), 99, "应调用对应公式。")
-	assert_eq(formula_set.calculate(&"missing", parameter, -1), -1, "缺失公式应返回 fallback。")
+	assert_eq(GFVariantData.to_int(formula_set.calculate(&"score", parameter)), 99, "应调用对应公式。")
+	assert_eq(GFVariantData.to_int(formula_set.calculate(&"missing", parameter, -1)), -1, "缺失公式应返回 fallback。")

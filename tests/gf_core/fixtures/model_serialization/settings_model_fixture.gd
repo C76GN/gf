@@ -2,6 +2,11 @@
 extends GFModel
 
 
+# --- 常量 ---
+
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
+
+
 # --- 公共变量 ---
 
 var volume: float = 1.0
@@ -16,4 +21,4 @@ func to_dict() -> Dictionary:
 
 
 func from_dict(data: Dictionary) -> void:
-	volume = data.get("volume", 1.0)
+	volume = _GF_VARIANT_ACCESS_SCRIPT.get_option_float(data, "volume", 1.0)

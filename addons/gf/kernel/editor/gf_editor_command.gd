@@ -47,7 +47,7 @@ func execute() -> Error:
 	if not can_execute():
 		return ERR_UNAVAILABLE
 
-	var error := _do_it()
+	var error: Error = _do_it()
 	if error == OK:
 		_executed = true
 	return error
@@ -62,7 +62,7 @@ func revert() -> Error:
 	if not _executed and not can_revert_before_execute():
 		return ERR_UNAVAILABLE
 
-	var error := _undo_it()
+	var error: Error = _undo_it()
 	if error == OK:
 		_executed = false
 	return error

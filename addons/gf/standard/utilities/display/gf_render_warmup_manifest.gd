@@ -39,7 +39,7 @@ extends Resource
 ## [br]
 ## @api public
 ## [br]
-## @param resource_path: 资源路径。
+## @param entry_resource_path: 资源路径。
 ## [br]
 ## @param kind: 资源类别提示。
 ## [br]
@@ -51,16 +51,16 @@ extends Resource
 ## [br]
 ## @return 添加后的条目索引；失败返回 -1。
 func add_resource_path(
-	resource_path: String,
+	entry_resource_path: String,
 	kind: StringName = &"",
 	type_hint: String = "",
 	entry_metadata: Dictionary = {}
 ) -> int:
-	if resource_path.is_empty():
+	if entry_resource_path.is_empty():
 		return -1
 
 	entries.append({
-		"resource_path": resource_path,
+		"resource_path": entry_resource_path,
 		"resource": null,
 		"kind": kind,
 		"type_hint": type_hint,
@@ -107,7 +107,7 @@ func append_manifest(manifest: GFRenderWarmupManifest) -> int:
 	if manifest == null:
 		return 0
 
-	var added_count := 0
+	var added_count: int = 0
 	for entry: Dictionary in manifest.get_entries():
 		entries.append(entry)
 		added_count += 1
@@ -151,13 +151,12 @@ func is_empty() -> bool:
 ## [br]
 ## @schema return: Dictionary，规范化后的 manifest 条目，包含 resource_path、resource、kind、type_hint 和 metadata。
 static func normalize_entry(entry: Dictionary) -> Dictionary:
-	var metadata_value: Variant = entry.get("metadata", {})
 	return {
-		"resource_path": _variant_to_string(entry.get("resource_path", "")),
-		"resource": entry.get("resource", null),
-		"kind": StringName(_variant_to_string(entry.get("kind", &""))),
-		"type_hint": _variant_to_string(entry.get("type_hint", "")),
-		"metadata": (metadata_value as Dictionary).duplicate(true) if metadata_value is Dictionary else {},
+		"resource_path": GFVariantData.get_option_string(entry, "resource_path"),
+		"resource": GFVariantData.get_option_value(entry, "resource"),
+		"kind": GFVariantData.get_option_string_name(entry, "kind"),
+		"type_hint": GFVariantData.get_option_string(entry, "type_hint"),
+		"metadata": GFVariantData.get_option_dictionary(entry, "metadata"),
 	}
 
 
@@ -185,13 +184,13 @@ func get_entries() -> Array[Dictionary]:
 func describe() -> Dictionary:
 	var described_entries: Array[Dictionary] = []
 	for entry: Dictionary in entries:
-		var normalized := normalize_entry(entry)
+		var normalized: Dictionary = normalize_entry(entry)
 		described_entries.append({
-			"resource_path": _variant_to_string(normalized.get("resource_path", "")),
-			"kind": StringName(normalized.get("kind", &"")),
-			"type_hint": _variant_to_string(normalized.get("type_hint", "")),
-			"metadata": (normalized.get("metadata", {}) as Dictionary).duplicate(true),
-			"has_resource": normalized.get("resource", null) is Resource,
+			"resource_path": GFVariantData.get_option_string(normalized, "resource_path"),
+			"kind": GFVariantData.get_option_string_name(normalized, "kind"),
+			"type_hint": GFVariantData.get_option_string(normalized, "type_hint"),
+			"metadata": GFVariantData.get_option_dictionary(normalized, "metadata").duplicate(true),
+			"has_resource": GFVariantData.get_option_value(normalized, "resource") is Resource,
 		})
 	return {
 		"manifest_id": manifest_id,
@@ -199,13 +198,3 @@ func describe() -> Dictionary:
 		"entries": described_entries,
 		"metadata": metadata.duplicate(true),
 	}
-
-
-# --- 私有/辅助方法 ---
-
-static func _variant_to_string(value: Variant) -> String:
-	if value == null:
-		return ""
-	if value is String:
-		return value as String
-	return str(value)

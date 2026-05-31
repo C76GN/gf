@@ -195,7 +195,7 @@ func after_each() -> void:
 
 ## 验证 start() 调用初始状态的 enter()。
 func test_start_calls_enter() -> void:
-	var state := TrackingState.new()
+	var state: TrackingState = TrackingState.new()
 	_fsm.add_state(&"Idle", state)
 	_fsm.start(&"Idle")
 
@@ -205,15 +205,15 @@ func test_start_calls_enter() -> void:
 
 ## 验证 start() 可传入初始消息。
 func test_start_passes_msg() -> void:
-	var state := TrackingState.new()
+	var state: TrackingState = TrackingState.new()
 	_fsm.add_state(&"Idle", state)
 	_fsm.start(&"Idle", {"key": 42})
 
-	assert_eq(state.last_msg.get("key"), 42, "enter 应收到传入的 msg。")
+	assert_eq(GFVariantData.get_option_int(state.last_msg, "key"), 42, "enter 应收到传入的 msg。")
 
 
 func test_start_emits_initial_state_changed_signal_by_default() -> void:
-	var state := TrackingState.new()
+	var state: TrackingState = TrackingState.new()
 	_fsm.add_state(&"Idle", state)
 
 	watch_signals(_fsm)
@@ -223,7 +223,7 @@ func test_start_emits_initial_state_changed_signal_by_default() -> void:
 
 
 func test_start_can_suppress_initial_state_changed_signal() -> void:
-	var state := TrackingState.new()
+	var state: TrackingState = TrackingState.new()
 	_fsm.add_state(&"Idle", state)
 
 	watch_signals(_fsm)
@@ -233,8 +233,8 @@ func test_start_can_suppress_initial_state_changed_signal() -> void:
 
 
 func test_start_again_exits_previous_state() -> void:
-	var idle := TrackingState.new()
-	var run := TrackingState.new()
+	var idle: TrackingState = TrackingState.new()
+	var run: TrackingState = TrackingState.new()
 	_fsm.add_state(&"Idle", idle)
 	_fsm.add_state(&"Run", run)
 	_fsm.start(&"Idle")
@@ -249,15 +249,17 @@ func test_start_again_exits_previous_state() -> void:
 ## 验证 start() 对未知状态名打印错误且不崩溃。
 func test_start_unknown_state_is_safe() -> void:
 	_fsm.start(&"Unknown")
+
 	assert_eq(_fsm.current_state_name, &"", "未找到状态时 current_state_name 应保持空。")
+	assert_push_warning("[GFStateMachine] 启动失败，未找到状态：Unknown")
 
 
 # --- 测试：状态切换 ---
 
 ## 验证 change_state 调用旧状态 exit() 和新状态 enter()。
 func test_change_state_calls_exit_and_enter() -> void:
-	var idle := TrackingState.new()
-	var run := TrackingState.new()
+	var idle: TrackingState = TrackingState.new()
+	var run: TrackingState = TrackingState.new()
 	_fsm.add_state(&"Idle", idle)
 	_fsm.add_state(&"Run", run)
 	_fsm.start(&"Idle")
@@ -271,8 +273,8 @@ func test_change_state_calls_exit_and_enter() -> void:
 
 ## 验证 change_state 发出 state_changed 信号。
 func test_change_state_emits_signal() -> void:
-	var idle := TrackingState.new()
-	var run := TrackingState.new()
+	var idle: TrackingState = TrackingState.new()
+	var run: TrackingState = TrackingState.new()
 	_fsm.add_state(&"Idle", idle)
 	_fsm.add_state(&"Run", run)
 	_fsm.start(&"Idle")
@@ -284,15 +286,15 @@ func test_change_state_emits_signal() -> void:
 
 
 func test_nested_change_state_during_enter_emits_only_final_transition() -> void:
-	var idle := TrackingState.new()
-	var redirect := RedirectState.new(&"Run")
-	var run := TrackingState.new()
+	var idle: TrackingState = TrackingState.new()
+	var redirect: RedirectState = RedirectState.new(&"Run")
+	var run: TrackingState = TrackingState.new()
 	var transitions: Array = []
 	_fsm.add_state(&"Idle", idle)
 	_fsm.add_state(&"Redirect", redirect)
 	_fsm.add_state(&"Run", run)
 	_fsm.start(&"Idle")
-	_fsm.state_changed.connect(func(from_state: StringName, to_state: StringName) -> void:
+	var _connect_result_297: Variant = _fsm.state_changed.connect(func(from_state: StringName, to_state: StringName) -> void:
 		transitions.append([from_state, to_state])
 	)
 
@@ -303,9 +305,9 @@ func test_nested_change_state_during_enter_emits_only_final_transition() -> void
 
 
 func test_nested_change_state_during_exit_uses_requested_final_state() -> void:
-	var idle := ExitRedirectState.new(&"Run")
-	var attack := TrackingState.new()
-	var run := TrackingState.new()
+	var idle: ExitRedirectState = ExitRedirectState.new(&"Run")
+	var attack: TrackingState = TrackingState.new()
+	var run: TrackingState = TrackingState.new()
 	_fsm.add_state(&"Idle", idle)
 	_fsm.add_state(&"Attack", attack)
 	_fsm.add_state(&"Run", run)
@@ -320,11 +322,11 @@ func test_nested_change_state_during_exit_uses_requested_final_state() -> void:
 
 
 func test_chained_exit_redirects_use_final_requested_state() -> void:
-	var parent := ExitRedirectState.new(&"Fallback")
-	var child := ExitRedirectState.new(&"Other")
-	var outside := TrackingState.new()
-	var other := TrackingState.new()
-	var fallback := TrackingState.new()
+	var parent: ExitRedirectState = ExitRedirectState.new(&"Fallback")
+	var child: ExitRedirectState = ExitRedirectState.new(&"Other")
+	var outside: TrackingState = TrackingState.new()
+	var other: TrackingState = TrackingState.new()
+	var fallback: TrackingState = TrackingState.new()
 	_fsm.add_state(&"Parent", parent)
 	_fsm.add_state(&"Child", child, &"Parent")
 	_fsm.add_state(&"Outside", outside)
@@ -344,8 +346,8 @@ func test_chained_exit_redirects_use_final_requested_state() -> void:
 
 ## 验证状态可通过自身代理请求状态切换。
 func test_state_can_request_change_state() -> void:
-	var idle := TrackingState.new()
-	var run := TrackingState.new()
+	var idle: TrackingState = TrackingState.new()
+	var run: TrackingState = TrackingState.new()
 	_fsm.add_state(&"Idle", idle)
 	_fsm.add_state(&"Run", run)
 	_fsm.start(&"Idle")
@@ -358,8 +360,8 @@ func test_state_can_request_change_state() -> void:
 
 
 func test_hierarchical_start_enters_parent_then_child() -> void:
-	var grounded := TrackingState.new(&"Grounded")
-	var idle := TrackingState.new(&"Idle")
+	var grounded: TrackingState = TrackingState.new(&"Grounded")
+	var idle: TrackingState = TrackingState.new(&"Idle")
 	_fsm.add_state(&"Grounded", grounded)
 	_fsm.add_state(&"Idle", idle, &"Grounded")
 
@@ -369,13 +371,13 @@ func test_hierarchical_start_enters_parent_then_child() -> void:
 	assert_true(_fsm.is_in_state(&"Grounded"), "父状态应处于激活路径。")
 	assert_eq(grounded.enter_count, 1, "父状态应先进入。")
 	assert_eq(idle.enter_count, 1, "子状态应进入。")
-	assert_eq(idle.last_msg.get("spawn"), true, "切换参数应传给叶子状态。")
+	assert_true(GFVariantData.get_option_bool(idle.last_msg, "spawn"), "切换参数应传给叶子状态。")
 
 
 func test_hierarchical_sibling_transition_keeps_common_parent() -> void:
-	var grounded := TrackingState.new(&"Grounded")
-	var idle := TrackingState.new(&"Idle")
-	var run := TrackingState.new(&"Run")
+	var grounded: TrackingState = TrackingState.new(&"Grounded")
+	var idle: TrackingState = TrackingState.new(&"Idle")
+	var run: TrackingState = TrackingState.new(&"Run")
 	_fsm.add_state(&"Grounded", grounded)
 	_fsm.add_state(&"Idle", idle, &"Grounded")
 	_fsm.add_state(&"Run", run, &"Grounded")
@@ -391,9 +393,9 @@ func test_hierarchical_sibling_transition_keeps_common_parent() -> void:
 
 func test_hierarchical_unrelated_transition_exits_child_then_parent() -> void:
 	var events: Array[String] = []
-	var grounded := TrackingState.new(&"Grounded")
-	var idle := TrackingState.new(&"Idle")
-	var airborne := TrackingState.new(&"Airborne")
+	var grounded: TrackingState = TrackingState.new(&"Grounded")
+	var idle: TrackingState = TrackingState.new(&"Idle")
+	var airborne: TrackingState = TrackingState.new(&"Airborne")
 	grounded.events = events
 	idle.events = events
 	airborne.events = events
@@ -410,8 +412,8 @@ func test_hierarchical_unrelated_transition_exits_child_then_parent() -> void:
 
 
 func test_hierarchical_transition_guard_blocks_before_exit() -> void:
-	var idle := TrackingState.new()
-	var run := GuardedState.new()
+	var idle: TrackingState = TrackingState.new()
+	var run: GuardedState = GuardedState.new()
 	run.allow_enter = false
 	_fsm.add_state(&"Idle", idle)
 	_fsm.add_state(&"Run", run)
@@ -426,8 +428,8 @@ func test_hierarchical_transition_guard_blocks_before_exit() -> void:
 
 
 func test_state_event_bubbles_from_leaf_to_parent() -> void:
-	var parent := EventHandlingState.new(&"Parent")
-	var child := EventHandlingState.new(&"Child")
+	var parent: EventHandlingState = EventHandlingState.new(&"Parent")
+	var child: EventHandlingState = EventHandlingState.new(&"Child")
 	parent.handled_events.append(&"hit")
 	_fsm.add_state(&"Parent", parent)
 	_fsm.add_state(&"Child", child, &"Parent")
@@ -436,7 +438,7 @@ func test_state_event_bubbles_from_leaf_to_parent() -> void:
 	child.events.clear()
 	watch_signals(_fsm)
 
-	var handled := _fsm.dispatch_state_event(&"hit", { "damage": 3 })
+	var handled: bool = _fsm.dispatch_state_event(&"hit", { "damage": 3 })
 
 	assert_true(handled, "父状态应能处理子状态未处理的事件。")
 	assert_eq(child.events, ["miss:Child:hit"], "事件应先交给叶子状态。")
@@ -445,8 +447,8 @@ func test_state_event_bubbles_from_leaf_to_parent() -> void:
 
 
 func test_update_can_include_ancestor_states() -> void:
-	var parent := TrackingState.new()
-	var child := TrackingState.new()
+	var parent: TrackingState = TrackingState.new()
+	var child: TrackingState = TrackingState.new()
 	_fsm.add_state(&"Parent", parent)
 	_fsm.add_state(&"Child", child, &"Parent")
 	_fsm.start(&"Child")
@@ -464,19 +466,21 @@ func test_state_snapshot_reports_hierarchy_and_blackboard() -> void:
 	_fsm.blackboard["mode"] = "combat"
 	_fsm.start(&"Child")
 
-	var snapshot := _fsm.get_state_snapshot()
+	var snapshot: Dictionary = _fsm.get_state_snapshot()
+	var parents: Dictionary = GFVariantData.get_option_dictionary(snapshot, "parents")
+	var blackboard: Dictionary = GFVariantData.get_option_dictionary(snapshot, "blackboard")
 
-	assert_eq(snapshot.get("current_state"), &"Child", "快照应报告当前叶子状态。")
-	assert_eq(snapshot.get("active_path"), [&"Parent", &"Child"], "快照应报告激活路径。")
-	assert_eq((snapshot.get("parents") as Dictionary).get(&"Child"), &"Parent", "快照应报告父子关系。")
-	assert_eq((snapshot.get("blackboard") as Dictionary).get("mode"), "combat", "快照应包含黑板副本。")
+	assert_eq(GFVariantData.get_option_string_name(snapshot, "current_state"), &"Child", "快照应报告当前叶子状态。")
+	assert_eq(GFVariantData.get_option_array(snapshot, "active_path"), [&"Parent", &"Child"], "快照应报告激活路径。")
+	assert_eq(GFVariantData.get_option_string_name(parents, &"Child"), &"Parent", "快照应报告父子关系。")
+	assert_eq(GFVariantData.get_option_string(blackboard, "mode"), "combat", "快照应包含黑板副本。")
 
 
 func test_set_state_parent_rejects_cycles() -> void:
 	_fsm.add_state(&"Parent", TrackingState.new())
 	_fsm.add_state(&"Child", TrackingState.new(), &"Parent")
 
-	var changed := _fsm.set_state_parent(&"Parent", &"Child")
+	var changed: bool = _fsm.set_state_parent(&"Parent", &"Child")
 
 	assert_false(changed, "父子关系不能形成循环。")
 	assert_push_error("[GFStateMachine] 检测到循环状态父级：Parent -> Child")
@@ -484,20 +488,21 @@ func test_set_state_parent_rejects_cycles() -> void:
 
 ## 验证 change_state 对未知状态名打印错误且不改变当前状态。
 func test_change_state_unknown_is_safe() -> void:
-	var idle := TrackingState.new()
+	var idle: TrackingState = TrackingState.new()
 	_fsm.add_state(&"Idle", idle)
 	_fsm.start(&"Idle")
 
 	_fsm.change_state(&"NonExistent")
 
 	assert_eq(_fsm.current_state_name, &"Idle", "未找到状态时 current_state_name 不应变化。")
+	assert_push_warning("[GFStateMachine] 切换失败，未找到状态：NonExistent")
 
 
 # --- 测试：update 与 stop ---
 
 ## 验证 update 将 delta 传递给当前状态。
 func test_update_calls_current_state_update() -> void:
-	var idle := TrackingState.new()
+	var idle: TrackingState = TrackingState.new()
 	_fsm.add_state(&"Idle", idle)
 	_fsm.start(&"Idle")
 
@@ -509,7 +514,7 @@ func test_update_calls_current_state_update() -> void:
 
 ## 验证 stop() 调用当前状态的 exit() 并清空状态。
 func test_stop_calls_exit_and_clears_state() -> void:
-	var idle := TrackingState.new()
+	var idle: TrackingState = TrackingState.new()
 	_fsm.add_state(&"Idle", idle)
 	_fsm.start(&"Idle")
 
@@ -523,8 +528,8 @@ func test_stop_calls_exit_and_clears_state() -> void:
 
 ## 验证 dispose() 退出当前状态、释放所有状态并断开 State -> Machine 回链。
 func test_dispose_exits_current_state_and_disposes_all_states() -> void:
-	var idle := TrackingState.new()
-	var run := TrackingState.new()
+	var idle: TrackingState = TrackingState.new()
+	var run: TrackingState = TrackingState.new()
 	_fsm.add_state(&"Idle", idle)
 	_fsm.add_state(&"Run", run)
 	_fsm.start(&"Idle")
@@ -541,8 +546,8 @@ func test_dispose_exits_current_state_and_disposes_all_states() -> void:
 
 ## 验证替换同名状态时旧状态会断开对状态机的引用。
 func test_add_state_replaces_old_state_safely() -> void:
-	var old_idle := TrackingState.new()
-	var new_idle := TrackingState.new()
+	var old_idle: TrackingState = TrackingState.new()
+	var new_idle: TrackingState = TrackingState.new()
 	_fsm.add_state(&"Idle", old_idle)
 	_fsm.add_state(&"Idle", new_idle)
 	_fsm.start(&"Idle")
@@ -555,8 +560,8 @@ func test_add_state_replaces_old_state_safely() -> void:
 
 ## 验证未 setup 或已 dispose 的状态代理方法不会崩溃。
 func test_add_state_replacing_current_state_switches_active_reference() -> void:
-	var old_idle := TrackingState.new()
-	var new_idle := TrackingState.new()
+	var old_idle: TrackingState = TrackingState.new()
+	var new_idle: TrackingState = TrackingState.new()
 
 	_fsm.add_state(&"Idle", old_idle)
 	_fsm.start(&"Idle")
@@ -570,7 +575,7 @@ func test_add_state_replacing_current_state_switches_active_reference() -> void:
 
 
 func test_state_proxy_methods_without_machine_are_safe() -> void:
-	var state := TrackingState.new()
+	var state: TrackingState = TrackingState.new()
 
 	state.change_state(&"Any")
 	state.send_event(StateEventPayload.new())
@@ -579,8 +584,8 @@ func test_state_proxy_methods_without_machine_are_safe() -> void:
 	assert_null(state.get_model(DummyModel), "未绑定状态机的 State.get_model 应安全返回 null。")
 	assert_null(state.get_system(DummySystem), "未绑定状态机的 State.get_system 应安全返回 null。")
 	assert_null(state.get_utility(DummyUtility), "未绑定状态机的 State.get_utility 应安全返回 null。")
-	assert_null(state.send_command(DummyCommand.new()), "未绑定状态机的 State.send_command 应安全返回 null。")
-	assert_null(state.send_query(DummyQuery.new()), "未绑定状态机的 State.send_query 应安全返回 null。")
+	assert_true(state.send_command(DummyCommand.new()) == null, "未绑定状态机的 State.send_command 应安全返回 null。")
+	assert_true(state.send_query(DummyQuery.new()) == null, "未绑定状态机的 State.send_query 应安全返回 null。")
 
 
 # --- 测试：框架依赖访问 ---
@@ -589,31 +594,31 @@ func test_state_proxy_methods_without_machine_are_safe() -> void:
 func test_get_dependencies_without_context_uses_global_architecture() -> void:
 	var dependencies: Dictionary = await _setup_dependency_architecture()
 
-	assert_eq(_fsm.get_model(DummyModel), dependencies["model"], "无 context 时应能获取 Model。")
-	assert_eq(_fsm.get_system(DummySystem), dependencies["system"], "无 context 时应能获取 System。")
-	assert_eq(_fsm.get_utility(DummyUtility), dependencies["utility"], "无 context 时应能获取 Utility。")
+	assert_eq(_fsm.get_model(DummyModel), _object_dependency(dependencies, "model"), "无 context 时应能获取 Model。")
+	assert_eq(_fsm.get_system(DummySystem), _object_dependency(dependencies, "system"), "无 context 时应能获取 System。")
+	assert_eq(_fsm.get_utility(DummyUtility), _object_dependency(dependencies, "utility"), "无 context 时应能获取 Utility。")
 
 
 ## 验证有效 context 不影响状态机获取框架依赖。
 func test_get_dependencies_with_valid_context_uses_global_architecture() -> void:
 	var dependencies: Dictionary = await _setup_dependency_architecture()
-	var context := ContextHolder.new()
+	var context: ContextHolder = ContextHolder.new()
 	_fsm.dispose()
 	_fsm = GFStateMachine.new(context)
 
-	assert_eq(_fsm.get_model(DummyModel), dependencies["model"], "有效 context 下应能获取 Model。")
-	assert_eq(_fsm.get_system(DummySystem), dependencies["system"], "有效 context 下应能获取 System。")
-	assert_eq(_fsm.get_utility(DummyUtility), dependencies["utility"], "有效 context 下应能获取 Utility。")
+	assert_eq(_fsm.get_model(DummyModel), _object_dependency(dependencies, "model"), "有效 context 下应能获取 Model。")
+	assert_eq(_fsm.get_system(DummySystem), _object_dependency(dependencies, "system"), "有效 context 下应能获取 System。")
+	assert_eq(_fsm.get_utility(DummyUtility), _object_dependency(dependencies, "utility"), "有效 context 下应能获取 Utility。")
 
 
 ## 验证当 context 是已注入架构的模块时，状态机优先使用该局部架构。
 func test_get_dependencies_with_module_context_uses_injected_architecture() -> void:
-	var parent_arch := GFArchitecture.new()
+	var parent_arch: GFArchitecture = GFArchitecture.new()
 	await Gf.set_architecture(parent_arch)
 
-	var child_arch := GFArchitecture.new(parent_arch)
-	var context := ContextUtility.new()
-	var local_utility := DummyUtility.new()
+	var child_arch: GFArchitecture = GFArchitecture.new(parent_arch)
+	var context: ContextUtility = ContextUtility.new()
+	var local_utility: DummyUtility = DummyUtility.new()
 	await child_arch.register_utility_instance(context)
 	await child_arch.register_utility_instance(local_utility)
 
@@ -628,9 +633,9 @@ func test_get_dependencies_with_module_context_uses_injected_architecture() -> v
 
 
 func test_state_can_send_events_through_state_machine_architecture() -> void:
-	var architecture := GFArchitecture.new()
+	var architecture: GFArchitecture = GFArchitecture.new()
 	await Gf.set_architecture(architecture)
-	var state := TrackingState.new()
+	var state: TrackingState = TrackingState.new()
 	var simple_payloads: Array = []
 	var typed_payloads: Array[int] = []
 	architecture.register_simple_event(&"state_simple_event", func(payload: Variant) -> void:
@@ -650,9 +655,9 @@ func test_state_can_send_events_through_state_machine_architecture() -> void:
 
 
 func test_state_can_register_events_through_state_machine_architecture() -> void:
-	var architecture := GFArchitecture.new()
+	var architecture: GFArchitecture = GFArchitecture.new()
 	await Gf.set_architecture(architecture)
-	var state := EventListeningState.new()
+	var state: EventListeningState = EventListeningState.new()
 	_fsm.add_state(&"Listen", state)
 	_fsm.add_state(&"Idle", TrackingState.new())
 	_fsm.start(&"Listen")
@@ -676,9 +681,9 @@ func test_state_can_register_events_through_state_machine_architecture() -> void
 
 
 func test_state_dispose_unregisters_owned_event_listeners() -> void:
-	var architecture := GFArchitecture.new()
+	var architecture: GFArchitecture = GFArchitecture.new()
 	await Gf.set_architecture(architecture)
-	var state := EventListeningState.new()
+	var state: EventListeningState = EventListeningState.new()
 	state.unregister_on_exit = false
 	_fsm.add_state(&"Listen", state)
 	_fsm.start(&"Listen")
@@ -694,24 +699,24 @@ func test_state_dispose_unregisters_owned_event_listeners() -> void:
 
 
 func test_state_can_send_command_and_query_through_state_machine_architecture() -> void:
-	var parent_arch := GFArchitecture.new()
+	var parent_arch: GFArchitecture = GFArchitecture.new()
 	await Gf.set_architecture(parent_arch)
 	await parent_arch.register_utility_instance(DummyUtility.new())
 
-	var child_arch := GFArchitecture.new(parent_arch)
-	var context := ContextUtility.new()
-	var local_utility := DummyUtility.new()
+	var child_arch: GFArchitecture = GFArchitecture.new(parent_arch)
+	var context: ContextUtility = ContextUtility.new()
+	var local_utility: DummyUtility = DummyUtility.new()
 	await child_arch.register_utility_instance(context)
 	await child_arch.register_utility_instance(local_utility)
 
 	_fsm.dispose()
 	_fsm = GFStateMachine.new(context)
-	var state := TrackingState.new()
+	var state: TrackingState = TrackingState.new()
 	_fsm.add_state(&"Idle", state)
 	_fsm.start(&"Idle")
 
-	assert_eq(state.send_command(DummyCommand.new()), local_utility, "State.send_command 应使用状态机上下文所属架构。")
-	assert_eq(state.send_query(DummyQuery.new()), local_utility, "State.send_query 应使用状态机上下文所属架构。")
+	assert_eq(_dummy_utility(state.send_command(DummyCommand.new())), local_utility, "State.send_command 应使用状态机上下文所属架构。")
+	assert_eq(_dummy_utility(state.send_query(DummyQuery.new())), local_utility, "State.send_query 应使用状态机上下文所属架构。")
 
 	child_arch.dispose()
 	parent_arch.dispose()
@@ -721,12 +726,12 @@ func test_state_can_send_command_and_query_through_state_machine_architecture() 
 ## 验证 context 已释放时，状态机会拒绝继续访问框架依赖。
 func test_get_dependency_with_released_context_returns_null() -> void:
 	await _setup_dependency_architecture()
-	var context := ContextHolder.new()
+	var context: ContextHolder = ContextHolder.new()
 	_fsm.dispose()
 	_fsm = GFStateMachine.new(context)
 	context = null
 
-	var model := _fsm.get_model(DummyModel)
+	var model: Object = _fsm.get_model(DummyModel)
 
 	assert_null(model, "context 失效后应拒绝获取 Model。")
 	assert_push_error("[GFStateMachine] 上下文无效，无法获取 Model。")
@@ -735,10 +740,10 @@ func test_get_dependency_with_released_context_returns_null() -> void:
 # --- 私有/辅助方法 ---
 
 func _setup_dependency_architecture() -> Dictionary:
-	var architecture := GFArchitecture.new()
-	var model := DummyModel.new()
-	var system := DummySystem.new()
-	var utility := DummyUtility.new()
+	var architecture: GFArchitecture = GFArchitecture.new()
+	var model: DummyModel = DummyModel.new()
+	var system: DummySystem = DummySystem.new()
+	var utility: DummyUtility = DummyUtility.new()
 
 	await architecture.register_model_instance(model)
 	await architecture.register_system_instance(system)
@@ -750,3 +755,18 @@ func _setup_dependency_architecture() -> Dictionary:
 		"system": system,
 		"utility": utility,
 	}
+
+
+func _object_dependency(dependencies: Dictionary, key: String) -> Object:
+	var value: Variant = GFVariantData.get_option_value(dependencies, key)
+	if value is Object:
+		var object_value: Object = value
+		return object_value
+	return null
+
+
+func _dummy_utility(value: Variant) -> DummyUtility:
+	if value is DummyUtility:
+		var utility: DummyUtility = value
+		return utility
+	return null

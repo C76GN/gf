@@ -28,7 +28,7 @@ signal cooldown_started(skill: GFSkill)
 ## @param skill: 激活失败的技能实例。
 ## [br]
 ## @param context: 技能激活上下文。
-signal activation_failed(skill: GFSkill, context)
+signal activation_failed(skill: GFSkill, context: RefCounted)
 
 ## 当技能完成激活提交并进入冷却时发出。
 ## [br]
@@ -37,12 +37,12 @@ signal activation_failed(skill: GFSkill, context)
 ## @param skill: 已提交的技能实例。
 ## [br]
 ## @param context: 技能激活上下文。
-signal activation_committed(skill: GFSkill, context)
+signal activation_committed(skill: GFSkill, context: RefCounted)
 
 
 # --- 常量 ---
 
-const _GF_SKILL_ACTIVATION_CONTEXT: Script = preload("res://addons/gf/extensions/combat/skills/gf_skill_activation_context.gd")
+const _GF_SKILL_ACTIVATION_CONTEXT = preload("res://addons/gf/extensions/combat/skills/gf_skill_activation_context.gd")
 
 
 # --- 公共变量 ---
@@ -140,7 +140,7 @@ func inject_dependencies(architecture: GFArchitecture) -> void:
 ## [br]
 ## @return 可施放时返回 `true`。
 func can_execute() -> bool:
-	return bool(get_activation_report().get("ok", false))
+	return _report_ok(get_activation_report())
 
 
 ## 创建技能激活上下文。
@@ -163,7 +163,7 @@ func build_activation_context(
 	cast_center: Variant = null,
 	activation_metadata: Dictionary = {}
 ) -> RefCounted:
-	var context := _GF_SKILL_ACTIVATION_CONTEXT.new() as RefCounted
+	var context: RefCounted = _GF_SKILL_ACTIVATION_CONTEXT.new()
 	context.call(
 		"configure",
 		self,
@@ -186,7 +186,7 @@ func build_activation_context(
 ## [br]
 ## @schema return: Dictionary，包含 ok、reason、skill_id、target_count 和 metadata。
 func get_activation_report(context: RefCounted = null) -> Dictionary:
-	var activation_context := context if context != null else build_activation_context()
+	var activation_context: RefCounted = context if context != null else build_activation_context()
 	return _validate_activation_context(activation_context, true)
 
 
@@ -210,9 +210,9 @@ func execute(
 	cast_center: Variant = null,
 	activation_metadata: Dictionary = {}
 ) -> bool:
-	var context := build_activation_context(manual_target, cast_center, activation_metadata)
-	var report := _validate_activation_context(context, false)
-	if not bool(report.get("ok", false)):
+	var context: RefCounted = build_activation_context(manual_target, cast_center, activation_metadata)
+	var report: Dictionary = _validate_activation_context(context, false)
+	if not _report_ok(report):
 		activation_failed.emit(self, context)
 		return false
 
@@ -221,17 +221,17 @@ func execute(
 		return false
 
 	report = _run_activation_callbacks(context, activation_checks, &"activation_check_failed")
-	if not bool(report.get("ok", false)):
+	if not _report_ok(report):
 		activation_failed.emit(self, context)
 		return false
 
 	report = _run_activation_callbacks(context, activation_commit_callbacks, &"activation_commit_failed")
-	if not bool(report.get("ok", false)):
+	if not _report_ok(report):
 		activation_failed.emit(self, context)
 		return false
 
 	if not _try_activate(context):
-		_fail_activation_context(context, &"execute_failed")
+		var _execute_failed_report: Dictionary = _fail_activation_context(context, &"execute_failed")
 		activation_failed.emit(self, context)
 		return false
 	cooldown_left = cooldown_max
@@ -255,10 +255,10 @@ func _custom_can_execute() -> bool:
 ## [br]
 ## @api protected
 ## [br]
-## @param targets: 经过筛选后的最终目标数组。
+## @param _targets: 经过筛选后的最终目标数组。
 ## [br]
-## @schema targets: Array[Object]，经过 targeting_rule 或手动目标校验后的最终目标列表。
-func _on_execute(targets: Array[Object]) -> void:
+## @schema _targets: Array[Object]，经过 targeting_rule 或手动目标校验后的最终目标列表。
+func _on_execute(_targets: Array[Object]) -> void:
 	pass
 
 
@@ -284,12 +284,12 @@ func _try_execute(targets: Array[Object]) -> bool:
 ## [br]
 ## @return 技能真正生效时返回 `true`。
 func _try_activate(context: RefCounted) -> bool:
-	var targets := context.get("targets") as Array
+	var targets: Array = _get_context_array(context, "targets")
 	var typed_targets: Array[Object] = []
-	if targets != null:
-		for target: Variant in targets:
-			if target is Object:
-				typed_targets.append(target as Object)
+	for target: Variant in targets:
+		if target is Object:
+			var target_object: Object = target
+			typed_targets.append(target_object)
 	return _try_execute(typed_targets)
 
 
@@ -305,17 +305,17 @@ func _validate_activation_context(context: RefCounted, include_callbacks: bool) 
 	if cooldown_left > 0.0:
 		return _fail_activation_context(context, &"cooldown")
 
-	var valid_owner := context.get("owner") as Object
+	var valid_owner: Object = _get_context_object(context, "owner")
 	if valid_owner == null or not is_instance_valid(valid_owner):
 		return _fail_activation_context(context, &"invalid_owner")
 
 	var tag_source: Variant = _get_owner_tag_source(valid_owner)
 	if not _validate_required_tags(context, tag_source):
-		return context.call("to_report") as Dictionary
+		return _context_to_report(context)
 	if not _validate_blocked_tags(context, tag_source):
-		return context.call("to_report") as Dictionary
+		return _context_to_report(context)
 	if activation_query != null and not activation_query.matches(tag_source):
-		var query_report := activation_query.get_match_report(tag_source)
+		var query_report: Dictionary = activation_query.get_match_report(tag_source)
 		return _fail_activation_context(context, &"activation_query_failed", {
 			"query_report": query_report,
 		})
@@ -323,13 +323,13 @@ func _validate_activation_context(context: RefCounted, include_callbacks: bool) 
 		return _fail_activation_context(context, &"custom_check_failed")
 	if include_callbacks:
 		return _run_activation_callbacks(context, activation_checks, &"activation_check_failed")
-	return context.call("to_report") as Dictionary
+	return _context_to_report(context)
 
 
 func _validate_required_tags(context: RefCounted, tag_source: Variant) -> bool:
 	for tag: StringName in require_tags:
 		if not GFTagSourceAdapter.source_has_tag(tag_source, tag):
-			_fail_activation_context(context, &"missing_required_tag", {
+			var _missing_tag_report: Dictionary = _fail_activation_context(context, &"missing_required_tag", {
 				"tag": tag,
 			})
 			return false
@@ -339,7 +339,7 @@ func _validate_required_tags(context: RefCounted, tag_source: Variant) -> bool:
 func _validate_blocked_tags(context: RefCounted, tag_source: Variant) -> bool:
 	for tag: StringName in ignore_tags:
 		if GFTagSourceAdapter.source_has_tag(tag_source, tag):
-			_fail_activation_context(context, &"blocked_tag", {
+			var _blocked_tag_report: Dictionary = _fail_activation_context(context, &"blocked_tag", {
 				"tag": tag,
 			})
 			return false
@@ -348,43 +348,43 @@ func _validate_blocked_tags(context: RefCounted, tag_source: Variant) -> bool:
 
 func _resolve_activation_targets(context: RefCounted) -> bool:
 	var final_targets: Array[Object] = []
-	var manual_target := context.get("manual_target") as Object
-	var resolved_center := context.get("resolved_center") as Vector2
+	var manual_target: Object = _get_context_object(context, "manual_target")
+	var resolved_center: Vector2 = _get_context_vector2(context, "resolved_center", Vector2.ZERO)
 
 	if manual_target != null:
 		if targeting_rule != null:
-			var utility := _get_targeting_utility()
+			var utility: GFSkillTargetingUtility = _get_targeting_utility()
 			if utility == null:
 				push_error("[GFCombat] GFSkillTargetingUtility 尚未在架构中注册。")
-				_fail_activation_context(context, &"targeting_utility_missing")
+				var _missing_utility_report: Dictionary = _fail_activation_context(context, &"targeting_utility_missing")
 				return false
 
-			var valid_targets := utility.find_targets(resolved_center, targeting_rule, [manual_target])
+			var valid_targets: Array[Object] = utility.find_targets(resolved_center, targeting_rule, [manual_target])
 			if not valid_targets.is_empty():
 				final_targets.append(manual_target)
 			else:
-				_fail_activation_context(context, &"invalid_manual_target")
+				var _invalid_manual_target_report: Dictionary = _fail_activation_context(context, &"invalid_manual_target")
 				return false
 		else:
 			final_targets.append(manual_target)
 	elif targeting_rule != null:
 		var candidates: Array = []
-		var valid_owner := _get_valid_owner()
+		var valid_owner: Object = _get_valid_owner()
 		if valid_owner != null and valid_owner.has_method(&"get_targeting_candidates"):
-			candidates = valid_owner.call(&"get_targeting_candidates")
+			candidates = GFVariantData.as_array(valid_owner.call(&"get_targeting_candidates"))
 		elif has_method(&"get_targeting_candidates"):
-			candidates = call(&"get_targeting_candidates")
+			candidates = GFVariantData.as_array(call(&"get_targeting_candidates"))
 
-		var utility := _get_targeting_utility()
+		var utility: GFSkillTargetingUtility = _get_targeting_utility()
 		if utility == null:
 			push_error("[GFCombat] GFSkillTargetingUtility 尚未在架构中注册。")
-			_fail_activation_context(context, &"targeting_utility_missing")
+			var _missing_utility_report: Dictionary = _fail_activation_context(context, &"targeting_utility_missing")
 			return false
 
 		final_targets = utility.find_targets(resolved_center, targeting_rule, candidates)
 
 	if targeting_rule != null and targeting_rule.max_count > 0 and final_targets.is_empty():
-		_fail_activation_context(context, &"no_targets")
+		var _no_targets_report: Dictionary = _fail_activation_context(context, &"no_targets")
 		return false
 
 	context.set("targets", final_targets)
@@ -400,10 +400,10 @@ func _run_activation_callbacks(
 		if not callback.is_valid():
 			continue
 		var result: Variant = callback.call(context)
-		var report := _apply_activation_callback_result(context, result, default_reason)
-		if not bool(report.get("ok", false)):
+		var report: Dictionary = _apply_activation_callback_result(context, result, default_reason)
+		if not _report_ok(report):
 			return report
-	return context.call("to_report") as Dictionary
+	return _context_to_report(context)
 
 
 func _apply_activation_callback_result(
@@ -412,23 +412,22 @@ func _apply_activation_callback_result(
 	default_reason: StringName
 ) -> Dictionary:
 	if result is Dictionary:
-		var result_data := result as Dictionary
-		var metadata_value: Variant = result_data.get("metadata", {})
-		var metadata := metadata_value as Dictionary if metadata_value is Dictionary else {}
-		if bool(result_data.get("ok", true)):
+		var result_data: Dictionary = result
+		var metadata_value: Variant = GFVariantData.get_option_value(result_data, "metadata", {})
+		var metadata: Dictionary = GFVariantData.as_dictionary(metadata_value)
+		if GFVariantData.get_option_bool(result_data, "ok", true):
 			_merge_activation_metadata(context, metadata)
-			return context.call("to_report") as Dictionary
-		var reason := StringName(String(result_data.get("reason", default_reason)))
+			return _context_to_report(context)
+		var reason: StringName = GFVariantData.get_option_string_name(result_data, "reason", default_reason)
 		return _fail_activation_context(context, reason, metadata)
-	if result is bool and not bool(result):
+	if result is bool and not GFVariantData.to_bool(result):
 		return _fail_activation_context(context, default_reason)
-	return context.call("to_report") as Dictionary
+	return _context_to_report(context)
 
 
 func _merge_activation_metadata(context: RefCounted, extra_metadata: Dictionary) -> void:
-	var metadata := context.get("metadata") as Dictionary
-	if metadata == null:
-		metadata = {}
+	var metadata_value: Variant = GFObjectPropertyTools.read_property(context, NodePath("metadata"), {})
+	var metadata: Dictionary = GFVariantData.as_dictionary(metadata_value)
 	for key: Variant in extra_metadata.keys():
 		metadata[key] = GFVariantData.duplicate_variant(extra_metadata[key])
 	context.set("metadata", metadata)
@@ -442,7 +441,7 @@ func _fail_activation_context(
 	if context != null and context.has_method("fail"):
 		context.call("fail", reason, extra_metadata)
 	if context != null and context.has_method("to_report"):
-		return context.call("to_report") as Dictionary
+		return _context_to_report(context)
 	return {
 		"ok": false,
 		"reason": reason,
@@ -461,9 +460,11 @@ func _resolve_cast_center(cast_center: Variant) -> Vector2:
 	if cast_center is Vector2:
 		return cast_center
 
-	var valid_owner := _get_valid_owner()
-	if valid_owner != null and "global_position" in valid_owner:
-		return valid_owner.global_position
+	var valid_owner: Object = _get_valid_owner()
+	if valid_owner != null:
+		var owner_position: Variant = GFObjectPropertyTools.read_property(valid_owner, NodePath("global_position"))
+		if owner_position is Vector2:
+			return owner_position
 
 	return Vector2.ZERO
 
@@ -475,16 +476,65 @@ func _get_valid_owner() -> Object:
 
 
 func _get_targeting_utility() -> GFSkillTargetingUtility:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return null
 
-	return architecture.get_utility(GFSkillTargetingUtility) as GFSkillTargetingUtility
+	return _variant_to_targeting_utility(architecture.get_utility(GFSkillTargetingUtility))
 
 
 func _get_architecture_or_null() -> GFArchitecture:
 	if _architecture_ref != null:
-		var architecture := _architecture_ref.get_ref() as GFArchitecture
+		var architecture: GFArchitecture = _variant_to_architecture(_architecture_ref.get_ref())
 		if architecture != null:
 			return architecture
 	return GFAutoload.get_architecture_or_null()
+
+
+func _report_ok(report: Dictionary) -> bool:
+	return GFVariantData.get_option_bool(report, "ok", false)
+
+
+func _context_to_report(context: RefCounted) -> Dictionary:
+	if context == null or not context.has_method("to_report"):
+		return {}
+	return GFVariantData.as_dictionary(context.call("to_report"))
+
+
+func _get_context_object(context: RefCounted, key: String) -> Object:
+	if context == null:
+		return null
+	return _variant_to_object(GFObjectPropertyTools.read_property(context, NodePath(key)))
+
+
+func _get_context_vector2(context: RefCounted, key: String, default_value: Vector2) -> Vector2:
+	if context == null:
+		return default_value
+	var value: Variant = GFObjectPropertyTools.read_property(context, NodePath(key), default_value)
+	if value is Vector2:
+		return value
+	return default_value
+
+
+func _get_context_array(context: RefCounted, key: String) -> Array:
+	if context == null:
+		return []
+	return GFVariantData.as_array(GFObjectPropertyTools.read_property(context, NodePath(key), []))
+
+
+func _variant_to_object(value: Variant) -> Object:
+	if is_instance_valid(value) and value is Object:
+		return value
+	return null
+
+
+func _variant_to_architecture(value: Variant) -> GFArchitecture:
+	if is_instance_valid(value) and value is GFArchitecture:
+		return value
+	return null
+
+
+func _variant_to_targeting_utility(value: Variant) -> GFSkillTargetingUtility:
+	if is_instance_valid(value) and value is GFSkillTargetingUtility:
+		return value
+	return null

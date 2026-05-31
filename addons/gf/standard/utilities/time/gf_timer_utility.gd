@@ -54,16 +54,16 @@ func tick(delta: float) -> void:
 
 	var ready_timers: Array[Dictionary] = []
 
-	for index in range(_pending_timers.size() - 1, -1, -1):
-		var timer_data := _pending_timers[index] as Dictionary
+	for index: int in range(_pending_timers.size() - 1, -1, -1):
+		var timer_data: Dictionary = _pending_timers[index]
 		if _timer_owner_is_released(timer_data):
 			_pending_timers.remove_at(index)
 			continue
 
-		timer_data["remaining"] = maxf(float(timer_data.get("remaining", 0.0)) - delta, 0.0)
+		timer_data["remaining"] = maxf(_get_timer_remaining(timer_data) - delta, 0.0)
 		_pending_timers[index] = timer_data
 
-		if float(timer_data["remaining"]) <= 0.0:
+		if _get_timer_remaining(timer_data) <= 0.0:
 			ready_timers.append(timer_data)
 			_pending_timers.remove_at(index)
 
@@ -90,7 +90,7 @@ func execute_after(delay: float, callback: Callable) -> int:
 		return 0
 
 	if delay <= 0.0:
-		callback.call()
+		var _result: Variant = callback.call()
 		return 0
 
 	return _queue_timer(delay, callback, 0.0, 1, null)
@@ -116,7 +116,7 @@ func execute_after_owned(owner: Object, delay: float, callback: Callable) -> int
 		return 0
 
 	if delay <= 0.0:
-		callback.call()
+		var _result: Variant = callback.call()
 		return 0
 
 	return _queue_timer(delay, callback, 0.0, 1, owner)
@@ -150,7 +150,7 @@ func execute_repeating(
 	if repeat_count == 0:
 		return 0
 
-	var delay := initial_delay if initial_delay >= 0.0 else interval
+	var delay: float = initial_delay if initial_delay >= 0.0 else interval
 	return _queue_timer(delay, callback, interval, repeat_count, null)
 
 
@@ -188,7 +188,7 @@ func execute_repeating_owned(
 	if repeat_count == 0:
 		return 0
 
-	var delay := initial_delay if initial_delay >= 0.0 else interval
+	var delay: float = initial_delay if initial_delay >= 0.0 else interval
 	return _queue_timer(delay, callback, interval, repeat_count, owner)
 
 
@@ -204,7 +204,7 @@ func cancel(handle: int) -> bool:
 		return false
 
 	for index: int in range(_pending_timers.size() - 1, -1, -1):
-		if int(_pending_timers[index].get("id", 0)) == handle:
+		if _get_timer_id(_pending_timers[index]) == handle:
 			_pending_timers.remove_at(index)
 			return true
 	if _executing_handles.has(handle):
@@ -224,11 +224,11 @@ func cancel_owner(owner: Object) -> int:
 	if owner == null:
 		return 0
 
-	var owner_id := owner.get_instance_id()
-	var removed := 0
+	var owner_id: int = owner.get_instance_id()
+	var removed: int = 0
 	for index: int in range(_pending_timers.size() - 1, -1, -1):
-		var timer_data := _pending_timers[index] as Dictionary
-		if int(timer_data.get("owner_id", 0)) == owner_id:
+		var timer_data: Dictionary = _pending_timers[index]
+		if _get_timer_owner_id(timer_data) == owner_id:
 			_pending_timers.remove_at(index)
 			removed += 1
 	return removed
@@ -242,11 +242,11 @@ func cancel_owner(owner: Object) -> int:
 ## [br]
 ## @schema return: Dictionary with `pending_count`, `pending_handles`, `owner_bound_count`, `executing_count`, and `next_timer_id`.
 func get_debug_snapshot() -> Dictionary:
-	var handles := PackedInt32Array()
-	var owner_bound_count := 0
+	var handles: PackedInt32Array = PackedInt32Array()
+	var owner_bound_count: int = 0
 	for timer_data: Dictionary in _pending_timers:
-		handles.append(int(timer_data.get("id", 0)))
-		if timer_data.get("owner_ref") != null:
+		var _appended: bool = handles.append(_get_timer_id(timer_data))
+		if _timer_has_owner_ref(timer_data):
 			owner_bound_count += 1
 
 	return {
@@ -267,7 +267,7 @@ func _queue_timer(
 	repeat_count: int,
 	owner: Object
 ) -> int:
-	var handle := _next_timer_id
+	var handle: int = _next_timer_id
 	_next_timer_id += 1
 	_pending_timers.append({
 		"id": handle,
@@ -282,28 +282,28 @@ func _queue_timer(
 
 
 func _execute_ready_timer(timer_data: Dictionary) -> void:
-	var handle := int(timer_data.get("id", 0))
+	var handle: int = _get_timer_id(timer_data)
 	if _cancelled_handles.has(handle) or _timer_owner_is_released(timer_data):
-		_cancelled_handles.erase(handle)
+		var _removed: bool = _cancelled_handles.erase(handle)
 		return
 
-	var callback := timer_data.get("callback", Callable()) as Callable
+	var callback: Callable = _get_timer_callback(timer_data)
 	if callback.is_valid():
 		_executing_handles[handle] = true
-		callback.call()
-		_executing_handles.erase(handle)
+		var _result: Variant = callback.call()
+		var _removed: bool = _executing_handles.erase(handle)
 
 	if _cancelled_handles.has(handle):
-		_cancelled_handles.erase(handle)
+		var _removed: bool = _cancelled_handles.erase(handle)
 		return
 	if _timer_owner_is_released(timer_data):
 		return
 
-	var interval := float(timer_data.get("interval", 0.0))
+	var interval: float = _get_timer_interval(timer_data)
 	if interval <= 0.0:
 		return
 
-	var repeat_count := int(timer_data.get("repeat_count", 0))
+	var repeat_count: int = _get_timer_repeat_count(timer_data)
 	if repeat_count > 0:
 		repeat_count -= 1
 		if repeat_count <= 0:
@@ -315,7 +315,53 @@ func _execute_ready_timer(timer_data: Dictionary) -> void:
 
 
 func _timer_owner_is_released(timer_data: Dictionary) -> bool:
-	if timer_data.get("owner_ref") == null:
+	if not _timer_has_owner_ref(timer_data):
 		return false
-	var owner_ref := timer_data.get("owner_ref") as WeakRef
+	var owner_ref: WeakRef = _get_timer_owner_ref(timer_data)
 	return owner_ref == null or owner_ref.get_ref() == null
+
+
+func _get_timer_id(timer_data: Dictionary) -> int:
+	return GFVariantData.get_option_int(timer_data, "id", 0)
+
+
+func _get_timer_remaining(timer_data: Dictionary) -> float:
+	return GFVariantData.get_option_float(timer_data, "remaining", 0.0)
+
+
+func _get_timer_interval(timer_data: Dictionary) -> float:
+	return GFVariantData.get_option_float(timer_data, "interval", 0.0)
+
+
+func _get_timer_repeat_count(timer_data: Dictionary) -> int:
+	return GFVariantData.get_option_int(timer_data, "repeat_count", 0)
+
+
+func _get_timer_owner_id(timer_data: Dictionary) -> int:
+	return GFVariantData.get_option_int(timer_data, "owner_id", 0)
+
+
+func _get_timer_callback(timer_data: Dictionary) -> Callable:
+	return _variant_to_callable(GFVariantData.get_option_value(timer_data, "callback", Callable()))
+
+
+func _get_timer_owner_ref(timer_data: Dictionary) -> WeakRef:
+	return _variant_to_weak_ref(GFVariantData.get_option_value(timer_data, "owner_ref"))
+
+
+func _timer_has_owner_ref(timer_data: Dictionary) -> bool:
+	return GFVariantData.get_option_value(timer_data, "owner_ref") != null
+
+
+func _variant_to_callable(value: Variant) -> Callable:
+	if value is Callable:
+		var callback: Callable = value
+		return callback
+	return Callable()
+
+
+func _variant_to_weak_ref(value: Variant) -> WeakRef:
+	if value is WeakRef:
+		var owner_ref: WeakRef = value
+		return owner_ref
+	return null

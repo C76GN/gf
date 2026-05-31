@@ -222,3 +222,35 @@ static func status_name(value: Status) -> String:
 		Status.CANCELLED:
 			return "cancelled"
 	return "unknown"
+
+
+# --- 框架内部方法 ---
+
+## 设置后台工作回调。
+## [br]
+## @api framework_internal
+## [br]
+## @param worker_callback: 后台线程或加载任务完成前执行的回调。
+## [br]
+## @param apply_callback: 主线程应用阶段回调。
+func set_internal_callbacks(worker_callback: Callable, apply_callback: Callable) -> void:
+	_worker_callback = worker_callback
+	_apply_callback = apply_callback
+
+
+## 获取后台工作回调。
+## [br]
+## @api framework_internal
+## [br]
+## @return 后台线程回调。
+func get_worker_callback() -> Callable:
+	return _worker_callback
+
+
+## 获取主线程应用回调。
+## [br]
+## @api framework_internal
+## [br]
+## @return 主线程应用回调。
+func get_apply_callback() -> Callable:
+	return _apply_callback

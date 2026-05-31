@@ -38,31 +38,31 @@ func test_complete_level_unlocks_marks_done_and_emits() -> void:
 	assert_signal_emitted(_model, "level_completed")
 	assert_true(_model.is_level_unlocked(&"c"))
 	assert_true(_model.is_level_completed(&"c"))
-	assert_eq(_model.get_level_result(&"c").get("stars"), 2)
+	assert_eq(GFVariantData.get_option_int(_model.get_level_result(&"c"), "stars"), 2)
 
 
 func test_set_level_result_merge_replaces_when_disabled() -> void:
 	_model.set_level_result(&"d", { "a": 1 }, true)
 	_model.set_level_result(&"d", { "b": 2 }, false)
-	var r := _model.get_level_result(&"d")
+	var r: Dictionary = _model.get_level_result(&"d")
 	assert_false(r.has("a"), "merge_result 为 false 时应整体替换结果。")
-	assert_eq(r.get("b"), 2)
+	assert_eq(GFVariantData.get_option_int(r, "b"), 2)
 
 
 func test_set_level_result_merge_true_combines_keys() -> void:
 	_model.set_level_result(&"e", { "a": 1 }, true)
 	_model.set_level_result(&"e", { "b": 2 }, true)
-	var r := _model.get_level_result(&"e")
-	assert_eq(r.get("a"), 1)
-	assert_eq(r.get("b"), 2)
+	var r: Dictionary = _model.get_level_result(&"e")
+	assert_eq(GFVariantData.get_option_int(r, "a"), 1)
+	assert_eq(GFVariantData.get_option_int(r, "b"), 2)
 
 
 func test_get_level_result_returns_copy() -> void:
 	_model.set_level_result(&"f", { "x": 1 }, true)
-	var a := _model.get_level_result(&"f")
-	var b := _model.get_level_result(&"f")
+	var a: Dictionary = _model.get_level_result(&"f")
+	var b: Dictionary = _model.get_level_result(&"f")
 	a["x"] = 99
-	assert_eq(b.get("x"), 1, "外部修改副本不应影响内部存储。")
+	assert_eq(GFVariantData.get_option_int(b, "x"), 1, "外部修改副本不应影响内部存储。")
 
 
 func test_clear_progress_resets_all() -> void:
@@ -77,9 +77,9 @@ func test_clear_progress_resets_all() -> void:
 func test_to_dict_from_dict_roundtrip() -> void:
 	_model.unlock_level(&"h")
 	_model.complete_level(&"h", { "s": 1 }, true)
-	var data := _model.to_dict()
-	var other := GFLevelProgressModel.new()
+	var data: Dictionary = _model.to_dict()
+	var other: GFLevelProgressModel = GFLevelProgressModel.new()
 	other.from_dict(data)
 	assert_true(other.is_level_unlocked(&"h"))
 	assert_true(other.is_level_completed(&"h"))
-	assert_eq(other.get_level_result(&"h").get("s"), 1)
+	assert_eq(GFVariantData.get_option_int(other.get_level_result(&"h"), "s"), 1)

@@ -14,7 +14,7 @@ extends GFUtility
 
 # --- 常量 ---
 
-const _GF_ASYNC_WAIT_SUPPORT: Script = preload("res://addons/gf/standard/common/gf_async_wait_support.gd")
+const _GF_ASYNC_WAIT_SUPPORT = preload("res://addons/gf/standard/common/gf_async_wait_support.gd")
 
 
 # --- 公共变量 ---
@@ -131,8 +131,9 @@ func execute_command(cmd: GFUndoableCommand) -> Variant:
 	var result: Variant = cmd.execute()
 	if result is Signal:
 		_is_processing_async = true
-		var current_serial := _lifecycle_serial
-		var completed := await _await_command_signal(result as Signal, current_serial)
+		var current_serial: int = _lifecycle_serial
+		var result_signal: Signal = result
+		var completed: bool = await _await_command_signal(result_signal, current_serial)
 		if current_serial != _lifecycle_serial:
 			return result
 		_is_processing_async = false
@@ -179,8 +180,9 @@ func undo_last_async() -> bool:
 	var result: Variant = cmd.undo()
 	if result is Signal:
 		_is_processing_async = true
-		var current_serial := _lifecycle_serial
-		var completed := await _await_command_signal(result as Signal, current_serial)
+		var current_serial: int = _lifecycle_serial
+		var result_signal: Signal = result
+		var completed: bool = await _await_command_signal(result_signal, current_serial)
 		if current_serial != _lifecycle_serial:
 			return false
 		_is_processing_async = false
@@ -227,8 +229,9 @@ func redo_async() -> bool:
 	var result: Variant = cmd.execute()
 	if result is Signal:
 		_is_processing_async = true
-		var current_serial := _lifecycle_serial
-		var completed := await _await_command_signal(result as Signal, current_serial)
+		var current_serial: int = _lifecycle_serial
+		var result_signal: Signal = result
+		var completed: bool = await _await_command_signal(result_signal, current_serial)
 		if current_serial != _lifecycle_serial:
 			return false
 		_is_processing_async = false
@@ -335,9 +338,10 @@ func deserialize_history(data_array: Array, command_builder: Callable) -> void:
 		push_error("[GFCommandHistoryUtility] deserialize_history 失败：传入的 builder Callable 无效。")
 		return
 
-	for data in data_array:
-		if typeof(data) == TYPE_DICTIONARY:
-			var restored_cmd: GFUndoableCommand = command_builder.call(data)
+	for data: Variant in data_array:
+		if data is Dictionary:
+			var command_data: Dictionary = data
+			var restored_cmd: GFUndoableCommand = _build_command(command_builder, command_data)
 			if is_instance_valid(restored_cmd):
 				_inject_command_dependencies(restored_cmd)
 				_undo_stack.append(restored_cmd)
@@ -364,8 +368,8 @@ func deserialize_full_history(data: Dictionary, command_builder: Callable) -> vo
 		push_error("[GFCommandHistoryUtility] deserialize_full_history 失败：传入的 builder Callable 无效。")
 		return
 
-	_undo_stack = _deserialize_stack(data.get("undo", []), command_builder)
-	_redo_stack = _deserialize_stack(data.get("redo", []), command_builder)
+	_undo_stack = _deserialize_stack(GFVariantData.get_option_array(data, "undo"), command_builder)
+	_redo_stack = _deserialize_stack(GFVariantData.get_option_array(data, "redo"), command_builder)
 
 
 # --- 私有/辅助方法 ---
@@ -381,17 +385,17 @@ func _trim_undo_stack() -> void:
 	if max_history_size <= 0 or _undo_stack.size() <= max_history_size:
 		return
 
-	var overflow := _undo_stack.size() - max_history_size
+	var overflow: int = _undo_stack.size() - max_history_size
 	_undo_stack = _undo_stack.slice(overflow)
 
 
 func _serialize_stack(stack: Array[GFUndoableCommand]) -> Array[Dictionary]:
 	var arr: Array[Dictionary] = []
-	for cmd in stack:
+	for cmd: GFUndoableCommand in stack:
 		if cmd.has_method("serialize"):
-			arr.append(cmd.serialize())
+			arr.append(GFVariantData.to_dictionary(cmd.call("serialize")))
 		else:
-			arr.append({ "snapshot": cmd.get_snapshot() })
+			arr.append({ "snapshot": GFVariantData.duplicate_variant(cmd.get_snapshot()) })
 
 	return arr
 
@@ -399,11 +403,12 @@ func _serialize_stack(stack: Array[GFUndoableCommand]) -> Array[Dictionary]:
 func _deserialize_stack(data_array: Array, command_builder: Callable) -> Array[GFUndoableCommand]:
 	var restored_stack: Array[GFUndoableCommand] = []
 
-	for data in data_array:
-		if typeof(data) != TYPE_DICTIONARY:
+	for data: Variant in data_array:
+		if not (data is Dictionary):
 			continue
 
-		var restored_cmd: GFUndoableCommand = command_builder.call(data)
+		var command_data: Dictionary = data
+		var restored_cmd: GFUndoableCommand = _build_command(command_builder, command_data)
 		if is_instance_valid(restored_cmd):
 			_inject_command_dependencies(restored_cmd)
 			restored_stack.append(restored_cmd)
@@ -412,13 +417,13 @@ func _deserialize_stack(data_array: Array, command_builder: Callable) -> Array[G
 
 
 func _inject_command_dependencies(cmd: GFUndoableCommand) -> void:
-	var architecture := _get_architecture_or_null()
+	var architecture: GFArchitecture = _get_architecture_or_null()
 	if architecture == null:
 		return
 	if cmd.has_method("inject_dependencies"):
-		cmd.inject_dependencies(architecture)
+		cmd.call("inject_dependencies", architecture)
 	if cmd.has_method("inject"):
-		cmd.inject(architecture)
+		cmd.call("inject", architecture)
 
 
 func _await_command_signal(result_signal: Signal, lifecycle_serial: int) -> bool:
@@ -429,14 +434,19 @@ func _await_command_signal(result_signal: Signal, lifecycle_serial: int) -> bool
 	if not is_instance_valid(target_obj):
 		return false
 
-	var completed := [false]
-	var on_resume := func(_arg1 = null, _arg2 = null, _arg3 = null, _arg4 = null) -> void:
+	var completed: Array[bool] = [false]
+	var on_resume: Callable = func(
+		_arg1: Variant = null,
+		_arg2: Variant = null,
+		_arg3: Variant = null,
+		_arg4: Variant = null
+	) -> void:
 		completed[0] = true
 
-	result_signal.connect(on_resume, CONNECT_ONE_SHOT)
+	var _connect_result_446: Variant = result_signal.connect(on_resume, CONNECT_ONE_SHOT)
 
-	var timeout_msec := int(async_timeout_seconds * 1000.0)
-	var start_msec := Time.get_ticks_msec()
+	var timeout_msec: int = int(async_timeout_seconds * 1000.0)
+	var start_msec: int = Time.get_ticks_msec()
 
 	while not completed[0]:
 		if lifecycle_serial != _lifecycle_serial:
@@ -446,7 +456,19 @@ func _await_command_signal(result_signal: Signal, lifecycle_serial: int) -> bool
 		if timeout_msec > 0 and Time.get_ticks_msec() - start_msec >= timeout_msec:
 			push_warning("[GFCommandHistoryUtility] 等待异步命令超时，历史操作已取消。")
 			break
-		await Engine.get_main_loop().process_frame
+		var main_loop: MainLoop = Engine.get_main_loop()
+		if not (main_loop is SceneTree):
+			break
+		var scene_tree: SceneTree = main_loop
+		await scene_tree.process_frame
 
 	_GF_ASYNC_WAIT_SUPPORT.disconnect_signal_if_connected(result_signal, on_resume)
 	return completed[0] and lifecycle_serial == _lifecycle_serial
+
+
+func _build_command(command_builder: Callable, command_data: Dictionary) -> GFUndoableCommand:
+	var command: Variant = command_builder.call(command_data)
+	if command is GFUndoableCommand:
+		var undoable_command: GFUndoableCommand = command
+		return undoable_command
+	return null

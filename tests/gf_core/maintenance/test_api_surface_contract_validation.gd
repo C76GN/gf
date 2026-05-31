@@ -144,21 +144,22 @@ const GODOT_CALLBACK_NAMES: Dictionary = {
 	"_unhandled_key_input": true,
 	"_validate_property": true,
 }
+const GF_VARIANT_ACCESS = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
 
 
 # --- 测试用例 ---
 
 func test_full_valid_example_satisfies_api_surface_contract() -> void:
-	var issues := _collect_api_surface_issues(_read_text(VALID_FULL_EXAMPLE_PATH), VALID_FULL_EXAMPLE_PATH)
+	var issues: Array[String] = _collect_api_surface_issues(_read_text(VALID_FULL_EXAMPLE_PATH), VALID_FULL_EXAMPLE_PATH)
 
 	assert_eq(issues, [], "完整 API Surface 正例应满足严格契约：\n%s" % _join_lines(issues))
 
 
 func test_gf_source_files_satisfy_or_mark_api_surface_migration() -> void:
-	var script_paths := _collect_gdscript_files(SOURCE_ROOT)
+	var script_paths: Array[String] = _collect_gdscript_files(SOURCE_ROOT)
 	assert_gt(script_paths.size(), 0, "API Surface 源码扫描必须能发现 addons/gf 下的脚本。")
-	var type_visibility := _collect_all_type_visibility(script_paths)
-	var type_inheritance := _collect_all_type_inheritance(script_paths)
+	var type_visibility: Dictionary = _collect_all_type_visibility(script_paths)
+	var type_inheritance: Dictionary = _collect_all_type_inheritance(script_paths)
 	var issues: Array[String] = []
 	for path: String in script_paths:
 		issues.append_array(_collect_api_surface_issues_with_type_visibility(_read_text(path), path, type_visibility, type_inheritance))
@@ -174,7 +175,7 @@ func test_gf_source_files_satisfy_or_mark_api_surface_migration() -> void:
 
 
 func test_gf_source_does_not_use_placeholder_since_version() -> void:
-	var script_paths := _collect_gdscript_files(SOURCE_ROOT)
+	var script_paths: Array[String] = _collect_gdscript_files(SOURCE_ROOT)
 	var issues: Array[String] = []
 	for path: String in script_paths:
 		issues.append_array(_collect_placeholder_since_issues(_read_text(path), path))
@@ -190,7 +191,7 @@ func test_gf_source_does_not_use_placeholder_since_version() -> void:
 
 
 func test_gf_source_api_doc_tags_use_godot_render_separator() -> void:
-	var script_paths := _collect_gdscript_files(SOURCE_ROOT)
+	var script_paths: Array[String] = _collect_gdscript_files(SOURCE_ROOT)
 	var issues: Array[String] = []
 	for path: String in script_paths:
 		issues.append_array(_collect_doc_tag_render_separator_issues(_read_text(path), path))
@@ -206,7 +207,7 @@ func test_gf_source_api_doc_tags_use_godot_render_separator() -> void:
 
 
 func test_private_doc_comments_are_rejected() -> void:
-	var source := """
+	var source: String = """
 ## 私有方法不应进入 API 文档。
 ##
 ## @api private
@@ -218,7 +219,7 @@ func _normalize() -> void:
 
 
 func test_public_function_requires_doc_comment() -> void:
-	var source := """
+	var source: String = """
 class_name GFInvalidMissingDoc
 extends RefCounted
 
@@ -230,7 +231,7 @@ func configure(value: int) -> bool:
 
 
 func test_public_function_params_and_return_must_match_signature() -> void:
-	var source := """
+	var source: String = """
 ## 示例类型。
 ##
 ## @api public
@@ -252,7 +253,7 @@ func configure(value: int) -> bool:
 
 
 func test_protected_api_requires_underscore_and_hook_section() -> void:
-	var source := """
+	var source: String = """
 ## 示例类型。
 ##
 ## @api public
@@ -276,7 +277,7 @@ func build_value() -> int:
 
 
 func test_dictionary_signature_requires_schema() -> void:
-	var source := """
+	var source: String = """
 ## 示例类型。
 ##
 ## @api public
@@ -301,7 +302,7 @@ func build(payload: Dictionary) -> Dictionary:
 
 
 func test_options_dictionary_parameter_requires_schema() -> void:
-	var source := """
+	var source: String = """
 ## 示例类型。
 ##
 ## @api public
@@ -324,7 +325,7 @@ func run(options: Dictionary = {}) -> void:
 
 
 func test_public_signature_cannot_expose_internal_types() -> void:
-	var source := """
+	var source: String = """
 ## 内部令牌。
 ##
 ## @api framework_internal
@@ -353,14 +354,14 @@ func get_token() -> GFInternalToken:
 
 
 func test_public_signature_cannot_expose_internal_types_from_other_files() -> void:
-	var internal_source := """
+	var internal_source: String = """
 ## 跨文件内部令牌。
 ##
 ## @api framework_internal
 class_name GFCrossFileInternalToken
 extends RefCounted
 """
-	var public_source := """
+	var public_source: String = """
 ## 示例类型。
 ##
 ## @api public
@@ -378,8 +379,8 @@ extends RefCounted
 func get_token() -> GFCrossFileInternalToken:
 	return null
 """
-	var type_visibility := _collect_type_visibility(_parse_declarations(internal_source, "res://addons/gf/kernel/core/gf_cross_file_internal_token.gd"))
-	var issues := _collect_api_surface_issues_with_type_visibility(
+	var type_visibility: Dictionary = _collect_type_visibility(_parse_declarations(internal_source, "res://addons/gf/kernel/core/gf_cross_file_internal_token.gd"))
+	var issues: Array[String] = _collect_api_surface_issues_with_type_visibility(
 		public_source,
 		"res://addons/gf/kernel/core/gf_invalid_cross_file_internal_exposure.gd",
 		type_visibility
@@ -392,7 +393,7 @@ func get_token() -> GFCrossFileInternalToken:
 
 
 func test_layer_internal_requires_layer_tag() -> void:
-	var source := """
+	var source: String = """
 ## 示例类型。
 ##
 ## @api public
@@ -414,7 +415,7 @@ func restore_state() -> void:
 
 
 func test_layer_tag_must_match_source_path() -> void:
-	var source := """
+	var source: String = """
 ## 示例类型。
 ##
 ## @api public
@@ -432,7 +433,7 @@ extends RefCounted
 func restore_state() -> void:
 	pass
 """
-	var issues := _collect_api_surface_issues(source, "res://addons/gf/standard/common/gf_invalid_layer_path.gd")
+	var issues: Array[String] = _collect_api_surface_issues(source, "res://addons/gf/standard/common/gf_invalid_layer_path.gd")
 	assert_true(
 		_issues_contain(issues, "does not match source path"),
 		"@layer 必须和源码路径匹配，实际问题：\n%s" % _join_lines(issues)
@@ -440,7 +441,7 @@ func restore_state() -> void:
 
 
 func test_public_class_requires_category_and_since() -> void:
-	var source := """
+	var source: String = """
 ## 缺少分类和版本。
 ##
 ## @api public
@@ -453,7 +454,7 @@ extends RefCounted
 
 
 func test_migration_marker_allows_incomplete_file_during_migration() -> void:
-	var source := """
+	var source: String = """
 # @api_surface_migration partial
 class_name GFMarkedIncompleteAPI
 extends RefCounted
@@ -462,12 +463,12 @@ func configure(value: int) -> bool:
 	return value > 0
 """
 
-	var issues := _collect_api_surface_issues(source, "<inline>")
+	var issues: Array[String] = _collect_api_surface_issues(source, "<inline>")
 	assert_eq(issues, [], "迁移标记允许历史文件暂时保留未完成项。")
 
 
 func test_migration_marker_must_be_removed_after_file_is_complete() -> void:
-	var source := """
+	var source: String = """
 # @api_surface_migration partial
 ## 已完成的公开类型。
 ##
@@ -492,7 +493,7 @@ func configure(value: int) -> bool:
 
 
 func test_doc_comment_migration_marker_does_not_suppress_contract_errors() -> void:
-	var source := """
+	var source: String = """
 ## @api_surface_migration partial
 class_name GFInvalidDocMarker
 extends RefCounted
@@ -505,7 +506,7 @@ func configure(value: int) -> bool:
 
 
 func test_declarations_inside_multiline_strings_are_ignored() -> void:
-	var source := """
+	var source: String = """
 ## 模板生成器。
 ##
 ## @api public
@@ -521,7 +522,7 @@ extends RefCounted
 ## @api public
 ## @return: 模板文本。
 func build() -> String:
-	var template := \"\"\"## Generated: TODO.
+	var template: String = \"\"\"## Generated: TODO.
 class_name GFIgnoredGeneratedClass
 extends RefCounted
 
@@ -531,12 +532,12 @@ func generated_without_docs() -> void:
 	return template
 """
 
-	var issues := _collect_api_surface_issues(source, "<inline>")
+	var issues: Array[String] = _collect_api_surface_issues(source, "<inline>")
 	assert_eq(issues, [], "多行字符串中的模板声明不应参与 API Surface 校验：\n%s" % _join_lines(issues))
 
 
 func test_doc_comments_must_bind_to_declarations() -> void:
-	var source := """
+	var source: String = """
 ## 悬空脚本文档不会绑定到任何 API。
 
 # --- 公共方法 ---
@@ -549,7 +550,7 @@ func _private_helper() -> void:
 
 
 func test_unknown_documented_api_construct_is_rejected_until_contract_supports_it() -> void:
-	var source := """
+	var source: String = """
 ## 假设未来语言新增的声明形态。
 ##
 ## @api public
@@ -561,7 +562,7 @@ record FutureData:
 
 
 func test_onready_requires_node_compatible_base_type() -> void:
-	var source := """
+	var source: String = """
 ## 非 Node 类型。
 ##
 ## @api public
@@ -579,7 +580,7 @@ extends RefCounted
 
 
 func test_public_top_level_api_requires_class_name() -> void:
-	var source := """
+	var source: String = """
 extends RefCounted
 
 # --- 公共方法 ---
@@ -595,7 +596,7 @@ func run() -> void:
 
 
 func test_api_sections_must_use_canonical_names_and_order() -> void:
-	var invalid_name_source := """
+	var invalid_name_source: String = """
 ## 示例类型。
 ##
 ## @api public
@@ -613,7 +614,7 @@ extends RefCounted
 func get_value() -> int:
 	return 1
 """
-	var invalid_order_source := """
+	var invalid_order_source: String = """
 ## 示例类型。
 ##
 ## @api public
@@ -644,7 +645,7 @@ const DEFAULT_VALUE: int = 1
 
 
 func test_nested_structural_types_require_schema() -> void:
-	var source := """
+	var source: String = """
 ## 示例类型。
 ##
 ## @api public
@@ -667,7 +668,7 @@ func get_records() -> Array[Dictionary]:
 
 
 func test_public_enum_values_require_doc_comments() -> void:
-	var source := """
+	var source: String = """
 ## 示例类型。
 ##
 ## @api public
@@ -692,7 +693,7 @@ enum Mode {
 # --- 私有/辅助方法 ---
 
 func _assert_invalid(source: String, expected_fragment: String) -> void:
-	var issues := _collect_api_surface_issues(source, "<inline>")
+	var issues: Array[String] = _collect_api_surface_issues(source, "<inline>")
 	assert_true(
 		_issues_contain(issues, expected_fragment),
 		"应包含违规片段 '%s'，实际问题：\n%s" % [expected_fragment, _join_lines(issues)]
@@ -700,9 +701,9 @@ func _assert_invalid(source: String, expected_fragment: String) -> void:
 
 
 func _collect_api_surface_issues(source: String, path: String) -> Array[String]:
-	var declarations := _parse_declarations(source, path)
-	var type_visibility := _collect_type_visibility(declarations)
-	var type_inheritance := _collect_file_type_inheritance(source)
+	var declarations: Array[Dictionary] = _parse_declarations(source, path)
+	var type_visibility: Dictionary = _collect_type_visibility(declarations)
+	var type_inheritance: Dictionary = _collect_file_type_inheritance(source)
 	return _collect_api_surface_issues_with_type_visibility(source, path, type_visibility, type_inheritance)
 
 
@@ -712,8 +713,8 @@ func _collect_api_surface_issues_with_type_visibility(
 	type_visibility: Dictionary,
 	type_inheritance: Dictionary = {}
 ) -> Array[String]:
-	var declarations := _parse_declarations(source, path)
-	var allows_top_level_public_api := _has_top_level_class_name(declarations)
+	var declarations: Array[Dictionary] = _parse_declarations(source, path)
+	var allows_top_level_public_api: bool = _has_top_level_class_name(declarations)
 	if not allows_top_level_public_api:
 		allows_top_level_public_api = _is_node_compatible_type(_collect_top_level_extends(source), type_inheritance)
 	var strict_issues: Array[String] = []
@@ -729,7 +730,7 @@ func _collect_api_surface_issues_with_type_visibility(
 
 
 func _source_has_migration_marker(source: String) -> bool:
-	var lines := source.split("\n")
+	var lines: PackedStringArray = source.split("\n")
 	for raw_line: String in lines:
 		if _trim_cr(raw_line).strip_edges() == MIGRATION_MARKER:
 			return true
@@ -738,9 +739,9 @@ func _source_has_migration_marker(source: String) -> bool:
 
 func _collect_placeholder_since_issues(source: String, path: String) -> Array[String]:
 	var issues: Array[String] = []
-	var lines := source.split("\n")
+	var lines: PackedStringArray = source.split("\n")
 	for line_index: int in range(lines.size()):
-		var line := _trim_cr(String(lines[line_index])).strip_edges()
+		var line: String = _trim_cr(String(lines[line_index])).strip_edges()
 		if not line.begins_with("##"):
 			continue
 		if _doc_body(line) == "@since %s" % PLACEHOLDER_SINCE_VERSION:
@@ -754,21 +755,21 @@ func _collect_placeholder_since_issues(source: String, path: String) -> Array[St
 
 func _collect_doc_tag_render_separator_issues(source: String, path: String) -> Array[String]:
 	var issues: Array[String] = []
-	var lines := source.split("\n")
+	var lines: PackedStringArray = source.split("\n")
 	for line_index: int in range(1, lines.size()):
-		var raw_line := _trim_cr(String(lines[line_index]))
-		var trimmed := raw_line.strip_edges()
+		var raw_line: String = _trim_cr(String(lines[line_index]))
+		var trimmed: String = raw_line.strip_edges()
 		if not trimmed.begins_with("## @"):
 			continue
 
-		var previous_line := _trim_cr(String(lines[line_index - 1]))
-		var previous_trimmed := previous_line.strip_edges()
+		var previous_line: String = _trim_cr(String(lines[line_index - 1]))
+		var previous_trimmed: String = previous_line.strip_edges()
 		if not previous_trimmed.begins_with("##"):
 			continue
 		if _get_indent_level(previous_line) != _get_indent_level(raw_line):
 			continue
 
-		var previous_body := _doc_body(previous_trimmed).strip_edges()
+		var previous_body: String = _doc_body(previous_trimmed).strip_edges()
 		if previous_body.is_empty() or previous_body == DOC_RENDER_SEPARATOR:
 			continue
 		if previous_body.ends_with(DOC_RENDER_SEPARATOR):
@@ -790,14 +791,14 @@ func _collect_gdscript_files(root_path: String) -> Array[String]:
 
 
 func _collect_gdscript_files_recursive(root_path: String, result: Array[String]) -> void:
-	var dir := DirAccess.open(root_path)
+	var dir: DirAccess = DirAccess.open(root_path)
 	if dir == null:
 		return
 
-	dir.list_dir_begin()
-	var entry := dir.get_next()
+	var _list_dir_begin_result_798: Variant = dir.list_dir_begin()
+	var entry: String = dir.get_next()
 	while not entry.is_empty():
-		var child_path := root_path.path_join(entry)
+		var child_path: String = root_path.path_join(entry)
 		if dir.current_is_dir():
 			if not entry.begins_with("."):
 				_collect_gdscript_files_recursive(child_path, result)
@@ -810,8 +811,8 @@ func _collect_gdscript_files_recursive(root_path: String, result: Array[String])
 func _collect_all_type_visibility(script_paths: Array[String]) -> Dictionary:
 	var result: Dictionary = {}
 	for path: String in script_paths:
-		var declarations := _parse_declarations(_read_text(path), path)
-		var file_visibility := _collect_type_visibility(declarations)
+		var declarations: Array[Dictionary] = _parse_declarations(_read_text(path), path)
+		var file_visibility: Dictionary = _collect_type_visibility(declarations)
 		for type_name: String in file_visibility.keys():
 			result[type_name] = file_visibility[type_name]
 	return result
@@ -820,15 +821,15 @@ func _collect_all_type_visibility(script_paths: Array[String]) -> Dictionary:
 func _collect_all_type_inheritance(script_paths: Array[String]) -> Dictionary:
 	var result: Dictionary = {}
 	for path: String in script_paths:
-		var file_inheritance := _collect_file_type_inheritance(_read_text(path))
+		var file_inheritance: Dictionary = _collect_file_type_inheritance(_read_text(path))
 		for type_name: String in file_inheritance.keys():
 			result[type_name] = file_inheritance[type_name]
 	return result
 
 
 func _collect_file_type_inheritance(source: String) -> Dictionary:
-	var type_name := _collect_top_level_class_name(source)
-	var base_type := _collect_top_level_extends(source)
+	var type_name: String = _collect_top_level_class_name(source)
+	var base_type: String = _collect_top_level_extends(source)
 	if type_name.is_empty() or base_type.is_empty():
 		return {}
 	return {
@@ -846,22 +847,22 @@ func _collect_file_structure_issues(source: String, path: String, type_inheritan
 
 func _collect_orphan_doc_issues(source: String, path: String) -> Array[String]:
 	var issues: Array[String] = []
-	var lines := source.split("\n")
+	var lines: PackedStringArray = source.split("\n")
 	var doc_start_by_indent: Dictionary = {}
 	var doc_has_api_by_indent: Dictionary = {}
-	var function_body_indent := -1
-	var enum_body_indent := -1
-	var multiline_string_delimiter := ""
-	var skip_until_line := -1
+	var function_body_indent: int = -1
+	var enum_body_indent: int = -1
+	var multiline_string_delimiter: String = ""
+	var skip_until_line: int = -1
 
 	for line_index: int in range(lines.size()):
 		if line_index <= skip_until_line:
 			continue
 
-		var raw_line := _trim_cr(String(lines[line_index]))
-		var trimmed := raw_line.strip_edges()
-		var indent := _get_indent_level(raw_line)
-		var was_in_multiline_string := not multiline_string_delimiter.is_empty()
+		var raw_line: String = _trim_cr(String(lines[line_index]))
+		var trimmed: String = raw_line.strip_edges()
+		var indent: int = _get_indent_level(raw_line)
+		var was_in_multiline_string: bool = not multiline_string_delimiter.is_empty()
 		multiline_string_delimiter = _update_multiline_string_delimiter(raw_line, multiline_string_delimiter)
 		if was_in_multiline_string:
 			continue
@@ -891,37 +892,47 @@ func _collect_orphan_doc_issues(source: String, path: String) -> Array[String]:
 		if trimmed.is_empty():
 			continue
 
-		var section_name := _parse_section_name(trimmed)
+		var section_name: String = _parse_section_name(trimmed)
 		if not section_name.is_empty():
 			if doc_start_by_indent.has(indent):
-				_append_unbound_doc_issue(issues, path, int(doc_start_by_indent[indent]), bool(doc_has_api_by_indent.get(indent, false)))
-				doc_start_by_indent.erase(indent)
-				doc_has_api_by_indent.erase(indent)
+				_append_unbound_doc_issue(
+					issues,
+					path,
+					GF_VARIANT_ACCESS.get_option_int(doc_start_by_indent, indent, 0),
+					GF_VARIANT_ACCESS.get_option_bool(doc_has_api_by_indent, indent, false)
+				)
+				var _erase_result_904: Variant = doc_start_by_indent.erase(indent)
+				var _erase_result_905: Variant = doc_has_api_by_indent.erase(indent)
 			continue
 
-		var signature := _collect_declaration_signature(lines, line_index)
-		var declaration := _parse_declaration(String(signature["text"]))
+		var signature: Dictionary = _collect_declaration_signature(lines, line_index)
+		var declaration: Dictionary = _parse_declaration(GF_VARIANT_ACCESS.get_option_string(signature, "text", ""))
 		if not declaration.is_empty():
-			doc_start_by_indent.erase(indent)
-			doc_has_api_by_indent.erase(indent)
-			if String(declaration["kind"]) == "func":
+			var _erase_result_911: Variant = doc_start_by_indent.erase(indent)
+			var _erase_result_912: Variant = doc_has_api_by_indent.erase(indent)
+			if GF_VARIANT_ACCESS.get_option_string(declaration, "kind") == "func":
 				function_body_indent = indent
-			elif String(declaration["kind"]) == "enum":
+			elif GF_VARIANT_ACCESS.get_option_string(declaration, "kind") == "enum":
 				enum_body_indent = indent
-			skip_until_line = int(signature["end_line"])
+			skip_until_line = GF_VARIANT_ACCESS.get_option_int(signature, "end_line", line_index)
 			continue
 
 		if doc_start_by_indent.has(indent):
-			_append_unbound_doc_issue(issues, path, int(doc_start_by_indent[indent]), bool(doc_has_api_by_indent.get(indent, false)))
-			doc_start_by_indent.erase(indent)
-			doc_has_api_by_indent.erase(indent)
+			_append_unbound_doc_issue(
+				issues,
+				path,
+				GF_VARIANT_ACCESS.get_option_int(doc_start_by_indent, indent, 0),
+				GF_VARIANT_ACCESS.get_option_bool(doc_has_api_by_indent, indent, false)
+			)
+			var _erase_result_927: Variant = doc_start_by_indent.erase(indent)
+			var _erase_result_928: Variant = doc_has_api_by_indent.erase(indent)
 
 	for indent_variant: Variant in doc_start_by_indent.keys():
 		_append_unbound_doc_issue(
 			issues,
 			path,
-			int(doc_start_by_indent[indent_variant]),
-			bool(doc_has_api_by_indent.get(indent_variant, false))
+			GF_VARIANT_ACCESS.get_option_int(doc_start_by_indent, indent_variant, 0),
+			GF_VARIANT_ACCESS.get_option_bool(doc_has_api_by_indent, indent_variant, false)
 		)
 	return issues
 
@@ -935,13 +946,13 @@ func _append_unbound_doc_issue(issues: Array[String], path: String, line: int, h
 
 func _collect_onready_issues(source: String, path: String, type_inheritance: Dictionary) -> Array[String]:
 	var issues: Array[String] = []
-	var base_type := _collect_top_level_extends(source)
-	var lines := source.split("\n")
-	var multiline_string_delimiter := ""
+	var base_type: String = _collect_top_level_extends(source)
+	var lines: PackedStringArray = source.split("\n")
+	var multiline_string_delimiter: String = ""
 	for line_index: int in range(lines.size()):
-		var raw_line := _trim_cr(String(lines[line_index]))
-		var trimmed := raw_line.strip_edges()
-		var was_in_multiline_string := not multiline_string_delimiter.is_empty()
+		var raw_line: String = _trim_cr(String(lines[line_index]))
+		var trimmed: String = raw_line.strip_edges()
+		var was_in_multiline_string: bool = not multiline_string_delimiter.is_empty()
 		multiline_string_delimiter = _update_multiline_string_delimiter(raw_line, multiline_string_delimiter)
 		if was_in_multiline_string:
 			continue
@@ -962,48 +973,48 @@ func _collect_onready_issues(source: String, path: String, type_inheritance: Dic
 
 func _collect_section_issues(source: String, path: String) -> Array[String]:
 	var issues: Array[String] = []
-	var lines := source.split("\n")
+	var lines: PackedStringArray = source.split("\n")
 	var last_order_by_indent: Dictionary = {}
-	var multiline_string_delimiter := ""
+	var multiline_string_delimiter: String = ""
 	for line_index: int in range(lines.size()):
-		var raw_line := _trim_cr(String(lines[line_index]))
-		var trimmed := raw_line.strip_edges()
-		var was_in_multiline_string := not multiline_string_delimiter.is_empty()
+		var raw_line: String = _trim_cr(String(lines[line_index]))
+		var trimmed: String = raw_line.strip_edges()
+		var was_in_multiline_string: bool = not multiline_string_delimiter.is_empty()
 		multiline_string_delimiter = _update_multiline_string_delimiter(raw_line, multiline_string_delimiter)
 		if was_in_multiline_string:
 			continue
 
 		if trimmed.begins_with(SECTION_PREFIX):
-			var section_name := _parse_section_name(trimmed)
+			var section_name: String = _parse_section_name(trimmed)
 			if section_name.is_empty():
 				issues.append("%s:%d malformed API section header" % [path, line_index + 1])
 				continue
 
-			var canonical_name := _canonical_section_name(section_name)
-			var order := CANONICAL_SECTION_ORDER.find(canonical_name)
+			var canonical_name: String = _canonical_section_name(section_name)
+			var order: int = CANONICAL_SECTION_ORDER.find(canonical_name)
 			if order == -1:
 				issues.append("%s:%d unknown API section '%s'" % [path, line_index + 1, section_name])
 				continue
 
-			var indent := _get_indent_level(raw_line)
-			var last_order := -1
+			var indent: int = _get_indent_level(raw_line)
+			var last_order: int = -1
 			if last_order_by_indent.has(indent):
-				last_order = int(last_order_by_indent[indent])
+				last_order = GF_VARIANT_ACCESS.get_option_int(last_order_by_indent, indent, -1)
 			if order < last_order:
 				issues.append("%s:%d API section order places '%s' after a later section" % [path, line_index + 1, section_name])
 			last_order_by_indent[indent] = order
 			continue
 
-		var signature := _collect_declaration_signature(lines, line_index)
-		var declaration := _parse_declaration(String(signature["text"]))
+		var signature: Dictionary = _collect_declaration_signature(lines, line_index)
+		var declaration: Dictionary = _parse_declaration(GF_VARIANT_ACCESS.get_option_string(signature, "text", ""))
 		if declaration.is_empty():
 			continue
-		var kind := String(declaration["kind"])
+		var kind: String = GF_VARIANT_ACCESS.get_option_string(declaration, "kind", "")
 		if kind == "class" or kind == "class_name":
-			var declaration_indent := _get_indent_level(raw_line)
+			var declaration_indent: int = _get_indent_level(raw_line)
 			for indent_variant: Variant in last_order_by_indent.keys():
-				if int(indent_variant) > declaration_indent:
-					last_order_by_indent.erase(indent_variant)
+				if GF_VARIANT_ACCESS.to_int(indent_variant) > declaration_indent:
+					var _erase_result_1017: Variant = last_order_by_indent.erase(indent_variant)
 	return issues
 
 
@@ -1016,12 +1027,12 @@ func _collect_top_level_extends(source: String) -> String:
 
 
 func _collect_top_level_declaration_identifier(source: String, prefix: String) -> String:
-	var lines := source.split("\n")
-	var multiline_string_delimiter := ""
+	var lines: PackedStringArray = source.split("\n")
+	var multiline_string_delimiter: String = ""
 	for raw_line: String in lines:
-		var line := _trim_cr(raw_line)
-		var trimmed := line.strip_edges()
-		var was_in_multiline_string := not multiline_string_delimiter.is_empty()
+		var line: String = _trim_cr(raw_line)
+		var trimmed: String = line.strip_edges()
+		var was_in_multiline_string: bool = not multiline_string_delimiter.is_empty()
 		multiline_string_delimiter = _update_multiline_string_delimiter(line, multiline_string_delimiter)
 		if was_in_multiline_string:
 			continue
@@ -1042,38 +1053,38 @@ func _is_node_compatible_type(type_name: String, type_inheritance: Dictionary, v
 	visited[type_name] = true
 	if not type_inheritance.has(type_name):
 		return false
-	return _is_node_compatible_type(String(type_inheritance[type_name]), type_inheritance, visited)
+	return _is_node_compatible_type(GF_VARIANT_ACCESS.get_option_string(type_inheritance, type_name), type_inheritance, visited)
 
 
 func _canonical_section_name(section_name: String) -> String:
-	var normalized := section_name.strip_edges()
+	var normalized: String = section_name.strip_edges()
 	normalized = normalized.replace("（", "(").replace("）", ")")
-	var paren_index := normalized.find("(")
+	var paren_index: int = normalized.find("(")
 	if paren_index != -1:
 		normalized = normalized.substr(0, paren_index).strip_edges()
 	if SECTION_NAME_ALIASES.has(normalized):
-		return String(SECTION_NAME_ALIASES[normalized])
+		return GF_VARIANT_ACCESS.get_option_string(SECTION_NAME_ALIASES, normalized)
 	return normalized
 
 
 func _parse_declarations(source: String, path: String) -> Array[Dictionary]:
-	var lines := source.split("\n")
+	var lines: PackedStringArray = source.split("\n")
 	var declarations: Array[Dictionary] = []
 	var doc_lines_by_indent: Dictionary = {}
 	var section_by_indent: Dictionary = {}
-	var function_body_indent := -1
-	var enum_body_indent := -1
-	var multiline_string_delimiter := ""
-	var skip_until_line := -1
+	var function_body_indent: int = -1
+	var enum_body_indent: int = -1
+	var multiline_string_delimiter: String = ""
+	var skip_until_line: int = -1
 
 	for line_index: int in range(lines.size()):
 		if line_index <= skip_until_line:
 			continue
 
-		var raw_line := _trim_cr(String(lines[line_index]))
-		var trimmed := raw_line.strip_edges()
-		var indent := _get_indent_level(raw_line)
-		var was_in_multiline_string := not multiline_string_delimiter.is_empty()
+		var raw_line: String = _trim_cr(String(lines[line_index]))
+		var trimmed: String = raw_line.strip_edges()
+		var indent: int = _get_indent_level(raw_line)
+		var was_in_multiline_string: bool = not multiline_string_delimiter.is_empty()
 		multiline_string_delimiter = _update_multiline_string_delimiter(raw_line, multiline_string_delimiter)
 		if was_in_multiline_string:
 			continue
@@ -1095,7 +1106,7 @@ func _parse_declarations(source: String, path: String) -> Array[Dictionary]:
 		if trimmed.begins_with("##"):
 			var docs: Array = []
 			if doc_lines_by_indent.has(indent):
-				docs = doc_lines_by_indent[indent]
+				docs = GF_VARIANT_ACCESS.get_option_array(doc_lines_by_indent, indent, [])
 			docs.append(trimmed)
 			doc_lines_by_indent[indent] = docs
 			continue
@@ -1103,18 +1114,18 @@ func _parse_declarations(source: String, path: String) -> Array[Dictionary]:
 		if trimmed.is_empty():
 			continue
 
-		var section_name := _parse_section_name(trimmed)
+		var section_name: String = _parse_section_name(trimmed)
 		if not section_name.is_empty():
 			section_by_indent[indent] = section_name
-			doc_lines_by_indent.erase(indent)
+			var _erase_result_1120: Variant = doc_lines_by_indent.erase(indent)
 			continue
 
-		var signature := _collect_declaration_signature(lines, line_index)
-		var declaration := _parse_declaration(String(signature["text"]))
+		var signature: Dictionary = _collect_declaration_signature(lines, line_index)
+		var declaration: Dictionary = _parse_declaration(GF_VARIANT_ACCESS.get_option_string(signature, "text", ""))
 		if not declaration.is_empty():
 			var docs: Array = []
 			if doc_lines_by_indent.has(indent):
-				docs = doc_lines_by_indent[indent]
+				docs = GF_VARIANT_ACCESS.get_option_array(doc_lines_by_indent, indent, [])
 			declaration["path"] = path
 			declaration["line"] = line_index + 1
 			declaration["indent"] = indent
@@ -1127,38 +1138,39 @@ func _parse_declarations(source: String, path: String) -> Array[Dictionary]:
 			declaration["has_return_doc"] = _has_tag(docs, "return")
 			declaration["doc_params"] = _parse_named_tags(docs, "param")
 			declaration["schemas"] = _parse_named_tags(docs, "schema")
-			if String(declaration["kind"]) == "enum":
+			if GF_VARIANT_ACCESS.get_option_string(declaration, "kind") == "enum":
 				declaration["enum_values"] = _collect_enum_values(lines, line_index, indent)
 			else:
 				declaration["enum_values"] = []
 			declarations.append(declaration)
-			doc_lines_by_indent.erase(indent)
-			if String(declaration["kind"]) == "class" or String(declaration["kind"]) == "class_name":
+			var _erase_result_1146: Variant = doc_lines_by_indent.erase(indent)
+			var declaration_kind: String = GF_VARIANT_ACCESS.get_option_string(declaration, "kind")
+			if declaration_kind == "class" or declaration_kind == "class_name":
 				for section_indent_variant: Variant in section_by_indent.keys():
-					if int(section_indent_variant) > indent:
-						section_by_indent.erase(section_indent_variant)
+					if GF_VARIANT_ACCESS.to_int(section_indent_variant) > indent:
+						var _erase_result_1150: Variant = section_by_indent.erase(section_indent_variant)
 
-			if String(declaration["kind"]) == "func":
+			if declaration_kind == "func":
 				function_body_indent = indent
-			elif String(declaration["kind"]) == "enum":
+			elif declaration_kind == "enum":
 				enum_body_indent = indent
-			skip_until_line = int(signature["end_line"])
+			skip_until_line = GF_VARIANT_ACCESS.get_option_int(signature, "end_line", line_index)
 			continue
 
-		doc_lines_by_indent.erase(indent)
+		var _erase_result_1159: Variant = doc_lines_by_indent.erase(indent)
 
 	return declarations
 
 
 func _collect_enum_values(lines: PackedStringArray, enum_line: int, enum_indent: int) -> Array[Dictionary]:
 	var values: Array[Dictionary] = []
-	var doc_line := -1
+	var doc_line: int = -1
 	for line_index: int in range(enum_line + 1, lines.size()):
-		var raw_line := _trim_cr(String(lines[line_index]))
-		var trimmed := raw_line.strip_edges()
+		var raw_line: String = _trim_cr(String(lines[line_index]))
+		var trimmed: String = raw_line.strip_edges()
 		if trimmed.is_empty():
 			continue
-		var indent := _get_indent_level(raw_line)
+		var indent: int = _get_indent_level(raw_line)
 		if indent <= enum_indent:
 			break
 		if trimmed.begins_with("##"):
@@ -1170,11 +1182,11 @@ func _collect_enum_values(lines: PackedStringArray, enum_line: int, enum_indent:
 		if trimmed == "}" or trimmed == "},":
 			break
 
-		var without_comma := trimmed.trim_suffix(",").strip_edges()
-		var assignment_index := _find_top_level_character(without_comma, "=")
+		var without_comma: String = trimmed.trim_suffix(",").strip_edges()
+		var assignment_index: int = _find_top_level_character(without_comma, "=")
 		if assignment_index != -1:
 			without_comma = without_comma.substr(0, assignment_index).strip_edges()
-		var value_name := _read_identifier(without_comma)
+		var value_name: String = _read_identifier(without_comma)
 		if not value_name.is_empty():
 			values.append({
 				"name": value_name,
@@ -1186,16 +1198,16 @@ func _collect_enum_values(lines: PackedStringArray, enum_line: int, enum_indent:
 
 
 func _collect_declaration_signature(lines: PackedStringArray, start_line: int) -> Dictionary:
-	var text := _trim_cr(String(lines[start_line])).strip_edges()
-	var end_line := start_line
+	var text: String = _trim_cr(String(lines[start_line])).strip_edges()
+	var end_line: int = start_line
 	if not _can_have_multiline_signature(text):
 		return {
 			"text": text,
 			"end_line": end_line,
 		}
 
-	var requires_colon := text.begins_with("func ") or text.begins_with("static func ")
-	var paren_depth := _get_parenthesis_delta(text)
+	var requires_colon: bool = text.begins_with("func ") or text.begins_with("static func ")
+	var paren_depth: int = _get_parenthesis_delta(text)
 	if paren_depth <= 0 and (not requires_colon or text.ends_with(":")):
 		return {
 			"text": text,
@@ -1203,7 +1215,7 @@ func _collect_declaration_signature(lines: PackedStringArray, start_line: int) -
 		}
 
 	for next_line: int in range(start_line + 1, lines.size()):
-		var next_text := _trim_cr(String(lines[next_line])).strip_edges()
+		var next_text: String = _trim_cr(String(lines[next_line])).strip_edges()
 		text += " " + next_text
 		paren_depth += _get_parenthesis_delta(next_text)
 		end_line = next_line
@@ -1225,9 +1237,9 @@ func _can_have_multiline_signature(text: String) -> bool:
 
 
 func _get_parenthesis_delta(text: String) -> int:
-	var delta := 0
+	var delta: int = 0
 	for index: int in range(text.length()):
-		var character := text[index]
+		var character: String = text[index]
 		if character == "(":
 			delta += 1
 		elif character == ")":
@@ -1241,10 +1253,10 @@ func _update_multiline_string_delimiter(line: String, current_delimiter: String)
 			return ""
 		return current_delimiter
 
-	var double_index := line.find("\"\"\"")
-	var single_index := line.find("'''")
-	var delimiter := ""
-	var start_index := -1
+	var double_index: int = line.find("\"\"\"")
+	var single_index: int = line.find("'''")
+	var delimiter: String = ""
+	var start_index: int = -1
 	if double_index != -1 and (single_index == -1 or double_index < single_index):
 		delimiter = "\"\"\""
 		start_index = double_index
@@ -1293,7 +1305,7 @@ func _parse_declaration(trimmed: String) -> Dictionary:
 	if trimmed.begins_with("const "):
 		return _parse_value_declaration(trimmed.substr("const ".length()).strip_edges(), "const")
 
-	var var_index := trimmed.find("var ")
+	var var_index: int = trimmed.find("var ")
 	if trimmed.begins_with("var ") or var_index != -1:
 		return _parse_value_declaration(trimmed.substr(var_index + "var ".length()).strip_edges(), "var")
 
@@ -1304,10 +1316,10 @@ func _parse_declaration(trimmed: String) -> Dictionary:
 
 
 func _parse_signal_declaration(trimmed: String) -> Dictionary:
-	var signature := trimmed.substr("signal ".length()).strip_edges()
-	var open_index := signature.find("(")
-	var close_index := signature.rfind(")")
-	var signal_name := signature
+	var signature: String = trimmed.substr("signal ".length()).strip_edges()
+	var open_index: int = signature.find("(")
+	var close_index: int = signature.rfind(")")
+	var signal_name: String = signature
 	var params: Array[Dictionary] = []
 	if open_index != -1:
 		signal_name = signature.substr(0, open_index).strip_edges()
@@ -1323,14 +1335,14 @@ func _parse_signal_declaration(trimmed: String) -> Dictionary:
 
 
 func _parse_value_declaration(signature: String, kind: String) -> Dictionary:
-	var default_index := _find_top_level_character(signature, "=")
-	var without_default := signature
+	var default_index: int = _find_top_level_character(signature, "=")
+	var without_default: String = signature
 	if default_index != -1:
 		without_default = signature.substr(0, default_index).strip_edges()
 
-	var type_name := ""
-	var member_name := without_default
-	var type_index := _find_top_level_character(without_default, ":")
+	var type_name: String = ""
+	var member_name: String = without_default
+	var type_index: int = _find_top_level_character(without_default, ":")
 	if type_index != -1:
 		member_name = without_default.substr(0, type_index).strip_edges()
 		type_name = without_default.substr(type_index + 1).strip_edges()
@@ -1345,26 +1357,26 @@ func _parse_value_declaration(signature: String, kind: String) -> Dictionary:
 
 
 func _parse_function_declaration(trimmed: String) -> Dictionary:
-	var signature := trimmed
+	var signature: String = trimmed
 	if signature.begins_with("static func "):
 		signature = signature.substr("static func ".length()).strip_edges()
 	else:
 		signature = signature.substr("func ".length()).strip_edges()
 
-	var open_index := signature.find("(")
-	var close_index := signature.rfind(")")
-	var function_name := signature
+	var open_index: int = signature.find("(")
+	var close_index: int = signature.rfind(")")
+	var function_name: String = signature
 	var params: Array[Dictionary] = []
 	if open_index != -1:
 		function_name = signature.substr(0, open_index).strip_edges()
 		if close_index > open_index:
 			params = _parse_params(signature.substr(open_index + 1, close_index - open_index - 1))
 
-	var return_type := ""
-	var arrow_index := signature.find("->")
+	var return_type: String = ""
+	var arrow_index: int = signature.find("->")
 	if arrow_index != -1:
-		var return_text := signature.substr(arrow_index + "->".length()).strip_edges()
-		var colon_index := return_text.rfind(":")
+		var return_text: String = signature.substr(arrow_index + "->".length()).strip_edges()
+		var colon_index: int = return_text.rfind(":")
 		if colon_index != -1:
 			return_text = return_text.substr(0, colon_index).strip_edges()
 		return_type = return_text
@@ -1384,18 +1396,18 @@ func _parse_params(params_text: String) -> Array[Dictionary]:
 		return result
 
 	for raw_part: String in _split_top_level_arguments(params_text):
-		var part := raw_part.strip_edges()
+		var part: String = raw_part.strip_edges()
 		if part.is_empty():
 			continue
 
-		var default_index := _find_top_level_character(part, "=")
-		var without_default := part
+		var default_index: int = _find_top_level_character(part, "=")
+		var without_default: String = part
 		if default_index != -1:
 			without_default = part.substr(0, default_index).strip_edges()
 
-		var type_name := ""
-		var param_name := without_default
-		var type_index := _find_top_level_character(without_default, ":")
+		var type_name: String = ""
+		var param_name: String = without_default
+		var type_index: int = _find_top_level_character(without_default, ":")
 		if type_index != -1:
 			param_name = without_default.substr(0, type_index).strip_edges()
 			type_name = without_default.substr(type_index + 1).strip_edges()
@@ -1410,12 +1422,12 @@ func _parse_params(params_text: String) -> Array[Dictionary]:
 func _collect_type_visibility(declarations: Array[Dictionary]) -> Dictionary:
 	var result: Dictionary = {}
 	for declaration: Dictionary in declarations:
-		var kind := String(declaration["kind"])
+		var kind: String = GF_VARIANT_ACCESS.get_option_string(declaration, "kind", "")
 		if not CLASS_KINDS.has(kind) and kind != "enum":
 			continue
 
-		var type_declaration_name := String(declaration["name"])
-		var api := String(declaration["api"])
+		var type_declaration_name: String = GF_VARIANT_ACCESS.get_option_string(declaration, "name", "")
+		var api: String = GF_VARIANT_ACCESS.get_option_string(declaration, "api", "")
 		if not api.is_empty():
 			result[type_declaration_name] = api
 		elif type_declaration_name.begins_with("_"):
@@ -1425,12 +1437,12 @@ func _collect_type_visibility(declarations: Array[Dictionary]) -> Dictionary:
 
 func _collect_declaration_issues(declaration: Dictionary, type_visibility: Dictionary, allows_top_level_public_api: bool) -> Array[String]:
 	var issues: Array[String] = []
-	var declaration_name := String(declaration["name"])
-	var kind := String(declaration["kind"])
-	var api := String(declaration["api"])
-	var docs := declaration["docs"] as Array
-	var location := _format_location(declaration)
-	var is_private := _is_private_declaration(declaration)
+	var declaration_name: String = GF_VARIANT_ACCESS.get_option_string(declaration, "name", "")
+	var kind: String = GF_VARIANT_ACCESS.get_option_string(declaration, "kind", "")
+	var api: String = GF_VARIANT_ACCESS.get_option_string(declaration, "api", "")
+	var docs: Array = GF_VARIANT_ACCESS.get_option_array(declaration, "docs", [])
+	var location: String = _format_location(declaration)
+	var is_private: bool = _is_private_declaration(declaration)
 
 	if not api.is_empty() and not API_TAGS.has(api):
 		issues.append("%s %s has invalid @api '%s'" % [location, declaration_name, api])
@@ -1444,29 +1456,29 @@ func _collect_declaration_issues(declaration: Dictionary, type_visibility: Dicti
 	if docs.is_empty() and _declaration_requires_api_doc(declaration):
 		issues.append("%s %s missing API doc" % [location, declaration_name])
 
-	if PUBLIC_API_TAGS.has(api) and int(declaration["indent"]) == 0 and kind != "class_name" and not allows_top_level_public_api:
+	if PUBLIC_API_TAGS.has(api) and GF_VARIANT_ACCESS.get_option_int(declaration, "indent", 0) == 0 and kind != "class_name" and not allows_top_level_public_api:
 		issues.append("%s %s public top-level API requires class_name or Node-compatible singleton script" % [location, declaration_name])
 
-	if api == "layer_internal" and String(declaration["layer"]).is_empty():
+	if api == "layer_internal" and GF_VARIANT_ACCESS.get_option_string(declaration, "layer", "").is_empty():
 		issues.append("%s %s layer_internal API must declare @layer" % [location, declaration_name])
 
-	var layer := String(declaration["layer"])
-	if not layer.is_empty() and not _layer_matches_source_path(layer, String(declaration["path"])):
+	var layer: String = GF_VARIANT_ACCESS.get_option_string(declaration, "layer", "")
+	if not layer.is_empty() and not _layer_matches_source_path(layer, GF_VARIANT_ACCESS.get_option_string(declaration, "path", "")):
 		issues.append("%s %s @layer '%s' does not match source path" % [location, declaration_name, layer])
 
 	if api == "protected":
 		if not kind == "func" or not declaration_name.begins_with("_"):
 			issues.append("%s %s protected API must use an underscore name" % [location, declaration_name])
-		if not _section_has_marker(String(declaration["section"]), PROTECTED_SECTION_MARKERS):
+		if not _section_has_marker(GF_VARIANT_ACCESS.get_option_string(declaration, "section", ""), PROTECTED_SECTION_MARKERS):
 			issues.append("%s %s protected API must be placed in a hook or virtual section" % [location, declaration_name])
 
 	if CLASS_KINDS.has(kind) and api == "public":
-		var category := String(declaration["category"])
+		var category: String = GF_VARIANT_ACCESS.get_option_string(declaration, "category", "")
 		if category.is_empty():
 			issues.append("%s %s public class must declare @category" % [location, declaration_name])
 		elif not VALID_CATEGORIES.has(category):
 			issues.append("%s %s uses unknown @category '%s'" % [location, declaration_name, category])
-		if not bool(declaration["has_since"]):
+		if not GF_VARIANT_ACCESS.get_option_bool(declaration, "has_since", false):
 			issues.append("%s %s public class must declare @since" % [location, declaration_name])
 
 	if not api.is_empty() and (kind == "func" or kind == "signal"):
@@ -1489,14 +1501,14 @@ func _collect_declaration_issues(declaration: Dictionary, type_visibility: Dicti
 
 func _collect_param_doc_issues(declaration: Dictionary) -> Array[String]:
 	var issues: Array[String] = []
-	var location := _format_location(declaration)
-	var declaration_name := String(declaration["name"])
-	var actual_params := PackedStringArray()
-	var params := declaration["params"] as Array
+	var location: String = _format_location(declaration)
+	var declaration_name: String = GF_VARIANT_ACCESS.get_option_string(declaration, "name", "")
+	var actual_params: PackedStringArray = PackedStringArray()
+	var params: Array = GF_VARIANT_ACCESS.get_option_array(declaration, "params", [])
 	for param: Dictionary in params:
-		actual_params.append(String(param["name"]))
+		var _append_result_1508: Variant = actual_params.append(GF_VARIANT_ACCESS.get_option_string(param, "name", ""))
 
-	var documented_params := declaration["doc_params"] as PackedStringArray
+	var documented_params: PackedStringArray = GF_VARIANT_ACCESS.get_option_packed_string_array(declaration, "doc_params", PackedStringArray())
 	for actual_param: String in actual_params:
 		if not documented_params.has(actual_param):
 			issues.append("%s %s missing @param for '%s'" % [location, declaration_name, actual_param])
@@ -1516,34 +1528,34 @@ func _collect_param_doc_issues(declaration: Dictionary) -> Array[String]:
 
 
 func _collect_return_doc_issues(declaration: Dictionary) -> Array[String]:
-	var return_type := String(declaration["return_type"])
+	var return_type: String = GF_VARIANT_ACCESS.get_option_string(declaration, "return_type", "")
 	if return_type.is_empty():
-		return ["%s %s missing return type" % [_format_location(declaration), String(declaration["name"])]]
+		return ["%s %s missing return type" % [_format_location(declaration), GF_VARIANT_ACCESS.get_option_string(declaration, "name", "")]]
 	if return_type == "void":
 		return []
-	if bool(declaration["has_return_doc"]):
+	if GF_VARIANT_ACCESS.get_option_bool(declaration, "has_return_doc", false):
 		return []
-	return ["%s %s missing @return" % [_format_location(declaration), String(declaration["name"])]]
+	return ["%s %s missing @return" % [_format_location(declaration), GF_VARIANT_ACCESS.get_option_string(declaration, "name", "")]]
 
 
 func _collect_schema_issues(declaration: Dictionary) -> Array[String]:
 	var issues: Array[String] = []
-	var kind := String(declaration["kind"])
-	var schemas := declaration["schemas"] as PackedStringArray
-	var location := _format_location(declaration)
-	var declaration_name := String(declaration["name"])
+	var kind: String = GF_VARIANT_ACCESS.get_option_string(declaration, "kind", "")
+	var schemas: PackedStringArray = GF_VARIANT_ACCESS.get_option_packed_string_array(declaration, "schemas", PackedStringArray())
+	var location: String = _format_location(declaration)
+	var declaration_name: String = GF_VARIANT_ACCESS.get_option_string(declaration, "name", "")
 
 	if kind == "func" or kind == "signal":
-		var params := declaration["params"] as Array
+		var params: Array = GF_VARIANT_ACCESS.get_option_array(declaration, "params", [])
 		for param: Dictionary in params:
-			var param_name := String(param["name"])
-			if _type_requires_schema(String(param["type"])) and not schemas.has(param_name):
+			var param_name: String = GF_VARIANT_ACCESS.get_option_string(param, "name", "")
+			if _type_requires_schema(GF_VARIANT_ACCESS.get_option_string(param, "type", "")) and not schemas.has(param_name):
 				issues.append("%s %s missing @schema for '%s'" % [location, declaration_name, param_name])
 
-	if kind == "func" and _type_requires_schema(String(declaration["return_type"])) and not schemas.has("return"):
+	if kind == "func" and _type_requires_schema(GF_VARIANT_ACCESS.get_option_string(declaration, "return_type", "")) and not schemas.has("return"):
 		issues.append("%s %s missing @schema for return" % [location, declaration_name])
 
-	if (kind == "var" or kind == "const") and _type_requires_schema(String(declaration["type"])) and not schemas.has(declaration_name):
+	if (kind == "var" or kind == "const") and _type_requires_schema(GF_VARIANT_ACCESS.get_option_string(declaration, "type", "")) and not schemas.has(declaration_name):
 		issues.append("%s %s missing @schema for '%s'" % [location, declaration_name, declaration_name])
 
 	return issues
@@ -1551,44 +1563,44 @@ func _collect_schema_issues(declaration: Dictionary) -> Array[String]:
 
 func _collect_enum_value_doc_issues(declaration: Dictionary) -> Array[String]:
 	var issues: Array[String] = []
-	var enum_values := declaration["enum_values"] as Array
+	var enum_values: Array = GF_VARIANT_ACCESS.get_option_array(declaration, "enum_values", [])
 	for enum_value: Dictionary in enum_values:
-		if bool(enum_value["has_doc"]):
+		if GF_VARIANT_ACCESS.get_option_bool(enum_value, "has_doc", false):
 			continue
 		issues.append("%s:%d %s public enum value '%s' missing doc comment" % [
-			String(declaration["path"]),
-			int(enum_value["line"]),
-			String(declaration["name"]),
-			String(enum_value["name"]),
+			GF_VARIANT_ACCESS.get_option_string(declaration, "path", ""),
+			GF_VARIANT_ACCESS.get_option_int(enum_value, "line", 0),
+			GF_VARIANT_ACCESS.get_option_string(declaration, "name", ""),
+			GF_VARIANT_ACCESS.get_option_string(enum_value, "name", ""),
 		])
 	return issues
 
 
 func _collect_internal_type_exposure_issues(declaration: Dictionary, type_visibility: Dictionary) -> Array[String]:
 	var issues: Array[String] = []
-	var location := _format_location(declaration)
-	var declaration_name := String(declaration["name"])
+	var location: String = _format_location(declaration)
+	var declaration_name: String = GF_VARIANT_ACCESS.get_option_string(declaration, "name", "")
 
 	for type_name: String in _collect_referenced_types(declaration):
 		if not type_visibility.has(type_name):
 			continue
-		var visibility := String(type_visibility[type_name])
+		var visibility: String = GF_VARIANT_ACCESS.get_option_string(type_visibility, type_name, "")
 		if INTERNAL_API_TAGS.has(visibility):
 			issues.append("%s %s public API exposes internal type %s" % [location, declaration_name, type_name])
 	return issues
 
 
 func _collect_referenced_types(declaration: Dictionary) -> PackedStringArray:
-	var result := PackedStringArray()
-	var kind := String(declaration["kind"])
+	var result: PackedStringArray = PackedStringArray()
+	var kind: String = GF_VARIANT_ACCESS.get_option_string(declaration, "kind", "")
 	if kind == "func" or kind == "signal":
-		var params := declaration["params"] as Array
+		var params: Array = GF_VARIANT_ACCESS.get_option_array(declaration, "params", [])
 		for param: Dictionary in params:
-			_append_type_names(result, String(param["type"]))
+			_append_type_names(result, GF_VARIANT_ACCESS.get_option_string(param, "type", ""))
 	if kind == "func":
-		_append_type_names(result, String(declaration["return_type"]))
+		_append_type_names(result, GF_VARIANT_ACCESS.get_option_string(declaration, "return_type", ""))
 	if kind == "var" or kind == "const":
-		_append_type_names(result, String(declaration["type"]))
+		_append_type_names(result, GF_VARIANT_ACCESS.get_option_string(declaration, "type", ""))
 	return result
 
 
@@ -1599,33 +1611,33 @@ func _append_type_names(result: PackedStringArray, type_text: String) -> void:
 		if RAW_STRUCTURAL_TYPES.has(type_name):
 			continue
 		if not result.has(type_name):
-			result.append(type_name)
+			var _append_result_1613: Variant = result.append(type_name)
 
 
 func _extract_type_names(type_text: String) -> PackedStringArray:
-	var result := PackedStringArray()
-	var current := ""
+	var result: PackedStringArray = PackedStringArray()
+	var current: String = ""
 	for index: int in range(type_text.length()):
-		var character := type_text[index]
+		var character: String = type_text[index]
 		if _is_identifier_character(character):
 			current += character
 			continue
 		if not current.is_empty():
-			result.append(current)
+			var _append_result_1625: Variant = result.append(current)
 			current = ""
 	if not current.is_empty():
-		result.append(current)
+		var _append_result_1628: Variant = result.append(current)
 	return result
 
 
 func _type_requires_schema(type_text: String) -> bool:
-	var trimmed := type_text.strip_edges()
+	var trimmed: String = type_text.strip_edges()
 	if trimmed.is_empty():
 		return false
 	if RAW_STRUCTURAL_TYPES.has(trimmed):
 		return true
 	if trimmed.begins_with("Array[") and trimmed.ends_with("]"):
-		var inner := trimmed.substr("Array[".length(), trimmed.length() - "Array[".length() - 1).strip_edges()
+		var inner: String = trimmed.substr("Array[".length(), trimmed.length() - "Array[".length() - 1).strip_edges()
 		return _type_requires_schema(inner)
 	if trimmed.begins_with("Dictionary["):
 		return true
@@ -1633,8 +1645,8 @@ func _type_requires_schema(type_text: String) -> bool:
 
 
 func _layer_matches_source_path(layer: String, path: String) -> bool:
-	var normalized_layer := layer.strip_edges().replace(".", "/")
-	var normalized_path := path.replace("\\", "/")
+	var normalized_layer: String = layer.strip_edges().replace(".", "/")
+	var normalized_path: String = path.replace("\\", "/")
 	normalized_path = normalized_path.trim_prefix("res://")
 	if not normalized_path.begins_with("addons/gf/"):
 		return true
@@ -1648,100 +1660,103 @@ func _layer_matches_source_path(layer: String, path: String) -> bool:
 
 func _has_top_level_class_name(declarations: Array[Dictionary]) -> bool:
 	for declaration: Dictionary in declarations:
-		if String(declaration["kind"]) == "class_name" and int(declaration["indent"]) == 0:
+		if (
+			GF_VARIANT_ACCESS.get_option_string(declaration, "kind") == "class_name"
+			and GF_VARIANT_ACCESS.get_option_int(declaration, "indent") == 0
+		):
 			return true
 	return false
 
 
 func _declaration_requires_api_doc(declaration: Dictionary) -> bool:
-	var kind := String(declaration["kind"])
+	var kind: String = GF_VARIANT_ACCESS.get_option_string(declaration, "kind", "")
 	if not ["class_name", "class", "signal", "enum", "const", "var", "func"].has(kind):
 		return false
 	return not _is_private_declaration(declaration)
 
 
 func _is_private_declaration(declaration: Dictionary) -> bool:
-	var declaration_name := String(declaration["name"])
-	var api := String(declaration.get("api", ""))
+	var declaration_name: String = GF_VARIANT_ACCESS.get_option_string(declaration, "name", "")
+	var api: String = GF_VARIANT_ACCESS.get_option_string(declaration, "api", "")
 	if api == "protected":
 		return false
 	if declaration_name == "_init" and not api.is_empty():
 		return false
 	if declaration_name.begins_with("_"):
 		return true
-	if String(declaration["kind"]) == "func" and GODOT_CALLBACK_NAMES.has(declaration_name):
+	if GF_VARIANT_ACCESS.get_option_string(declaration, "kind", "") == "func" and GODOT_CALLBACK_NAMES.has(declaration_name):
 		return true
 	return false
 
 
 func _parse_tag_value(docs: Array, tag_name: String) -> String:
-	var prefix := "@%s" % tag_name
+	var prefix: String = "@%s" % tag_name
 	for raw_line: Variant in docs:
-		var body := _doc_body(String(raw_line))
+		var body: String = _doc_body(GF_VARIANT_ACCESS.to_text(raw_line))
 		if body == prefix:
 			return ""
 		if not body.begins_with(prefix + " "):
 			continue
-		var rest := body.substr(prefix.length() + 1).strip_edges()
+		var rest: String = body.substr(prefix.length() + 1).strip_edges()
 		return _read_identifier_or_token(rest)
 	return ""
 
 
 func _has_tag(docs: Array, tag_name: String) -> bool:
-	var prefix := "@%s" % tag_name
+	var prefix: String = "@%s" % tag_name
 	for raw_line: Variant in docs:
-		var body := _doc_body(String(raw_line))
+		var body: String = _doc_body(GF_VARIANT_ACCESS.to_text(raw_line))
 		if body == prefix or body.begins_with(prefix + " ") or body.begins_with(prefix + ":"):
 			return true
 	return false
 
 
 func _parse_named_tags(docs: Array, tag_name: String) -> PackedStringArray:
-	var result := PackedStringArray()
-	var prefix := "@%s " % tag_name
+	var result: PackedStringArray = PackedStringArray()
+	var prefix: String = "@%s " % tag_name
 	for raw_line: Variant in docs:
-		var body := _doc_body(String(raw_line))
+		var body: String = _doc_body(GF_VARIANT_ACCESS.to_text(raw_line))
 		if not body.begins_with(prefix):
 			continue
-		var parsed_tag_name := _read_identifier(body.substr(prefix.length()).strip_edges())
+		var parsed_tag_name: String = _read_identifier(body.substr(prefix.length()).strip_edges())
 		if not parsed_tag_name.is_empty():
-			result.append(parsed_tag_name)
+			var _append_result_1719: Variant = result.append(parsed_tag_name)
 	return result
 
 
 func _doc_body(line: String) -> String:
-	var trimmed := line.strip_edges()
+	var trimmed: String = line.strip_edges()
 	if not trimmed.begins_with("##"):
 		return trimmed
 	return trimmed.substr(2).strip_edges()
 
 
 func _parse_section_name(line: String) -> String:
-	var trimmed := line.strip_edges()
+	var trimmed: String = line.strip_edges()
 	if not trimmed.begins_with(SECTION_PREFIX):
 		return ""
 	if not trimmed.ends_with(SECTION_SUFFIX):
 		return ""
-	var start_index := SECTION_PREFIX.length()
-	var content_length := trimmed.length() - SECTION_PREFIX.length() - SECTION_SUFFIX.length()
+	var start_index: int = SECTION_PREFIX.length()
+	var content_length: int = trimmed.length() - SECTION_PREFIX.length() - SECTION_SUFFIX.length()
 	if content_length <= 0:
 		return ""
 	return trimmed.substr(start_index, content_length).strip_edges()
 
 
 func _get_section_for_indent(section_by_indent: Dictionary, indent: int) -> String:
-	var current_indent := indent
+	var current_indent: int = indent
 	while current_indent >= 0:
 		if section_by_indent.has(current_indent):
-			return String(section_by_indent[current_indent])
+			return GF_VARIANT_ACCESS.get_option_string(section_by_indent, current_indent)
 		current_indent -= 1
 	return ""
 
 
 func _get_indent_level(line: String) -> int:
-	var result := 0
+	var result: int = 0
 	for index: int in range(line.length()):
-		var character := line[index]
+		var character: String = line[index]
 		if character == "\t":
 			result += 1
 		elif character == " ":
@@ -1752,9 +1767,9 @@ func _get_indent_level(line: String) -> int:
 
 
 func _read_identifier(text: String) -> String:
-	var result := ""
+	var result: String = ""
 	for index: int in range(text.length()):
-		var character := text[index]
+		var character: String = text[index]
 		if _is_identifier_character(character):
 			result += character
 			continue
@@ -1763,9 +1778,9 @@ func _read_identifier(text: String) -> String:
 
 
 func _read_identifier_or_token(text: String) -> String:
-	var result := ""
+	var result: String = ""
 	for index: int in range(text.length()):
-		var character := text[index]
+		var character: String = text[index]
 		if character == " " or character == "\t" or character == ":" or character == "{":
 			break
 		result += character
@@ -1782,13 +1797,13 @@ func _is_identifier_character(character: String) -> bool:
 
 
 func _split_top_level_arguments(args_text: String) -> PackedStringArray:
-	var result := PackedStringArray()
-	var start_index := 0
+	var result: PackedStringArray = PackedStringArray()
+	var start_index: int = 0
 	for index: int in range(args_text.length()):
 		if args_text[index] == "," and _is_top_level_character(args_text, index):
-			result.append(args_text.substr(start_index, index - start_index))
+			var _append_result_1800: Variant = result.append(args_text.substr(start_index, index - start_index))
 			start_index = index + 1
-	result.append(args_text.substr(start_index))
+	var _append_result_1802: Variant = result.append(args_text.substr(start_index))
 	return result
 
 
@@ -1800,13 +1815,13 @@ func _find_top_level_character(text: String, target: String) -> int:
 
 
 func _is_top_level_character(text: String, target_index: int) -> bool:
-	var parenthesis_depth := 0
-	var bracket_depth := 0
-	var brace_depth := 0
-	var in_string := false
-	var string_quote := ""
+	var parenthesis_depth: int = 0
+	var bracket_depth: int = 0
+	var brace_depth: int = 0
+	var in_string: bool = false
+	var string_quote: String = ""
 	for index: int in range(target_index):
-		var character := text[index]
+		var character: String = text[index]
 		if in_string:
 			if character == string_quote:
 				in_string = false
@@ -1830,7 +1845,7 @@ func _is_top_level_character(text: String, target_index: int) -> bool:
 
 
 func _section_has_marker(section_name: String, markers: Array[String]) -> bool:
-	var lower_section := section_name.to_lower()
+	var lower_section: String = section_name.to_lower()
 	for marker: String in markers:
 		if lower_section.contains(marker.to_lower()):
 			return true
@@ -1854,15 +1869,18 @@ func _issues_contain(issues: Array[String], fragment: String) -> bool:
 
 
 func _format_location(declaration: Dictionary) -> String:
-	return "%s:%d" % [String(declaration["path"]), int(declaration["line"])]
+	return "%s:%d" % [
+		GF_VARIANT_ACCESS.get_option_string(declaration, "path", ""),
+		GF_VARIANT_ACCESS.get_option_int(declaration, "line", 0),
+	]
 
 
 func _read_text(path: String) -> String:
-	var file := FileAccess.open(path, FileAccess.READ)
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
 	assert_not_null(file, "应能读取文件：%s" % path)
 	if file == null:
 		return ""
-	var text := file.get_as_text()
+	var text: String = file.get_as_text()
 	file.close()
 	return text
 
@@ -1874,7 +1892,7 @@ func _trim_cr(text: String) -> String:
 
 
 func _join_lines(lines: Array[String]) -> String:
-	var packed := PackedStringArray()
+	var packed: PackedStringArray = PackedStringArray()
 	for line: String in lines:
-		packed.append(line)
+		var _append_result_1893: Variant = packed.append(line)
 	return "\n".join(packed)

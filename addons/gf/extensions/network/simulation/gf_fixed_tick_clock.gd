@@ -148,16 +148,16 @@ func advance(delta_seconds: float) -> int:
 		return 0
 
 	accumulator_seconds += delta_seconds
-	var tick_seconds := get_tick_seconds()
-	var available_steps := int(floor(accumulator_seconds / tick_seconds))
+	var tick_seconds: float = get_tick_seconds()
+	var available_steps: int = GFVariantData.to_int(floor(accumulator_seconds / tick_seconds))
 	if available_steps <= 0:
 		return 0
 
-	var step_count := available_steps
+	var step_count: int = available_steps
 	if max_steps_per_update > 0:
 		step_count = mini(step_count, max_steps_per_update)
 
-	var previous_tick := current_tick
+	var previous_tick: int = current_tick
 	_advance_steps(step_count, tick_seconds)
 	accumulator_seconds -= tick_seconds * step_count
 	if (
@@ -179,7 +179,7 @@ func advance(delta_seconds: float) -> int:
 ## [br]
 ## @return 推进后的当前 tick。
 func step_once() -> int:
-	var previous_tick := current_tick
+	var previous_tick: int = current_tick
 	_advance_steps(1, get_tick_seconds())
 	ticks_advanced.emit(previous_tick, current_tick, 1)
 	return current_tick
@@ -246,11 +246,22 @@ func to_dict() -> Dictionary:
 ## [br]
 ## @schema data: Dictionary，包含 tick_rate、current_tick、accumulator_seconds、max_steps_per_update、drop_excess_time_on_budget_hit。
 func from_dict(data: Dictionary) -> void:
-	tick_rate = maxf(float(data.get("tick_rate", tick_rate)), 0.001)
-	current_tick = int(data.get("current_tick", current_tick))
-	accumulator_seconds = maxf(float(data.get("accumulator_seconds", accumulator_seconds)), 0.0)
-	max_steps_per_update = int(data.get("max_steps_per_update", max_steps_per_update))
-	drop_excess_time_on_budget_hit = bool(data.get("drop_excess_time_on_budget_hit", drop_excess_time_on_budget_hit))
+	tick_rate = maxf(GFVariantData.get_option_float(data, "tick_rate", tick_rate), 0.001)
+	current_tick = GFVariantData.get_option_int(data, "current_tick", current_tick)
+	accumulator_seconds = maxf(
+		GFVariantData.get_option_float(data, "accumulator_seconds", accumulator_seconds),
+		0.0
+	)
+	max_steps_per_update = GFVariantData.get_option_int(
+		data,
+		"max_steps_per_update",
+		max_steps_per_update
+	)
+	drop_excess_time_on_budget_hit = GFVariantData.get_option_bool(
+		data,
+		"drop_excess_time_on_budget_hit",
+		drop_excess_time_on_budget_hit
+	)
 
 
 ## 获取调试快照。
@@ -261,7 +272,7 @@ func from_dict(data: Dictionary) -> void:
 ## [br]
 ## @schema return: Dictionary，包含 to_dict() 字段以及 tick_seconds、interpolation_alpha、tick_factor、lag_seconds。
 func get_debug_snapshot() -> Dictionary:
-	var snapshot := to_dict()
+	var snapshot: Dictionary = to_dict()
 	snapshot["tick_seconds"] = get_tick_seconds()
 	snapshot["interpolation_alpha"] = get_interpolation_alpha()
 	snapshot["tick_factor"] = get_tick_factor()
@@ -275,11 +286,11 @@ func _advance_steps(step_count: int, tick_seconds: float) -> void:
 	if step_count <= 0:
 		return
 
-	var previous_tick := current_tick
-	var target_tick := current_tick + step_count
+	var previous_tick: int = current_tick
+	var target_tick: int = current_tick + step_count
 	tick_loop_started.emit(previous_tick, target_tick, step_count)
 	for _step_index: int in range(step_count):
-		var next_tick := current_tick + 1
+		var next_tick: int = current_tick + 1
 		tick_started.emit(next_tick, tick_seconds)
 		current_tick = next_tick
 		tick_finished.emit(current_tick, tick_seconds)

@@ -60,7 +60,7 @@ static func analyze_contexts(
 	include_cross_context: bool = false,
 	include_non_remappable: bool = true
 ) -> Array[Dictionary]:
-	var items := collect_binding_items(contexts, remap_config, include_non_remappable)
+	var items: Array[Dictionary] = collect_binding_items(contexts, remap_config, include_non_remappable)
 	return _analyze_items(items, include_cross_context)
 
 
@@ -87,8 +87,8 @@ static func build_rebind_report(
 	include_cross_context: bool = false,
 	include_non_remappable: bool = true
 ) -> Dictionary:
-	var items := collect_binding_items(contexts, remap_config, include_non_remappable)
-	var conflicts := _analyze_items(items, include_cross_context)
+	var items: Array[Dictionary] = collect_binding_items(contexts, remap_config, include_non_remappable)
+	var conflicts: Array[Dictionary] = _analyze_items(items, include_cross_context)
 	return {
 		"ok": conflicts.is_empty(),
 		"context_count": _count_contexts(contexts),
@@ -137,10 +137,10 @@ static func collect_binding_items(
 ## [br]
 ## @return 签名字符串；空事件返回空字符串。
 static func get_event_signature(input_event: InputEvent, match_device: bool = false) -> String:
-	var event_key := _get_event_key(input_event)
+	var event_key: String = _get_event_key(input_event)
 	if event_key.is_empty():
 		return ""
-	var device_scope := _get_device_scope(input_event, match_device)
+	var device_scope: String = _get_device_scope(input_event, match_device)
 	return "%s@%s" % [event_key, device_scope]
 
 
@@ -163,13 +163,13 @@ static func are_events_equivalent(
 	left_match_device: bool = false,
 	right_match_device: bool = false
 ) -> bool:
-	var left_key := _get_event_key(left_event)
-	var right_key := _get_event_key(right_event)
+	var left_key: String = _get_event_key(left_event)
+	var right_key: String = _get_event_key(right_event)
 	if left_key.is_empty() or left_key != right_key:
 		return false
 
-	var left_device := _get_device_scope(left_event, left_match_device)
-	var right_device := _get_device_scope(right_event, right_match_device)
+	var left_device: String = _get_device_scope(left_event, left_match_device)
+	var right_device: String = _get_device_scope(right_event, right_match_device)
 	return left_device == "*" or right_device == "*" or left_device == right_device
 
 
@@ -181,28 +181,28 @@ static func _collect_context_binding_items(
 	include_non_remappable: bool,
 	items: Array[Dictionary]
 ) -> void:
-	var context_id := context.get_context_id()
+	var context_id: StringName = context.get_context_id()
 	for mapping: GFInputMapping in context.mappings:
 		if mapping == null:
 			continue
 		if not include_non_remappable and mapping.action != null and not mapping.action.remappable:
 			continue
 
-		var action_id := mapping.get_action_id()
+		var action_id: StringName = mapping.get_action_id()
 		for binding_index: int in range(mapping.bindings.size()):
-			var binding := mapping.bindings[binding_index]
+			var binding: GFInputBinding = mapping.bindings[binding_index]
 			if binding == null:
 				continue
 			if not include_non_remappable and not binding.remappable:
 				continue
 
-			var event := binding.input_event
+			var event: InputEvent = binding.input_event
 			if remap_config != null and remap_config.has_binding(context_id, action_id, binding_index):
 				event = remap_config.get_bound_event_or_null(context_id, action_id, binding_index)
 			if event == null:
 				continue
 
-			var event_key := _get_event_key(event)
+			var event_key: String = _get_event_key(event)
 			if event_key.is_empty():
 				continue
 
@@ -224,10 +224,10 @@ static func _collect_context_binding_items(
 static func _analyze_items(items: Array[Dictionary], include_cross_context: bool) -> Array[Dictionary]:
 	var conflicts: Array[Dictionary] = []
 	for left_index: int in range(items.size()):
-		var left := items[left_index]
+		var left: Dictionary = items[left_index]
 		for right_index: int in range(left_index + 1, items.size()):
-			var right := items[right_index]
-			if not include_cross_context and left["context_id"] != right["context_id"]:
+			var right: Dictionary = items[right_index]
+			if not include_cross_context and _get_item_context_id(left) != _get_item_context_id(right):
 				continue
 			if not _items_conflict(left, right):
 				continue
@@ -236,7 +236,7 @@ static func _analyze_items(items: Array[Dictionary], include_cross_context: bool
 
 
 static func _count_contexts(contexts: Array[GFInputContext]) -> int:
-	var count := 0
+	var count: int = 0
 	for context: GFInputContext in contexts:
 		if context != null:
 			count += 1
@@ -244,26 +244,54 @@ static func _count_contexts(contexts: Array[GFInputContext]) -> int:
 
 
 static func _items_conflict(left: Dictionary, right: Dictionary) -> bool:
-	if String(left.get("event_key", "")) != String(right.get("event_key", "")):
+	if _get_item_event_key(left) != _get_item_event_key(right):
 		return false
 
-	var left_device := String(left.get("device_scope", "*"))
-	var right_device := String(right.get("device_scope", "*"))
+	var left_device: String = _get_item_device_scope(left)
+	var right_device: String = _get_item_device_scope(right)
 	return left_device == "*" or right_device == "*" or left_device == right_device
 
 
 static func _make_conflict(left: Dictionary, right: Dictionary) -> Dictionary:
 	return {
-		"context_id": left["context_id"],
-		"action_id": left["action_id"],
-		"binding_index": left["binding_index"],
-		"other_context_id": right["context_id"],
-		"other_action_id": right["action_id"],
-		"other_binding_index": right["binding_index"],
-		"event_text": left["event_text"],
-		"signature": left["signature"],
+		"context_id": _get_item_context_id(left),
+		"action_id": _get_item_action_id(left),
+		"binding_index": _get_item_binding_index(left),
+		"other_context_id": _get_item_context_id(right),
+		"other_action_id": _get_item_action_id(right),
+		"other_binding_index": _get_item_binding_index(right),
+		"event_text": _get_item_event_text(left),
+		"signature": _get_item_signature(left),
 		"items": [left, right],
 	}
+
+
+static func _get_item_context_id(item: Dictionary) -> StringName:
+	return GFVariantData.get_option_string_name(item, "context_id")
+
+
+static func _get_item_action_id(item: Dictionary) -> StringName:
+	return GFVariantData.get_option_string_name(item, "action_id")
+
+
+static func _get_item_binding_index(item: Dictionary) -> int:
+	return GFVariantData.get_option_int(item, "binding_index")
+
+
+static func _get_item_event_key(item: Dictionary) -> String:
+	return GFVariantData.get_option_string(item, "event_key")
+
+
+static func _get_item_device_scope(item: Dictionary) -> String:
+	return GFVariantData.get_option_string(item, "device_scope", "*")
+
+
+static func _get_item_event_text(item: Dictionary) -> String:
+	return GFVariantData.get_option_string(item, "event_text")
+
+
+static func _get_item_signature(item: Dictionary) -> String:
+	return GFVariantData.get_option_string(item, "signature")
 
 
 static func _get_event_key(input_event: InputEvent) -> String:
@@ -271,11 +299,12 @@ static func _get_event_key(input_event: InputEvent) -> String:
 		return ""
 
 	if input_event is InputEventAction:
-		return "action:%s" % String((input_event as InputEventAction).action)
+		var action_event: InputEventAction = input_event
+		return "action:%s" % String(action_event.action)
 
 	if input_event is InputEventKey:
-		var key_event := input_event as InputEventKey
-		var keycode := key_event.physical_keycode
+		var key_event: InputEventKey = input_event
+		var keycode: int = key_event.physical_keycode
 		if keycode == KEY_NONE:
 			keycode = key_event.keycode
 		return "key:%d:%d:%d:%d:%d" % [
@@ -287,13 +316,16 @@ static func _get_event_key(input_event: InputEvent) -> String:
 		]
 
 	if input_event is InputEventMouseButton:
-		return "mouse_button:%d" % int((input_event as InputEventMouseButton).button_index)
+		var mouse_button_event: InputEventMouseButton = input_event
+		return "mouse_button:%d" % int(mouse_button_event.button_index)
 
 	if input_event is InputEventJoypadButton:
-		return "joy_button:%d" % int((input_event as InputEventJoypadButton).button_index)
+		var joypad_button_event: InputEventJoypadButton = input_event
+		return "joy_button:%d" % int(joypad_button_event.button_index)
 
 	if input_event is InputEventJoypadMotion:
-		return "joy_axis:%d" % int((input_event as InputEventJoypadMotion).axis)
+		var joypad_motion_event: InputEventJoypadMotion = input_event
+		return "joy_axis:%d" % int(joypad_motion_event.axis)
 
 	if input_event is InputEventScreenTouch:
 		return "screen_touch"

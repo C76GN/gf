@@ -32,7 +32,7 @@ func add_entry(entry: GFLevelEntry) -> void:
 	if entry == null:
 		return
 
-	var level_id := entry.get_level_id()
+	var level_id: StringName = entry.get_level_id()
 	if level_id == &"":
 		push_error("[GFLevelCatalog] add_entry 失败：关卡 ID 为空。")
 		return
@@ -117,11 +117,11 @@ func get_pack_ids() -> Array[StringName]:
 ## [br]
 ## @return: 后续关卡 ID；没有时返回空 StringName。
 func get_next_level_id(level_id: StringName) -> StringName:
-	var entry := get_entry(level_id)
+	var entry: GFLevelEntry = get_entry(level_id)
 	if entry == null:
 		return &""
 
-	var levels := get_levels(entry.pack_id)
+	var levels: Array[GFLevelEntry] = get_levels(entry.pack_id)
 	for index: int in range(levels.size()):
 		if levels[index].get_level_id() == level_id and index + 1 < levels.size():
 			return levels[index + 1].get_level_id()
@@ -136,11 +136,11 @@ func get_next_level_id(level_id: StringName) -> StringName:
 ## [br]
 ## @return: 前序关卡 ID；没有时返回空 StringName。
 func get_previous_level_id(level_id: StringName) -> StringName:
-	var entry := get_entry(level_id)
+	var entry: GFLevelEntry = get_entry(level_id)
 	if entry == null:
 		return &""
 
-	var levels := get_levels(entry.pack_id)
+	var levels: Array[GFLevelEntry] = get_levels(entry.pack_id)
 	for index: int in range(levels.size()):
 		if levels[index].get_level_id() == level_id and index > 0:
 			return levels[index - 1].get_level_id()

@@ -64,12 +64,7 @@ func _init(architecture: GFArchitecture, target_kind: TargetKind, script_cls: Sc
 ## @param factory: 返回 Object 实例的工厂。
 ## [br]
 ## @return 当前 Builder，便于继续声明生命周期。
-## [br]
-## @schema return {
-##   "type": "Variant",
-##   "description": "当前 GFBindBuilder 实例。"
-## }
-func from_factory(factory: Callable) -> Variant:
+func from_factory(factory: Callable) -> GFBindBuilder:
 	_source_kind = SourceKind.FACTORY
 	_factory = factory
 	return self
@@ -82,12 +77,7 @@ func from_factory(factory: Callable) -> Variant:
 ## @param instance: 要注册或暴露的实例。
 ## [br]
 ## @return 当前 Builder，便于继续声明生命周期。
-## [br]
-## @schema return {
-##   "type": "Variant",
-##   "description": "当前 GFBindBuilder 实例。"
-## }
-func from_instance(instance: Object) -> Variant:
+func from_instance(instance: Object) -> GFBindBuilder:
 	_source_kind = SourceKind.INSTANCE
 	_instance = instance
 	return self
@@ -100,12 +90,7 @@ func from_instance(instance: Object) -> Variant:
 ## @param alias_cls: 调用 get_* 时使用的抽象脚本类型。
 ## [br]
 ## @return 当前 Builder，便于继续声明生命周期。
-## [br]
-## @schema return {
-##   "type": "Variant",
-##   "description": "当前 GFBindBuilder 实例。"
-## }
-func with_alias(alias_cls: Script) -> Variant:
+func with_alias(alias_cls: Script) -> GFBindBuilder:
 	if _target_kind == TargetKind.FACTORY:
 		push_warning("[GFBindBuilder] with_alias() 仅对 Model/System/Utility 有效，Factory 绑定会忽略 alias。")
 		return self
@@ -125,7 +110,7 @@ func as_singleton() -> void:
 		_bind_factory(GFBindingLifetimesBase.Lifetime.SINGLETON)
 		return
 
-	var instance := _create_instance_from_source()
+	var instance: Object = _create_instance_from_source()
 	if instance == null:
 		return
 
@@ -156,7 +141,7 @@ func _create_instance_from_source() -> Object:
 			if _script_cls == null or not _script_cls.can_instantiate():
 				push_error("[GFBindBuilder] SELF 绑定需要可实例化的脚本类型。")
 				return null
-			return _script_cls.new() as Object
+			return _instantiate_script_as_object(_script_cls)
 
 		SourceKind.FACTORY:
 			if not _factory.is_valid():
@@ -166,7 +151,8 @@ func _create_instance_from_source() -> Object:
 			if not value is Object:
 				push_error("[GFBindBuilder] from_factory() 必须返回 Object 实例。")
 				return null
-			return value as Object
+			var instance: Object = value
+			return instance
 
 		SourceKind.INSTANCE:
 			if _instance == null:
@@ -194,7 +180,7 @@ func _register_alias_if_needed(instance: Object) -> void:
 	if _alias_cls == null or instance == null:
 		return
 
-	var script := instance.get_script() as Script
+	var script: Script = _get_instance_script(instance)
 	if script == null:
 		return
 
@@ -215,8 +201,8 @@ func _bind_factory(lifetime: int) -> void:
 			if _script_cls == null or not _script_cls.can_instantiate():
 				push_error("[GFBindBuilder] bind_factory() 需要可实例化的脚本类型。")
 				return
-			var self_factory := func() -> Object:
-				return _script_cls.new() as Object
+			var self_factory: Callable = func() -> Object:
+				return _instantiate_script_as_object(_script_cls)
 			_architecture.register_factory(_script_cls, self_factory, lifetime)
 
 		SourceKind.FACTORY:
@@ -227,3 +213,23 @@ func _bind_factory(lifetime: int) -> void:
 				push_error("[GFBindBuilder] from_instance() 不支持 as_transient()；请改用 from_factory()。")
 				return
 			_architecture.register_factory_instance(_script_cls, _instance)
+
+
+func _get_instance_script(instance: Object) -> Script:
+	if instance == null:
+		return null
+	var raw_script: Variant = instance.get_script()
+	if raw_script is Script:
+		var script: Script = raw_script
+		return script
+	return null
+
+
+func _instantiate_script_as_object(script_cls: Script) -> Object:
+	if script_cls == null:
+		return null
+	var raw_instance: Variant = script_cls.call("new")
+	if raw_instance is Object:
+		var instance: Object = raw_instance
+		return instance
+	return null

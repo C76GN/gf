@@ -46,6 +46,11 @@ enum ValueType {
 }
 
 
+# --- 常量 ---
+
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
+
+
 # --- 导出变量 ---
 
 ## 选项稳定标识。
@@ -142,15 +147,15 @@ func normalize_value(value: Variant) -> Variant:
 
 	match value_type:
 		ValueType.BOOL:
-			return bool(value)
+			return _GF_VARIANT_ACCESS_SCRIPT.to_bool(value)
 		ValueType.INT:
-			return clampi(int(value), roundi(min_value), roundi(max_value))
+			return clampi(_GF_VARIANT_ACCESS_SCRIPT.to_int(value), roundi(min_value), roundi(max_value))
 		ValueType.FLOAT:
-			return clampf(float(value), min_value, max_value)
+			return clampf(_GF_VARIANT_ACCESS_SCRIPT.to_float(value), min_value, max_value)
 		ValueType.STRING:
-			return String(value)
+			return _GF_VARIANT_ACCESS_SCRIPT.to_text(value)
 		ValueType.STRING_NAME:
-			return StringName(String(value))
+			return _GF_VARIANT_ACCESS_SCRIPT.to_string_name(value)
 		ValueType.COLOR:
 			return value if value is Color else default_value
 		ValueType.VECTOR2:
@@ -158,7 +163,7 @@ func normalize_value(value: Variant) -> Variant:
 		ValueType.VECTOR2I:
 			return value if value is Vector2i else default_value
 		ValueType.NODE_PATH:
-			return value if value is NodePath else NodePath(String(value))
+			return value if value is NodePath else NodePath(_GF_VARIANT_ACCESS_SCRIPT.to_text(value))
 		ValueType.OPTION:
 			return value if choices.is_empty() or choices.has(value) else _duplicate_variant(default_value)
 		_:
@@ -210,7 +215,7 @@ func is_value_valid(value: Variant) -> bool:
 ## [br]
 ## @return 新选项声明。
 func duplicate_option() -> GFEditorToolOption:
-	var option := GFEditorToolOption.new()
+	var option: GFEditorToolOption = GFEditorToolOption.new()
 	option.option_id = option_id
 	option.label = label
 	option.tooltip = tooltip
@@ -250,7 +255,9 @@ func describe() -> Dictionary:
 
 func _duplicate_variant(value: Variant) -> Variant:
 	if value is Dictionary:
-		return (value as Dictionary).duplicate(true)
+		var dictionary: Dictionary = value
+		return dictionary.duplicate(true)
 	if value is Array:
-		return (value as Array).duplicate(true)
+		var array: Array = value
+		return array.duplicate(true)
 	return value

@@ -37,12 +37,7 @@ func _init(architecture: GFArchitecture) -> void:
 ## @param script_cls: Model 脚本类型。
 ## [br]
 ## @return 绑定构建器。
-## [br]
-## @schema return {
-##   "type": "Variant",
-##   "description": "GFBindBuilder 实例。"
-## }
-func bind_model(script_cls: Script) -> Variant:
+func bind_model(script_cls: Script) -> GFBindBuilder:
 	return GFBindBuilderBase.new(_architecture, GFBindBuilderBase.TargetKind.MODEL, script_cls)
 
 
@@ -53,12 +48,7 @@ func bind_model(script_cls: Script) -> Variant:
 ## @param script_cls: System 脚本类型。
 ## [br]
 ## @return 绑定构建器。
-## [br]
-## @schema return {
-##   "type": "Variant",
-##   "description": "GFBindBuilder 实例。"
-## }
-func bind_system(script_cls: Script) -> Variant:
+func bind_system(script_cls: Script) -> GFBindBuilder:
 	return GFBindBuilderBase.new(_architecture, GFBindBuilderBase.TargetKind.SYSTEM, script_cls)
 
 
@@ -69,12 +59,7 @@ func bind_system(script_cls: Script) -> Variant:
 ## @param script_cls: Utility 脚本类型。
 ## [br]
 ## @return 绑定构建器。
-## [br]
-## @schema return {
-##   "type": "Variant",
-##   "description": "GFBindBuilder 实例。"
-## }
-func bind_utility(script_cls: Script) -> Variant:
+func bind_utility(script_cls: Script) -> GFBindBuilder:
 	return GFBindBuilderBase.new(_architecture, GFBindBuilderBase.TargetKind.UTILITY, script_cls)
 
 
@@ -85,10 +70,5 @@ func bind_utility(script_cls: Script) -> Variant:
 ## @param script_cls: 要创建的脚本类型。
 ## [br]
 ## @return 绑定构建器。
-## [br]
-## @schema return {
-##   "type": "Variant",
-##   "description": "GFBindBuilder 实例。"
-## }
-func bind_factory(script_cls: Script) -> Variant:
+func bind_factory(script_cls: Script) -> GFBindBuilder:
 	return GFBindBuilderBase.new(_architecture, GFBindBuilderBase.TargetKind.FACTORY, script_cls)

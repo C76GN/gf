@@ -69,8 +69,8 @@ func set_item(item_id: StringName, value: Variant, fields: Dictionary = {}) -> b
 	if item_id == &"":
 		return false
 
-	remove_item(item_id)
-	var normalized_fields := _normalize_fields(fields)
+	var _removed_existing: bool = remove_item(item_id)
+	var normalized_fields: Dictionary = _normalize_fields(fields)
 	_items[item_id] = {
 		"value": _copy_value(value),
 		"fields": normalized_fields,
@@ -91,11 +91,10 @@ func remove_item(item_id: StringName) -> bool:
 	if not _items.has(item_id):
 		return false
 
-	var entry := _items[item_id] as Dictionary
-	var fields := entry.get("fields", {}) as Dictionary
-	if fields != null:
-		_remove_fields_from_indexes(item_id, fields)
-	_items.erase(item_id)
+	var entry: Dictionary = _get_item_entry(item_id)
+	var fields: Dictionary = _get_entry_fields(entry)
+	_remove_fields_from_indexes(item_id, fields)
+	var _item_erased: bool = _items.erase(item_id)
 	item_removed.emit(item_id)
 	return true
 
@@ -127,8 +126,8 @@ func has_item(item_id: StringName) -> bool:
 func get_item(item_id: StringName, default_value: Variant = null) -> Variant:
 	if not _items.has(item_id):
 		return default_value
-	var entry := _items[item_id] as Dictionary
-	return _copy_value(entry.get("value", default_value))
+	var entry: Dictionary = _get_item_entry(item_id)
+	return _copy_value(GFVariantData.get_option_value(entry, "value", default_value))
 
 
 ## 获取条目字段。
@@ -143,8 +142,8 @@ func get_item(item_id: StringName, default_value: Variant = null) -> Variant:
 func get_fields(item_id: StringName) -> Dictionary:
 	if not _items.has(item_id):
 		return {}
-	var entry := _items[item_id] as Dictionary
-	return (entry.get("fields", {}) as Dictionary).duplicate(true)
+	var entry: Dictionary = _get_item_entry(item_id)
+	return _get_entry_fields(entry).duplicate(true)
 
 
 ## 按单个字段值查询条目标识。
@@ -159,18 +158,18 @@ func get_fields(item_id: StringName) -> Dictionary:
 ## [br]
 ## @schema field_value: Variant indexed field value.
 func query(field_id: StringName, field_value: Variant) -> PackedStringArray:
-	var result := PackedStringArray()
-	var field_index := _indexes.get(field_id, {}) as Dictionary
-	if field_index == null:
+	var result: PackedStringArray = PackedStringArray()
+	var field_index: Dictionary = _get_field_index(field_id)
+	if field_index.is_empty():
 		return result
 
-	var value_key := _make_value_key(field_value)
-	var item_lookup := field_index.get(value_key, {}) as Dictionary
-	if item_lookup == null:
+	var value_key: String = _make_value_key(field_value)
+	var item_lookup: Dictionary = GFVariantData.as_dictionary(GFVariantData.get_option_value(field_index, value_key, {}))
+	if item_lookup.is_empty():
 		return result
 
 	for item_id_variant: Variant in item_lookup.keys():
-		result.append(String(item_id_variant))
+		var _item_id_appended: bool = result.append(GFVariantData.to_text(item_id_variant))
 	result.sort()
 	return result
 
@@ -188,9 +187,10 @@ func query(field_id: StringName, field_value: Variant) -> PackedStringArray:
 ## @schema criteria: Dictionary from field id to query value.
 func query_many(criteria: Dictionary, match_all: bool = true) -> PackedStringArray:
 	var result_lookup: Dictionary = {}
-	var initialized := false
+	var initialized: bool = false
 	for field_id_variant: Variant in criteria.keys():
-		var matches := query(StringName(field_id_variant), criteria[field_id_variant])
+		var field_id: StringName = GFVariantData.to_string_name(field_id_variant)
+		var matches: PackedStringArray = query(field_id, criteria[field_id_variant])
 		if not initialized:
 			for item_id_text: String in matches:
 				result_lookup[StringName(item_id_text)] = true
@@ -259,10 +259,10 @@ func _copy_value(value: Variant) -> Variant:
 func _normalize_fields(fields: Dictionary) -> Dictionary:
 	var result: Dictionary = {}
 	for field_id_variant: Variant in fields.keys():
-		var field_id := StringName(field_id_variant)
+		var field_id: StringName = GFVariantData.to_string_name(field_id_variant)
 		if field_id == &"":
 			continue
-		var values := _normalize_field_values(fields[field_id_variant])
+		var values: Array = _normalize_field_values(fields[field_id_variant])
 		if not values.is_empty():
 			result[field_id] = values
 	return result
@@ -286,8 +286,8 @@ func _normalize_field_values(value: Variant) -> Array:
 
 func _index_fields(item_id: StringName, fields: Dictionary) -> void:
 	for field_id: StringName in fields.keys():
-		var values := fields[field_id] as Array
-		if values == null:
+		var values: Array = _get_field_values(fields, field_id)
+		if values.is_empty():
 			continue
 		for value: Variant in values:
 			_add_index_value(field_id, value, item_id)
@@ -295,38 +295,37 @@ func _index_fields(item_id: StringName, fields: Dictionary) -> void:
 
 func _remove_fields_from_indexes(item_id: StringName, fields: Dictionary) -> void:
 	for field_id: StringName in fields.keys():
-		var values := fields[field_id] as Array
-		if values == null:
+		var values: Array = _get_field_values(fields, field_id)
+		if values.is_empty():
 			continue
 		for value: Variant in values:
 			_remove_index_value(field_id, value, item_id)
 
 
 func _add_index_value(field_id: StringName, field_value: Variant, item_id: StringName) -> void:
-	if not _indexes.has(field_id):
-		_indexes[field_id] = {}
-	var field_index := _indexes[field_id] as Dictionary
-	var value_key := _make_value_key(field_value)
+	var field_index: Dictionary = _get_or_create_field_index(field_id)
+	var value_key: String = _make_value_key(field_value)
 	if not field_index.has(value_key):
 		field_index[value_key] = {}
-	(field_index[value_key] as Dictionary)[item_id] = true
+	var item_lookup: Dictionary = GFVariantData.as_dictionary(field_index[value_key])
+	item_lookup[item_id] = true
 
 
 func _remove_index_value(field_id: StringName, field_value: Variant, item_id: StringName) -> void:
-	var field_index := _indexes.get(field_id, {}) as Dictionary
-	if field_index == null:
-		return
-
-	var value_key := _make_value_key(field_value)
-	var item_lookup := field_index.get(value_key, {}) as Dictionary
-	if item_lookup == null:
-		return
-
-	item_lookup.erase(item_id)
-	if item_lookup.is_empty():
-		field_index.erase(value_key)
+	var field_index: Dictionary = _get_field_index(field_id)
 	if field_index.is_empty():
-		_indexes.erase(field_id)
+		return
+
+	var value_key: String = _make_value_key(field_value)
+	var item_lookup: Dictionary = GFVariantData.as_dictionary(GFVariantData.get_option_value(field_index, value_key, {}))
+	if item_lookup.is_empty():
+		return
+
+	var _item_erased: bool = item_lookup.erase(item_id)
+	if item_lookup.is_empty():
+		var _value_erased: bool = field_index.erase(value_key)
+	if field_index.is_empty():
+		var _field_erased: bool = _indexes.erase(field_id)
 
 
 func _make_value_key(value: Variant) -> String:
@@ -346,8 +345,30 @@ func _intersect_lookup(left_lookup: Dictionary, right_ids: PackedStringArray) ->
 
 
 func _lookup_to_sorted_ids(lookup: Dictionary) -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	for item_id_variant: Variant in lookup.keys():
-		result.append(String(item_id_variant))
+		var _item_id_appended: bool = result.append(GFVariantData.to_text(item_id_variant))
 	result.sort()
 	return result
+
+
+func _get_item_entry(item_id: StringName) -> Dictionary:
+	return GFVariantData.as_dictionary(GFVariantData.get_option_value(_items, item_id, {}))
+
+
+func _get_entry_fields(entry: Dictionary) -> Dictionary:
+	return GFVariantData.as_dictionary(GFVariantData.get_option_value(entry, "fields", {}))
+
+
+func _get_field_index(field_id: StringName) -> Dictionary:
+	return GFVariantData.as_dictionary(GFVariantData.get_option_value(_indexes, field_id, {}))
+
+
+func _get_or_create_field_index(field_id: StringName) -> Dictionary:
+	if not _indexes.has(field_id):
+		_indexes[field_id] = {}
+	return _get_field_index(field_id)
+
+
+func _get_field_values(fields: Dictionary, field_id: StringName) -> Array:
+	return GFVariantData.as_array(GFVariantData.get_option_value(fields, field_id, []))

@@ -44,12 +44,12 @@ const INVALID_LAYER_INDEX: int = -1
 ## [br]
 ## @return 对应 bitmask；未知名称会被忽略。
 static func names_to_mask(names: Array, layer_names: Array, case_sensitive: bool = true) -> int:
-	var mask := 0
+	var mask: int = 0
 	for name_variant: Variant in names:
-		var layer_name := _variant_to_text(name_variant)
+		var layer_name: String = GFVariantData.to_text(name_variant)
 		if layer_name.is_empty():
 			continue
-		var layer_index := find_layer_index(layer_name, layer_names, case_sensitive)
+		var layer_index: int = find_layer_index(layer_name, layer_names, case_sensitive)
 		if layer_index != INVALID_LAYER_INDEX:
 			mask |= layer_index_to_mask(layer_index)
 	return mask
@@ -69,16 +69,16 @@ static func names_to_mask(names: Array, layer_names: Array, case_sensitive: bool
 ## [br]
 ## @return 按层索引排序的层名列表。
 static func mask_to_names(mask: int, layer_names: Array, include_unnamed: bool = false) -> PackedStringArray:
-	var result := PackedStringArray()
-	var layer_count := DEFAULT_LAYER_COUNT if include_unnamed else mini(layer_names.size(), DEFAULT_LAYER_COUNT)
+	var result: PackedStringArray = PackedStringArray()
+	var layer_count: int = DEFAULT_LAYER_COUNT if include_unnamed else mini(layer_names.size(), DEFAULT_LAYER_COUNT)
 	for layer_index: int in range(layer_count):
 		if mask & layer_index_to_mask(layer_index) == 0:
 			continue
-		var layer_name := _get_layer_name(layer_names, layer_index)
+		var layer_name: String = _get_layer_name(layer_names, layer_index)
 		if layer_name.is_empty() and include_unnamed:
 			layer_name = _make_default_layer_name(layer_index)
 		if not layer_name.is_empty():
-			result.append(layer_name)
+			var _appended: bool = result.append(layer_name)
 	return result
 
 
@@ -99,10 +99,10 @@ static func find_layer_index(layer_name: String, layer_names: Array, case_sensit
 	if layer_name.is_empty():
 		return INVALID_LAYER_INDEX
 
-	var expected := layer_name if case_sensitive else layer_name.to_lower()
-	var layer_count := mini(layer_names.size(), DEFAULT_LAYER_COUNT)
+	var expected: String = layer_name if case_sensitive else layer_name.to_lower()
+	var layer_count: int = mini(layer_names.size(), DEFAULT_LAYER_COUNT)
 	for layer_index: int in range(layer_count):
-		var candidate := _get_layer_name(layer_names, layer_index)
+		var candidate: String = _get_layer_name(layer_names, layer_index)
 		if candidate.is_empty():
 			continue
 		if not case_sensitive:
@@ -135,7 +135,7 @@ static func layer_index_to_mask(layer_index: int) -> int:
 ## [br]
 ## @return 有效时返回 true。
 static func is_layer_index_valid(layer_index: int, layer_count: int = DEFAULT_LAYER_COUNT) -> bool:
-	var limit := clampi(layer_count, 0, DEFAULT_LAYER_COUNT)
+	var limit: int = clampi(layer_count, 0, DEFAULT_LAYER_COUNT)
 	return layer_index >= 0 and layer_index < limit
 
 
@@ -155,18 +155,18 @@ static func is_layer_index_valid(layer_index: int, layer_count: int = DEFAULT_LA
 ## [br]
 ## @return 未找到的层名列表，按首次出现顺序去重。
 static func get_missing_names(names: Array, layer_names: Array, case_sensitive: bool = true) -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	var seen: Dictionary = {}
 	for name_variant: Variant in names:
-		var layer_name := _variant_to_text(name_variant)
+		var layer_name: String = GFVariantData.to_text(name_variant)
 		if layer_name.is_empty():
 			continue
-		var seen_key := layer_name if case_sensitive else layer_name.to_lower()
+		var seen_key: String = layer_name if case_sensitive else layer_name.to_lower()
 		if seen.has(seen_key):
 			continue
 		seen[seen_key] = true
 		if find_layer_index(layer_name, layer_names, case_sensitive) == INVALID_LAYER_INDEX:
-			result.append(layer_name)
+			var _appended: bool = result.append(layer_name)
 	return result
 
 
@@ -186,16 +186,16 @@ static func get_project_physics_layer_names(
 	if dimension != 2 and dimension != 3:
 		return PackedStringArray()
 
-	var result := PackedStringArray()
-	var prefix := "layer_names/%dd_physics/layer_" % dimension
+	var result: PackedStringArray = PackedStringArray()
+	var prefix: String = "layer_names/%dd_physics/layer_" % dimension
 	for layer_number: int in range(1, DEFAULT_LAYER_COUNT + 1):
-		var setting_path := "%s%d" % [prefix, layer_number]
-		var layer_name := ""
+		var setting_path: String = "%s%d" % [prefix, layer_number]
+		var layer_name: String = ""
 		if ProjectSettings.has_setting(setting_path):
-			layer_name = String(ProjectSettings.get_setting(setting_path))
+			layer_name = GFVariantData.to_text(ProjectSettings.get_setting(setting_path))
 		if layer_name.is_empty() and fallback_to_default_names:
 			layer_name = _make_default_layer_name(layer_number - 1)
-		result.append(layer_name)
+		var _appended: bool = result.append(layer_name)
 	return result
 
 
@@ -204,13 +204,7 @@ static func get_project_physics_layer_names(
 static func _get_layer_name(layer_names: Array, layer_index: int) -> String:
 	if layer_index < 0 or layer_index >= layer_names.size():
 		return ""
-	return _variant_to_text(layer_names[layer_index])
-
-
-static func _variant_to_text(value: Variant) -> String:
-	if value == null:
-		return ""
-	return String(value)
+	return GFVariantData.to_text(layer_names[layer_index])
 
 
 static func _make_default_layer_name(layer_index: int) -> String:

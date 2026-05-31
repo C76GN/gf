@@ -13,6 +13,8 @@ extends RefCounted
 
 # --- 常量 ---
 
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
+
 ## 默认扫描根目录。
 ## [br]
 ## @api public
@@ -78,7 +80,7 @@ static func audit_disabled_extensions(
 		if manifest == null or manifest.root_path.is_empty():
 			continue
 
-		var references := find_references_to_root(manifest.root_path, options)
+		var references: Array[Dictionary] = find_references_to_root(manifest.root_path, options)
 		if references.is_empty():
 			continue
 
@@ -114,16 +116,16 @@ static func audit_disabled_extensions(
 ## [br]
 ## @schema return: Array of Dictionary file reference records.
 static func find_references_to_root(root_path: String, options: Dictionary = {}) -> Array[Dictionary]:
-	var normalized_root := root_path.trim_suffix("/")
+	var normalized_root: String = root_path.trim_suffix("/")
 	if normalized_root.is_empty():
 		return []
 
-	var scan_roots := _to_string_array(options.get("scan_roots", DEFAULT_SCAN_ROOTS))
-	var ignored_roots := _to_string_array(options.get("ignored_roots", DEFAULT_IGNORED_ROOTS))
+	var scan_roots: Array[String] = _GF_VARIANT_ACCESS_SCRIPT.get_option_string_array(options, "scan_roots", DEFAULT_SCAN_ROOTS)
+	var ignored_roots: Array[String] = _GF_VARIANT_ACCESS_SCRIPT.get_option_string_array(options, "ignored_roots", DEFAULT_IGNORED_ROOTS)
 	ignored_roots.append(normalized_root)
-	var max_scan_depth := maxi(int(options.get("max_scan_depth", DEFAULT_MAX_SCAN_DEPTH)), 0)
-	var max_scanned_files := maxi(int(options.get("max_scanned_files", DEFAULT_MAX_SCANNED_FILES)), 0)
-	var scan_state := _make_scan_state()
+	var max_scan_depth: int = maxi(_GF_VARIANT_ACCESS_SCRIPT.get_option_int(options, "max_scan_depth", DEFAULT_MAX_SCAN_DEPTH), 0)
+	var max_scanned_files: int = maxi(_GF_VARIANT_ACCESS_SCRIPT.get_option_int(options, "max_scanned_files", DEFAULT_MAX_SCANNED_FILES), 0)
+	var scan_state: Dictionary = _make_scan_state()
 
 	var files: Array[String] = []
 	for scan_root: String in scan_roots:
@@ -140,8 +142,8 @@ static func find_references_to_root(root_path: String, options: Dictionary = {})
 			_warn_scanned_file_limit(max_scanned_files, scan_state)
 			break
 
-	var extension_class_names := _collect_extension_class_names(normalized_root)
-	var max_references := maxi(int(options.get("max_references_per_extension", 50)), 1)
+	var extension_class_names: Array[String] = _collect_extension_class_names(normalized_root)
+	var max_references: int = maxi(_GF_VARIANT_ACCESS_SCRIPT.get_option_int(options, "max_references_per_extension", 50), 1)
 	var references: Array[Dictionary] = []
 	for path: String in files:
 		references.append_array(_collect_file_references(
@@ -172,18 +174,18 @@ static func _collect_text_files(
 	if root_path.is_empty() or _is_path_ignored(root_path, ignored_roots):
 		return
 
-	var dir := DirAccess.open(root_path)
+	var dir: DirAccess = DirAccess.open(root_path)
 	if dir == null:
 		return
 
-	dir.list_dir_begin()
-	var entry := dir.get_next()
+	var _list_dir_begin_result_181: Variant = dir.list_dir_begin()
+	var entry: String = dir.get_next()
 	while not entry.is_empty():
 		if not _can_collect_more_files(result, max_scanned_files):
 			_warn_scanned_file_limit(max_scanned_files, scan_state)
 			break
 
-		var path := root_path.path_join(entry)
+		var path: String = root_path.path_join(entry)
 		if dir.current_is_dir():
 			if not entry.begins_with("."):
 				if _can_scan_deeper(path, depth, max_scan_depth, scan_state):
@@ -212,14 +214,14 @@ static func _collect_file_references(
 	if remaining <= 0:
 		return result
 
-	var file := FileAccess.open(path, FileAccess.READ)
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		return result
 
-	var lines := file.get_as_text().split("\n")
+	var lines: PackedStringArray = file.get_as_text().split("\n")
 	file.close()
 	for line_index: int in range(lines.size()):
-		var line := String(lines[line_index])
+		var line: String = String(lines[line_index])
 		if _line_references_root(line, root_path):
 			result.append(_make_reference(path, line_index + 1, root_path, "path", "", line))
 			if result.size() >= remaining:
@@ -255,13 +257,13 @@ static func _make_reference(
 
 
 static func _line_references_root(line: String, root_path: String) -> bool:
-	var start := line.find(root_path)
+	var start: int = line.find(root_path)
 	while start >= 0:
-		var next_index := start + root_path.length()
+		var next_index: int = start + root_path.length()
 		if next_index >= line.length():
 			return true
 
-		var next_character := line.substr(next_index, 1)
+		var next_character: String = line.substr(next_index, 1)
 		if _is_reference_boundary(next_character):
 			return true
 		start = line.find(root_path, start + 1)
@@ -272,11 +274,11 @@ static func _line_references_identifier(line: String, identifier: String) -> boo
 	if identifier.is_empty():
 		return false
 
-	var start := line.find(identifier)
+	var start: int = line.find(identifier)
 	while start >= 0:
-		var before_ok := start == 0 or not _is_identifier_character(line.substr(start - 1, 1))
-		var end := start + identifier.length()
-		var after_ok := end >= line.length() or not _is_identifier_character(line.substr(end, 1))
+		var before_ok: bool = start == 0 or not _is_identifier_character(line.substr(start - 1, 1))
+		var end: int = start + identifier.length()
+		var after_ok: bool = end >= line.length() or not _is_identifier_character(line.substr(end, 1))
 		if before_ok and after_ok:
 			return true
 		start = line.find(identifier, start + 1)
@@ -286,7 +288,7 @@ static func _line_references_identifier(line: String, identifier: String) -> boo
 static func _is_identifier_character(character: String) -> bool:
 	if character.is_empty():
 		return false
-	var code := character.unicode_at(0)
+	var code: int = character.unicode_at(0)
 	return (
 		(code >= 65 and code <= 90)
 		or (code >= 97 and code <= 122)
@@ -300,13 +302,13 @@ static func _is_reference_boundary(character: String) -> bool:
 
 
 static func _is_text_resource_file(path: String) -> bool:
-	var extension := path.get_extension().to_lower()
+	var extension: String = path.get_extension().to_lower()
 	return TEXT_FILE_EXTENSIONS.has(extension)
 
 
 static func _is_path_ignored(path: String, ignored_roots: Array[String]) -> bool:
 	for ignored_root: String in ignored_roots:
-		var normalized_root := ignored_root.trim_suffix("/")
+		var normalized_root: String = ignored_root.trim_suffix("/")
 		if normalized_root.is_empty():
 			continue
 		if path == normalized_root or path.begins_with(normalized_root + "/"):
@@ -333,14 +335,14 @@ static func _make_scan_state() -> Dictionary:
 
 
 static func _warn_scanned_file_limit(max_scanned_files: int, scan_state: Dictionary) -> void:
-	if max_scanned_files <= 0 or bool(scan_state.get("count_warning_emitted", false)):
+	if max_scanned_files <= 0 or _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(scan_state, "count_warning_emitted"):
 		return
 	scan_state["count_warning_emitted"] = true
 	push_warning("[GFExtensionUsageAudit] 已达到 max_scanned_files=%d，后续文件已跳过。" % max_scanned_files)
 
 
 static func _warn_scan_depth_limit(path: String, max_scan_depth: int, scan_state: Dictionary) -> void:
-	if max_scan_depth <= 0 or bool(scan_state.get("depth_warning_emitted", false)):
+	if max_scan_depth <= 0 or _GF_VARIANT_ACCESS_SCRIPT.get_option_bool(scan_state, "depth_warning_emitted"):
 		return
 	scan_state["depth_warning_emitted"] = true
 	push_warning("[GFExtensionUsageAudit] 已达到 max_scan_depth=%d，已跳过更深目录：%s。" % [max_scan_depth, path])
@@ -348,7 +350,7 @@ static func _warn_scan_depth_limit(path: String, max_scan_depth: int, scan_state
 
 static func _collect_extension_class_names(root_path: String) -> Array[String]:
 	var files: Array[String] = []
-	var scan_state := _make_scan_state()
+	var scan_state: Dictionary = _make_scan_state()
 	_collect_gd_files(
 		root_path,
 		files,
@@ -359,18 +361,18 @@ static func _collect_extension_class_names(root_path: String) -> Array[String]:
 	)
 
 	var names: Array[String] = []
-	var regex := RegEx.new()
-	regex.compile("(?m)^\\s*class_name\\s+([A-Za-z_]\\w*)")
+	var regex: RegEx = RegEx.new()
+	var _compile_result_365: Variant = regex.compile("(?m)^\\s*class_name\\s+([A-Za-z_]\\w*)")
 	for path: String in files:
-		var file := FileAccess.open(path, FileAccess.READ)
+		var file: FileAccess = FileAccess.open(path, FileAccess.READ)
 		if file == null:
 			continue
-		var source := file.get_as_text()
+		var source: String = file.get_as_text()
 		file.close()
-		var match_result := regex.search(source)
+		var match_result: RegExMatch = regex.search(source)
 		if match_result == null:
 			continue
-		var class_name_value := match_result.get_string(1)
+		var class_name_value: String = match_result.get_string(1)
 		if not names.has(class_name_value):
 			names.append(class_name_value)
 	names.sort()
@@ -389,18 +391,18 @@ static func _collect_gd_files(
 		_warn_scanned_file_limit(max_scanned_files, scan_state)
 		return
 
-	var dir := DirAccess.open(root_path)
+	var dir: DirAccess = DirAccess.open(root_path)
 	if dir == null:
 		return
 
-	dir.list_dir_begin()
-	var entry := dir.get_next()
+	var _list_dir_begin_result_398: Variant = dir.list_dir_begin()
+	var entry: String = dir.get_next()
 	while not entry.is_empty():
 		if not _can_collect_more_files(result, max_scanned_files):
 			_warn_scanned_file_limit(max_scanned_files, scan_state)
 			break
 
-		var path := root_path.path_join(entry)
+		var path: String = root_path.path_join(entry)
 		if dir.current_is_dir():
 			if not entry.begins_with("."):
 				if _can_scan_deeper(path, depth, max_scan_depth, scan_state):
@@ -416,16 +418,3 @@ static func _collect_gd_files(
 			result.append(path)
 		entry = dir.get_next()
 	dir.list_dir_end()
-
-
-static func _to_string_array(value: Variant) -> Array[String]:
-	var result: Array[String] = []
-	if value is PackedStringArray:
-		for item: String in value:
-			result.append(item)
-		return result
-	if value is Array:
-		for item: Variant in value:
-			if typeof(item) == TYPE_STRING or item is StringName:
-				result.append(String(item))
-	return result

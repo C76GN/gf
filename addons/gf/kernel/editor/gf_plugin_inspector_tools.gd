@@ -19,6 +19,7 @@ const EXTENSION_EXPORT_PLUGIN_SCRIPT_PATH: String = "res://addons/gf/kernel/edit
 ## [br]
 ## @layer kernel/editor
 const GFExtensionSettingsBase = preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
+const _GF_VARIANT_ACCESS_SCRIPT = preload("res://addons/gf/kernel/core/gf_variant_access.gd")
 
 
 # --- 私有变量 ---
@@ -47,8 +48,12 @@ var _standard_export_records: Array[Dictionary] = []
 func setup(plugin: EditorPlugin, standard_records: Dictionary = {}) -> void:
 	if plugin == null:
 		return
-	_standard_inspector_records = _to_record_array(standard_records.get("inspector_plugin_records", []))
-	_standard_export_records = _to_record_array(standard_records.get("export_plugin_records", []))
+	_standard_inspector_records = _to_record_array(
+		_GF_VARIANT_ACCESS_SCRIPT.get_option_value(standard_records, "inspector_plugin_records", [])
+	)
+	_standard_export_records = _to_record_array(
+		_GF_VARIANT_ACCESS_SCRIPT.get_option_value(standard_records, "export_plugin_records", [])
+	)
 	_setup_inspector_tools(plugin)
 	_setup_standard_export_plugins(plugin)
 	_setup_extension_export_plugin(plugin)
@@ -75,14 +80,25 @@ func cleanup(plugin: EditorPlugin) -> void:
 
 func _setup_inspector_tools(plugin: EditorPlugin) -> void:
 	for record: Dictionary in _standard_inspector_records:
-		_add_inspector_plugin(plugin, String(record["path"]), String(record["label"]))
+		_add_inspector_plugin(
+			plugin,
+			_GF_VARIANT_ACCESS_SCRIPT.get_option_string(record, "path"),
+			_GF_VARIANT_ACCESS_SCRIPT.get_option_string(record, "label")
+		)
 	for record: Dictionary in _collect_enabled_extension_inspector_records():
-		_add_inspector_plugin(plugin, String(record["path"]), String(record["label"]))
+		_add_inspector_plugin(
+			plugin,
+			_GF_VARIANT_ACCESS_SCRIPT.get_option_string(record, "path"),
+			_GF_VARIANT_ACCESS_SCRIPT.get_option_string(record, "label")
+		)
 
 
 func _setup_standard_export_plugins(plugin: EditorPlugin) -> void:
 	for record: Dictionary in _standard_export_records:
-		var export_plugin := _load_export_plugin(String(record["path"]), String(record["label"]))
+		var export_plugin: EditorExportPlugin = _load_export_plugin(
+			_get_record_string(record, "path"),
+			_get_record_string(record, "label")
+		)
 		if export_plugin == null:
 			continue
 		plugin.add_export_plugin(export_plugin)
@@ -90,12 +106,12 @@ func _setup_standard_export_plugins(plugin: EditorPlugin) -> void:
 
 
 func _setup_extension_export_plugin(plugin: EditorPlugin) -> void:
-	var export_script := load(EXTENSION_EXPORT_PLUGIN_SCRIPT_PATH) as Script
+	var export_script: Script = _load_script(EXTENSION_EXPORT_PLUGIN_SCRIPT_PATH)
 	if export_script == null or not export_script.can_instantiate():
 		push_error("[GF Framework] 扩展导出过滤插件脚本加载失败。")
 		return
 
-	_extension_export_plugin = export_script.new() as EditorExportPlugin
+	_extension_export_plugin = _instantiate_export_plugin(export_script)
 	if _extension_export_plugin == null:
 		push_error("[GF Framework] 扩展导出过滤插件实例化失败。")
 		return
@@ -105,7 +121,7 @@ func _setup_extension_export_plugin(plugin: EditorPlugin) -> void:
 
 func _setup_enabled_extension_export_plugins(plugin: EditorPlugin) -> void:
 	for export_plugin_path: String in GFExtensionSettingsBase.get_enabled_export_plugin_paths():
-		var export_plugin := _load_export_plugin(export_plugin_path, export_plugin_path)
+		var export_plugin: EditorExportPlugin = _load_export_plugin(export_plugin_path, export_plugin_path)
 		if export_plugin == null:
 			continue
 		plugin.add_export_plugin(export_plugin)
@@ -113,12 +129,12 @@ func _setup_enabled_extension_export_plugins(plugin: EditorPlugin) -> void:
 
 
 func _load_inspector_plugin(script_path: String, label: String) -> EditorInspectorPlugin:
-	var inspector_script := load(script_path) as Script
+	var inspector_script: Script = _load_script(script_path)
 	if inspector_script == null or not inspector_script.can_instantiate():
 		push_error("[GF Framework] %s 插件脚本加载失败。" % label)
 		return null
 
-	var inspector_plugin := inspector_script.new() as EditorInspectorPlugin
+	var inspector_plugin: EditorInspectorPlugin = _instantiate_inspector_plugin(inspector_script)
 	if inspector_plugin == null:
 		push_error("[GF Framework] %s 插件实例化失败。" % label)
 		return null
@@ -127,12 +143,12 @@ func _load_inspector_plugin(script_path: String, label: String) -> EditorInspect
 
 
 func _load_export_plugin(script_path: String, label: String) -> EditorExportPlugin:
-	var export_script := load(script_path) as Script
+	var export_script: Script = _load_script(script_path)
 	if export_script == null or not export_script.can_instantiate():
 		push_error("[GF Framework] %s 导出插件脚本加载失败。" % label)
 		return null
 
-	var export_plugin := export_script.new() as EditorExportPlugin
+	var export_plugin: EditorExportPlugin = _instantiate_export_plugin(export_script)
 	if export_plugin == null:
 		push_error("[GF Framework] %s 导出插件实例化失败。" % label)
 		return null
@@ -141,7 +157,7 @@ func _load_export_plugin(script_path: String, label: String) -> EditorExportPlug
 
 
 func _add_inspector_plugin(plugin: EditorPlugin, script_path: String, label: String) -> void:
-	var inspector_plugin := _load_inspector_plugin(script_path, label)
+	var inspector_plugin: EditorInspectorPlugin = _load_inspector_plugin(script_path, label)
 	if inspector_plugin == null:
 		return
 
@@ -154,7 +170,7 @@ func _collect_enabled_extension_inspector_records() -> Array[Dictionary]:
 	var used_paths: Dictionary = {}
 	for manifest: GFExtensionManifest in GFExtensionSettingsBase.get_enabled_manifests():
 		for inspector_path: String in manifest.editor_inspector_paths:
-			var normalized_path := inspector_path.strip_edges()
+			var normalized_path: String = inspector_path.strip_edges()
 			if normalized_path.is_empty() or used_paths.has(normalized_path):
 				continue
 
@@ -167,10 +183,10 @@ func _collect_enabled_extension_inspector_records() -> Array[Dictionary]:
 
 
 func _get_extension_inspector_label(manifest: GFExtensionManifest, inspector_path: String) -> String:
-	var extension_name := manifest.display_name
+	var extension_name: String = manifest.display_name
 	if extension_name.is_empty():
 		extension_name = manifest.id
-	var script_name := inspector_path.get_file().get_basename().to_pascal_case()
+	var script_name: String = inspector_path.get_file().get_basename().to_pascal_case()
 	return "%s %s" % [extension_name, script_name]
 
 
@@ -180,8 +196,37 @@ func _to_record_array(value: Variant) -> Array[Dictionary]:
 		return records
 	for record_variant: Variant in value:
 		if record_variant is Dictionary:
-			records.append((record_variant as Dictionary).duplicate(true))
+			var record: Dictionary = record_variant
+			records.append(record.duplicate(true))
 	return records
+
+
+func _get_record_string(record: Dictionary, key: String) -> String:
+	return _GF_VARIANT_ACCESS_SCRIPT.get_option_string(record, key, "")
+
+
+func _load_script(script_path: String) -> Script:
+	var resource: Resource = load(script_path)
+	if resource is Script:
+		var script: Script = resource
+		return script
+	return null
+
+
+func _instantiate_inspector_plugin(script: Script) -> EditorInspectorPlugin:
+	var instance: Variant = script.call("new")
+	if instance is EditorInspectorPlugin:
+		var plugin: EditorInspectorPlugin = instance
+		return plugin
+	return null
+
+
+func _instantiate_export_plugin(script: Script) -> EditorExportPlugin:
+	var instance: Variant = script.call("new")
+	if instance is EditorExportPlugin:
+		var plugin: EditorExportPlugin = instance
+		return plugin
+	return null
 
 
 func _cleanup_inspector_tools(plugin: EditorPlugin) -> void:

@@ -42,7 +42,7 @@ static func normalize_metadata(value: Variant) -> Dictionary:
 	if value == null:
 		return {}
 	if value is Dictionary:
-		return (value as Dictionary).duplicate(true)
+		return GFVariantData.to_dictionary(value)
 	return {
 		"value": GFVariantData.duplicate_variant(value),
 	}
@@ -71,11 +71,11 @@ func write_object_metadata(
 	if target == null:
 		return null
 
-	var metadata_key := _get_metadata_key(options)
-	var normalized_metadata := normalize_metadata(metadata)
+	var metadata_key: StringName = _get_metadata_key(options)
+	var normalized_metadata: Dictionary = normalize_metadata(metadata)
 	target.set_meta(metadata_key, normalized_metadata)
 
-	var metadata_source := String(options.get("metadata_source", ""))
+	var metadata_source: String = GFVariantData.get_option_string(options, "metadata_source")
 	if not metadata_source.is_empty():
 		target.set_meta(META_ASSET_METADATA_SOURCE, metadata_source)
 
@@ -143,7 +143,7 @@ func clear_object_metadata(target: Object, options: Dictionary = {}) -> void:
 	for metadata_key: StringName in _get_metadata_keys(options):
 		if target.has_meta(metadata_key):
 			target.remove_meta(metadata_key)
-	if bool(options.get("clear_source", true)) and target.has_meta(META_ASSET_METADATA_SOURCE):
+	if GFVariantData.get_option_bool(options, "clear_source", true) and target.has_meta(META_ASSET_METADATA_SOURCE):
 		target.remove_meta(META_ASSET_METADATA_SOURCE)
 
 
@@ -163,7 +163,7 @@ func collect_node_tree(root: Node, options: Dictionary = {}) -> Array[GFAssetMet
 	if root == null:
 		return records
 
-	var max_depth := int(options.get("max_depth", -1))
+	var max_depth: int = GFVariantData.get_option_int(options, "max_depth", -1)
 	_collect_node_records(root, root, 0, max_depth, options, records)
 	return records
 
@@ -202,12 +202,12 @@ func collect_node_tree_dicts(root: Node, options: Dictionary = {}) -> Array[Dict
 ## [br]
 ## @schema return: Dictionary，包含 ok、healthy、summary、next_action、source_path、entry_count、entries 与 issues。
 func build_node_tree_report(root: Node, options: Dictionary = {}) -> Dictionary:
-	var report := GFValidationReport.new("Asset metadata")
+	var report: GFValidationReport = GFValidationReport.new("Asset metadata")
 	if root == null:
-		report.add_error(&"missing_root", "Root node is null.")
+		var _add_error_result_207: Variant = report.add_error(&"missing_root", "Root node is null.")
 		return report.to_dict({}, _get_report_options())
 
-	var entries := collect_node_tree_dicts(root, options)
+	var entries: Array[Dictionary] = collect_node_tree_dicts(root, options)
 	return report.to_dict({
 		"source_path": _get_source_path(root, options),
 		"entry_count": entries.size(),
@@ -225,7 +225,7 @@ func _collect_node_records(
 	options: Dictionary,
 	records: Array[GFAssetMetadataRecord]
 ) -> void:
-	var metadata := read_object_metadata(node, options)
+	var metadata: Dictionary = read_object_metadata(node, options)
 	if not metadata.is_empty():
 		records.append(_make_record_for_node(root, node, metadata, options))
 
@@ -241,37 +241,37 @@ func _make_record_for_node(
 	metadata: Dictionary,
 	options: Dictionary
 ) -> GFAssetMetadataRecord:
-	var subject_path := NodePath(".")
+	var subject_path: NodePath = NodePath(".")
 	if root != node:
 		subject_path = root.get_path_to(node)
 
-	var record := GFAssetMetadataRecord.new()
-	record.configure(
+	var record: GFAssetMetadataRecord = GFAssetMetadataRecord.new()
+	var _configure_result_249: Variant = record.configure(
 		_get_source_path(root, options),
 		subject_path,
-		StringName(options.get("subject_kind", &"node")),
+		GFVariantData.get_option_string_name(options, "subject_kind", &"node"),
 		metadata
 	)
 	return record
 
 
 func _make_record_for_object(
-	target: Object,
+	_target: Object,
 	metadata: Dictionary,
 	options: Dictionary
 ) -> GFAssetMetadataRecord:
-	var record := GFAssetMetadataRecord.new()
-	record.configure(
-		String(options.get("source_path", "")),
-		NodePath(String(options.get("subject_path", "."))),
-		StringName(options.get("subject_kind", &"object")),
+	var record: GFAssetMetadataRecord = GFAssetMetadataRecord.new()
+	var _configure_result_264: Variant = record.configure(
+		GFVariantData.get_option_string(options, "source_path"),
+		NodePath(GFVariantData.get_option_string(options, "subject_path", ".")),
+		GFVariantData.get_option_string_name(options, "subject_kind", &"object"),
 		metadata
 	)
 	return record
 
 
 func _get_source_path(root: Node, options: Dictionary) -> String:
-	var explicit_source_path := String(options.get("source_path", ""))
+	var explicit_source_path: String = GFVariantData.get_option_string(options, "source_path")
 	if not explicit_source_path.is_empty():
 		return explicit_source_path
 	if root != null and not root.scene_file_path.is_empty():
@@ -281,31 +281,20 @@ func _get_source_path(root: Node, options: Dictionary) -> String:
 
 func _get_metadata_key(options: Dictionary) -> StringName:
 	if options.has("metadata_key"):
-		return StringName(String(options.get("metadata_key")))
+		return GFVariantData.get_option_string_name(options, "metadata_key")
 	return META_ASSET_METADATA
 
 
 func _get_metadata_keys(options: Dictionary) -> Array[StringName]:
 	if options.has("metadata_keys"):
-		return _to_string_name_array(options.get("metadata_keys"))
+		var configured_keys: Array[StringName] = []
+		for key: StringName in GFVariantData.get_option_string_name_array(options, "metadata_keys"):
+			_append_metadata_key(configured_keys, key)
+		if configured_keys.is_empty():
+			configured_keys.append(META_ASSET_METADATA)
+		return configured_keys
 	var result: Array[StringName] = []
 	result.append(_get_metadata_key(options))
-	return result
-
-
-func _to_string_name_array(value: Variant) -> Array[StringName]:
-	var result: Array[StringName] = []
-	if value is PackedStringArray:
-		for item: String in value:
-			_append_metadata_key(result, StringName(item))
-	elif value is Array:
-		for item: Variant in value:
-			_append_metadata_key(result, StringName(String(item)))
-	elif typeof(value) == TYPE_STRING or value is StringName:
-		_append_metadata_key(result, StringName(String(value)))
-
-	if result.is_empty():
-		result.append(META_ASSET_METADATA)
 	return result
 
 

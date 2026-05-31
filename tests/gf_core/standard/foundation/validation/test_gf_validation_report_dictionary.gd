@@ -2,85 +2,81 @@
 extends GutTest
 
 
-# --- 常量 ---
-
-const GF_VALIDATION_ISSUE_BASE := preload("res://addons/gf/standard/foundation/validation/gf_validation_issue.gd")
-const GF_VALIDATION_REPORT_BASE := preload("res://addons/gf/standard/foundation/validation/gf_validation_report.gd")
-const GF_VALIDATION_REPORT_DICTIONARY_BASE := preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
-
-
-# --- 测试方法 ---
-
 func test_issue_from_dict_preserves_extra_fields() -> void:
-	var issue := GF_VALIDATION_ISSUE_BASE.from_dict({
+	var issue: GFValidationIssue = _issue_from_ref(GFValidationIssue.from_dict({
 		"severity": "warn",
 		"kind": "missing_field",
 		"row_key": 3,
 		"field": &"name",
 		"message": "Missing field.",
-	})
+	}))
 
 	var data: Dictionary = issue.to_dict()
 
-	assert_eq(data["severity"], "warning", "严重级别应归一为稳定字符串。")
-	assert_eq(data["kind"], "missing_field", "kind 应作为统计用问题类别。")
+	assert_eq(GFVariantData.get_option_string(data, "severity"), "warning", "严重级别应归一为稳定字符串。")
+	assert_eq(GFVariantData.get_option_string(data, "kind"), "missing_field", "kind 应作为统计用问题类别。")
 	assert_false(data.has("code"), "问题字典不应再输出旧 code 字段。")
-	assert_eq(data["row_key"], 3, "自定义定位字段应保留。")
-	assert_eq(data["field"], &"name", "StringName 字段应保留。")
+	assert_eq(GFVariantData.get_option_int(data, "row_key"), 3, "自定义定位字段应保留。")
+	assert_eq(GFVariantData.get_option_string_name(data, "field"), &"name", "StringName 字段应保留。")
 
 
 func test_report_counts_summary_and_next_action() -> void:
-	var report := GF_VALIDATION_REPORT_BASE.new("Sample data")
-	report.add_warning(&"optional_missing", "Optional value is missing.", "row_1")
-	report.add_error(&"invalid_value", "Value is invalid.", "row_2")
+	var report: GFValidationReport = GFValidationReport.new("Sample data")
+	var _add_warning_result_25: Variant = report.add_warning(&"optional_missing", "Optional value is missing.", "row_1")
+	var _add_error_result_26: Variant = report.add_error(&"invalid_value", "Value is invalid.", "row_2")
 
 	var data: Dictionary = report.to_dict({}, {
 		"next_actions": {
 			"invalid_value": "Fix the invalid value.",
 		},
 	})
+	var counts: Dictionary = GFVariantData.as_dictionary(
+		GFVariantData.get_option_value(data, "issue_counts_by_kind")
+	)
 
-	assert_false(bool(data["ok"]), "存在错误时报告不应通过。")
-	assert_false(bool(data["healthy"]), "存在警告或错误时报告不应健康。")
-	assert_eq(int(data["error_count"]), 1, "应统计错误数量。")
-	assert_eq(int(data["warning_count"]), 1, "应统计警告数量。")
-	assert_eq((data["issue_counts_by_kind"] as Dictionary)["invalid_value"], 1, "应按 kind 统计问题。")
-	assert_eq(data["summary"], "Sample data has 1 error(s) and 1 warning(s).", "摘要应使用主题和统计数量。")
-	assert_eq(data["next_action"], "Fix the invalid value.", "下一步建议应优先使用首个错误的映射。")
+	assert_false(GFVariantData.get_option_bool(data, "ok"), "存在错误时报告不应通过。")
+	assert_false(GFVariantData.get_option_bool(data, "healthy"), "存在警告或错误时报告不应健康。")
+	assert_eq(GFVariantData.get_option_int(data, "error_count"), 1, "应统计错误数量。")
+	assert_eq(GFVariantData.get_option_int(data, "warning_count"), 1, "应统计警告数量。")
+	assert_eq(GFVariantData.get_option_int(counts, "invalid_value"), 1, "应按 kind 统计问题。")
+	assert_eq(GFVariantData.get_option_string(data, "summary"), "Sample data has 1 error(s) and 1 warning(s).", "摘要应使用主题和统计数量。")
+	assert_eq(GFVariantData.get_option_string(data, "next_action"), "Fix the invalid value.", "下一步建议应优先使用首个错误的映射。")
 
 
 func test_report_promotes_selected_warnings_to_errors() -> void:
-	var report := GF_VALIDATION_REPORT_BASE.new("Sample data")
-	report.add_warning(&"optional_missing", "Optional value is missing.")
-	report.add_warning(&"deprecated_value", "Deprecated value.")
+	var report: GFValidationReport = GFValidationReport.new("Sample data")
+	var _add_warning_result_48: Variant = report.add_warning(&"optional_missing", "Optional value is missing.")
+	var _add_warning_result_49: Variant = report.add_warning(&"deprecated_value", "Deprecated value.")
 
-	report.promote_warnings_to_errors(PackedStringArray(["deprecated_value"]))
+	var _promote_warnings_to_errors_result_51: Variant = report.promote_warnings_to_errors(PackedStringArray(["deprecated_value"]))
 
 	assert_eq(report.get_error_count(), 1, "匹配类别的警告应提升为错误。")
 	assert_eq(report.get_warning_count(), 1, "未匹配类别的警告应保持警告。")
 
 
 func test_dictionary_report_finalize_preserves_existing_fields() -> void:
-	var report := {
+	var report: Dictionary = {
 		"row_count": 2,
 		"issues": [],
 	}
-	GF_VALIDATION_REPORT_DICTIONARY_BASE.append_issue(report, "warning", &"missing_optional", "Optional field is missing.", {
+	var _appended_report: Dictionary = GFValidationReportDictionary.append_issue(report, "warning", &"missing_optional", "Optional field is missing.", {
 		"row_key": 1,
 	})
 
-	GF_VALIDATION_REPORT_DICTIONARY_BASE.finalize_report(report, "Config table")
+	var _finalized_report: Dictionary = GFValidationReportDictionary.finalize_report(report, "Config table")
+	var issues: Array = GFVariantData.as_array(GFVariantData.get_option_value(report, "issues"))
+	var issue: Dictionary = GFVariantData.as_dictionary(issues[0])
 
-	assert_true(bool(report["ok"]), "只有警告时报告仍可通过。")
-	assert_false(bool(report["healthy"]), "包含警告时报告不应视为完全健康。")
-	assert_eq(int(report["row_count"]), 2, "调用方已有统计字段应保留。")
-	assert_eq(int(report["warning_count"]), 1, "字典报告应计算警告数量。")
-	assert_eq(int(report["issue_count"]), 1, "字典报告应始终输出问题总数。")
-	assert_eq(((report["issues"] as Array)[0] as Dictionary)["row_key"], 1, "问题附加字段应保留。")
+	assert_true(GFVariantData.get_option_bool(report, "ok"), "只有警告时报告仍可通过。")
+	assert_false(GFVariantData.get_option_bool(report, "healthy"), "包含警告时报告不应视为完全健康。")
+	assert_eq(GFVariantData.get_option_int(report, "row_count"), 2, "调用方已有统计字段应保留。")
+	assert_eq(GFVariantData.get_option_int(report, "warning_count"), 1, "字典报告应计算警告数量。")
+	assert_eq(GFVariantData.get_option_int(report, "issue_count"), 1, "字典报告应始终输出问题总数。")
+	assert_eq(GFVariantData.get_option_int(issue, "row_key"), 1, "问题附加字段应保留。")
 
 
 func test_dictionary_report_finalize_normalizes_legacy_issue_fields() -> void:
-	var report := {
+	var report: Dictionary = {
 		"issues": [
 			{
 				"severity": "warning",
@@ -92,18 +88,22 @@ func test_dictionary_report_finalize_normalizes_legacy_issue_fields() -> void:
 		],
 	}
 
-	GF_VALIDATION_REPORT_DICTIONARY_BASE.finalize_report(report, "Legacy report")
+	var _finalized_report: Dictionary = GFValidationReportDictionary.finalize_report(report, "Legacy report")
 
-	var issue := (report["issues"] as Array)[0] as Dictionary
-	assert_eq(issue["kind"], "unknown", "缺少 kind 的旧问题应归入 unknown，而不是读取旧 code/type。")
+	var issues: Array = GFVariantData.as_array(GFVariantData.get_option_value(report, "issues"))
+	var issue: Dictionary = GFVariantData.as_dictionary(issues[0])
+	var counts: Dictionary = GFVariantData.as_dictionary(
+		GFVariantData.get_option_value(report, "issue_counts_by_kind")
+	)
+	assert_eq(GFVariantData.get_option_string(issue, "kind"), "unknown", "缺少 kind 的旧问题应归入 unknown，而不是读取旧 code/type。")
 	assert_false(issue.has("code"), "字典报告归一化后不应继续输出旧 code 字段。")
 	assert_false(issue.has("type"), "字典报告归一化后不应继续输出旧 type 字段。")
-	assert_eq(issue["row_key"], 7, "自定义定位字段应继续保留。")
-	assert_eq((report["issue_counts_by_kind"] as Dictionary)["unknown"], 1, "统计应使用标准 kind。")
+	assert_eq(GFVariantData.get_option_int(issue, "row_key"), 7, "自定义定位字段应继续保留。")
+	assert_eq(GFVariantData.get_option_int(counts, "unknown"), 1, "统计应使用标准 kind。")
 
 
 func test_dictionary_report_can_treat_warnings_as_errors() -> void:
-	var report := {
+	var report: Dictionary = {
 		"issues": [
 			{
 				"severity": "warning",
@@ -113,17 +113,17 @@ func test_dictionary_report_can_treat_warnings_as_errors() -> void:
 		],
 	}
 
-	GF_VALIDATION_REPORT_DICTIONARY_BASE.finalize_report(report, "Config table", {
+	var _finalized_report: Dictionary = GFValidationReportDictionary.finalize_report(report, "Config table", {
 		"warnings_as_errors": true,
 	})
 
-	assert_false(bool(report["ok"]), "启用 warnings_as_errors 后警告应使报告失败。")
-	assert_eq(int(report["error_count"]), 1, "提升后的警告应计入错误数量。")
-	assert_eq(int(report["warning_count"]), 0, "提升后的警告不应再计入警告数量。")
+	assert_false(GFVariantData.get_option_bool(report, "ok"), "启用 warnings_as_errors 后警告应使报告失败。")
+	assert_eq(GFVariantData.get_option_int(report, "error_count"), 1, "提升后的警告应计入错误数量。")
+	assert_eq(GFVariantData.get_option_int(report, "warning_count"), 0, "提升后的警告不应再计入警告数量。")
 
 
 func test_dictionary_report_filter_issues_uses_ignores_and_preserves_source() -> void:
-	var report := {
+	var report: Dictionary = {
 		"subject": "Project scan",
 		"issues": [
 			{
@@ -141,22 +141,23 @@ func test_dictionary_report_filter_issues_uses_ignores_and_preserves_source() ->
 		],
 	}
 
-	var filtered: Dictionary = GF_VALIDATION_REPORT_DICTIONARY_BASE.filter_issues(report, {
+	var filtered: Dictionary = GFValidationReportDictionary.filter_issues(report, {
 		"ignored_kinds": PackedStringArray(["missing_script"]),
 	})
-	var source_issues := report["issues"] as Array
-	var filtered_issues := filtered["issues"] as Array
+	var source_issues: Array = GFVariantData.as_array(GFVariantData.get_option_value(report, "issues"))
+	var filtered_issues: Array = GFVariantData.as_array(GFVariantData.get_option_value(filtered, "issues"))
+	var remaining_issue: Dictionary = GFVariantData.as_dictionary(filtered_issues[0])
 
 	assert_eq(source_issues.size(), 2, "过滤应返回副本，不应修改源报告。")
 	assert_eq(filtered_issues.size(), 1, "匹配忽略类别的问题应被移除。")
-	assert_eq(String((filtered_issues[0] as Dictionary)["kind"]), "large_texture", "未匹配的问题应保留。")
-	assert_true(bool(filtered["ok"]), "只剩警告时过滤后的报告应可通过。")
-	assert_eq(int(filtered["original_issue_count"]), 2, "过滤摘要应记录原始问题数。")
-	assert_eq(int(filtered["filtered_issue_count"]), 1, "过滤摘要应记录移除数量。")
+	assert_eq(GFVariantData.get_option_string(remaining_issue, "kind"), "large_texture", "未匹配的问题应保留。")
+	assert_true(GFVariantData.get_option_bool(filtered, "ok"), "只剩警告时过滤后的报告应可通过。")
+	assert_eq(GFVariantData.get_option_int(filtered, "original_issue_count"), 2, "过滤摘要应记录原始问题数。")
+	assert_eq(GFVariantData.get_option_int(filtered, "filtered_issue_count"), 1, "过滤摘要应记录移除数量。")
 
 
 func test_dictionary_report_filter_issues_supports_baseline_fingerprints_and_globs() -> void:
-	var report := {
+	var report: Dictionary = {
 		"issues": [
 			{
 				"severity": "error",
@@ -179,21 +180,31 @@ func test_dictionary_report_filter_issues_supports_baseline_fingerprints_and_glo
 			},
 		],
 	}
-	var baseline_issue := {
+	var baseline_issue: Dictionary = {
 		"severity": "error",
 		"kind": "broken_reference",
 		"message": "Missing resource.",
 		"path": "res://content/legacy_scene.tscn",
 		"key": "icon",
 	}
-	var fingerprint := GF_VALIDATION_REPORT_DICTIONARY_BASE.make_issue_fingerprint(baseline_issue)
+	var fingerprint: String = GFValidationReportDictionary.make_issue_fingerprint(baseline_issue)
 
-	var filtered: Dictionary = GF_VALIDATION_REPORT_DICTIONARY_BASE.filter_issues(report, {
+	var filtered: Dictionary = GFValidationReportDictionary.filter_issues(report, {
 		"baseline_fingerprints": PackedStringArray([fingerprint]),
 		"ignored_path_patterns": PackedStringArray(["res://generated/**"]),
 	})
-	var issues := filtered["issues"] as Array
+	var issues: Array = GFVariantData.as_array(GFVariantData.get_option_value(filtered, "issues"))
+	var issue: Dictionary = GFVariantData.as_dictionary(issues[0])
 
 	assert_eq(issues.size(), 1, "基线指纹和路径通配忽略应同时生效。")
-	assert_eq(String((issues[0] as Dictionary)["kind"]), "missing_export_preset", "未进入基线或忽略路径的问题应保留。")
-	assert_false(bool(filtered["ok"]), "剩余错误应继续让报告失败。")
+	assert_eq(GFVariantData.get_option_string(issue, "kind"), "missing_export_preset", "未进入基线或忽略路径的问题应保留。")
+	assert_false(GFVariantData.get_option_bool(filtered, "ok"), "剩余错误应继续让报告失败。")
+
+
+# --- 私有/辅助方法 ---
+
+func _issue_from_ref(value: RefCounted) -> GFValidationIssue:
+	if value is GFValidationIssue:
+		var issue: GFValidationIssue = value
+		return issue
+	return null

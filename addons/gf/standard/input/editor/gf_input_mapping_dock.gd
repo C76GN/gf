@@ -63,13 +63,13 @@ func set_input_context(context: GFInputContext) -> void:
 ## [br]
 ## @return Godot 错误码。
 func load_context_path(path: String) -> Error:
-	var normalized_path := path.strip_edges()
+	var normalized_path: String = path.strip_edges()
 	if normalized_path.is_empty():
 		_render_empty("输入上下文路径为空。", "请填写 GFInputContext 资源路径后再加载。")
 		return ERR_INVALID_PARAMETER
 
-	var resource := ResourceLoader.load(normalized_path)
-	var context := resource as GFInputContext
+	var resource: Resource = ResourceLoader.load(normalized_path)
+	var context: GFInputContext = _get_input_context_value(resource)
 	if context == null:
 		_context = null
 		_last_report = {}
@@ -114,20 +114,20 @@ func _build_ui() -> void:
 	if _tree != null:
 		return
 
-	var root_box := VBoxContainer.new()
+	var root_box: VBoxContainer = VBoxContainer.new()
 	root_box.clip_contents = true
 	root_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	root_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	add_child(root_box)
 	root_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
-	var toolbar := _GFEditorWorkspaceUI.make_toolbar()
+	var toolbar: HBoxContainer = _GFEditorWorkspaceUI.make_toolbar()
 	root_box.add_child(toolbar)
 
 	_path_edit = LineEdit.new()
 	_path_edit.placeholder_text = "res://path/to/input_context.tres"
 	_path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_path_edit.text_submitted.connect(_on_path_submitted)
+	var _path_submitted_connected: Error = _path_edit.text_submitted.connect(_on_path_submitted) as Error
 	toolbar.add_child(_path_edit)
 
 	toolbar.add_child(_GFEditorWorkspaceUI.make_button("...", "选择输入上下文资源。", _on_browse_pressed))
@@ -138,7 +138,7 @@ func _build_ui() -> void:
 	_include_non_remappable_check.text = "包含不可重绑"
 	_include_non_remappable_check.button_pressed = true
 	_include_non_remappable_check.tooltip_text = "冲突分析是否包含不可重绑定的动作和绑定。"
-	_include_non_remappable_check.toggled.connect(_on_option_toggled)
+	var _option_toggled_connected: Error = _include_non_remappable_check.toggled.connect(_on_option_toggled) as Error
 	toolbar.add_child(_include_non_remappable_check)
 
 	toolbar.add_child(_GFEditorWorkspaceUI.make_button("复制报告", "复制当前输入映射诊断 JSON。", _on_copy_pressed))
@@ -165,7 +165,7 @@ func _build_ui() -> void:
 	_tree.set_column_expand(3, true)
 	_tree.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_tree.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_tree.item_selected.connect(_on_tree_item_selected)
+	var _tree_item_selected_connected: Error = _tree.item_selected.connect(_on_tree_item_selected) as Error
 	_content_split.add_child(_tree)
 
 	_details = _GFEditorWorkspaceUI.make_details_output()
@@ -176,16 +176,16 @@ func _build_ui() -> void:
 	_file_dialog = FileDialog.new()
 	_file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
 	_file_dialog.access = FileDialog.ACCESS_RESOURCES
-	_file_dialog.file_selected.connect(_on_file_selected)
+	var _file_selected_connected: Error = _file_dialog.file_selected.connect(_on_file_selected) as Error
 	add_child(_file_dialog)
 
 
 func _build_report(context: GFInputContext) -> Dictionary:
-	var include_non_remappable := (
+	var include_non_remappable: bool = (
 		_include_non_remappable_check == null
 		or _include_non_remappable_check.button_pressed
 	)
-	var report := GFInputConflictAnalyzer.build_rebind_report(
+	var report: Dictionary = GFInputConflictAnalyzer.build_rebind_report(
 		[context],
 		null,
 		false,
@@ -193,18 +193,18 @@ func _build_report(context: GFInputContext) -> Dictionary:
 	)
 	var issues: Array[Dictionary] = []
 	_collect_structure_issues(context, issues)
-	for conflict_variant: Variant in report.get("conflicts", []):
-		var conflict := conflict_variant as Dictionary
-		if conflict == null:
+	for conflict_variant: Variant in GFVariantData.get_option_array(report, "conflicts"):
+		if not (conflict_variant is Dictionary):
 			continue
+		var conflict: Dictionary = GFVariantData.as_dictionary(conflict_variant)
 		issues.append({
 			"severity": "warning",
 			"kind": "binding_conflict",
 			"path": "%s/%s" % [
-				String(conflict.get("context_id", "")),
-				String(conflict.get("action_id", "")),
+				GFVariantData.get_option_string(conflict, "context_id", ""),
+				GFVariantData.get_option_string(conflict, "action_id", ""),
 			],
-			"message": "输入绑定冲突：%s" % String(conflict.get("event_text", "")),
+			"message": "输入绑定冲突：%s" % GFVariantData.get_option_string(conflict, "event_text", ""),
 			"metadata": _sanitize_for_display(conflict),
 		})
 
@@ -215,8 +215,8 @@ func _build_report(context: GFInputContext) -> Dictionary:
 	report["issues"] = issues
 	report["resource_summary"] = "动作：%d  绑定：%d  冲突：%d  问题：%d" % [
 		context.mappings.size(),
-		int(report.get("item_count", 0)),
-		int(report.get("conflict_count", 0)),
+		GFVariantData.get_option_int(report, "item_count", 0),
+		GFVariantData.get_option_int(report, "conflict_count", 0),
 		issues.size(),
 	]
 	return GFValidationReportDictionary.finalize_report(report, "Input mapping", {
@@ -232,8 +232,8 @@ func _collect_structure_issues(context: GFInputContext, issues: Array[Dictionary
 		issues.append(_make_issue("warning", "empty_context_id", "", "输入上下文缺少稳定 context_id。"))
 
 	for mapping_index: int in range(context.mappings.size()):
-		var mapping := context.mappings[mapping_index]
-		var mapping_path := "mappings/%d" % mapping_index
+		var mapping: GFInputMapping = context.mappings[mapping_index]
+		var mapping_path: String = "mappings/%d" % mapping_index
 		if mapping == null:
 			issues.append(_make_issue("error", "null_mapping", mapping_path, "映射为空。"))
 			continue
@@ -245,8 +245,8 @@ func _collect_structure_issues(context: GFInputContext, issues: Array[Dictionary
 			issues.append(_make_issue("warning", "empty_bindings", mapping_path, "动作没有任何输入绑定。"))
 
 		for binding_index: int in range(mapping.bindings.size()):
-			var binding := mapping.bindings[binding_index]
-			var binding_path := "%s/bindings/%d" % [mapping_path, binding_index]
+			var binding: GFInputBinding = mapping.bindings[binding_index]
+			var binding_path: String = "%s/bindings/%d" % [mapping_path, binding_index]
 			if binding == null:
 				issues.append(_make_issue("error", "null_binding", binding_path, "绑定为空。"))
 				continue
@@ -263,16 +263,16 @@ func _render_context() -> void:
 	_empty_label.visible = false
 	_content_split.visible = true
 	_tree.visible = true
-	var resource_summary := String(_last_report.get("resource_summary", ""))
+	var resource_summary: String = GFVariantData.get_option_string(_last_report, "resource_summary", "")
 	_summary_label.text = "%s\n%s\n下一步：%s" % [
-		String(_last_report.get("summary", "")),
+		GFVariantData.get_option_string(_last_report, "summary", ""),
 		resource_summary,
-		String(_last_report.get("next_action", "")),
+		GFVariantData.get_option_string(_last_report, "next_action", ""),
 	]
 	_summary_label.modulate = _GFEditorWorkspaceUI.get_report_color(_last_report)
 
-	var root_item := _tree.create_item()
-	var context_item := _tree.create_item(root_item)
+	var root_item: TreeItem = _tree.create_item()
+	var context_item: TreeItem = _tree.create_item(root_item)
 	context_item.set_text(0, "上下文")
 	context_item.set_text(1, String(_context.get_context_id()))
 	context_item.set_text(2, "%d mappings" % _context.mappings.size())
@@ -280,11 +280,11 @@ func _render_context() -> void:
 	context_item.set_metadata(0, _make_context_details(_context))
 
 	for mapping_index: int in range(_context.mappings.size()):
-		var mapping := _context.mappings[mapping_index]
+		var mapping: GFInputMapping = _context.mappings[mapping_index]
 		if mapping == null:
 			_add_issue_item(root_item, _make_issue("error", "null_mapping", "mappings/%d" % mapping_index, "映射为空。"))
 			continue
-		var mapping_item := _tree.create_item(root_item)
+		var mapping_item: TreeItem = _tree.create_item(root_item)
 		mapping_item.set_text(0, "动作")
 		mapping_item.set_text(1, String(mapping.get_action_id()))
 		mapping_item.set_text(2, GFInputFormatter.mapping_as_text(mapping, _context.get_context_id()))
@@ -295,16 +295,19 @@ func _render_context() -> void:
 		mapping_item.set_metadata(0, _make_mapping_details(mapping, mapping_index))
 		_add_binding_items(mapping_item, mapping)
 
-	for issue: Dictionary in _last_report.get("issues", []):
+	for issue_value: Variant in GFVariantData.get_option_array(_last_report, "issues"):
+		if not (issue_value is Dictionary):
+			continue
+		var issue: Dictionary = GFVariantData.as_dictionary(issue_value)
 		_add_issue_item(root_item, issue)
 
 
 func _add_binding_items(parent: TreeItem, mapping: GFInputMapping) -> void:
 	for binding_index: int in range(mapping.bindings.size()):
-		var binding := mapping.bindings[binding_index]
+		var binding: GFInputBinding = mapping.bindings[binding_index]
 		if binding == null:
 			continue
-		var item := _tree.create_item(parent)
+		var item: TreeItem = _tree.create_item(parent)
 		item.set_text(0, "绑定")
 		item.set_text(1, "%d" % binding_index)
 		item.set_text(2, GFInputFormatter.binding_as_text(binding))
@@ -317,11 +320,11 @@ func _add_binding_items(parent: TreeItem, mapping: GFInputMapping) -> void:
 
 
 func _add_issue_item(parent: TreeItem, issue: Dictionary) -> void:
-	var item := _tree.create_item(parent)
-	item.set_text(0, String(issue.get("severity", "")))
-	item.set_text(1, String(issue.get("kind", "")))
-	item.set_text(2, String(issue.get("path", "")))
-	item.set_text(3, String(issue.get("message", "")))
+	var item: TreeItem = _tree.create_item(parent)
+	item.set_text(0, GFVariantData.get_option_string(issue, "severity", ""))
+	item.set_text(1, GFVariantData.get_option_string(issue, "kind", ""))
+	item.set_text(2, GFVariantData.get_option_string(issue, "path", ""))
+	item.set_text(3, GFVariantData.get_option_string(issue, "message", ""))
 	item.set_metadata(0, issue.duplicate(true))
 
 
@@ -386,7 +389,7 @@ func _make_issue(severity: String, kind: String, path: String, message: String) 
 
 
 func _count_bindings(context: GFInputContext) -> int:
-	var count := 0
+	var count: int = 0
 	for mapping: GFInputMapping in context.mappings:
 		if mapping != null:
 			count += mapping.bindings.size()
@@ -460,31 +463,42 @@ func _safe_json(value: Variant) -> String:
 
 func _sanitize_for_display(value: Variant) -> Variant:
 	if value is Dictionary:
+		var dictionary: Dictionary = GFVariantData.as_dictionary(value)
 		var result: Dictionary = {}
-		for key: Variant in value.keys():
-			result[str(key)] = _sanitize_for_display(value[key])
+		for key: Variant in dictionary.keys():
+			result[str(key)] = _sanitize_for_display(dictionary[key])
 		return result
 	if value is Array:
+		var array: Array = GFVariantData.as_array(value)
 		var array_result: Array = []
-		for item: Variant in value:
+		for item: Variant in array:
 			array_result.append(_sanitize_for_display(item))
 		return array_result
 	if value is PackedStringArray:
+		var packed_strings: PackedStringArray = value
 		var strings: Array[String] = []
-		for item: String in value:
+		for item: String in packed_strings:
 			strings.append(item)
 		return strings
 	if value is InputEvent:
-		return GFInputFormatter.input_event_as_text(value)
+		var event: InputEvent = value
+		return GFInputFormatter.input_event_as_text(event)
 	if value is Object:
 		return str(value)
 	return value
 
 
+func _get_input_context_value(value: Variant) -> GFInputContext:
+	if value is GFInputContext:
+		var context: GFInputContext = value
+		return context
+	return null
+
+
 # --- 信号处理函数 ---
 
 func _on_path_submitted(path: String) -> void:
-	load_context_path(path)
+	var _load_error: Error = load_context_path(path)
 
 
 func _on_browse_pressed() -> void:
@@ -495,13 +509,13 @@ func _on_browse_pressed() -> void:
 func _on_file_selected(path: String) -> void:
 	if _path_edit != null:
 		_path_edit.text = path
-	load_context_path(path)
+	var _load_error: Error = load_context_path(path)
 
 
 func _on_load_pressed() -> void:
 	if _path_edit == null:
 		return
-	load_context_path(_path_edit.text)
+	var _load_error: Error = load_context_path(_path_edit.text)
 
 
 func _on_option_toggled(_pressed: bool) -> void:
@@ -509,7 +523,7 @@ func _on_option_toggled(_pressed: bool) -> void:
 
 
 func _on_tree_item_selected() -> void:
-	var item := _tree.get_selected()
+	var item: TreeItem = _tree.get_selected()
 	if item == null:
 		return
 	_details.text = _safe_json(item.get_metadata(0))

@@ -12,11 +12,6 @@ class_name GFScenePreloadMap
 extends Resource
 
 
-# --- 常量 ---
-
-const _GF_VALIDATION_REPORT_SCRIPT = preload("res://addons/gf/standard/foundation/validation/gf_validation_report.gd")
-
-
 # --- 导出变量 ---
 
 ## 默认相邻搜索半径；0 表示只使用固定预加载路径。
@@ -61,7 +56,7 @@ const _GF_VALIDATION_REPORT_SCRIPT = preload("res://addons/gf/standard/foundatio
 ## [br]
 ## @return 对应条目；未找到时返回 null。
 func get_entry(scene_path: String) -> GFScenePreloadEntry:
-	var normalized_path := scene_path.strip_edges()
+	var normalized_path: String = scene_path.strip_edges()
 	if normalized_path.is_empty():
 		return null
 
@@ -77,7 +72,7 @@ func get_entry(scene_path: String) -> GFScenePreloadEntry:
 ## [br]
 ## @return 固定预加载路径列表。
 func get_fixed_scene_paths() -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	for raw_path: String in fixed_scene_paths:
 		_append_unique_path(result, raw_path)
 	for entry: GFScenePreloadEntry in entries:
@@ -102,18 +97,18 @@ func get_neighbor_scene_paths(
 	radius: int = -1,
 	include_source: bool = false
 ) -> PackedStringArray:
-	var source_path := scene_path.strip_edges()
-	var result := PackedStringArray()
+	var source_path: String = scene_path.strip_edges()
+	var result: PackedStringArray = PackedStringArray()
 	if source_path.is_empty():
 		return result
 
-	var effective_radius := _get_effective_radius(radius)
+	var effective_radius: int = _get_effective_radius(radius)
 	if include_source:
 		_append_unique_path(result, source_path)
 	if effective_radius <= 0:
 		return result
 
-	var visited := {
+	var visited: Dictionary = {
 		source_path: true,
 	}
 	var queue: Array[Dictionary] = [
@@ -123,13 +118,13 @@ func get_neighbor_scene_paths(
 		},
 	]
 	while not queue.is_empty():
-		var current := queue.pop_front() as Dictionary
-		var current_path := String(current.get("path", ""))
-		var depth := int(current.get("depth", 0))
+		var current: Dictionary = queue.pop_front()
+		var current_path: String = GFVariantData.get_option_string(current, "path", "")
+		var depth: int = GFVariantData.get_option_int(current, "depth", 0)
 		if depth >= effective_radius:
 			continue
 
-		var entry := get_entry(current_path)
+		var entry: GFScenePreloadEntry = get_entry(current_path)
 		if entry == null:
 			continue
 		for adjacent_path: String in entry.get_adjacent_scene_paths():
@@ -164,23 +159,23 @@ func get_preload_plan(
 	radius: int = -1,
 	include_fixed: bool = true
 ) -> Dictionary:
-	var source_path := scene_path.strip_edges()
-	var effective_radius := _get_effective_radius(radius)
-	var fixed_paths := PackedStringArray()
+	var source_path: String = scene_path.strip_edges()
+	var effective_radius: int = _get_effective_radius(radius)
+	var fixed_paths: PackedStringArray = PackedStringArray()
 	if include_fixed:
 		fixed_paths = get_fixed_scene_paths()
 
-	var temporary_paths := PackedStringArray()
+	var temporary_paths: PackedStringArray = PackedStringArray()
 	for neighbor_path: String in get_neighbor_scene_paths(source_path, effective_radius):
 		if fixed_paths.has(neighbor_path):
 			continue
-		var entry := get_entry(neighbor_path)
+		var entry: GFScenePreloadEntry = get_entry(neighbor_path)
 		if entry != null and entry.fixed:
 			_append_unique_path(fixed_paths, neighbor_path)
 			continue
 		_append_unique_path(temporary_paths, neighbor_path)
 
-	var paths := PackedStringArray()
+	var paths: PackedStringArray = PackedStringArray()
 	for fixed_path: String in fixed_paths:
 		_append_unique_path(paths, fixed_path)
 	for temporary_path: String in temporary_paths:
@@ -209,34 +204,34 @@ func get_preload_plan(
 ## [br]
 ## @schema return: Dictionary，由 GFValidationReport.to_dict() 生成的校验报告。
 func validate_map(options: Dictionary = {}) -> Dictionary:
-	var report := _GF_VALIDATION_REPORT_SCRIPT.new("Scene preload map")
-	var check_exists := bool(options.get("check_exists", false))
+	var report: GFValidationReport = GFValidationReport.new("Scene preload map")
+	var check_exists: bool = GFVariantData.get_option_bool(options, "check_exists")
 	var seen_paths: Dictionary = {}
 	for fixed_path: String in get_fixed_scene_paths():
 		_validate_scene_path(report, fixed_path, "fixed_scene_paths", check_exists)
 
 	for index: int in range(entries.size()):
-		var entry := entries[index]
+		var entry: GFScenePreloadEntry = entries[index]
 		if entry == null:
-			report.add_warning(&"null_entry", "Scene preload map contains a null entry.", str(index))
+			var _add_warning_result_216: Variant = report.add_warning(&"null_entry", "Scene preload map contains a null entry.", str(index))
 			continue
 
-		var entry_path := entry.get_scene_path()
+		var entry_path: String = entry.get_scene_path()
 		if entry_path.is_empty():
-			report.add_error(&"empty_scene_path", "Scene preload entry requires scene_path.", str(index))
+			var _add_error_result_221: Variant = report.add_error(&"empty_scene_path", "Scene preload entry requires scene_path.", str(index))
 			continue
 		_validate_scene_path(report, entry_path, str(index), check_exists)
 		if seen_paths.has(entry_path):
-			report.add_warning(&"duplicate_scene_path", "Scene preload map contains duplicate scene_path entries.", entry_path)
+			var _add_warning_result_225: Variant = report.add_warning(&"duplicate_scene_path", "Scene preload map contains duplicate scene_path entries.", entry_path)
 		seen_paths[entry_path] = true
 
 		for adjacent_path: String in entry.adjacent_scene_paths:
-			var normalized_adjacent_path := adjacent_path.strip_edges()
+			var normalized_adjacent_path: String = adjacent_path.strip_edges()
 			if normalized_adjacent_path.is_empty():
-				report.add_warning(&"empty_adjacent_path", "Scene preload entry contains an empty adjacent path.", entry_path)
+				var _add_warning_result_231: Variant = report.add_warning(&"empty_adjacent_path", "Scene preload entry contains an empty adjacent path.", entry_path)
 				continue
 			if normalized_adjacent_path == entry_path:
-				report.add_warning(&"self_adjacent_path", "Scene preload entry references itself.", entry_path)
+				var _add_warning_result_234: Variant = report.add_warning(&"self_adjacent_path", "Scene preload entry references itself.", entry_path)
 				continue
 			_validate_scene_path(report, normalized_adjacent_path, entry_path, check_exists)
 
@@ -267,18 +262,18 @@ func _is_schedule_limit_reached(paths: PackedStringArray) -> bool:
 
 
 func _validate_scene_path(
-	report: Variant,
+	report: GFValidationReport,
 	scene_path: String,
 	key: Variant,
 	check_exists: bool
 ) -> void:
 	if scene_path.is_empty():
-		report.add_error(&"empty_scene_path", "Scene path is empty.", key)
+		var _add_error_result_271: Variant = report.add_error(&"empty_scene_path", "Scene path is empty.", key)
 		return
 	if not check_exists:
 		return
 	if not ResourceLoader.exists(scene_path):
-		report.add_warning(&"missing_scene_resource", "Scene resource does not exist.", key, scene_path)
+		var _add_warning_result_276: Variant = report.add_warning(&"missing_scene_resource", "Scene resource does not exist.", key, scene_path)
 
 
 func _get_next_actions() -> Dictionary:
@@ -293,7 +288,7 @@ func _get_next_actions() -> Dictionary:
 
 
 static func _append_unique_path(paths: PackedStringArray, raw_path: String) -> void:
-	var path := raw_path.strip_edges()
+	var path: String = raw_path.strip_edges()
 	if path.is_empty() or paths.has(path):
 		return
-	paths.append(path)
+	var _appended: bool = paths.append(path)

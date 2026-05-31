@@ -46,7 +46,11 @@ func is_valid_branch() -> bool:
 ## [br]
 ## @return 分支副本。
 func duplicate_branch() -> GFInputSequenceBranch:
-	return duplicate(true) as GFInputSequenceBranch
+	var branch: Resource = duplicate(true)
+	if branch is GFInputSequenceBranch:
+		var sequence_branch: GFInputSequenceBranch = branch
+		return sequence_branch
+	return null
 
 
 ## 从动作 ID 数组创建分支。
@@ -64,7 +68,7 @@ static func from_action_ids(
 	action_ids: Array[StringName],
 	p_max_gap_seconds: float = -1.0
 ) -> GFInputSequenceBranch:
-	var branch := GFInputSequenceBranch.new()
+	var branch: GFInputSequenceBranch = GFInputSequenceBranch.new()
 	branch.max_gap_seconds = p_max_gap_seconds
 	for action_id: StringName in action_ids:
 		branch.steps.append(GFInputSequenceStep.from_action_id(action_id))

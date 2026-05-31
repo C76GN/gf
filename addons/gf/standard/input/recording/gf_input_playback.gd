@@ -149,7 +149,7 @@ func tick(delta: float) -> int:
 		return 0
 
 	elapsed_seconds += maxf(delta, 0.0) * maxf(speed, 0.0)
-	var applied := _apply_due_events()
+	var applied: int = _apply_due_events()
 	if _next_event_index >= recording.events.size():
 		_handle_end_reached()
 	return applied
@@ -197,10 +197,10 @@ func get_debug_snapshot() -> Dictionary:
 # --- 私有/辅助方法 ---
 
 func _apply_due_events() -> int:
-	var applied := 0
+	var applied: int = 0
 	while _next_event_index < recording.events.size():
 		var event: Dictionary = recording.events[_next_event_index]
-		if float(event.get("time_seconds", 0.0)) > elapsed_seconds + 0.0001:
+		if _get_event_time_seconds(event) > elapsed_seconds + 0.0001:
 			break
 		if _apply_event(event):
 			applied += 1
@@ -209,19 +209,19 @@ func _apply_due_events() -> int:
 
 
 func _apply_event(event: Dictionary) -> bool:
-	var action_id := event.get("action_id", &"") as StringName
+	var action_id: StringName = _get_event_action_id(event)
 	if action_id == &"":
 		return false
 
-	var value: Variant = event.get("value", false)
-	var player_index := int(event.get("player_index", -1))
-	var applied := false
+	var value: Variant = _get_event_value(event)
+	var player_index: int = _get_event_player_index(event)
+	var applied: bool = false
 	if respect_recorded_player_index and player_index >= 0:
 		applied = source.set_action_value_for_player(action_id, value, player_index)
 	else:
 		applied = source.set_action_value(action_id, value)
 	if applied:
-		event_applied.emit(GFVariantData.duplicate_variant(event) as Dictionary)
+		event_applied.emit(GFVariantData.to_dictionary(event))
 	return applied
 
 
@@ -229,7 +229,7 @@ func _handle_end_reached() -> void:
 	if loop and recording.duration_seconds > 0.0:
 		elapsed_seconds = fmod(elapsed_seconds, recording.duration_seconds)
 		_next_event_index = 0
-		_apply_due_events()
+		var _apply_due_events_result_232: Variant = _apply_due_events()
 		return
 	is_playing = false
 	playback_finished.emit()
@@ -239,6 +239,22 @@ func _find_next_event_index(time_seconds: float) -> int:
 	if recording == null:
 		return 0
 	for index: int in range(recording.events.size()):
-		if float(recording.events[index].get("time_seconds", 0.0)) > time_seconds:
+		if _get_event_time_seconds(recording.events[index]) > time_seconds:
 			return index
 	return recording.events.size()
+
+
+func _get_event_time_seconds(event: Dictionary) -> float:
+	return GFVariantData.get_option_float(event, "time_seconds")
+
+
+func _get_event_action_id(event: Dictionary) -> StringName:
+	return GFVariantData.get_option_string_name(event, "action_id")
+
+
+func _get_event_value(event: Dictionary) -> Variant:
+	return GFVariantData.get_option_value(event, "value", false)
+
+
+func _get_event_player_index(event: Dictionary) -> int:
+	return GFVariantData.get_option_int(event, "player_index", -1)

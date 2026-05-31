@@ -112,16 +112,16 @@ func tick(delta: float) -> void:
 	if _active_shakes.is_empty():
 		return
 
-	var finished_ids := PackedInt32Array()
+	var finished_ids: PackedInt32Array = PackedInt32Array()
 	for shake_id: int in _active_shakes.keys():
-		var state := _active_shakes[shake_id] as Dictionary
-		if state == null:
-			finished_ids.append(shake_id)
+		var state: Dictionary = _get_shake_state(shake_id)
+		if state.is_empty():
+			var _invalid_state_id_appended: bool = finished_ids.append(shake_id)
 			continue
-		state["elapsed_seconds"] = float(state.get("elapsed_seconds", 0.0)) + maxf(delta, 0.0)
-		var preset := state.get("preset") as GFShakePreset
-		if preset == null or float(state["elapsed_seconds"]) >= preset.get_duration_seconds():
-			finished_ids.append(shake_id)
+		state["elapsed_seconds"] = _get_state_float(state, "elapsed_seconds", 0.0) + maxf(delta, 0.0)
+		var preset: GFShakePreset = _get_state_preset(state)
+		if preset == null or _get_state_float(state, "elapsed_seconds", 0.0) >= preset.get_duration_seconds():
+			var _finished_id_appended: bool = finished_ids.append(shake_id)
 
 	for shake_id: int in finished_ids:
 		_finish_shake(shake_id)
@@ -156,8 +156,8 @@ func play_shake(
 		return -1
 
 	_shake_serial += 1
-	var shake_id := _shake_serial
-	var effective_channel := _resolve_channel(channel)
+	var shake_id: int = _shake_serial
+	var effective_channel: StringName = _resolve_channel(channel)
 	_active_shakes[shake_id] = {
 		"id": shake_id,
 		"channel": effective_channel,
@@ -167,7 +167,7 @@ func play_shake(
 		"phase_offset": _rng.randf() if randomize_phase else 0.0,
 		"metadata": metadata.duplicate(true),
 	}
-	_play_order.append(shake_id)
+	var _play_order_appended: bool = _play_order.append(shake_id)
 	shake_started.emit(shake_id, effective_channel)
 	return shake_id
 
@@ -185,10 +185,10 @@ func stop_shake(shake_id: int, emit_stopped: bool = true) -> bool:
 	if not _active_shakes.has(shake_id):
 		return false
 
-	var state := _active_shakes[shake_id] as Dictionary
-	var channel := StringName(state.get("channel", default_channel)) if state != null else default_channel
-	_active_shakes.erase(shake_id)
-	var order_index := _play_order.find(shake_id)
+	var state: Dictionary = _get_shake_state(shake_id)
+	var channel: StringName = _get_state_channel(state)
+	_erase_active_shake(shake_id)
+	var order_index: int = _play_order.find(shake_id)
 	if order_index >= 0:
 		_play_order.remove_at(order_index)
 	if emit_stopped:
@@ -204,11 +204,11 @@ func stop_shake(shake_id: int, emit_stopped: bool = true) -> bool:
 ## [br]
 ## @return 停止数量。
 func stop_channel(channel: StringName) -> int:
-	var effective_channel := _resolve_channel(channel)
-	var stopped_count := 0
+	var effective_channel: StringName = _resolve_channel(channel)
+	var stopped_count: int = 0
 	for shake_id: int in _active_shakes.keys():
-		var state := _active_shakes[shake_id] as Dictionary
-		if state != null and StringName(state.get("channel", default_channel)) == effective_channel:
+		var state: Dictionary = _get_shake_state(shake_id)
+		if not state.is_empty() and _get_state_channel(state) == effective_channel:
 			if stop_shake(shake_id):
 				stopped_count += 1
 	return stopped_count
@@ -244,10 +244,10 @@ func get_active_shake_count(channel: StringName = &"") -> int:
 	if channel == &"":
 		return _active_shakes.size()
 
-	var count := 0
+	var count: int = 0
 	for state_variant: Variant in _active_shakes.values():
-		var state := state_variant as Dictionary
-		if state != null and StringName(state.get("channel", default_channel)) == channel:
+		var state: Dictionary = GFVariantData.as_dictionary(state_variant)
+		if not state.is_empty() and _get_state_channel(state) == channel:
 			count += 1
 	return count
 
@@ -262,19 +262,19 @@ func get_active_shake_count(channel: StringName = &"") -> int:
 ## [br]
 ## @schema return: Dictionary，包含 position: Vector3、rotation_degrees: Vector3、scale: Vector3、intensity: float 与 progress: float。
 func sample_channel(channel: StringName = &"") -> Dictionary:
-	var effective_channel := _resolve_channel(channel)
+	var effective_channel: StringName = _resolve_channel(channel)
 	var samples: Array[Dictionary] = []
 	for state_variant: Variant in _active_shakes.values():
-		var state := state_variant as Dictionary
-		if state == null or StringName(state.get("channel", default_channel)) != effective_channel:
+		var state: Dictionary = GFVariantData.as_dictionary(state_variant)
+		if state.is_empty() or _get_state_channel(state) != effective_channel:
 			continue
-		var preset := state.get("preset") as GFShakePreset
+		var preset: GFShakePreset = _get_state_preset(state)
 		if preset == null:
 			continue
 		samples.append(preset.sample(
-			float(state.get("elapsed_seconds", 0.0)),
-			float(state.get("strength", 1.0)),
-			float(state.get("phase_offset", 0.0))
+			_get_state_float(state, "elapsed_seconds", 0.0),
+			_get_state_float(state, "strength", 1.0),
+			_get_state_float(state, "phase_offset", 0.0)
 		))
 	return GFShakePreset.combine_samples(samples)
 
@@ -305,17 +305,17 @@ func sample_channels(channels: PackedStringArray) -> Dictionary:
 ## [br]
 ## @schema return: Dictionary，包含 id、channel、elapsed_seconds、duration_seconds、strength 与 metadata；实例不存在时为空。
 func get_shake_info(shake_id: int) -> Dictionary:
-	var state := _active_shakes.get(shake_id) as Dictionary
-	if state == null:
+	var state: Dictionary = _get_shake_state(shake_id)
+	if state.is_empty():
 		return {}
-	var preset := state.get("preset") as GFShakePreset
+	var preset: GFShakePreset = _get_state_preset(state)
 	return {
 		"id": shake_id,
-		"channel": state.get("channel", default_channel),
-		"elapsed_seconds": float(state.get("elapsed_seconds", 0.0)),
+		"channel": _get_state_channel(state),
+		"elapsed_seconds": _get_state_float(state, "elapsed_seconds", 0.0),
 		"duration_seconds": preset.get_duration_seconds() if preset != null else 0.0,
-		"strength": float(state.get("strength", 1.0)),
-		"metadata": (state.get("metadata", {}) as Dictionary).duplicate(true),
+		"strength": _get_state_float(state, "strength", 1.0),
+		"metadata": _get_state_metadata_copy(state),
 	}
 
 
@@ -329,11 +329,11 @@ func get_shake_info(shake_id: int) -> Dictionary:
 func get_debug_snapshot() -> Dictionary:
 	var channels: Dictionary = {}
 	for state_variant: Variant in _active_shakes.values():
-		var state := state_variant as Dictionary
-		if state == null:
+		var state: Dictionary = GFVariantData.as_dictionary(state_variant)
+		if state.is_empty():
 			continue
-		var channel := String(state.get("channel", default_channel))
-		channels[channel] = int(channels.get(channel, 0)) + 1
+		var channel: String = String(_get_state_channel(state))
+		channels[channel] = _get_channel_count(channels, channel) + 1
 	return {
 		"active_count": _active_shakes.size(),
 		"max_active_shakes": max_active_shakes,
@@ -350,17 +350,17 @@ func _reserve_capacity() -> bool:
 	if overflow_policy == OverflowPolicy.SKIP_NEW:
 		return false
 	while _active_shakes.size() >= max_active_shakes and not _play_order.is_empty():
-		stop_shake(_play_order[0])
+		var _stopped_oldest: bool = stop_shake(_play_order[0])
 	return _active_shakes.size() < max_active_shakes
 
 
 func _finish_shake(shake_id: int) -> void:
 	if not _active_shakes.has(shake_id):
 		return
-	var state := _active_shakes[shake_id] as Dictionary
-	var channel := StringName(state.get("channel", default_channel)) if state != null else default_channel
-	_active_shakes.erase(shake_id)
-	var order_index := _play_order.find(shake_id)
+	var state: Dictionary = _get_shake_state(shake_id)
+	var channel: StringName = _get_state_channel(state)
+	_erase_active_shake(shake_id)
+	var order_index: int = _play_order.find(shake_id)
 	if order_index >= 0:
 		_play_order.remove_at(order_index)
 	shake_finished.emit(shake_id, channel)
@@ -368,3 +368,42 @@ func _finish_shake(shake_id: int) -> void:
 
 func _resolve_channel(channel: StringName) -> StringName:
 	return default_channel if channel == &"" else channel
+
+
+func _erase_active_shake(shake_id: int) -> void:
+	var _removed: bool = _active_shakes.erase(shake_id)
+
+
+func _get_shake_state(shake_id: int) -> Dictionary:
+	return GFVariantData.as_dictionary(GFVariantData.get_option_value(_active_shakes, shake_id))
+
+
+func _get_state_preset(state: Dictionary) -> GFShakePreset:
+	var value: Variant = GFVariantData.get_option_value(state, "preset")
+	if value is GFShakePreset:
+		var preset: GFShakePreset = value
+		return preset
+	return null
+
+
+func _get_state_channel(state: Dictionary) -> StringName:
+	var value: Variant = GFVariantData.get_option_value(state, "channel", default_channel)
+	if value is StringName:
+		var channel: StringName = value
+		return channel
+	if value is String:
+		var text_value: String = value
+		return StringName(text_value)
+	return default_channel
+
+
+func _get_state_float(state: Dictionary, key: String, default_value: float) -> float:
+	return GFVariantData.get_option_float(state, key, default_value)
+
+
+func _get_state_metadata_copy(state: Dictionary) -> Dictionary:
+	return GFVariantData.get_option_dictionary(state, "metadata")
+
+
+func _get_channel_count(channels: Dictionary, channel: String) -> int:
+	return GFVariantData.get_option_int(channels, channel)

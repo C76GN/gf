@@ -111,7 +111,7 @@ static func replace_child(
 	if old_child == new_child:
 		return true
 
-	var old_index := old_child.get_index(true)
+	var old_index: int = old_child.get_index(true)
 	if not reparent_node(new_child, parent, keep_global_transform, owner):
 		return false
 	parent.move_child(new_child, old_index)
@@ -182,7 +182,7 @@ static func find_first_child_of_type(
 		if _matches_type(child, child_type):
 			return child
 		if recursive:
-			var nested := find_first_child_of_type(child, child_type, true, include_internal, false)
+			var nested: Node = find_first_child_of_type(child, child_type, true, include_internal, false)
 			if nested != null:
 				return nested
 	return null
@@ -247,7 +247,7 @@ static func free_children(parent: Node, include_internal: bool = false) -> int:
 	if parent == null:
 		return 0
 
-	var count := 0
+	var count: int = 0
 	for child: Node in parent.get_children(include_internal):
 		parent.remove_child(child)
 		if child.is_queued_for_deletion():
@@ -277,7 +277,7 @@ static func _matches_type(node: Node, type_filter: Variant) -> bool:
 	if type_filter == null:
 		return true
 	if typeof(type_filter) == TYPE_STRING or typeof(type_filter) == TYPE_STRING_NAME:
-		return _matches_type_name(node, String(type_filter))
+		return _matches_type_name(node, GFVariantData.to_text(type_filter))
 	return is_instance_of(node, type_filter)
 
 
@@ -287,7 +287,7 @@ static func _matches_type_name(node: Node, type_name: String) -> bool:
 	if node.is_class(type_name):
 		return true
 
-	var script := node.get_script() as Script
+	var script: Script = _variant_to_script(node.get_script())
 	while script != null:
 		if String(script.get_global_name()) == type_name or script.resource_path == type_name:
 			return true
@@ -314,3 +314,10 @@ static func _can_apply_owner(node: Node, owner: Node) -> bool:
 	if node == null or owner == null or node == owner:
 		return false
 	return owner.is_ancestor_of(node)
+
+
+static func _variant_to_script(value: Variant) -> Script:
+	if value is Script:
+		var script: Script = value
+		return script
+	return null

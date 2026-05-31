@@ -33,7 +33,7 @@ signal stopped(handle: GFAudioEmitterHandle)
 
 # --- 常量 ---
 
-const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
+const _INSTANCE_GUARD = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
 
 
 # --- 公共变量 ---
@@ -118,7 +118,7 @@ func bind_to_owner(owner: Node, fade_seconds: float = 0.0) -> void:
 	_owner_stop_fade_seconds = maxf(fade_seconds, 0.0)
 	_owner_exit_callback = Callable(self, "_on_owner_tree_exiting")
 	if not owner.tree_exiting.is_connected(_owner_exit_callback):
-		owner.tree_exiting.connect(_owner_exit_callback)
+		var _connect_error: Error = owner.tree_exiting.connect(_owner_exit_callback) as Error
 
 
 ## 取消拥有者生命周期绑定。
@@ -163,8 +163,8 @@ func is_stop_requested() -> bool:
 ## [br]
 ## @return: 正在播放时返回 true。
 func is_playing() -> bool:
-	var player := get_player()
-	return player != null and bool(player.get("playing"))
+	var player: Node = get_player()
+	return _is_player_playing(player)
 
 
 ## 停止播放；传入淡出秒数时先淡出再释放。
@@ -175,15 +175,15 @@ func is_playing() -> bool:
 func stop(fade_seconds: float = 0.0) -> void:
 	_stop_requested = true
 	_pending_stop_fade_seconds = maxf(fade_seconds, 0.0)
-	var player := get_player()
+	var player: Node = get_player()
 	if player == null:
 		return
 
-	if _pending_stop_fade_seconds > 0.0 and bool(player.get("playing")):
+	if _pending_stop_fade_seconds > 0.0 and _is_player_playing(player):
 		fade_to(-80.0, _pending_stop_fade_seconds)
-		var tween := _fade_tween_ref.get_ref() as Tween if _fade_tween_ref != null else null
+		var tween: Tween = _get_fade_tween()
 		if tween != null:
-			tween.finished.connect(_finish_stop.bind(player), CONNECT_ONE_SHOT)
+			var _connect_result_186: Variant = tween.finished.connect(_finish_stop.bind(player), CONNECT_ONE_SHOT)
 			return
 
 	_finish_stop(player)
@@ -197,16 +197,16 @@ func stop(fade_seconds: float = 0.0) -> void:
 ## [br]
 ## @param fade_seconds: 淡入淡出秒数。
 func fade_to(volume_db: float, fade_seconds: float) -> void:
-	var player := get_player()
+	var player: Node = get_player()
 	if player == null:
 		return
 	if fade_seconds <= 0.0:
 		player.set("volume_db", volume_db)
 		return
 
-	var tween := player.create_tween()
+	var tween: Tween = player.create_tween()
 	_fade_tween_ref = weakref(tween)
-	tween.tween_property(player, "volume_db", volume_db, maxf(fade_seconds, 0.0))
+	var _tween_property_result_209: Variant = tween.tween_property(player, "volume_db", volume_db, maxf(fade_seconds, 0.0))
 
 
 ## 设置当前音量。
@@ -215,7 +215,7 @@ func fade_to(volume_db: float, fade_seconds: float) -> void:
 ## [br]
 ## @param volume_db: 音量，单位 dB。
 func set_volume_db(volume_db: float) -> void:
-	var player := get_player()
+	var player: Node = get_player()
 	if player != null:
 		player.set("volume_db", volume_db)
 
@@ -226,8 +226,8 @@ func set_volume_db(volume_db: float) -> void:
 ## [br]
 ## @return: 音量，单位 dB；无播放器时返回 0。
 func get_volume_db() -> float:
-	var player := get_player()
-	return float(player.get("volume_db")) if player != null else 0.0
+	var player: Node = get_player()
+	return _get_player_volume_db(player)
 
 
 ## 设置当前音高。
@@ -236,7 +236,7 @@ func get_volume_db() -> float:
 ## [br]
 ## @param pitch_scale: 音高缩放。
 func set_pitch_scale(pitch_scale: float) -> void:
-	var player := get_player()
+	var player: Node = get_player()
 	if player != null:
 		player.set("pitch_scale", pitch_scale)
 
@@ -247,8 +247,8 @@ func set_pitch_scale(pitch_scale: float) -> void:
 ## [br]
 ## @return: 音高缩放；无播放器时返回 1。
 func get_pitch_scale() -> float:
-	var player := get_player()
-	return float(player.get("pitch_scale")) if player != null else 1.0
+	var player: Node = get_player()
+	return _get_player_pitch_scale(player)
 
 
 ## 获取调试快照。
@@ -259,13 +259,13 @@ func get_pitch_scale() -> float:
 ## [br]
 ## @schema return: 调试快照 Dictionary，包含 valid、playing、channel、volume_db、pitch_scale、owner_valid 和 metadata 字段。
 func get_debug_snapshot() -> Dictionary:
-	var player := get_player()
+	var player: Node = get_player()
 	return {
 		"valid": player != null,
-		"playing": bool(player.get("playing")) if player != null else false,
+		"playing": _is_player_playing(player),
 		"channel": String(channel),
-		"volume_db": float(player.get("volume_db")) if player != null else 0.0,
-		"pitch_scale": float(player.get("pitch_scale")) if player != null else 1.0,
+		"volume_db": _get_player_volume_db(player),
+		"pitch_scale": _get_player_pitch_scale(player),
 		"owner_valid": _get_owner() != null,
 		"metadata": metadata.duplicate(true),
 	}
@@ -295,8 +295,57 @@ func _get_owner() -> Node:
 	return _INSTANCE_GUARD._get_live_node_from_ref(_owner_ref)
 
 
+func _get_fade_tween() -> Tween:
+	if _fade_tween_ref == null:
+		return null
+	var value: Variant = _fade_tween_ref.get_ref()
+	if value is Tween:
+		var tween: Tween = value
+		return tween
+	return null
+
+
+func _is_player_playing(player: Node) -> bool:
+	if player is AudioStreamPlayer:
+		var audio_player: AudioStreamPlayer = player
+		return audio_player.playing
+	if player is AudioStreamPlayer2D:
+		var audio_player_2d: AudioStreamPlayer2D = player
+		return audio_player_2d.playing
+	if player is AudioStreamPlayer3D:
+		var audio_player_3d: AudioStreamPlayer3D = player
+		return audio_player_3d.playing
+	return false
+
+
+func _get_player_volume_db(player: Node) -> float:
+	if player is AudioStreamPlayer:
+		var audio_player: AudioStreamPlayer = player
+		return audio_player.volume_db
+	if player is AudioStreamPlayer2D:
+		var audio_player_2d: AudioStreamPlayer2D = player
+		return audio_player_2d.volume_db
+	if player is AudioStreamPlayer3D:
+		var audio_player_3d: AudioStreamPlayer3D = player
+		return audio_player_3d.volume_db
+	return 0.0
+
+
+func _get_player_pitch_scale(player: Node) -> float:
+	if player is AudioStreamPlayer:
+		var audio_player: AudioStreamPlayer = player
+		return audio_player.pitch_scale
+	if player is AudioStreamPlayer2D:
+		var audio_player_2d: AudioStreamPlayer2D = player
+		return audio_player_2d.pitch_scale
+	if player is AudioStreamPlayer3D:
+		var audio_player_3d: AudioStreamPlayer3D = player
+		return audio_player_3d.pitch_scale
+	return 1.0
+
+
 func _disconnect_owner_exit() -> void:
-	var owner := _get_owner()
+	var owner: Node = _get_owner()
 	if owner != null and _owner_exit_callback.is_valid():
 		if owner.tree_exiting.is_connected(_owner_exit_callback):
 			owner.tree_exiting.disconnect(_owner_exit_callback)
@@ -306,7 +355,7 @@ func _disconnect_owner_exit() -> void:
 
 
 func _on_owner_tree_exiting() -> void:
-	var fade_seconds := _owner_stop_fade_seconds
+	var fade_seconds: float = _owner_stop_fade_seconds
 	_owner_ref = null
 	_owner_exit_callback = Callable()
 	_owner_stop_fade_seconds = 0.0

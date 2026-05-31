@@ -56,7 +56,7 @@ signal interaction_rejected(context: GFInteractionContext, receiver: Object, rep
 
 # --- 常量 ---
 
-const _MESSAGE_DISPATCH_SUPPORT: Script = preload("res://addons/gf/standard/common/gf_message_dispatch_support.gd")
+const _MESSAGE_DISPATCH_SUPPORT = preload("res://addons/gf/standard/common/gf_message_dispatch_support.gd")
 
 
 # --- 导出变量 ---
@@ -117,8 +117,8 @@ func build_context(
 	group_override: StringName = &""
 ) -> GFInteractionContext:
 	var context_payload: Variant = payload.duplicate(true) if payload_override == null else GFVariantData.duplicate_variant(payload_override)
-	var context_group := group_override if group_override != &"" else group_name
-	var context := GFInteractionContext.new(_resolve_sender(), target, context_payload, context_group)
+	var context_group: StringName = group_override if group_override != &"" else group_name
+	var context: GFInteractionContext = GFInteractionContext.new(_resolve_sender(), target, context_payload, context_group)
 	return context
 
 
@@ -142,8 +142,8 @@ func send_to(
 	payload_override: Variant = null,
 	interaction_id_override: StringName = &""
 ) -> Dictionary:
-	var effective_interaction_id := interaction_id_override if interaction_id_override != &"" else interaction_id
-	var context := build_context(receiver, payload_override)
+	var effective_interaction_id: StringName = interaction_id_override if interaction_id_override != &"" else interaction_id
+	var context: GFInteractionContext = build_context(receiver, payload_override)
 	var report: Dictionary = _MESSAGE_DISPATCH_SUPPORT._dispatch_to_receiver(
 		enabled,
 		metadata,
@@ -156,7 +156,7 @@ func send_to(
 		"Interaction receiver is null.",
 		"Receiver does not expose receive_interaction().",
 		"Receiver returned an invalid interaction report."
-	) as Dictionary
+	)
 	_emit_send_result(context, receiver, report)
 	return report
 
@@ -181,7 +181,7 @@ func send_to_path(
 	payload_override: Variant = null,
 	interaction_id_override: StringName = &""
 ) -> Dictionary:
-	var receiver := get_node_or_null(receiver_path)
+	var receiver: Node = get_node_or_null(receiver_path)
 	return send_to(receiver, payload_override, interaction_id_override)
 
 
@@ -197,18 +197,18 @@ func send_to_path(
 ## [br]
 ## @schema return: 交互结果报告字典数组；每项包含 ok、interaction_id、receiver、reason、message 和 metadata 等字段。
 func broadcast_to_group(target_group_name: StringName = &"", max_count: int = 0) -> Array[Dictionary]:
-	var effective_group := target_group_name if target_group_name != &"" else group_name
+	var effective_group: StringName = target_group_name if target_group_name != &"" else group_name
 	var reports: Array[Dictionary] = []
 	if effective_group == &"" or get_tree() == null:
 		return reports
 
-	var receivers := get_tree().get_nodes_in_group(String(effective_group))
-	var dispatch_host := _resolve_collision_dispatch_host()
+	var receivers: Array[Node] = get_tree().get_nodes_in_group(String(effective_group))
+	var dispatch_host: Object = _resolve_collision_dispatch_host()
 	for receiver: Node in receivers:
 		if max_count > 0 and reports.size() >= max_count:
 			break
-		var report := _send_to_with_dispatch_host(dispatch_host, receiver, null, &"")
-		if report != null:
+		var report: Dictionary = _get_report_value(_send_to_with_dispatch_host(dispatch_host, receiver, null, &""))
+		if not report.is_empty():
 			reports.append(report)
 	return reports
 
@@ -299,7 +299,7 @@ func broadcast_to_area_2d(
 	var candidates: Array = []
 	candidates.append_array(area.get_overlapping_areas())
 	candidates.append_array(area.get_overlapping_bodies())
-	var dispatch_host := _resolve_collision_dispatch_host()
+	var dispatch_host: Object = _resolve_collision_dispatch_host()
 	var reports: Array[Dictionary] = []
 	reports.assign(_MESSAGE_DISPATCH_SUPPORT._send_to_collision_candidates(
 		dispatch_host,
@@ -341,7 +341,7 @@ func broadcast_to_area_3d(
 	var candidates: Array = []
 	candidates.append_array(area.get_overlapping_areas())
 	candidates.append_array(area.get_overlapping_bodies())
-	var dispatch_host := _resolve_collision_dispatch_host()
+	var dispatch_host: Object = _resolve_collision_dispatch_host()
 	var reports: Array[Dictionary] = []
 	reports.assign(_MESSAGE_DISPATCH_SUPPORT._send_to_collision_candidates(
 		dispatch_host,
@@ -359,7 +359,7 @@ func broadcast_to_area_3d(
 
 func _emit_send_result(context: GFInteractionContext, receiver: Object, report: Dictionary) -> void:
 	interaction_sent.emit(context, receiver, report)
-	if bool(report.get("ok", false)):
+	if GFVariantData.get_option_bool(report, "ok"):
 		interaction_accepted.emit(context, receiver, report)
 	else:
 		interaction_rejected.emit(context, receiver, report)
@@ -368,7 +368,7 @@ func _emit_send_result(context: GFInteractionContext, receiver: Object, report: 
 func _emit_collision_dispatch_result(
 	receiver: Object,
 	payload_override: Variant,
-	interaction_id_override: StringName,
+	_interaction_id_override: StringName,
 	report: Dictionary
 ) -> void:
 	_emit_send_result(build_context(receiver, payload_override), receiver, report)
@@ -387,14 +387,14 @@ func _make_report(ok: bool, effective_interaction_id: StringName, reason: String
 
 func _resolve_sender() -> Object:
 	if sender_path != NodePath(""):
-		var sender := get_node_or_null(sender_path)
+		var sender: Node = get_node_or_null(sender_path)
 		if sender != null:
 			return sender
 	return self
 
 
 func _resolve_collision_dispatch_host() -> Object:
-	var sender := _resolve_sender()
+	var sender: Object = _resolve_sender()
 	if sender != self and sender.has_method(&"send_to"):
 		return sender
 	return self
@@ -409,7 +409,11 @@ func _send_to_with_dispatch_host(
 	var report_value: Variant = dispatch_host.call("send_to", receiver, payload_override, interaction_id_override)
 	if not report_value is Dictionary:
 		return null
-	var report := report_value as Dictionary
+	var report: Dictionary = GFVariantData.as_dictionary(report_value)
 	if dispatch_host != self:
 		_emit_collision_dispatch_result(receiver, payload_override, interaction_id_override, report)
 	return report
+
+
+func _get_report_value(value: Variant) -> Dictionary:
+	return GFVariantData.as_dictionary(value)

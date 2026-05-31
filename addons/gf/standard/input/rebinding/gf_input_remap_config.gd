@@ -16,6 +16,7 @@ extends Resource
 const _EVENT_CLASS_FIELD: String = "event_class"
 const _EVENT_PROPERTIES_FIELD: String = "properties"
 const _LEGACY_EVENT_FIELD: String = "event"
+const _INPUT_EVENT_TOOLS = preload("res://addons/gf/standard/input/common/gf_input_event_tools.gd")
 
 const _ALLOWED_INPUT_EVENT_CLASSES: Dictionary = {
 	"InputEventAction": true,
@@ -78,8 +79,8 @@ func set_binding(
 	if binding_index < 0:
 		return
 
-	var action_map := _ensure_action_map(context_id, action_id)
-	action_map[binding_index] = input_event.duplicate(true) as InputEvent if input_event != null else null
+	var action_map: Dictionary = _ensure_action_map(context_id, action_id)
+	action_map[binding_index] = _duplicate_input_event(input_event) if input_event != null else null
 
 
 ## 显式解绑某个绑定。
@@ -108,13 +109,15 @@ func clear_binding(context_id: StringName, action_id: StringName, binding_index:
 	if not has_binding(context_id, action_id, binding_index):
 		return
 
-	var context_map := remapped_events[context_id] as Dictionary
-	var action_map := context_map[action_id] as Dictionary
-	action_map.erase(binding_index)
+	var context_key: Variant = _find_dictionary_key(remapped_events, context_id)
+	var context_map: Dictionary = _get_dictionary_reference(remapped_events, context_key)
+	var action_key: Variant = _find_dictionary_key(context_map, action_id)
+	var action_map: Dictionary = _get_dictionary_reference(context_map, action_key)
+	_erase_dictionary_key(action_map, binding_index)
 	if action_map.is_empty():
-		context_map.erase(action_id)
+		_erase_dictionary_key(context_map, action_key)
 	if context_map.is_empty():
-		remapped_events.erase(context_id)
+		_erase_dictionary_key(remapped_events, context_key)
 
 
 ## 检查是否存在覆盖记录。显式解绑也会返回 true。
@@ -129,13 +132,11 @@ func clear_binding(context_id: StringName, action_id: StringName, binding_index:
 ## [br]
 ## @return 是否存在覆盖。
 func has_binding(context_id: StringName, action_id: StringName, binding_index: int) -> bool:
-	if not remapped_events.has(context_id):
+	var context_map: Dictionary = _get_context_map(context_id)
+	if context_map.is_empty():
 		return false
-	var context_map := remapped_events[context_id] as Dictionary
-	if context_map == null or not context_map.has(action_id):
-		return false
-	var action_map := context_map[action_id] as Dictionary
-	return action_map != null and action_map.has(binding_index)
+	var action_map: Dictionary = _get_action_map(context_map, action_id)
+	return action_map.has(binding_index)
 
 
 ## 获取覆盖输入事件。
@@ -152,9 +153,9 @@ func has_binding(context_id: StringName, action_id: StringName, binding_index: i
 func get_bound_event_or_null(context_id: StringName, action_id: StringName, binding_index: int) -> InputEvent:
 	if not has_binding(context_id, action_id, binding_index):
 		return null
-	var context_map := remapped_events[context_id] as Dictionary
-	var action_map := context_map[action_id] as Dictionary
-	return action_map[binding_index] as InputEvent
+	var context_map: Dictionary = _get_context_map(context_id)
+	var action_map: Dictionary = _get_action_map(context_map, action_id)
+	return _variant_to_input_event(_get_binding_value(action_map, binding_index))
 
 
 ## 设置自定义数据。
@@ -188,7 +189,9 @@ func set_custom_data(key: Variant, value: Variant) -> void:
 ## [br]
 ## @return 自定义数据。
 func get_custom_data(key: Variant, default_value: Variant = null) -> Variant:
-	return custom_data.get(key, default_value)
+	if custom_data.has(key):
+		return custom_data[key]
+	return default_value
 
 
 ## 转换为可写入 JSON/存档的 Dictionary。
@@ -201,24 +204,29 @@ func get_custom_data(key: Variant, default_value: Variant = null) -> Variant:
 func to_dict() -> Dictionary:
 	var serialized_events: Dictionary = {}
 	for context_key: Variant in remapped_events.keys():
-		var context_map := remapped_events[context_key] as Dictionary
-		if context_map == null:
+		var context_map: Dictionary = _get_dictionary_reference(remapped_events, context_key)
+		if context_map.is_empty():
 			continue
 
 		var serialized_context: Dictionary = {}
 		for action_key: Variant in context_map.keys():
-			var action_map := context_map[action_key] as Dictionary
-			if action_map == null:
+			var action_map: Dictionary = _get_dictionary_reference(context_map, action_key)
+			if action_map.is_empty():
 				continue
 
 			var serialized_action: Dictionary = {}
 			for binding_key: Variant in action_map.keys():
-				serialized_action[str(int(binding_key))] = _event_to_record(action_map[binding_key] as InputEvent)
+				var binding_index: int = GFVariantData.to_int(binding_key, -1)
+				if binding_index < 0:
+					continue
+				serialized_action[str(binding_index)] = _event_to_record(
+					_variant_to_input_event(_get_binding_value(action_map, binding_key))
+				)
 			if not serialized_action.is_empty():
-				serialized_context[String(action_key)] = serialized_action
+				serialized_context[GFVariantData.to_text(action_key)] = serialized_action
 
 		if not serialized_context.is_empty():
-			serialized_events[String(context_key)] = serialized_context
+			serialized_events[GFVariantData.to_text(context_key)] = serialized_context
 
 	return {
 		"remapped_events": serialized_events,
@@ -235,34 +243,34 @@ func to_dict() -> Dictionary:
 ## @schema data: Dictionary，包含 remapped_events 和 custom_data。
 func apply_dict(data: Dictionary) -> void:
 	remapped_events.clear()
-	var serialized_events := data.get("remapped_events", {}) as Dictionary
-	if serialized_events != null:
-		for context_key: Variant in serialized_events.keys():
-			var context_map := serialized_events[context_key] as Dictionary
-			if context_map == null:
+	var serialized_events: Dictionary = GFVariantData.get_option_dictionary(data, "remapped_events")
+	for context_key: Variant in serialized_events.keys():
+		var context_map: Dictionary = _get_dictionary_reference(serialized_events, context_key)
+		if context_map.is_empty():
+			continue
+
+		var context_id: StringName = GFVariantData.to_string_name(context_key)
+		for action_key: Variant in context_map.keys():
+			var action_map: Dictionary = _get_dictionary_reference(context_map, action_key)
+			if action_map.is_empty():
 				continue
 
-			for action_key: Variant in context_map.keys():
-				var action_map := context_map[action_key] as Dictionary
-				if action_map == null:
+			var action_id: StringName = GFVariantData.to_string_name(action_key)
+			for binding_key: Variant in action_map.keys():
+				var binding_index: int = GFVariantData.to_int(binding_key, -1)
+				if binding_index < 0:
 					continue
+				var record: Dictionary = _get_dictionary_reference(action_map, binding_key)
+				if record.is_empty():
+					continue
+				if GFVariantData.get_option_bool(record, "unbound"):
+					unbind(context_id, action_id, binding_index)
+				else:
+					var input_event: InputEvent = _event_from_record(record)
+					if input_event != null:
+						set_binding(context_id, action_id, binding_index, input_event)
 
-				for binding_key: Variant in action_map.keys():
-					var binding_index := String(binding_key).to_int()
-					if binding_index < 0:
-						continue
-					var record := action_map[binding_key] as Dictionary
-					if record == null:
-						continue
-					if bool(record.get("unbound", false)):
-						unbind(StringName(context_key), StringName(action_key), binding_index)
-					else:
-						var input_event := _event_from_record(record)
-						if input_event != null:
-							set_binding(StringName(context_key), StringName(action_key), binding_index, input_event)
-
-	var custom_data_value := data.get("custom_data", {}) as Dictionary
-	custom_data = GFVariantData.duplicate_variant(custom_data_value) if custom_data_value != null else {}
+	custom_data = GFVariantData.get_option_dictionary(data, "custom_data")
 
 
 ## 从 Dictionary 创建重映射配置。
@@ -275,7 +283,7 @@ func apply_dict(data: Dictionary) -> void:
 ## [br]
 ## @return 新重映射配置。
 static func from_dict(data: Dictionary) -> GFInputRemapConfig:
-	var config := GFInputRemapConfig.new()
+	var config: GFInputRemapConfig = GFInputRemapConfig.new()
 	config.apply_dict(data)
 	return config
 
@@ -292,21 +300,68 @@ func duplicate_config() -> GFInputRemapConfig:
 # --- 私有/辅助方法 ---
 
 func _ensure_action_map(context_id: StringName, action_id: StringName) -> Dictionary:
-	if not remapped_events.has(context_id):
-		remapped_events[context_id] = {}
+	var context_key: Variant = _find_dictionary_key(remapped_events, context_id)
+	var context_map: Dictionary = {}
+	if context_key != null:
+		var context_value: Variant = remapped_events[context_key]
+		if context_value is Dictionary:
+			context_map = context_value
+		else:
+			remapped_events[context_key] = context_map
+	else:
+		remapped_events[context_id] = context_map
 
-	var context_map := remapped_events[context_id] as Dictionary
-	if not context_map.has(action_id):
-		context_map[action_id] = {}
+	var action_key: Variant = _find_dictionary_key(context_map, action_id)
+	if action_key != null:
+		var action_value: Variant = context_map[action_key]
+		if action_value is Dictionary:
+			var action_map: Dictionary = action_value
+			return action_map
 
-	return context_map[action_id] as Dictionary
+	var new_action_map: Dictionary = {}
+	if action_key != null:
+		context_map[action_key] = new_action_map
+	else:
+		context_map[action_id] = new_action_map
+	return new_action_map
+
+
+func _get_context_map(context_id: StringName) -> Dictionary:
+	return _get_dictionary_reference(remapped_events, context_id)
+
+
+func _get_action_map(context_map: Dictionary, action_id: StringName) -> Dictionary:
+	return _get_dictionary_reference(context_map, action_id)
+
+
+func _get_dictionary_reference(source: Dictionary, key: Variant) -> Dictionary:
+	var value: Variant = GFVariantData.get_option_value(source, key)
+	return GFVariantData.as_dictionary(value)
+
+
+func _get_binding_value(action_map: Dictionary, binding_key: Variant) -> Variant:
+	return GFVariantData.get_option_value(action_map, binding_key)
+
+
+func _find_dictionary_key(source: Dictionary, key: Variant) -> Variant:
+	if source.has(key):
+		return key
+	if key is StringName:
+		var text_key: String = GFVariantData.to_text(key)
+		if source.has(text_key):
+			return text_key
+	elif key is String:
+		var name_key: StringName = GFVariantData.to_string_name(key)
+		if source.has(name_key):
+			return name_key
+	return null
 
 
 func _event_to_record(input_event: InputEvent) -> Dictionary:
 	if input_event == null:
 		return {"unbound": true}
 
-	var event_class := input_event.get_class()
+	var event_class: String = input_event.get_class()
 	if not _ALLOWED_INPUT_EVENT_CLASSES.has(event_class):
 		return {"unbound": true}
 
@@ -318,15 +373,15 @@ func _event_to_record(input_event: InputEvent) -> Dictionary:
 
 
 func _event_from_record(record: Dictionary) -> InputEvent:
-	var event_class := String(record.get(_EVENT_CLASS_FIELD, ""))
+	var event_class: String = GFVariantData.get_option_string(record, _EVENT_CLASS_FIELD)
 	if not event_class.is_empty():
 		return _event_from_structured_record(event_class, record)
 
-	var event_text := String(record.get(_LEGACY_EVENT_FIELD, ""))
+	var event_text: String = GFVariantData.get_option_string(record, _LEGACY_EVENT_FIELD)
 	if event_text.is_empty():
 		return null
 	var value: Variant = str_to_var(event_text)
-	return value as InputEvent
+	return _variant_to_input_event(value)
 
 
 func _event_from_structured_record(event_class: String, record: Dictionary) -> InputEvent:
@@ -335,17 +390,17 @@ func _event_from_structured_record(event_class: String, record: Dictionary) -> I
 	if not ClassDB.can_instantiate(event_class):
 		return null
 
-	var input_event := ClassDB.instantiate(event_class) as InputEvent
+	var input_event: InputEvent = _variant_to_input_event(ClassDB.instantiate(event_class))
 	if input_event == null:
 		return null
 
-	var writable_properties := _get_event_writable_properties(input_event)
-	var properties := record.get(_EVENT_PROPERTIES_FIELD, {}) as Dictionary
-	if properties == null:
+	var writable_properties: Dictionary = _get_event_writable_properties(input_event)
+	var properties: Dictionary = GFVariantData.get_option_dictionary(record, _EVENT_PROPERTIES_FIELD)
+	if properties.is_empty():
 		return input_event
 
 	for property_key: Variant in properties.keys():
-		var property_name := String(property_key)
+		var property_name: String = GFVariantData.to_text(property_key)
 		if not writable_properties.has(property_name):
 			continue
 		input_event.set(property_name, GFVariantJsonCodec.json_compatible_to_variant(properties[property_key]))
@@ -355,13 +410,13 @@ func _event_from_structured_record(event_class: String, record: Dictionary) -> I
 func _event_properties_to_record(input_event: InputEvent) -> Dictionary:
 	var result: Dictionary = {}
 	for property: Dictionary in input_event.get_property_list():
-		var property_name := String(property.get("name", ""))
+		var property_name: String = GFVariantData.get_option_string(property, "name")
 		if property_name.is_empty() or _SKIPPED_EVENT_PROPERTIES.has(property_name):
 			continue
 		if not _is_stored_event_property(property):
 			continue
 
-		var value: Variant = input_event.get(property_name)
+		var value: Variant = GFObjectPropertyTools.read_property(input_event, NodePath(property_name))
 		if _can_store_event_property(value):
 			result[property_name] = GFVariantJsonCodec.variant_to_json_compatible(value)
 	return result
@@ -370,7 +425,7 @@ func _event_properties_to_record(input_event: InputEvent) -> Dictionary:
 func _get_event_writable_properties(input_event: InputEvent) -> Dictionary:
 	var result: Dictionary = {}
 	for property: Dictionary in input_event.get_property_list():
-		var property_name := String(property.get("name", ""))
+		var property_name: String = GFVariantData.get_option_string(property, "name")
 		if property_name.is_empty() or _SKIPPED_EVENT_PROPERTIES.has(property_name):
 			continue
 		if _is_stored_event_property(property):
@@ -379,12 +434,12 @@ func _get_event_writable_properties(input_event: InputEvent) -> Dictionary:
 
 
 func _is_stored_event_property(property: Dictionary) -> bool:
-	var usage := int(property.get("usage", 0))
+	var usage: int = GFVariantData.get_option_int(property, "usage")
 	return (usage & PROPERTY_USAGE_STORAGE) != 0
 
 
 func _can_store_event_property(value: Variant) -> bool:
-	var value_type := typeof(value)
+	var value_type: int = typeof(value)
 	return (
 		value_type == TYPE_NIL
 		or value_type == TYPE_BOOL
@@ -396,3 +451,17 @@ func _can_store_event_property(value: Variant) -> bool:
 		or value_type == TYPE_VECTOR2
 		or value_type == TYPE_VECTOR2I
 	)
+
+
+func _duplicate_input_event(input_event: InputEvent) -> InputEvent:
+	return _INPUT_EVENT_TOOLS.duplicate_input_event(input_event)
+
+
+func _variant_to_input_event(value: Variant) -> InputEvent:
+	return _INPUT_EVENT_TOOLS.get_input_event(value)
+
+
+func _erase_dictionary_key(target: Dictionary, key: Variant) -> void:
+	var erased: bool = target.erase(key)
+	if erased:
+		return

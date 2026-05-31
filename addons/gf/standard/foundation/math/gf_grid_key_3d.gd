@@ -50,7 +50,7 @@ const ORIENTATION_MAX: int = 63
 const INVALID_KEY: int = -1
 
 const _COORDINATE_SPAN: int = 1 << COORDINATE_BITS
-const _COORDINATE_OFFSET: int = _COORDINATE_SPAN / 2
+const _COORDINATE_OFFSET: int = _COORDINATE_SPAN >> 1
 const _COORDINATE_MASK: int = _COORDINATE_SPAN - 1
 const _X_SHIFT: int = 0
 const _Y_SHIFT: int = COORDINATE_BITS
@@ -158,7 +158,7 @@ static func unpack_orientation(key: int) -> int:
 ## [br]
 ## @schema return: Dictionary with valid: bool, cell: Vector3i, and orientation: int.
 static func unpack_key(key: int) -> Dictionary:
-	var valid := is_packed_key_valid(key)
+	var valid: bool = is_packed_key_valid(key)
 	return {
 		"valid": valid,
 		"cell": unpack_cell(key) if valid else Vector3i.ZERO,
@@ -182,7 +182,7 @@ static func position_to_cell(
 	cell_size: Vector3 = Vector3.ONE,
 	origin: Vector3 = Vector3.ZERO
 ) -> Vector3i:
-	var safe_size := _get_safe_cell_size(cell_size)
+	var safe_size: Vector3 = _get_safe_cell_size(cell_size)
 	return Vector3i(
 		floori((position.x - origin.x) / safe_size.x),
 		floori((position.y - origin.y) / safe_size.y),

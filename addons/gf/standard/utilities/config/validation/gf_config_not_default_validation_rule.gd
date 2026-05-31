@@ -42,7 +42,7 @@ func _init() -> void:
 ## [br]
 ## @schema return: Dictionary，包含基础规则字段、use_type_default 和 default_value。
 func describe() -> Dictionary:
-	var result := super.describe()
+	var result: Dictionary = super.describe()
 	result["use_type_default"] = use_type_default
 	result["default_value"] = GFVariantData.duplicate_variant(default_value)
 	return result

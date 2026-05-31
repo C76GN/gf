@@ -29,14 +29,11 @@ var _indent_level: int = 0
 ## @api public
 ## [br]
 ## @param text: 行内容；空字符串会生成空行且不添加缩进。
-## [br]
-## @return 当前构建器，便于链式调用。
-func line(text: String = "") -> GFSourceBuilder:
+func line(text: String = "") -> void:
 	if text.is_empty():
-		_lines.append("")
+		var _push_back_result_34: Variant = _lines.push_back("")
 	else:
-		_lines.append("%s%s" % ["\t".repeat(_indent_level), text])
-	return self
+		var _push_back_result_36: Variant = _lines.push_back("%s%s" % ["\t".repeat(_indent_level), text])
 
 
 ## 添加文档注释行。
@@ -44,12 +41,11 @@ func line(text: String = "") -> GFSourceBuilder:
 ## @api public
 ## [br]
 ## @param text: 注释内容；空字符串会生成 `##`。
-## [br]
-## @return 当前构建器，便于链式调用。
-func doc(text: String = "") -> GFSourceBuilder:
+func doc(text: String = "") -> void:
 	if text.is_empty():
-		return line("##")
-	return line("## %s" % text)
+		line("##")
+		return
+	line("## %s" % text)
 
 
 ## 添加规范 section 标题，并在其后添加一个空行。
@@ -57,10 +53,9 @@ func doc(text: String = "") -> GFSourceBuilder:
 ## @api public
 ## [br]
 ## @param title: section 标题。
-## [br]
-## @return 当前构建器，便于链式调用。
-func section(title: String) -> GFSourceBuilder:
-	return line("# --- %s ---" % title).blank()
+func section(title: String) -> void:
+	line("# --- %s ---" % title)
+	blank()
 
 
 ## 添加空行。
@@ -68,22 +63,16 @@ func section(title: String) -> GFSourceBuilder:
 ## @api public
 ## [br]
 ## @param count: 空行数量，小于等于 0 时不产生输出。
-## [br]
-## @return 当前构建器，便于链式调用。
-func blank(count: int = 1) -> GFSourceBuilder:
+func blank(count: int = 1) -> void:
 	for _index: int in range(maxi(count, 0)):
-		_lines.append("")
-	return self
+		var _push_back_result_68: Variant = _lines.push_back("")
 
 
 ## 增加后续行的缩进层级。
 ## [br]
 ## @api public
-## [br]
-## @return 当前构建器，便于链式调用。
-func indent() -> GFSourceBuilder:
+func indent() -> void:
 	_indent_level += 1
-	return self
 
 
 ## 减少后续行的缩进层级。
@@ -91,22 +80,16 @@ func indent() -> GFSourceBuilder:
 ## @api public
 ## [br]
 ## @param count: 要减少的层级数，小于等于 0 时不改变缩进。
-## [br]
-## @return 当前构建器，便于链式调用。
-func dedent(count: int = 1) -> GFSourceBuilder:
+func dedent(count: int = 1) -> void:
 	_indent_level = maxi(_indent_level - maxi(count, 0), 0)
-	return self
 
 
 ## 清空已构建内容并重置缩进。
 ## [br]
 ## @api public
-## [br]
-## @return 当前构建器，便于链式调用。
-func clear() -> GFSourceBuilder:
+func clear() -> void:
 	_lines.clear()
 	_indent_level = 0
-	return self
 
 
 ## 生成最终源码字符串；非空源码末尾会包含换行。

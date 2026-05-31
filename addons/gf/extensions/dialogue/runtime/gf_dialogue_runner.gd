@@ -113,9 +113,9 @@ func start(
 	_resource = resource
 	_context = context if context != null else GFDialogueContext.new(_get_architecture_or_null())
 	if _context.get_architecture() == null:
-		_context.set_architecture(_get_architecture_or_null())
+		var _set_architecture_result_116: Variant = _context.set_architecture(_get_architecture_or_null())
 
-	var start_line := resource.get_start_line(start_line_id)
+	var start_line: GFDialogueLine = resource.get_start_line(start_line_id)
 	_current_line_id = start_line.line_id if start_line != null else &""
 	_current_line = null
 	_is_running = true
@@ -213,7 +213,7 @@ func get_debug_snapshot() -> Dictionary:
 # --- 私有/辅助方法 ---
 
 func _advance_to_next_text() -> GFDialogueLine:
-	var steps := 0
+	var steps: int = 0
 	while _is_running:
 		if max_steps_per_advance > 0 and steps >= max_steps_per_advance:
 			line_blocked.emit(_current_line_id, &"max_steps_reached")
@@ -221,7 +221,7 @@ func _advance_to_next_text() -> GFDialogueLine:
 			return null
 		steps += 1
 
-		var line := _resource.get_line(_current_line_id)
+		var line: GFDialogueLine = _resource.get_line(_current_line_id)
 		if line == null:
 			_end_dialogue()
 			return null
@@ -255,7 +255,7 @@ func _apply_response(response_id: StringName) -> bool:
 		line_blocked.emit(response_id, &"missing_current_line")
 		return false
 
-	var response := _current_line.get_response(response_id)
+	var response: GFDialogueResponse = _current_line.get_response(response_id)
 	if response == null:
 		line_blocked.emit(response_id, &"missing_response")
 		return false
@@ -264,8 +264,8 @@ func _apply_response(response_id: StringName) -> bool:
 		return false
 
 	if response.mutation_id != &"":
-		_context.apply_mutation(response.mutation_id, response.mutation_payload, response)
-	var next_id := response.next_line_id if response.next_line_id != &"" else _current_line.get_default_next_line_id()
+		var _apply_mutation_result_267: Variant = _context.apply_mutation(response.mutation_id, response.mutation_payload, response)
+	var next_id: StringName = response.next_line_id if response.next_line_id != &"" else _current_line.get_default_next_line_id()
 	_current_line_id = next_id
 	_current_line = null
 	if _current_line_id == &"":
@@ -278,7 +278,7 @@ func _apply_line_mutation(line: GFDialogueLine) -> void:
 	if line.mutation_id == &"":
 		return
 	mutation_requested.emit(line.mutation_id, line.mutation_payload, line)
-	_context.apply_mutation(line.mutation_id, line.mutation_payload, line)
+	var _apply_mutation_result_281: Variant = _context.apply_mutation(line.mutation_id, line.mutation_payload, line)
 
 
 func _move_after_blocked_line(line: GFDialogueLine) -> bool:
@@ -294,7 +294,7 @@ func _move_after_blocked_line(line: GFDialogueLine) -> bool:
 
 
 func _end_dialogue() -> void:
-	var ended_resource := _resource
+	var ended_resource: GFDialogueResource = _resource
 	_current_line = null
 	_current_line_id = &""
 	_resource = null
@@ -305,7 +305,14 @@ func _end_dialogue() -> void:
 
 func _get_architecture_or_null() -> GFArchitecture:
 	if _architecture_ref != null:
-		var architecture := _architecture_ref.get_ref() as GFArchitecture
+		var architecture: GFArchitecture = _get_architecture_value(_architecture_ref.get_ref())
 		if architecture != null:
 			return architecture
 	return GFAutoload.get_architecture_or_null()
+
+
+func _get_architecture_value(value: Variant) -> GFArchitecture:
+	if value is GFArchitecture:
+		var architecture: GFArchitecture = value
+		return architecture
+	return null

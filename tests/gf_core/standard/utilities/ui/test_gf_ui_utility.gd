@@ -11,21 +11,27 @@ class ManualAssetUtility extends GFAssetUtility:
 
 	func load_async(path: String, on_loaded: Callable, _type_hint: String = "") -> void:
 		if not _callbacks.has(path):
-			_callbacks[path] = [] as Array[Callable]
-		var list: Array = _callbacks[path]
-		list.append(on_loaded)
+			var created_callbacks: Array[Callable] = []
+			_callbacks[path] = created_callbacks
+		var callbacks_value: Variant = _callbacks[path]
+		if callbacks_value is Array:
+			var list: Array = callbacks_value
+			list.append(on_loaded)
 
 	func resolve(path: String, resource: Resource) -> void:
 		if not _callbacks.has(path):
 			return
 
-		var callbacks: Array = _callbacks[path]
-		_callbacks.erase(path)
+		var callbacks_value: Variant = _callbacks[path]
+		var _erase_result_26: Variant = _callbacks.erase(path)
+		if not callbacks_value is Array:
+			return
+		var callbacks: Array = callbacks_value
 		for callback: Callable in callbacks:
 			callback.call(resource)
 
 
-class TestModalPanel extends Control:
+class SampleModalPanel extends Control:
 	signal resolved(result: GFModalResult)
 
 	var config: GFModalConfig = null
@@ -40,7 +46,7 @@ class TestModalPanel extends Control:
 	func resolve_action(action_id: StringName) -> bool:
 		if did_resolve:
 			return false
-		var action := config.get_action(action_id) if config != null else null
+		var action: GFModalAction = config.get_action(action_id) if config != null else null
 		if action == null:
 			return false
 		did_resolve = true
@@ -59,6 +65,11 @@ class TestModalPanel extends Control:
 			context
 		))
 		return true
+
+
+class ModalCallbackState:
+	var result: GFModalResult = null
+	var status: StringName = &""
 
 
 func before_each() -> void:
@@ -81,8 +92,8 @@ func after_each() -> void:
 
 
 func test_layer_creation() -> void:
-	var hud_layer := _ui_utility.get_layer_root(GFUIUtility.Layer.HUD)
-	var popup_layer := _ui_utility.get_layer_root(GFUIUtility.Layer.POPUP)
+	var hud_layer: CanvasLayer = _ui_utility.get_layer_root(GFUIUtility.Layer.HUD)
+	var popup_layer: CanvasLayer = _ui_utility.get_layer_root(GFUIUtility.Layer.POPUP)
 
 	assert_not_null(hud_layer, "HUD 层应正确创建。")
 	assert_not_null(popup_layer, "POPUP 层应正确创建。")
@@ -92,7 +103,7 @@ func test_layer_creation() -> void:
 
 
 func test_dispose_detaches_layer_roots_immediately() -> void:
-	var popup_layer := _ui_utility.get_layer_root(GFUIUtility.Layer.POPUP)
+	var popup_layer: CanvasLayer = _ui_utility.get_layer_root(GFUIUtility.Layer.POPUP)
 
 	_ui_utility.dispose()
 	_ui_utility = null
@@ -104,8 +115,8 @@ func test_dispose_detaches_layer_roots_immediately() -> void:
 
 
 func test_push_and_pop_panel_instance() -> void:
-	var panel1 := Control.new()
-	var panel2 := Control.new()
+	var panel1: Control = Control.new()
+	var panel2: Control = Control.new()
 
 	_ui_utility.push_panel_instance(panel1, GFUIUtility.Layer.POPUP)
 	assert_eq(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), panel1, "压入 panel1 后栈顶应为 panel1。")
@@ -122,8 +133,8 @@ func test_push_and_pop_panel_instance() -> void:
 
 
 func test_pop_panel_detaches_freed_panel_immediately() -> void:
-	var panel := Control.new()
-	var popup_layer := _ui_utility.get_layer_root(GFUIUtility.Layer.POPUP)
+	var panel: Control = Control.new()
+	var popup_layer: CanvasLayer = _ui_utility.get_layer_root(GFUIUtility.Layer.POPUP)
 	_ui_utility.push_panel_instance(panel, GFUIUtility.Layer.POPUP)
 
 	_ui_utility.pop_panel(GFUIUtility.Layer.POPUP)
@@ -137,8 +148,8 @@ func test_pop_panel_detaches_freed_panel_immediately() -> void:
 
 
 func test_pop_panel_without_free_detaches_and_keeps_instance() -> void:
-	var panel := Control.new()
-	var popup_layer := _ui_utility.get_layer_root(GFUIUtility.Layer.POPUP)
+	var panel: Control = Control.new()
+	var popup_layer: CanvasLayer = _ui_utility.get_layer_root(GFUIUtility.Layer.POPUP)
 	_ui_utility.push_panel_instance(panel, GFUIUtility.Layer.POPUP)
 
 	_ui_utility.pop_panel(GFUIUtility.Layer.POPUP, false)
@@ -151,26 +162,26 @@ func test_pop_panel_without_free_detaches_and_keeps_instance() -> void:
 
 
 func test_panel_signals_and_stack_snapshot() -> void:
-	var panel1 := Control.new()
+	var panel1: Control = Control.new()
 	panel1.name = "PanelOne"
-	var panel2 := Control.new()
+	var panel2: Control = Control.new()
 	panel2.name = "PanelTwo"
 	var opened: Array = []
 	var closed: Array = []
 	var navigation_tops: Array = []
-	_ui_utility.panel_opened.connect(func(panel: Node, _layer: int) -> void:
+	var _connect_result_172: Variant = _ui_utility.panel_opened.connect(func(panel: Node, _layer: int) -> void:
 		opened.append(panel)
 	)
-	_ui_utility.panel_closed.connect(func(panel: Node, _layer: int) -> void:
+	var _connect_result_175: Variant = _ui_utility.panel_closed.connect(func(panel: Node, _layer: int) -> void:
 		closed.append(panel)
 	)
-	_ui_utility.navigation_changed.connect(func(_layer: int, top_panel: Node) -> void:
+	var _connect_result_178: Variant = _ui_utility.navigation_changed.connect(func(_layer: int, top_panel: Node) -> void:
 		navigation_tops.append(top_panel)
 	)
 
 	_ui_utility.push_panel_instance(panel1, GFUIUtility.Layer.POPUP)
 	_ui_utility.push_panel_instance(panel2, GFUIUtility.Layer.POPUP)
-	var stack := _ui_utility.get_panel_stack(GFUIUtility.Layer.POPUP)
+	var stack: Array[Node] = _ui_utility.get_panel_stack(GFUIUtility.Layer.POPUP)
 
 	assert_eq(opened, [panel1, panel2], "面板入栈应按顺序发出打开信号。")
 	assert_eq(stack, [panel1, panel2], "get_panel_stack 应按从底到顶返回副本。")
@@ -180,13 +191,13 @@ func test_panel_signals_and_stack_snapshot() -> void:
 	_ui_utility.pop_panel(GFUIUtility.Layer.POPUP)
 
 	assert_eq(closed, [panel2], "弹出面板应发出关闭信号。")
-	assert_eq(navigation_tops.back(), panel1, "弹出后导航信号应报告新的栈顶。")
+	assert_eq(_array_node(navigation_tops, navigation_tops.size() - 1), panel1, "弹出后导航信号应报告新的栈顶。")
 
 
 func test_modal_panel_options_and_cancel_dismiss() -> void:
-	var panel := Control.new()
+	var panel: Control = Control.new()
 	var dismissed: Array = []
-	_ui_utility.panel_dismiss_requested.connect(func(requested_panel: Node, layer: int, reason: String) -> void:
+	var _connect_result_200: Variant = _ui_utility.panel_dismiss_requested.connect(func(requested_panel: Node, layer: int, reason: String) -> void:
 		dismissed.append([requested_panel, layer, reason])
 	)
 
@@ -198,7 +209,7 @@ func test_modal_panel_options_and_cancel_dismiss() -> void:
 	})
 	assert_true(_ui_utility.has_modal_open(GFUIUtility.Layer.POPUP), "modal 面板入栈后应可查询。")
 
-	var handled := _ui_utility.request_dismiss_top(GFUIUtility.Layer.POPUP, "cancel")
+	var handled: bool = _ui_utility.request_dismiss_top(GFUIUtility.Layer.POPUP, "cancel")
 
 	assert_true(handled, "modal 面板默认策略应允许取消关闭。")
 	assert_eq(dismissed, [[panel, GFUIUtility.Layer.POPUP, "cancel"]], "取消请求应发出信号。")
@@ -206,8 +217,8 @@ func test_modal_panel_options_and_cancel_dismiss() -> void:
 
 
 func test_panel_options_accept_string_name_keys_and_copy_metadata() -> void:
-	var panel := Control.new()
-	var source_metadata := {
+	var panel: Control = Control.new()
+	var source_metadata: Dictionary = {
 		"nested": {
 			"value": 1,
 		},
@@ -218,30 +229,33 @@ func test_panel_options_accept_string_name_keys_and_copy_metadata() -> void:
 		&"dismiss_on_cancel": "off",
 		&"metadata": source_metadata,
 	})
-	var options := _ui_utility.get_panel_options(panel)
-	((options["metadata"] as Dictionary)["nested"] as Dictionary)["value"] = 2
+	var options: Dictionary = _ui_utility.get_panel_options(panel)
+	var options_metadata: Dictionary = GFVariantData.as_dictionary(options["metadata"])
+	var options_nested: Dictionary = GFVariantData.as_dictionary(options_metadata["nested"])
+	var source_nested: Dictionary = GFVariantData.as_dictionary(source_metadata["nested"])
+	options_nested["value"] = 2
 
 	assert_true(_ui_utility.is_panel_modal(panel), "StringName 选项键应被识别。")
-	assert_false(bool(options["dismiss_on_cancel"]), "字符串 off 应按 false 读取。")
-	assert_eq((source_metadata["nested"] as Dictionary)["value"], 1, "面板选项 metadata 应复制保存。")
+	assert_false(GFVariantData.get_option_bool(options, "dismiss_on_cancel"), "字符串 off 应按 false 读取。")
+	assert_eq(GFVariantData.get_option_int(source_nested, "value"), 1, "面板选项 metadata 应复制保存。")
 
 
 func test_modal_can_refuse_cancel_dismiss() -> void:
-	var panel := Control.new()
+	var panel: Control = Control.new()
 
 	_ui_utility.push_panel_instance_with_options(panel, GFUIUtility.Layer.POPUP, {
 		"modal": true,
 		"dismiss_on_cancel": false,
 	})
-	var handled := _ui_utility.request_dismiss_top(GFUIUtility.Layer.POPUP, "cancel")
+	var handled: bool = _ui_utility.request_dismiss_top(GFUIUtility.Layer.POPUP, "cancel")
 
 	assert_false(handled, "禁止取消关闭的 modal 不应被 request_dismiss_top 弹出。")
 	assert_eq(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), panel, "拒绝取消后面板应仍在栈顶。")
 
 
 func test_modal_config_has_no_implicit_default_action() -> void:
-	var config := GFModalConfig.new()
-	var action := GFModalAction.new()
+	var config: GFModalConfig = GFModalConfig.new()
+	var action: GFModalAction = GFModalAction.new()
 
 	assert_eq(config.get_actions().size(), 0, "空配置不应隐式生成 OK 动作。")
 	assert_null(config.get_action(&"ok"), "未声明的动作不应可解析。")
@@ -254,22 +268,22 @@ func test_modal_config_has_no_implicit_default_action() -> void:
 
 
 func test_custom_modal_protocol_returns_result_and_project_closes_panel() -> void:
-	var confirm := GFModalAction.new()
+	var confirm: GFModalAction = GFModalAction.new()
 	confirm.action_id = &"confirm"
 	confirm.label = "Confirm"
 	confirm.result_status = GFModalResult.STATUS_CONFIRMED
 	confirm.payload = { "value": 3 }
 
-	var config := GFModalConfig.new()
+	var config: GFModalConfig = GFModalConfig.new()
 	config.title = "Title"
 	config.message = "Message"
 	config.actions = [confirm]
 
-	var received := { "result": null }
-	var panel := TestModalPanel.new()
+	var received: ModalCallbackState = ModalCallbackState.new()
+	var panel: SampleModalPanel = SampleModalPanel.new()
 	panel.configure(config, { "source": "test" })
-	panel.resolved.connect(func(callback_result: GFModalResult) -> void:
-		received["result"] = callback_result
+	var _connect_result_285: Variant = panel.resolved.connect(func(callback_result: GFModalResult) -> void:
+		received.result = callback_result
 		_ui_utility.pop_panel(GFUIUtility.Layer.POPUP)
 	)
 	_ui_utility.push_panel_instance_with_options(panel, GFUIUtility.Layer.POPUP, {
@@ -283,23 +297,25 @@ func test_custom_modal_protocol_returns_result_and_project_closes_panel() -> voi
 	assert_eq(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), panel, "项目 modal 面板应通过 UI 栈打开。")
 	assert_true(panel.resolve_action(&"confirm"), "按动作解析应成功。")
 
-	var received_result := received["result"] as GFModalResult
+	var received_result: GFModalResult = received.result
+	var received_payload: Dictionary = GFVariantData.as_dictionary(received_result.payload)
+	var received_context: Dictionary = GFVariantData.as_dictionary(received_result.context)
 	assert_not_null(received_result, "结果回调应收到 GFModalResult。")
 	assert_eq(received_result.status, GFModalResult.STATUS_CONFIRMED, "结果状态应来自动作配置。")
 	assert_eq(received_result.action_id, &"confirm", "结果应记录动作 ID。")
-	assert_eq((received_result.payload as Dictionary)["value"], 3, "结果应保留动作载荷。")
-	assert_eq((received_result.context as Dictionary)["source"], "test", "结果应保留打开时上下文。")
+	assert_eq(GFVariantData.get_option_int(received_payload, "value"), 3, "结果应保留动作载荷。")
+	assert_eq(GFVariantData.get_option_string(received_context, "source"), "test", "结果应保留打开时上下文。")
 	assert_null(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), "modal 解析后应从栈中关闭。")
 
 
 func test_request_dismiss_top_resolves_modal_cancel() -> void:
-	var config := GFModalConfig.new()
+	var config: GFModalConfig = GFModalConfig.new()
 	config.dismiss_on_cancel = true
-	var received := { "status": &"" }
-	var panel := TestModalPanel.new()
+	var received: ModalCallbackState = ModalCallbackState.new()
+	var panel: SampleModalPanel = SampleModalPanel.new()
 	panel.configure(config)
-	panel.resolved.connect(func(result: GFModalResult) -> void:
-		received["status"] = result.status
+	var _connect_result_317: Variant = panel.resolved.connect(func(result: GFModalResult) -> void:
+		received.status = result.status
 		_ui_utility.pop_panel(GFUIUtility.Layer.POPUP)
 	)
 	_ui_utility.push_panel_instance_with_options(panel, GFUIUtility.Layer.POPUP, {
@@ -307,17 +323,17 @@ func test_request_dismiss_top_resolves_modal_cancel() -> void:
 		"dismiss_on_cancel": config.dismiss_on_cancel,
 	})
 
-	var handled := _ui_utility.request_dismiss_top(GFUIUtility.Layer.POPUP, "cancel")
+	var handled: bool = _ui_utility.request_dismiss_top(GFUIUtility.Layer.POPUP, "cancel")
 
 	assert_true(handled, "可取消 modal 应响应 request_dismiss_top。")
-	assert_eq(received["status"], GFModalResult.STATUS_CANCELLED, "取消请求应产生 cancelled 结果。")
+	assert_eq(received.status, GFModalResult.STATUS_CANCELLED, "取消请求应产生 cancelled 结果。")
 	assert_null(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), "取消后 modal 应关闭。")
 
 
 func test_keep_focus_inside_top_modal() -> void:
-	var outside := Button.new()
-	var panel := Control.new()
-	var inside := Button.new()
+	var outside: Button = Button.new()
+	var panel: Control = Control.new()
+	var inside: Button = Button.new()
 	outside.focus_mode = Control.FOCUS_ALL
 	inside.focus_mode = Control.FOCUS_ALL
 	add_child(outside)
@@ -328,7 +344,7 @@ func test_keep_focus_inside_top_modal() -> void:
 		"focus_on_open": false,
 	})
 	outside.grab_focus()
-	var corrected := _ui_utility.keep_focus_inside_top_modal(GFUIUtility.Layer.POPUP)
+	var corrected: bool = _ui_utility.keep_focus_inside_top_modal(GFUIUtility.Layer.POPUP)
 
 	assert_true(corrected, "焦点落在 modal 外部时应能被拉回 modal 内部。")
 	assert_eq(get_viewport().gui_get_focus_owner(), inside, "焦点应移动到 modal 内第一个可聚焦控件。")
@@ -337,9 +353,9 @@ func test_keep_focus_inside_top_modal() -> void:
 
 
 func test_replace_layer_instance_clears_old_stack() -> void:
-	var panel1 := Control.new()
-	var panel2 := Control.new()
-	var replacement := Control.new()
+	var panel1: Control = Control.new()
+	var panel2: Control = Control.new()
+	var replacement: Control = Control.new()
 
 	_ui_utility.push_panel_instance(panel1, GFUIUtility.Layer.POPUP)
 	_ui_utility.push_panel_instance(panel2, GFUIUtility.Layer.POPUP)
@@ -353,15 +369,15 @@ func test_replace_layer_instance_clears_old_stack() -> void:
 
 
 func test_pop_to_panel_returns_to_existing_panel() -> void:
-	var panel1 := Control.new()
-	var panel2 := Control.new()
-	var panel3 := Control.new()
+	var panel1: Control = Control.new()
+	var panel2: Control = Control.new()
+	var panel3: Control = Control.new()
 
 	_ui_utility.push_panel_instance(panel1, GFUIUtility.Layer.POPUP)
 	_ui_utility.push_panel_instance(panel2, GFUIUtility.Layer.POPUP)
 	_ui_utility.push_panel_instance(panel3, GFUIUtility.Layer.POPUP)
 
-	var did_pop := _ui_utility.pop_to_panel(panel1, GFUIUtility.Layer.POPUP)
+	var did_pop: bool = _ui_utility.pop_to_panel(panel1, GFUIUtility.Layer.POPUP)
 
 	assert_true(did_pop, "目标面板存在时应成功回退。")
 	assert_eq(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), panel1, "回退后目标面板应成为栈顶。")
@@ -369,20 +385,20 @@ func test_pop_to_panel_returns_to_existing_panel() -> void:
 
 
 func test_push_panel_instance_rejects_duplicate_instance() -> void:
-	var panel := Control.new()
+	var panel: Control = Control.new()
 
 	_ui_utility.push_panel_instance(panel, GFUIUtility.Layer.POPUP)
 	_ui_utility.push_panel_instance(panel, GFUIUtility.Layer.POPUP)
 
 	assert_eq(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), panel, "重复压入后栈顶仍应是原面板。")
-	assert_eq((_ui_utility._panel_stacks[GFUIUtility.Layer.POPUP] as Array).size(), 1, "同一面板实例不应重复进入栈。")
+	assert_eq(_panel_stack(GFUIUtility.Layer.POPUP).size(), 1, "同一面板实例不应重复进入栈。")
 	assert_push_warning("[GFUIUtility] 面板实例已在 UI 栈中，忽略重复入栈。")
 
 
 func test_push_panel_instance_reparents_external_node() -> void:
-	var external_parent := Node.new()
+	var external_parent: Node = Node.new()
 	add_child(external_parent)
-	var panel := Control.new()
+	var panel: Control = Control.new()
 	external_parent.add_child(panel)
 
 	_ui_utility.push_panel_instance(panel, GFUIUtility.Layer.POPUP)
@@ -394,7 +410,7 @@ func test_push_panel_instance_reparents_external_node() -> void:
 
 
 func test_push_panel_instance_applies_config_callback() -> void:
-	var panel := Control.new()
+	var panel: Control = Control.new()
 
 	_ui_utility.push_panel_instance(panel, GFUIUtility.Layer.POPUP, func(instance: Node) -> void:
 		instance.name = "ConfiguredPanel"
@@ -405,8 +421,8 @@ func test_push_panel_instance_applies_config_callback() -> void:
 
 
 func test_external_free_of_top_panel_prunes_stack_and_reveals_under_panel() -> void:
-	var panel1 := Control.new()
-	var panel2 := Control.new()
+	var panel1: Control = Control.new()
+	var panel2: Control = Control.new()
 
 	_ui_utility.push_panel_instance(panel1, GFUIUtility.Layer.POPUP)
 	_ui_utility.push_panel_instance(panel2, GFUIUtility.Layer.POPUP)
@@ -420,8 +436,8 @@ func test_external_free_of_top_panel_prunes_stack_and_reveals_under_panel() -> v
 
 
 func test_stale_freed_panel_reference_is_pruned_without_cast_error() -> void:
-	var stale_panel := Control.new()
-	var stack := _ui_utility._panel_stacks[GFUIUtility.Layer.POPUP] as Array
+	var stale_panel: Control = Control.new()
+	var stack: Array = _panel_stack(GFUIUtility.Layer.POPUP)
 	stack.append(stale_panel)
 	stale_panel.free()
 
@@ -430,11 +446,11 @@ func test_stale_freed_panel_reference_is_pruned_without_cast_error() -> void:
 
 
 func test_config_callback_destroying_panel_restores_hidden_panel() -> void:
-	var panel1 := Control.new()
-	var panel2 := Control.new()
+	var panel1: Control = Control.new()
+	var panel2: Control = Control.new()
 
 	_ui_utility.push_panel_instance(panel1, GFUIUtility.Layer.POPUP)
-	var added := _ui_utility._add_panel_instance(
+	var added: bool = _ui_utility._add_panel_instance(
 		panel2,
 		GFUIUtility.Layer.POPUP,
 		func(panel: Node) -> void:
@@ -448,8 +464,8 @@ func test_config_callback_destroying_panel_restores_hidden_panel() -> void:
 
 
 func test_clear_layer() -> void:
-	var p1 := Control.new()
-	var p2 := Control.new()
+	var p1: Control = Control.new()
+	var p2: Control = Control.new()
 
 	_ui_utility.push_panel_instance(p1, GFUIUtility.Layer.TOP)
 	_ui_utility.push_panel_instance(p2, GFUIUtility.Layer.TOP)
@@ -467,11 +483,11 @@ func test_clear_layer() -> void:
 
 func test_push_panel_async_ignores_late_callback_after_dispose() -> void:
 	_arch = GFArchitecture.new()
-	var asset_util := ManualAssetUtility.new()
-	_arch.register_utility_instance(asset_util)
+	var asset_util: ManualAssetUtility = ManualAssetUtility.new()
+	await _arch.register_utility_instance(asset_util)
 	await Gf.set_architecture(_arch)
 
-	var scene := _make_control_scene()
+	var scene: PackedScene = _make_control_scene()
 	_ui_utility.push_panel_async("res://tests/pending_async_panel.tscn", GFUIUtility.Layer.POPUP)
 	_ui_utility.dispose()
 
@@ -483,17 +499,17 @@ func test_push_panel_async_ignores_late_callback_after_dispose() -> void:
 
 func test_push_panel_async_reports_pending_load_lifecycle() -> void:
 	_arch = GFArchitecture.new()
-	var asset_util := ManualAssetUtility.new()
-	_arch.register_utility_instance(asset_util)
+	var asset_util: ManualAssetUtility = ManualAssetUtility.new()
+	await _arch.register_utility_instance(asset_util)
 	await Gf.set_architecture(_arch)
 
-	var path := "res://tests/pending_async_panel.tscn"
+	var path: String = "res://tests/pending_async_panel.tscn"
 	var started: Array = []
 	var finished: Array = []
-	_ui_utility.panel_async_load_started.connect(func(load_path: String, layer: int, operation: StringName) -> void:
+	var _connect_result_509: Variant = _ui_utility.panel_async_load_started.connect(func(load_path: String, layer: int, operation: StringName) -> void:
 		started.append([load_path, layer, operation])
 	)
-	_ui_utility.panel_async_load_finished.connect(func(
+	var _connect_result_512: Variant = _ui_utility.panel_async_load_finished.connect(func(
 		load_path: String,
 		layer: int,
 		operation: StringName,
@@ -514,19 +530,20 @@ func test_push_panel_async_reports_pending_load_lifecycle() -> void:
 
 	assert_false(_ui_utility.has_pending_async_panel(GFUIUtility.Layer.POPUP, path), "资源返回后 pending 状态应清理。")
 	assert_eq(finished.size(), 1, "异步请求结束时应发出结束信号。")
-	assert_eq(finished[0][3], GFUIUtility.AsyncPanelLoadStatus.OPENED, "成功入栈应报告 OPENED。")
-	assert_not_null(finished[0][4], "成功状态应携带已打开面板。")
+	var opened_event: Array = _array_item_as_array(finished, 0)
+	assert_eq(_array_int(opened_event, 3), GFUIUtility.AsyncPanelLoadStatus.OPENED, "成功入栈应报告 OPENED。")
+	assert_not_null(_array_node(opened_event, 4), "成功状态应携带已打开面板。")
 
 
 func test_pending_async_panel_cancel_clears_state_and_reports_finished() -> void:
 	_arch = GFArchitecture.new()
-	var asset_util := ManualAssetUtility.new()
-	_arch.register_utility_instance(asset_util)
+	var asset_util: ManualAssetUtility = ManualAssetUtility.new()
+	await _arch.register_utility_instance(asset_util)
 	await Gf.set_architecture(_arch)
 
-	var path := "res://tests/pending_async_panel.tscn"
+	var path: String = "res://tests/pending_async_panel.tscn"
 	var finished: Array = []
-	_ui_utility.panel_async_load_finished.connect(func(
+	var _connect_result_545: Variant = _ui_utility.panel_async_load_finished.connect(func(
 		load_path: String,
 		layer: int,
 		operation: StringName,
@@ -541,8 +558,9 @@ func test_pending_async_panel_cancel_clears_state_and_reports_finished() -> void
 
 	assert_false(_ui_utility.has_pending_async_panel(GFUIUtility.Layer.POPUP, path), "清层应立即清理 pending 状态。")
 	assert_eq(finished.size(), 1, "取消异步请求应发出结束信号。")
-	assert_eq(finished[0][3], GFUIUtility.AsyncPanelLoadStatus.CANCELLED, "清层取消应报告 CANCELLED。")
-	assert_null(finished[0][4], "取消状态不应携带面板。")
+	var cancelled_event: Array = _array_item_as_array(finished, 0)
+	assert_eq(_array_int(cancelled_event, 3), GFUIUtility.AsyncPanelLoadStatus.CANCELLED, "清层取消应报告 CANCELLED。")
+	assert_true(_array_value(cancelled_event, 4) == null, "取消状态不应携带面板。")
 
 	asset_util.resolve(path, _make_control_scene())
 	await get_tree().process_frame
@@ -553,13 +571,13 @@ func test_pending_async_panel_cancel_clears_state_and_reports_finished() -> void
 
 func test_push_panel_async_reports_failed_when_resource_is_not_scene() -> void:
 	_arch = GFArchitecture.new()
-	var asset_util := ManualAssetUtility.new()
-	_arch.register_utility_instance(asset_util)
+	var asset_util: ManualAssetUtility = ManualAssetUtility.new()
+	await _arch.register_utility_instance(asset_util)
 	await Gf.set_architecture(_arch)
 
-	var path := "res://tests/invalid_async_panel.tscn"
+	var path: String = "res://tests/invalid_async_panel.tscn"
 	var finished: Array = []
-	_ui_utility.panel_async_load_finished.connect(func(
+	var _connect_result_578: Variant = _ui_utility.panel_async_load_finished.connect(func(
 		load_path: String,
 		layer: int,
 		operation: StringName,
@@ -575,18 +593,19 @@ func test_push_panel_async_reports_failed_when_resource_is_not_scene() -> void:
 
 	assert_false(_ui_utility.has_pending_async_panel(GFUIUtility.Layer.POPUP, path), "加载失败后 pending 状态应清理。")
 	assert_eq(finished.size(), 1, "加载失败也应发出结束信号。")
-	assert_eq(finished[0][3], GFUIUtility.AsyncPanelLoadStatus.FAILED, "非 PackedScene 资源应报告 FAILED。")
-	assert_null(finished[0][4], "失败状态不应携带面板。")
+	var failed_event: Array = _array_item_as_array(finished, 0)
+	assert_eq(_array_int(failed_event, 3), GFUIUtility.AsyncPanelLoadStatus.FAILED, "非 PackedScene 资源应报告 FAILED。")
+	assert_true(_array_value(failed_event, 4) == null, "失败状态不应携带面板。")
 	assert_push_error("[GFUIUtility] 无法实例化面板场景：%s" % path)
 
 
 func test_push_panel_async_ignores_late_callback_after_layer_clear() -> void:
 	_arch = GFArchitecture.new()
-	var asset_util := ManualAssetUtility.new()
-	_arch.register_utility_instance(asset_util)
+	var asset_util: ManualAssetUtility = ManualAssetUtility.new()
+	await _arch.register_utility_instance(asset_util)
 	await Gf.set_architecture(_arch)
 
-	var scene := _make_control_scene()
+	var scene: PackedScene = _make_control_scene()
 	_ui_utility.push_panel_async("res://tests/pending_async_panel.tscn", GFUIUtility.Layer.POPUP)
 	_ui_utility.clear_layer(GFUIUtility.Layer.POPUP)
 
@@ -598,11 +617,11 @@ func test_push_panel_async_ignores_late_callback_after_layer_clear() -> void:
 
 func test_push_panel_async_ignores_late_callback_after_pop_cancel() -> void:
 	_arch = GFArchitecture.new()
-	var asset_util := ManualAssetUtility.new()
-	_arch.register_utility_instance(asset_util)
+	var asset_util: ManualAssetUtility = ManualAssetUtility.new()
+	await _arch.register_utility_instance(asset_util)
 	await Gf.set_architecture(_arch)
 
-	var scene := _make_control_scene()
+	var scene: PackedScene = _make_control_scene()
 	_ui_utility.push_panel_async("res://tests/pending_async_panel.tscn", GFUIUtility.Layer.POPUP)
 	_ui_utility.pop_panel(GFUIUtility.Layer.POPUP)
 
@@ -614,11 +633,11 @@ func test_push_panel_async_ignores_late_callback_after_pop_cancel() -> void:
 
 func test_duplicate_pending_push_panel_async_is_coalesced() -> void:
 	_arch = GFArchitecture.new()
-	var asset_util := ManualAssetUtility.new()
-	_arch.register_utility_instance(asset_util)
+	var asset_util: ManualAssetUtility = ManualAssetUtility.new()
+	await _arch.register_utility_instance(asset_util)
 	await Gf.set_architecture(_arch)
 
-	var scene := _make_control_scene()
+	var scene: PackedScene = _make_control_scene()
 	_ui_utility.push_panel_async("res://tests/pending_async_panel.tscn", GFUIUtility.Layer.POPUP)
 	_ui_utility.push_panel_async("res://tests/pending_async_panel.tscn", GFUIUtility.Layer.POPUP)
 
@@ -628,9 +647,38 @@ func test_duplicate_pending_push_panel_async_is_coalesced() -> void:
 	assert_eq(_ui_utility.get_stack_count(GFUIUtility.Layer.POPUP), 1, "同层同路径的重复异步 push 应只创建一个面板。")
 
 
+func _panel_stack(layer: int) -> Array:
+	var stack_value: Variant = _ui_utility._panel_stacks[layer]
+	if stack_value is Array:
+		var stack: Array = stack_value
+		return stack
+	return []
+
+
+func _array_value(values: Array, index: int) -> Variant:
+	if index < 0 or index >= values.size():
+		return null
+	return values[index]
+
+
+func _array_item_as_array(values: Array, index: int) -> Array:
+	return GFVariantData.as_array(_array_value(values, index))
+
+
+func _array_int(values: Array, index: int) -> int:
+	return GFVariantData.to_int(_array_value(values, index))
+
+
+func _array_node(values: Array, index: int) -> Node:
+	var value: Variant = _array_value(values, index)
+	if value is Node:
+		return value
+	return null
+
+
 func _make_control_scene() -> PackedScene:
-	var control := Control.new()
-	var scene := PackedScene.new()
-	scene.pack(control)
+	var control: Control = Control.new()
+	var scene: PackedScene = PackedScene.new()
+	var _pack_result_658: Variant = scene.pack(control)
 	control.free()
 	return scene

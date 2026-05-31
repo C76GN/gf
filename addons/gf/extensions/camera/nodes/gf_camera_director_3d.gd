@@ -99,12 +99,12 @@ var _is_blending: bool = false
 
 func _process(delta: float) -> void:
 	if update_mode == UpdateMode.IDLE:
-		process_camera(delta)
+		var _process_camera_result_102: Variant = process_camera(delta)
 
 
 func _physics_process(delta: float) -> void:
 	if update_mode == UpdateMode.PHYSICS:
-		process_camera(delta)
+		var _process_camera_result_107: Variant = process_camera(delta)
 
 
 # --- 公共方法 ---
@@ -117,7 +117,7 @@ func _physics_process(delta: float) -> void:
 func get_camera() -> Camera3D:
 	if camera_path.is_empty():
 		return null
-	return get_node_or_null(camera_path) as Camera3D
+	return _get_camera_value(get_node_or_null(camera_path))
 
 
 ## 获取当前激活 Rig。
@@ -140,12 +140,12 @@ func collect_candidate_rigs() -> Array[GFCameraRig3D]:
 	var result: Array[GFCameraRig3D] = []
 	var seen: Dictionary = {}
 	for rig_path: NodePath in rig_paths:
-		var rig := get_node_or_null(rig_path) as GFCameraRig3D
+		var rig: GFCameraRig3D = _get_rig_value(get_node_or_null(rig_path))
 		_append_unique_rig(result, seen, rig)
 
 	if collect_group_rigs and is_inside_tree() and rig_group_name != &"":
 		for node: Node in get_tree().get_nodes_in_group(rig_group_name):
-			_append_unique_rig(result, seen, node as GFCameraRig3D)
+			_append_unique_rig(result, seen, _get_rig_value(node))
 	result.sort_custom(_sort_rigs)
 	return result
 
@@ -163,7 +163,7 @@ func refresh_active_rig(force_snap: bool = false) -> GFCameraRig3D:
 		if rig != null and rig.is_available():
 			best_rig = rig
 			break
-	set_active_rig(best_rig, force_snap)
+	var _set_active_rig_result_166: Variant = set_active_rig(best_rig, force_snap)
 	return _active_rig
 
 
@@ -181,7 +181,7 @@ func set_active_rig(rig: GFCameraRig3D, force_snap: bool = false) -> bool:
 		if force_snap:
 			_prepare_blend(true)
 		return true
-	var previous := _active_rig
+	var previous: GFCameraRig3D = _active_rig
 	_active_rig = rig
 	_prepare_blend(force_snap)
 	active_rig_changed.emit(previous, _active_rig)
@@ -196,18 +196,18 @@ func set_active_rig(rig: GFCameraRig3D, force_snap: bool = false) -> bool:
 ## [br]
 ## @return 成功应用时返回 true。
 func process_camera(delta: float) -> bool:
-	refresh_active_rig(false)
-	var camera := get_camera()
+	var _refresh_active_rig_result_199: Variant = refresh_active_rig(false)
+	var camera: Camera3D = get_camera()
 	if camera == null:
 		return false
 	if _active_rig == null:
 		return keep_camera_when_no_rig
 
-	var target_transform := _active_rig.get_camera_transform()
-	var transform := target_transform
+	var target_transform: Transform3D = _active_rig.get_camera_transform()
+	var transform: Transform3D = target_transform
 	if _is_blending:
 		_blend_elapsed_seconds += maxf(delta, 0.0)
-		var weight := _blend.sample_weight(_blend_elapsed_seconds) if _blend != null else 1.0
+		var weight: float = _blend.sample_weight(_blend_elapsed_seconds) if _blend != null else 1.0
 		transform = _interpolate_transform(_blend_from_transform, target_transform, weight)
 		if weight >= 1.0:
 			_is_blending = false
@@ -220,7 +220,7 @@ func process_camera(delta: float) -> bool:
 # --- 私有/辅助方法 ---
 
 func _prepare_blend(force_snap: bool) -> void:
-	var camera := get_camera()
+	var camera: Camera3D = get_camera()
 	_blend = _active_rig.blend if _active_rig != null and _active_rig.blend != null else default_blend
 	_blend_elapsed_seconds = 0.0
 	_blend_from_transform = camera.global_transform if camera != null else Transform3D.IDENTITY
@@ -234,18 +234,18 @@ func _prepare_blend(force_snap: bool) -> void:
 
 
 func _interpolate_transform(from_transform: Transform3D, to_transform: Transform3D, weight: float) -> Transform3D:
-	var safe_weight := clampf(weight, 0.0, 1.0)
-	var origin := from_transform.origin.lerp(to_transform.origin, safe_weight)
-	var from_quaternion := Quaternion(from_transform.basis.orthonormalized())
-	var to_quaternion := Quaternion(to_transform.basis.orthonormalized())
-	var basis := Basis(from_quaternion.slerp(to_quaternion, safe_weight)).orthonormalized()
+	var safe_weight: float = clampf(weight, 0.0, 1.0)
+	var origin: Vector3 = from_transform.origin.lerp(to_transform.origin, safe_weight)
+	var from_quaternion: Quaternion = Quaternion(from_transform.basis.orthonormalized())
+	var to_quaternion: Quaternion = Quaternion(to_transform.basis.orthonormalized())
+	var basis: Basis = Basis(from_quaternion.slerp(to_quaternion, safe_weight)).orthonormalized()
 	return Transform3D(basis, origin)
 
 
 func _append_unique_rig(result: Array[GFCameraRig3D], seen: Dictionary, rig: GFCameraRig3D) -> void:
 	if rig == null:
 		return
-	var instance_id := rig.get_instance_id()
+	var instance_id: int = rig.get_instance_id()
 	if seen.has(instance_id):
 		return
 	seen[instance_id] = true
@@ -256,3 +256,17 @@ func _sort_rigs(left: GFCameraRig3D, right: GFCameraRig3D) -> bool:
 	if left.priority != right.priority:
 		return left.priority > right.priority
 	return left.get_instance_id() < right.get_instance_id()
+
+
+func _get_camera_value(value: Variant) -> Camera3D:
+	if value is Camera3D:
+		var camera: Camera3D = value
+		return camera
+	return null
+
+
+func _get_rig_value(value: Variant) -> GFCameraRig3D:
+	if value is GFCameraRig3D:
+		var rig: GFCameraRig3D = value
+		return rig
+	return null

@@ -75,8 +75,8 @@ func add_state(
 	peer_id: int = -1,
 	metadata: Dictionary = {}
 ) -> GFNetworkSnapshot:
-	var snapshot := GFNetworkSnapshot.new(tick, state, peer_id, metadata)
-	add_snapshot(snapshot)
+	var snapshot: GFNetworkSnapshot = GFNetworkSnapshot.new(tick, state, peer_id, metadata)
+	var _add_snapshot_result_79: Variant = add_snapshot(snapshot)
 	return snapshot
 
 
@@ -99,7 +99,7 @@ func has_snapshot(tick: int) -> bool:
 ## [br]
 ## @return 快照副本；不存在时返回 null。
 func get_snapshot(tick: int) -> GFNetworkSnapshot:
-	var snapshot := _snapshots.get(tick, null) as GFNetworkSnapshot
+	var snapshot: GFNetworkSnapshot = _variant_to_snapshot(GFVariantData.get_option_value(_snapshots, tick))
 	return snapshot.duplicate_snapshot() if snapshot != null else null
 
 
@@ -138,10 +138,10 @@ func get_closest_snapshot(tick: int, prefer_older: bool = true) -> GFNetworkSnap
 	if _tick_order.is_empty():
 		return null
 
-	var best_tick := _tick_order[0]
-	var best_distance := absi(best_tick - tick)
+	var best_tick: int = _tick_order[0]
+	var best_distance: int = absi(best_tick - tick)
 	for candidate_tick: int in _tick_order:
-		var distance := absi(candidate_tick - tick)
+		var distance: int = absi(candidate_tick - tick)
 		if distance < best_distance:
 			best_tick = candidate_tick
 			best_distance = distance
@@ -172,10 +172,10 @@ func get_snapshots_between(
 	include_bounds: bool = true
 ) -> Array[GFNetworkSnapshot]:
 	var result: Array[GFNetworkSnapshot] = []
-	var start_tick := mini(from_tick, to_tick)
-	var end_tick := maxi(from_tick, to_tick)
+	var start_tick: int = mini(from_tick, to_tick)
+	var end_tick: int = maxi(from_tick, to_tick)
 	for stored_tick: int in _tick_order:
-		var in_range := (
+		var in_range: bool = (
 			stored_tick >= start_tick
 			and stored_tick <= end_tick
 		) if include_bounds else (
@@ -185,7 +185,7 @@ func get_snapshots_between(
 		if not in_range:
 			continue
 
-		var snapshot := get_snapshot(stored_tick)
+		var snapshot: GFNetworkSnapshot = get_snapshot(stored_tick)
 		if snapshot != null:
 			result.append(snapshot)
 	return result
@@ -201,7 +201,7 @@ func get_snapshots_between(
 ## [br]
 ## @schema return: Dictionary，包含 exact、previous、next，值为 GFNetworkSnapshot 或 null。
 func get_surrounding_snapshots(tick: int) -> Dictionary:
-	var result := {
+	var result: Dictionary = {
 		"exact": null,
 		"previous": null,
 		"next": null,
@@ -225,9 +225,9 @@ func get_surrounding_snapshots(tick: int) -> Dictionary:
 ## [br]
 ## @return tick 列表。
 func get_ticks() -> PackedInt64Array:
-	var result := PackedInt64Array()
+	var result: PackedInt64Array = PackedInt64Array()
 	for tick: int in _tick_order:
-		result.append(tick)
+		_append_packed_int64(result, tick)
 	return result
 
 
@@ -239,12 +239,12 @@ func get_ticks() -> PackedInt64Array:
 ## [br]
 ## @return 删除数量。
 func prune_before(tick: int) -> int:
-	var removed_count := 0
+	var removed_count: int = 0
 	for index: int in range(_tick_order.size() - 1, -1, -1):
-		var stored_tick := _tick_order[index]
+		var stored_tick: int = _tick_order[index]
 		if stored_tick >= tick:
 			continue
-		_snapshots.erase(stored_tick)
+		var _erased: bool = _snapshots.erase(stored_tick)
 		_tick_order.remove_at(index)
 		removed_count += 1
 	return removed_count
@@ -289,14 +289,27 @@ func _prune_to_capacity() -> void:
 	if capacity <= 0:
 		return
 
-	var remove_count := _tick_order.size() - capacity
+	var remove_count: int = _tick_order.size() - capacity
 	if remove_count <= 0:
 		return
 
 	for index: int in range(remove_count):
-		_snapshots.erase(_tick_order[index])
+		var _erased: bool = _snapshots.erase(_tick_order[index])
 
 	var kept_order: Array[int] = []
 	for index: int in range(remove_count, _tick_order.size()):
 		kept_order.append(_tick_order[index])
 	_tick_order = kept_order
+
+
+func _variant_to_snapshot(value: Variant) -> GFNetworkSnapshot:
+	if value is GFNetworkSnapshot:
+		var snapshot: GFNetworkSnapshot = value
+		return snapshot
+	return null
+
+
+func _append_packed_int64(target: PackedInt64Array, value: int) -> void:
+	var appended: bool = target.append(value)
+	if appended:
+		return

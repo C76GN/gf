@@ -134,8 +134,8 @@ func register_section(section_id: StringName, provider: Callable, options: Dicti
 
 	_section_providers[section_id] = {
 		"provider": provider,
-		"label": _variant_to_string(options.get("label", str(section_id)), str(section_id)),
-		"metadata": (options.get("metadata", {}) as Dictionary).duplicate(true) if options.get("metadata", {}) is Dictionary else {},
+		"label": GFVariantData.get_option_string(options, "label", str(section_id)),
+		"metadata": _get_dictionary_option(options, "metadata"),
 	}
 	return true
 
@@ -146,7 +146,7 @@ func register_section(section_id: StringName, provider: Callable, options: Dicti
 ## [br]
 ## @param section_id: 分区标识。
 func unregister_section(section_id: StringName) -> void:
-	_section_providers.erase(section_id)
+	_erase_dictionary_key(_section_providers, section_id)
 
 
 ## 检查自定义分区是否存在。
@@ -170,10 +170,10 @@ func has_section(section_id: StringName) -> bool:
 func get_section_catalog() -> Dictionary:
 	var result: Dictionary = {}
 	for section_id: StringName in _section_providers.keys():
-		var entry := _section_providers[section_id] as Dictionary
+		var entry: Dictionary = GFVariantData.as_dictionary(_section_providers[section_id])
 		result[section_id] = {
-			"label": _variant_to_string(entry.get("label", str(section_id)), str(section_id)),
-			"metadata": (entry.get("metadata", {}) as Dictionary).duplicate(true),
+			"label": GFVariantData.get_option_string(entry, "label", str(section_id)),
+			"metadata": _get_dictionary_option(entry, "metadata"),
 		}
 	return result
 
@@ -192,14 +192,14 @@ func get_section_catalog() -> Dictionary:
 ## [br]
 ## @schema return: Dictionary，包含 report_id、timestamp_unix、description、metadata、tags、build、runtime、scene、diagnostics、sections、attachments。
 func build_report(description: String = "", options: Dictionary = {}) -> Dictionary:
-	var report_id: String = _variant_to_string(options.get("report_id", null), _make_report_id())
-	var attachments := collect_attachments(options.get("attachments", {}), options)
-	var report := {
+	var report_id: String = GFVariantData.get_option_string(options, "report_id", _make_report_id())
+	var attachments: Dictionary = collect_attachments(GFVariantData.get_option_value(options, "attachments", {}), options)
+	var report: Dictionary = {
 		"report_id": report_id,
 		"timestamp_unix": Time.get_unix_time_from_system(),
 		"description": description,
 		"metadata": _get_dictionary_option(options, "metadata"),
-		"tags": _get_tags(options.get("tags", PackedStringArray())),
+		"tags": _get_tags(GFVariantData.get_option_value(options, "tags", PackedStringArray())),
 		"build": GFBuildInfo.collect().to_dict(),
 		"runtime": _collect_runtime_snapshot(),
 		"scene": {},
@@ -208,20 +208,20 @@ func build_report(description: String = "", options: Dictionary = {}) -> Diction
 		"attachments": {},
 	}
 
-	if bool(options.get("include_scene", include_scene_by_default)):
+	if GFVariantData.get_option_bool(options, "include_scene", include_scene_by_default):
 		report["scene"] = _collect_scene_snapshot(_get_dictionary_option(options, "scene_options"))
-	if bool(options.get("include_diagnostics", include_diagnostics_by_default)):
+	if GFVariantData.get_option_bool(options, "include_diagnostics", include_diagnostics_by_default):
 		report["diagnostics"] = _collect_diagnostics_snapshot(options)
-	if bool(options.get("include_sections", true)):
+	if GFVariantData.get_option_bool(options, "include_sections", true):
 		report["sections"] = collect_sections(_get_dictionary_option(options, "section_options"))
-	if bool(options.get("include_screenshot", include_screenshot_by_default)):
-		var screenshot := _capture_viewport_png_buffer(options.get("viewport", null) as Viewport)
+	if GFVariantData.get_option_bool(options, "include_screenshot", include_screenshot_by_default):
+		var screenshot: PackedByteArray = _capture_viewport_png_buffer(_get_viewport_value(GFVariantData.get_option_value(options, "viewport")))
 		if not screenshot.is_empty():
-			_append_attachment(attachments, &"screenshot", screenshot, {
+			_append_attachment_without_result(attachments, &"screenshot", screenshot, {
 				"filename": "screenshot.png",
 				"mime_type": "image/png",
-				"max_attachment_bytes": int(options.get("max_attachment_bytes", default_max_attachment_bytes)),
-				"save_path": _variant_to_string(options.get("screenshot_path", "")),
+				"max_attachment_bytes": GFVariantData.get_option_int(options, "max_attachment_bytes", default_max_attachment_bytes),
+				"save_path": GFVariantData.get_option_string(options, "screenshot_path"),
 			})
 	report["attachments"] = attachments
 
@@ -244,11 +244,11 @@ func build_report(description: String = "", options: Dictionary = {}) -> Diction
 func collect_sections(options: Dictionary = {}) -> Dictionary:
 	var result: Dictionary = {}
 	for section_id: StringName in _section_providers.keys():
-		var entry := _section_providers[section_id] as Dictionary
-		var provider: Callable = entry.get("provider", Callable())
-		var section := {
-			"label": _variant_to_string(entry.get("label", str(section_id)), str(section_id)),
-			"metadata": (entry.get("metadata", {}) as Dictionary).duplicate(true),
+		var entry: Dictionary = GFVariantData.as_dictionary(_section_providers[section_id])
+		var provider: Callable = _variant_to_callable(GFVariantData.get_option_value(entry, "provider", Callable()))
+		var section: Dictionary = {
+			"label": GFVariantData.get_option_string(entry, "label", str(section_id)),
+			"metadata": _get_dictionary_option(entry, "metadata"),
 			"value": null,
 			"ok": false,
 			"error": "",
@@ -280,17 +280,23 @@ func collect_sections(options: Dictionary = {}) -> Dictionary:
 func collect_attachments(attachments: Variant, options: Dictionary = {}) -> Dictionary:
 	var result: Dictionary = {}
 	if attachments is Dictionary:
-		var attachment_map := attachments as Dictionary
+		var attachment_map: Dictionary = GFVariantData.as_dictionary(attachments)
 		for attachment_id_variant: Variant in attachment_map.keys():
-			_append_attachment(result, StringName(attachment_id_variant), attachment_map[attachment_id_variant], options)
+			var attachment_id: StringName = GFVariantData.to_string_name(attachment_id_variant)
+			_append_attachment_without_result(result, attachment_id, attachment_map[attachment_id_variant], options)
 	elif attachments is Array:
-		var attachment_array := attachments as Array
+		var attachment_array: Array = GFVariantData.as_array(attachments)
 		for index: int in range(attachment_array.size()):
-			var entry := attachment_array[index] as Dictionary
-			if entry == null:
+			var entry: Dictionary = GFVariantData.as_dictionary(attachment_array[index])
+			if entry.is_empty():
 				continue
-			var attachment_id := StringName(entry.get("attachment_id", entry.get("id", "attachment_%d" % index)))
-			_append_attachment(result, attachment_id, entry, options)
+			var entry_id_value: Variant = GFVariantData.get_option_value(
+				entry,
+				"attachment_id",
+				GFVariantData.get_option_value(entry, "id", "attachment_%d" % index)
+			)
+			var entry_attachment_id: StringName = GFVariantData.to_string_name(entry_id_value)
+			_append_attachment_without_result(result, entry_attachment_id, entry, options)
 	return result
 
 
@@ -323,7 +329,7 @@ func add_attachment_to_report(
 ) -> Dictionary:
 	if not report.has("attachments") or not (report["attachments"] is Dictionary):
 		report["attachments"] = {}
-	var attachments := report["attachments"] as Dictionary
+	var attachments: Dictionary = GFVariantData.as_dictionary(report["attachments"])
 	return _append_attachment(attachments, attachment_id, content, options)
 
 
@@ -356,13 +362,13 @@ func export_report_json(report: Dictionary, indent: String = "\t") -> String:
 ## [br]
 ## @schema options: Dictionary，支持 title、include_metadata、include_diagnostics_summary、include_sections、include_attachments。
 func export_report_markdown(report: Dictionary, options: Dictionary = {}) -> String:
-	var lines := PackedStringArray()
-	var title := _variant_to_string(options.get("title", "GF Support Report"), "GF Support Report")
-	lines.append("# %s" % _markdown_line(title))
-	lines.append("")
+	var lines: PackedStringArray = PackedStringArray()
+	var title: String = GFVariantData.get_option_string(options, "title", "GF Support Report")
+	_append_packed_string(lines, "# %s" % _markdown_line(title))
+	_append_packed_string(lines, "")
 
 	_append_markdown_summary(lines, report)
-	_append_markdown_dictionary_fields(lines, "Build", report.get("build", {}), PackedStringArray([
+	_append_markdown_dictionary_fields(lines, "Build", GFVariantData.get_option_value(report, "build", {}), PackedStringArray([
 		"project_name",
 		"project_version",
 		"gf_version",
@@ -370,28 +376,28 @@ func export_report_markdown(report: Dictionary, options: Dictionary = {}) -> Str
 		"godot_version",
 		"platform",
 	]))
-	_append_markdown_dictionary_fields(lines, "Runtime", report.get("runtime", {}), PackedStringArray([
+	_append_markdown_dictionary_fields(lines, "Runtime", GFVariantData.get_option_value(report, "runtime", {}), PackedStringArray([
 		"platform",
 		"locale",
 		"processor_count",
 		"static_memory",
 		"object_count",
 	]))
-	_append_markdown_dictionary_fields(lines, "Scene", report.get("scene", {}), PackedStringArray([
+	_append_markdown_dictionary_fields(lines, "Scene", GFVariantData.get_option_value(report, "scene", {}), PackedStringArray([
 		"available",
 		"name",
 		"path",
 		"node_count",
 		"node_count_truncated",
 	]))
-	if bool(options.get("include_metadata", true)):
-		_append_markdown_dictionary(lines, "Metadata", report.get("metadata", {}))
-	if bool(options.get("include_diagnostics_summary", true)):
-		_append_markdown_diagnostics(lines, report.get("diagnostics", {}))
-	if bool(options.get("include_sections", true)):
-		_append_markdown_sections(lines, report.get("sections", {}))
-	if bool(options.get("include_attachments", true)):
-		_append_markdown_attachments(lines, report.get("attachments", {}))
+	if GFVariantData.get_option_bool(options, "include_metadata", true):
+		_append_markdown_dictionary(lines, "Metadata", GFVariantData.get_option_value(report, "metadata", {}))
+	if GFVariantData.get_option_bool(options, "include_diagnostics_summary", true):
+		_append_markdown_diagnostics(lines, GFVariantData.get_option_value(report, "diagnostics", {}))
+	if GFVariantData.get_option_bool(options, "include_sections", true):
+		_append_markdown_sections(lines, GFVariantData.get_option_value(report, "sections", {}))
+	if GFVariantData.get_option_bool(options, "include_attachments", true):
+		_append_markdown_attachments(lines, GFVariantData.get_option_value(report, "attachments", {}))
 
 	return "\n".join(lines)
 
@@ -412,21 +418,21 @@ func save_report(report: Dictionary, path: String) -> Error:
 		report_saved.emit(path, ERR_INVALID_PARAMETER)
 		return ERR_INVALID_PARAMETER
 
-	var base_dir := path.get_base_dir()
+	var base_dir: String = path.get_base_dir()
 	if not base_dir.is_empty() and base_dir != "user://":
-		var dir_error := DirAccess.make_dir_recursive_absolute(base_dir)
+		var dir_error: Error = DirAccess.make_dir_recursive_absolute(base_dir)
 		if dir_error != OK:
 			report_saved.emit(path, dir_error)
 			return dir_error
 
-	var file := FileAccess.open(path, FileAccess.WRITE)
+	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
-		var open_error := FileAccess.get_open_error()
+		var open_error: Error = FileAccess.get_open_error()
 		report_saved.emit(path, open_error)
 		return open_error
 
-	file.store_string(export_report_json(report))
-	var error := file.get_error()
+	_store_file_string(file, export_report_json(report))
+	var error: Error = file.get_error()
 	file.close()
 	if error == OK:
 		_reports_saved_count += 1
@@ -469,7 +475,7 @@ func build_and_save_report(path: String, description: String = "", options: Dict
 ## [br]
 ## @schema return: Dictionary，包含 ok、value、error、metadata，可选 submitted_at_unix。
 func submit_report(report: Dictionary, transport: Callable, options: Dictionary = {}) -> Dictionary:
-	var result := {
+	var result: Dictionary = {
 		"ok": false,
 		"value": null,
 		"error": "",
@@ -483,7 +489,7 @@ func submit_report(report: Dictionary, transport: Callable, options: Dictionary 
 	var raw_result: Variant = transport.call(report.duplicate(true), options.duplicate(true))
 	result = _normalize_submit_result(raw_result)
 	result["submitted_at_unix"] = Time.get_unix_time_from_system()
-	if bool(result.get("ok", false)):
+	if GFVariantData.get_option_bool(result, "ok"):
 		_reports_submitted_count += 1
 	report_submitted.emit(result)
 	return result
@@ -514,6 +520,70 @@ func get_debug_snapshot() -> Dictionary:
 
 # --- 私有/辅助方法 ---
 
+func _erase_dictionary_key(target: Dictionary, key: Variant) -> void:
+	var erased: bool = target.erase(key)
+	if erased:
+		return
+
+
+func _append_packed_string(target: PackedStringArray, value: String) -> void:
+	var appended: bool = target.append(value)
+	if appended:
+		return
+
+
+func _append_attachment_without_result(
+	attachments: Dictionary,
+	attachment_id: StringName,
+	content: Variant,
+	options: Dictionary
+) -> void:
+	var entry: Dictionary = _append_attachment(attachments, attachment_id, content, options)
+	if entry.is_empty():
+		return
+
+
+func _store_file_string(file: FileAccess, value: String) -> void:
+	var stored: Variant = file.store_string(value)
+	if stored == null:
+		return
+
+
+func _store_file_buffer(file: FileAccess, bytes: PackedByteArray) -> void:
+	var stored: Variant = file.store_buffer(bytes)
+	if stored == null:
+		return
+
+
+func _variant_to_callable(value: Variant) -> Callable:
+	if value is Callable:
+		var callback: Callable = value
+		return callback
+	return Callable()
+
+
+func _get_scene_tree() -> SceneTree:
+	var main_loop: MainLoop = Engine.get_main_loop()
+	if main_loop is SceneTree:
+		var tree: SceneTree = main_loop
+		return tree
+	return null
+
+
+func _get_diagnostics_utility() -> GFDiagnosticsUtility:
+	var utility: Object = get_utility(GFDiagnosticsUtility)
+	if utility is GFDiagnosticsUtility:
+		return utility
+	return null
+
+
+func _get_log_utility() -> GFLogUtility:
+	var utility: Object = get_utility(GFLogUtility)
+	if utility is GFLogUtility:
+		return utility
+	return null
+
+
 func _make_report_id() -> String:
 	return "%d-%d" % [int(Time.get_unix_time_from_system()), Time.get_ticks_msec()]
 
@@ -530,7 +600,7 @@ func _collect_runtime_snapshot() -> Dictionary:
 
 
 func _collect_scene_snapshot(options: Dictionary = {}) -> Dictionary:
-	var tree := Engine.get_main_loop() as SceneTree
+	var tree: SceneTree = _get_scene_tree()
 	if tree == null or tree.current_scene == null:
 		return {
 			"available": false,
@@ -538,28 +608,28 @@ func _collect_scene_snapshot(options: Dictionary = {}) -> Dictionary:
 			"node_count_truncated": false,
 		}
 
-	var scene := tree.current_scene
-	var counters := _make_node_count_counters()
-	var max_depth := maxi(int(options.get("max_depth", default_scene_count_max_depth)), 0)
-	var max_nodes := maxi(int(options.get("max_nodes", default_scene_count_max_nodes)), 0)
+	var scene: Node = tree.current_scene
+	var counters: Dictionary = _make_node_count_counters()
+	var max_depth: int = maxi(GFVariantData.get_option_int(options, "max_depth", default_scene_count_max_depth), 0)
+	var max_nodes: int = maxi(GFVariantData.get_option_int(options, "max_nodes", default_scene_count_max_nodes), 0)
 	return {
 		"available": true,
 		"name": scene.name,
 		"path": scene.scene_file_path,
 		"node_count": _count_nodes(scene, 0, max_depth, max_nodes, counters),
-		"node_count_truncated": bool(counters.get("truncated", false)),
+		"node_count_truncated": GFVariantData.get_option_bool(counters, "truncated"),
 	}
 
 
 func _collect_diagnostics_snapshot(options: Dictionary) -> Dictionary:
-	var diagnostics := get_utility(GFDiagnosticsUtility) as GFDiagnosticsUtility
+	var diagnostics: GFDiagnosticsUtility = _get_diagnostics_utility()
 	if diagnostics != null:
-		var diagnostics_options := _get_dictionary_option(options, "diagnostics_options")
+		var diagnostics_options: Dictionary = _get_dictionary_option(options, "diagnostics_options")
 		if not diagnostics_options.has("recent_log_count"):
 			diagnostics_options["recent_log_count"] = default_recent_log_count
 		return diagnostics.collect_snapshot(diagnostics_options)
 
-	var log_utility := get_utility(GFLogUtility) as GFLogUtility
+	var log_utility: GFLogUtility = _get_log_utility()
 	if log_utility == null:
 		return {
 			"available": false,
@@ -575,15 +645,15 @@ func _collect_diagnostics_snapshot(options: Dictionary) -> Dictionary:
 
 
 func _capture_viewport_png_buffer(viewport: Viewport) -> PackedByteArray:
-	var target_viewport := viewport
+	var target_viewport: Viewport = viewport
 	if target_viewport == null:
-		var tree := Engine.get_main_loop() as SceneTree
+		var tree: SceneTree = _get_scene_tree()
 		if tree != null:
 			target_viewport = tree.root
 	if target_viewport == null:
 		return PackedByteArray()
 
-	var image := target_viewport.get_texture().get_image()
+	var image: Image = target_viewport.get_texture().get_image()
 	if image == null:
 		return PackedByteArray()
 	return image.save_png_to_buffer()
@@ -601,31 +671,32 @@ func _append_attachment(
 			"reason": "attachment_id_is_empty",
 		}
 
-	var entry := _make_attachment_entry(attachment_id, content, options)
+	var entry: Dictionary = _make_attachment_entry(attachment_id, content, options)
 	attachments[attachment_id] = entry
 	return entry
 
 
 func _make_attachment_entry(attachment_id: StringName, content: Variant, options: Dictionary) -> Dictionary:
-	var attachment_options := options.duplicate(true)
+	var attachment_options: Dictionary = options.duplicate(true)
 	var payload: Variant = content
 	if content is Dictionary:
-		var content_dictionary := content as Dictionary
+		var content_dictionary: Dictionary = GFVariantData.as_dictionary(content)
 		attachment_options.merge(content_dictionary, true)
 		if content_dictionary.has("bytes"):
 			payload = content_dictionary["bytes"]
 		elif content_dictionary.has("text"):
 			payload = content_dictionary["text"]
 		elif content_dictionary.has("path"):
-			payload = _read_attachment_path(_variant_to_string(content_dictionary.get("path", "")))
+			payload = _read_attachment_path(GFVariantData.get_option_string(content_dictionary, "path"))
 
-	var filename := _variant_to_string(attachment_options.get("filename", String(attachment_id)))
-	var mime_type := _variant_to_string(attachment_options.get("mime_type", "application/octet-stream"))
-	var metadata := (attachment_options.get("metadata", {}) as Dictionary).duplicate(true) if attachment_options.get("metadata", {}) is Dictionary else {}
+	var filename: String = GFVariantData.get_option_string(attachment_options, "filename", String(attachment_id))
+	var mime_type: String = GFVariantData.get_option_string(attachment_options, "mime_type", "application/octet-stream")
+	var metadata: Dictionary = _get_dictionary_option(attachment_options, "metadata")
 	if payload is PackedByteArray:
-		return _make_binary_attachment_entry(payload as PackedByteArray, filename, mime_type, metadata, attachment_options)
+		var bytes: PackedByteArray = payload
+		return _make_binary_attachment_entry(bytes, filename, mime_type, metadata, attachment_options)
 	if payload is String:
-		var text := payload as String
+		var text: String = payload
 		return _make_text_attachment_entry(text, filename, mime_type, metadata, attachment_options)
 
 	return {
@@ -645,11 +716,11 @@ func _make_binary_attachment_entry(
 	metadata: Dictionary,
 	options: Dictionary
 ) -> Dictionary:
-	var max_bytes := int(options.get("max_attachment_bytes", default_max_attachment_bytes))
+	var max_bytes: int = GFVariantData.get_option_int(options, "max_attachment_bytes", default_max_attachment_bytes)
 	if max_bytes > 0 and bytes.size() > max_bytes:
 		return _make_rejected_attachment_entry(filename, mime_type, bytes.size(), max_bytes, metadata)
 
-	var entry := {
+	var entry: Dictionary = {
 		"ok": true,
 		"filename": filename,
 		"mime_type": mime_type,
@@ -669,8 +740,8 @@ func _make_text_attachment_entry(
 	metadata: Dictionary,
 	options: Dictionary
 ) -> Dictionary:
-	var bytes := text.to_utf8_buffer()
-	var max_bytes := int(options.get("max_attachment_bytes", default_max_attachment_bytes))
+	var bytes: PackedByteArray = text.to_utf8_buffer()
+	var max_bytes: int = GFVariantData.get_option_int(options, "max_attachment_bytes", default_max_attachment_bytes)
 	if max_bytes > 0 and bytes.size() > max_bytes:
 		return _make_rejected_attachment_entry(filename, mime_type, bytes.size(), max_bytes, metadata)
 
@@ -704,24 +775,24 @@ func _make_rejected_attachment_entry(
 
 
 func _save_attachment_if_requested(entry: Dictionary, bytes: PackedByteArray, options: Dictionary) -> void:
-	var save_path := _variant_to_string(options.get("save_path", ""))
+	var save_path: String = GFVariantData.get_option_string(options, "save_path")
 	if save_path.is_empty():
 		return
 
-	var base_dir := save_path.get_base_dir()
+	var base_dir: String = save_path.get_base_dir()
 	if not base_dir.is_empty() and base_dir != "user://":
-		var dir_error := DirAccess.make_dir_recursive_absolute(base_dir)
+		var dir_error: Error = DirAccess.make_dir_recursive_absolute(base_dir)
 		if dir_error != OK:
 			entry["save_error"] = dir_error
 			return
 
-	var file := FileAccess.open(save_path, FileAccess.WRITE)
+	var file: FileAccess = FileAccess.open(save_path, FileAccess.WRITE)
 	if file == null:
 		entry["save_error"] = FileAccess.get_open_error()
 		return
 
-	file.store_buffer(bytes)
-	var error := file.get_error()
+	_store_file_buffer(file, bytes)
+	var error: Error = file.get_error()
 	file.close()
 	if error == OK:
 		entry["saved_path"] = save_path
@@ -733,24 +804,24 @@ func _read_attachment_path(path: String) -> PackedByteArray:
 	if path.is_empty() or not FileAccess.file_exists(path):
 		return PackedByteArray()
 
-	var file := FileAccess.open(path, FileAccess.READ)
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		return PackedByteArray()
 
-	var bytes := file.get_buffer(file.get_length())
+	var bytes: PackedByteArray = file.get_buffer(file.get_length())
 	file.close()
 	return bytes
 
 
 func _normalize_submit_result(raw_result: Variant) -> Dictionary:
 	if raw_result is Dictionary:
-		var data := raw_result as Dictionary
+		var data: Dictionary = GFVariantData.as_dictionary(raw_result)
 		if data.has("ok"):
 			return {
-				"ok": bool(data.get("ok", false)),
-				"value": data.get("value", data.get("data", null)),
-				"error": _variant_to_string(data.get("error", "")),
-				"metadata": (data.get("metadata", {}) as Dictionary).duplicate(true) if data.get("metadata", {}) is Dictionary else {},
+				"ok": GFVariantData.get_option_bool(data, "ok"),
+				"value": GFVariantData.get_option_value(data, "value", GFVariantData.get_option_value(data, "data")),
+				"error": GFVariantData.get_option_string(data, "error"),
+				"metadata": _get_dictionary_option(data, "metadata"),
 			}
 	return {
 		"ok": true,
@@ -761,17 +832,17 @@ func _normalize_submit_result(raw_result: Variant) -> Dictionary:
 
 
 func _append_markdown_summary(lines: PackedStringArray, report: Dictionary) -> void:
-	lines.append("## Summary")
-	lines.append("")
-	_append_markdown_field(lines, "Report ID", report.get("report_id", ""))
-	_append_markdown_field(lines, "Timestamp", _format_unix_timestamp(report.get("timestamp_unix", "")))
-	var description := _variant_to_string(report.get("description", ""))
+	_append_packed_string(lines, "## Summary")
+	_append_packed_string(lines, "")
+	_append_markdown_field(lines, "Report ID", GFVariantData.get_option_value(report, "report_id", ""))
+	_append_markdown_field(lines, "Timestamp", _format_unix_timestamp(GFVariantData.get_option_value(report, "timestamp_unix", "")))
+	var description: String = GFVariantData.get_option_string(report, "description")
 	if not description.is_empty():
 		_append_markdown_field(lines, "Description", description)
-	var tags := _tags_to_markdown_text(report.get("tags", PackedStringArray()))
+	var tags: String = _tags_to_markdown_text(GFVariantData.get_option_value(report, "tags", PackedStringArray()))
 	if not tags.is_empty():
 		_append_markdown_field(lines, "Tags", tags)
-	lines.append("")
+	_append_packed_string(lines, "")
 
 
 func _append_markdown_dictionary_fields(
@@ -783,148 +854,149 @@ func _append_markdown_dictionary_fields(
 	if not (value is Dictionary):
 		return
 
-	var dictionary := value as Dictionary
+	var dictionary: Dictionary = GFVariantData.as_dictionary(value)
 	if dictionary.is_empty():
 		return
 
-	var wrote_field := false
-	lines.append("## %s" % _markdown_line(title))
-	lines.append("")
+	var wrote_field: bool = false
+	_append_packed_string(lines, "## %s" % _markdown_line(title))
+	_append_packed_string(lines, "")
 	for key: String in keys:
 		if dictionary.has(key):
 			_append_markdown_field(lines, key, dictionary[key])
 			wrote_field = true
 	if not wrote_field:
 		_append_markdown_dictionary_items(lines, dictionary)
-	lines.append("")
+	_append_packed_string(lines, "")
 
 
 func _append_markdown_dictionary(lines: PackedStringArray, title: String, value: Variant) -> void:
 	if not (value is Dictionary):
 		return
 
-	var dictionary := value as Dictionary
+	var dictionary: Dictionary = GFVariantData.as_dictionary(value)
 	if dictionary.is_empty():
 		return
 
-	lines.append("## %s" % _markdown_line(title))
-	lines.append("")
+	_append_packed_string(lines, "## %s" % _markdown_line(title))
+	_append_packed_string(lines, "")
 	_append_markdown_dictionary_items(lines, dictionary)
-	lines.append("")
+	_append_packed_string(lines, "")
 
 
 func _append_markdown_diagnostics(lines: PackedStringArray, value: Variant) -> void:
 	if not (value is Dictionary):
 		return
 
-	var diagnostics := value as Dictionary
+	var diagnostics: Dictionary = GFVariantData.as_dictionary(value)
 	if diagnostics.is_empty():
 		return
 
-	lines.append("## Diagnostics")
-	lines.append("")
+	_append_packed_string(lines, "## Diagnostics")
+	_append_packed_string(lines, "")
 	if diagnostics.has("available"):
 		_append_markdown_field(lines, "available", diagnostics["available"])
 	if diagnostics.has("timestamp_unix"):
 		_append_markdown_field(lines, "timestamp", _format_unix_timestamp(diagnostics["timestamp_unix"]))
 
-	var keys := PackedStringArray()
+	var keys: PackedStringArray = PackedStringArray()
 	for key: Variant in _get_sorted_dictionary_keys(diagnostics):
-		keys.append(_variant_to_string(key))
+		_append_packed_string(keys, GFVariantData.to_text(key))
 	if not keys.is_empty():
 		_append_markdown_field(lines, "keys", ", ".join(keys))
 
-	var performance := diagnostics.get("performance", {}) as Dictionary
-	if performance != null and not performance.is_empty():
-		_append_markdown_field(lines, "performance.fps", performance.get("fps", ""))
-		_append_markdown_field(lines, "performance.object_count", performance.get("object_count", ""))
-		_append_markdown_field(lines, "performance.node_count", performance.get("node_count", ""))
+	var performance: Dictionary = GFVariantData.get_option_dictionary(diagnostics, "performance")
+	if not performance.is_empty():
+		_append_markdown_field(lines, "performance.fps", GFVariantData.get_option_value(performance, "fps", ""))
+		_append_markdown_field(lines, "performance.object_count", GFVariantData.get_option_value(performance, "object_count", ""))
+		_append_markdown_field(lines, "performance.node_count", GFVariantData.get_option_value(performance, "node_count", ""))
 
-	var logs := diagnostics.get("logs", {}) as Dictionary
-	if logs != null and not logs.is_empty():
-		_append_markdown_field(lines, "logs.memory_count", logs.get("memory_count", ""))
-		_append_markdown_field(lines, "logs.dropped_count", logs.get("dropped_count", ""))
-	lines.append("")
+	var logs: Dictionary = GFVariantData.get_option_dictionary(diagnostics, "logs")
+	if not logs.is_empty():
+		_append_markdown_field(lines, "logs.memory_count", GFVariantData.get_option_value(logs, "memory_count", ""))
+		_append_markdown_field(lines, "logs.dropped_count", GFVariantData.get_option_value(logs, "dropped_count", ""))
+	_append_packed_string(lines, "")
 
 
 func _append_markdown_sections(lines: PackedStringArray, value: Variant) -> void:
 	if not (value is Dictionary):
 		return
 
-	var sections := value as Dictionary
+	var sections: Dictionary = GFVariantData.as_dictionary(value)
 	if sections.is_empty():
 		return
 
-	lines.append("## Sections")
-	lines.append("")
+	_append_packed_string(lines, "## Sections")
+	_append_packed_string(lines, "")
 	for section_id: Variant in _get_sorted_dictionary_keys(sections):
-		var section := sections[section_id] as Dictionary
-		if section == null:
+		var section: Dictionary = GFVariantData.as_dictionary(sections[section_id])
+		if section.is_empty():
 			continue
 
-		var label := _variant_to_string(section.get("label", section_id), _variant_to_string(section_id))
-		lines.append("### %s" % _markdown_line(label))
-		lines.append("")
+		var label: String = GFVariantData.get_option_string(section, "label", GFVariantData.to_text(section_id))
+		_append_packed_string(lines, "### %s" % _markdown_line(label))
+		_append_packed_string(lines, "")
 		_append_markdown_field(lines, "id", section_id)
-		_append_markdown_field(lines, "ok", section.get("ok", false))
-		var error := _variant_to_string(section.get("error", ""))
+		_append_markdown_field(lines, "ok", GFVariantData.get_option_value(section, "ok", false))
+		var error: String = GFVariantData.get_option_string(section, "error")
 		if not error.is_empty():
 			_append_markdown_field(lines, "error", error)
 		if section.has("value"):
-			lines.append("")
-			lines.append("```json")
-			lines.append(_variant_to_json_text(section["value"]))
-			lines.append("```")
-		lines.append("")
+			_append_packed_string(lines, "")
+			_append_packed_string(lines, "```json")
+			_append_packed_string(lines, _variant_to_json_text(section["value"]))
+			_append_packed_string(lines, "```")
+		_append_packed_string(lines, "")
 
 
 func _append_markdown_attachments(lines: PackedStringArray, value: Variant) -> void:
 	if not (value is Dictionary):
 		return
 
-	var attachments := value as Dictionary
+	var attachments: Dictionary = GFVariantData.as_dictionary(value)
 	if attachments.is_empty():
 		return
 
-	lines.append("## Attachments")
-	lines.append("")
+	_append_packed_string(lines, "## Attachments")
+	_append_packed_string(lines, "")
 	for attachment_id: Variant in _get_sorted_dictionary_keys(attachments):
-		var attachment := attachments[attachment_id] as Dictionary
-		if attachment == null:
+		var attachment: Dictionary = GFVariantData.as_dictionary(attachments[attachment_id])
+		if attachment.is_empty():
 			continue
 
-		lines.append("### %s" % _markdown_line(_variant_to_string(attachment_id)))
-		lines.append("")
-		_append_markdown_field(lines, "ok", attachment.get("ok", false))
-		_append_markdown_field(lines, "filename", attachment.get("filename", ""))
-		_append_markdown_field(lines, "mime_type", attachment.get("mime_type", ""))
-		_append_markdown_field(lines, "size_bytes", attachment.get("size_bytes", 0))
+		_append_packed_string(lines, "### %s" % _markdown_line(GFVariantData.to_text(attachment_id)))
+		_append_packed_string(lines, "")
+		_append_markdown_field(lines, "ok", GFVariantData.get_option_value(attachment, "ok", false))
+		_append_markdown_field(lines, "filename", GFVariantData.get_option_value(attachment, "filename", ""))
+		_append_markdown_field(lines, "mime_type", GFVariantData.get_option_value(attachment, "mime_type", ""))
+		_append_markdown_field(lines, "size_bytes", GFVariantData.get_option_value(attachment, "size_bytes", 0))
 		if attachment.has("reason"):
 			_append_markdown_field(lines, "reason", attachment["reason"])
 		if attachment.has("saved_path"):
 			_append_markdown_field(lines, "saved_path", attachment["saved_path"])
-		lines.append("")
+		_append_packed_string(lines, "")
 
 
 func _append_markdown_dictionary_items(lines: PackedStringArray, dictionary: Dictionary) -> void:
 	for key: Variant in _get_sorted_dictionary_keys(dictionary):
-		_append_markdown_field(lines, _variant_to_string(key), dictionary[key])
+		_append_markdown_field(lines, GFVariantData.to_text(key), dictionary[key])
 
 
 func _append_markdown_field(lines: PackedStringArray, label: String, value: Variant) -> void:
-	lines.append("- %s: %s" % [_markdown_line(label), _markdown_value(value)])
+	_append_packed_string(lines, "- %s: %s" % [_markdown_line(label), _markdown_value(value)])
 
 
 func _markdown_value(value: Variant) -> String:
 	if value is Dictionary or value is Array:
 		return "`%s`" % _markdown_inline(_variant_to_json_text(value))
 	if value is PackedStringArray:
-		return "`%s`" % _markdown_inline(", ".join(value as PackedStringArray))
-	return "`%s`" % _markdown_inline(_variant_to_string(value))
+		var values: PackedStringArray = value
+		return "`%s`" % _markdown_inline(", ".join(values))
+	return "`%s`" % _markdown_inline(GFVariantData.to_text(value))
 
 
 func _markdown_line(value: String) -> String:
-	var result := value.replace("\r", " ").replace("\n", " ").strip_edges()
+	var result: String = value.replace("\r", " ").replace("\n", " ").strip_edges()
 	return result if not result.is_empty() else "-"
 
 
@@ -934,49 +1006,61 @@ func _markdown_inline(value: String) -> String:
 
 func _format_unix_timestamp(value: Variant) -> String:
 	if value is int or value is float:
-		var timestamp := int(value)
+		var timestamp: int = GFVariantData.to_int(value)
 		if timestamp > 0:
 			return Time.get_datetime_string_from_unix_time(timestamp, true)
-	return _variant_to_string(value)
+	return GFVariantData.to_text(value)
 
 
 func _tags_to_markdown_text(value: Variant) -> String:
-	var tags := PackedStringArray()
+	var tags: PackedStringArray = PackedStringArray()
 	if value is PackedStringArray:
-		tags = (value as PackedStringArray).duplicate()
+		tags = _get_packed_string_array_value(value, true)
 	elif value is Array:
-		for item: Variant in value as Array:
-			tags.append(_variant_to_string(item))
+		for item: Variant in GFVariantData.as_array(value):
+			_append_packed_string(tags, GFVariantData.to_text(item))
 	return ", ".join(tags)
 
 
 func _variant_to_json_text(value: Variant) -> String:
-	var compatible := GFVariantJsonCodec.variant_to_json_compatible(value, {
+	var compatible: Variant = GFVariantJsonCodec.variant_to_json_compatible(value, {
 		"unsupported": "string",
 	})
 	return JSON.stringify(compatible, "\t")
 
 
 func _get_sorted_dictionary_keys(dictionary: Dictionary) -> Array:
-	var keys := dictionary.keys()
+	var keys: Array = dictionary.keys()
 	keys.sort_custom(func(a: Variant, b: Variant) -> bool:
-		return _variant_to_string(a) < _variant_to_string(b)
+		return GFVariantData.to_text(a) < GFVariantData.to_text(b)
 	)
 	return keys
 
 
+func _get_viewport_value(value: Variant) -> Viewport:
+	if value is Viewport:
+		return value
+	return null
+
+
+func _get_packed_string_array_value(value: Variant, duplicate_value: bool = false) -> PackedStringArray:
+	if value is PackedStringArray:
+		var array: PackedStringArray = value
+		return array.duplicate() if duplicate_value else array
+	return PackedStringArray()
+
+
 func _get_dictionary_option(options: Dictionary, key: String) -> Dictionary:
-	var value: Variant = options.get(key, {})
-	return (value as Dictionary).duplicate(true) if value is Dictionary else {}
+	return GFVariantData.get_option_dictionary(options, key)
 
 
 func _get_tags(value: Variant) -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	if value is PackedStringArray:
-		return (value as PackedStringArray).duplicate()
+		return _get_packed_string_array_value(value, true)
 	if value is Array:
 		for item: Variant in value:
-			result.append(_variant_to_string(item))
+			_append_packed_string(result, GFVariantData.to_text(item))
 	return result
 
 
@@ -987,8 +1071,8 @@ func _count_nodes(root: Node, depth: int, max_depth: int, max_nodes: int, counte
 		counters["truncated"] = true
 		return 0
 
-	var count := 1
-	counters["count"] = int(counters.get("count", 0)) + 1
+	var count: int = 1
+	counters["count"] = GFVariantData.get_option_int(counters, "count", 0) + 1
 	if max_depth > 0 and depth >= max_depth:
 		if root.get_child_count() > 0:
 			counters["truncated"] = true
@@ -1003,7 +1087,7 @@ func _count_nodes(root: Node, depth: int, max_depth: int, max_nodes: int, counte
 
 
 func _can_count_more_nodes(counters: Dictionary, max_nodes: int) -> bool:
-	return max_nodes <= 0 or int(counters.get("count", 0)) < max_nodes
+	return max_nodes <= 0 or GFVariantData.get_option_int(counters, "count", 0) < max_nodes
 
 
 func _make_node_count_counters() -> Dictionary:
@@ -1011,11 +1095,3 @@ func _make_node_count_counters() -> Dictionary:
 		"count": 0,
 		"truncated": false,
 	}
-
-
-func _variant_to_string(value: Variant, fallback: String = "") -> String:
-	if value == null:
-		return fallback
-	if value is String:
-		return value as String
-	return str(value)

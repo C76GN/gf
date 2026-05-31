@@ -51,11 +51,6 @@ const DEFAULT_MAX_SCAN_DEPTH: int = 32
 ## @api public
 const DEFAULT_MAX_AUDIO_PATHS: int = 10000
 
-const _GF_AUDIO_BANK_BASE = preload("res://addons/gf/standard/utilities/audio/gf_audio_bank.gd")
-const _GF_AUDIO_CLIP_BASE = preload("res://addons/gf/standard/utilities/audio/gf_audio_clip.gd")
-const _GF_VALIDATION_REPORT_BASE = preload("res://addons/gf/standard/foundation/validation/gf_validation_report.gd")
-
-
 # --- 公共方法 ---
 
 ## 判断路径是否指向 GF 默认支持的音频扩展名。
@@ -68,7 +63,7 @@ const _GF_VALIDATION_REPORT_BASE = preload("res://addons/gf/standard/foundation/
 ## [br]
 ## @return: 是音频路径时返回 true。
 static func is_audio_path(path: String, extensions: PackedStringArray = AUDIO_EXTENSIONS) -> bool:
-	var extension := path.get_extension().to_lower()
+	var extension: String = path.get_extension().to_lower()
 	return not extension.is_empty() and extensions.has(extension)
 
 
@@ -84,14 +79,14 @@ static func is_audio_path(path: String, extensions: PackedStringArray = AUDIO_EX
 ## [br]
 ## @schema options: Dictionary，可包含 recursive、include_addons、excluded_paths、extensions、max_scan_depth 和 max_audio_paths 字段。
 static func scan_audio_paths(root_path: String = "res://", options: Dictionary = {}) -> PackedStringArray:
-	var result := PackedStringArray()
-	var normalized_root := _normalize_dir_path(root_path)
-	var extensions := _get_extensions(options)
-	var recursive := GFVariantData.get_option_bool(options, "recursive", true)
-	var excluded_paths := _get_excluded_paths(options)
-	var max_scan_depth := maxi(GFVariantData.get_option_int(options, "max_scan_depth", DEFAULT_MAX_SCAN_DEPTH), 0)
-	var max_audio_paths := maxi(GFVariantData.get_option_int(options, "max_audio_paths", DEFAULT_MAX_AUDIO_PATHS), 0)
-	var scan_state := _make_scan_state()
+	var result: PackedStringArray = PackedStringArray()
+	var normalized_root: String = _normalize_dir_path(root_path)
+	var extensions: PackedStringArray = _get_extensions(options)
+	var recursive: bool = GFVariantData.get_option_bool(options, "recursive", true)
+	var excluded_paths: PackedStringArray = _get_excluded_paths(options)
+	var max_scan_depth: int = maxi(GFVariantData.get_option_int(options, "max_scan_depth", DEFAULT_MAX_SCAN_DEPTH), 0)
+	var max_audio_paths: int = maxi(GFVariantData.get_option_int(options, "max_audio_paths", DEFAULT_MAX_AUDIO_PATHS), 0)
+	var scan_state: Dictionary = _make_scan_state()
 	_scan_audio_paths_recursive(
 		normalized_root,
 		recursive,
@@ -119,10 +114,10 @@ static func scan_audio_paths(root_path: String = "res://", options: Dictionary =
 ## [br]
 ## @schema options: Dictionary，可包含 id_mode、base_path、path_separator、strip_extension、bus_name、volume_db、pitch_scale 和 overwrite 字段。
 static func create_bank_from_paths(paths: PackedStringArray, options: Dictionary = {}) -> GFAudioBank:
-	var bank := _GF_AUDIO_BANK_BASE.new() as GFAudioBank
-	var import_options := GFVariantData.to_dictionary(options)
+	var bank: GFAudioBank = _make_bank()
+	var import_options: Dictionary = GFVariantData.to_dictionary(options)
 	import_options["overwrite"] = true
-	add_paths_to_bank(bank, paths, import_options)
+	var _import_report: GFValidationReport = add_paths_to_bank(bank, paths, import_options)
 	return bank
 
 
@@ -138,7 +133,7 @@ static func create_bank_from_paths(paths: PackedStringArray, options: Dictionary
 ## [br]
 ## @schema options: Dictionary，可同时包含扫描选项和片段导入选项。
 static func create_bank_from_scan(root_path: String = "res://", options: Dictionary = {}) -> GFAudioBank:
-	var paths := scan_audio_paths(root_path, options)
+	var paths: PackedStringArray = scan_audio_paths(root_path, options)
 	return create_bank_from_paths(paths, options)
 
 
@@ -160,29 +155,30 @@ static func add_paths_to_bank(
 	paths: PackedStringArray,
 	options: Dictionary = {}
 ) -> GFValidationReport:
-	var report := _GF_VALIDATION_REPORT_BASE.new("GFAudioBankTools.add_paths_to_bank") as GFValidationReport
+	var report: GFValidationReport = _make_report("GFAudioBankTools.add_paths_to_bank")
 	if bank == null:
-		report.add_error(&"missing_audio_bank", "Audio bank is null.")
+		_add_report_error(report, &"missing_audio_bank", "Audio bank is null.")
 		return report
 
-	var overwrite := GFVariantData.get_option_bool(options, "overwrite", false)
-	var extensions := _get_extensions(options)
-	var added_count := 0
-	var skipped_count := 0
+	var overwrite: bool = GFVariantData.get_option_bool(options, "overwrite", false)
+	var extensions: PackedStringArray = _get_extensions(options)
+	var added_count: int = 0
+	var skipped_count: int = 0
 	for path: String in paths:
 		if not is_audio_path(path, extensions):
-			report.add_warning(&"invalid_audio_path", "Path is not a supported audio file.", path, path)
+			_add_report_warning(report, &"invalid_audio_path", "Path is not a supported audio file.", path, path)
 			skipped_count += 1
 			continue
 
-		var clip_id := make_clip_id(path, options)
+		var clip_id: StringName = make_clip_id(path, options)
 		if clip_id == &"":
-			report.add_warning(&"empty_audio_clip_id", "Generated clip id is empty.", path, path)
+			_add_report_warning(report, &"empty_audio_clip_id", "Generated clip id is empty.", path, path)
 			skipped_count += 1
 			continue
 
 		if bank.has_clip(clip_id) and not overwrite:
-			report.add_warning(
+			_add_report_warning(
+				report,
 				&"audio_clip_id_exists",
 				"Audio clip id already exists and overwrite is disabled.",
 				clip_id,
@@ -191,7 +187,7 @@ static func add_paths_to_bank(
 			skipped_count += 1
 			continue
 
-		var clip := _make_clip(path, options)
+		var clip: GFAudioClip = _make_clip(path, options)
 		bank.set_clip(clip_id, clip)
 		added_count += 1
 
@@ -218,8 +214,8 @@ static func sync_bank_from_scan(
 	root_path: String = "res://",
 	options: Dictionary = {}
 ) -> GFValidationReport:
-	var paths := scan_audio_paths(root_path, options)
-	var report := add_paths_to_bank(bank, paths, options)
+	var paths: PackedStringArray = scan_audio_paths(root_path, options)
+	var report: GFValidationReport = add_paths_to_bank(bank, paths, options)
 	report.metadata["root_path"] = root_path
 	report.metadata["scanned_count"] = paths.size()
 	return report
@@ -237,19 +233,19 @@ static func sync_bank_from_scan(
 ## [br]
 ## @schema options: Dictionary，可包含 check_resource_exists、check_bus_exists 和 extensions 字段。
 static func validate_bank_playback(bank: GFAudioBank, options: Dictionary = {}) -> GFValidationReport:
-	var report := _GF_VALIDATION_REPORT_BASE.new("GFAudioBankPlayback") as GFValidationReport
+	var report: GFValidationReport = _make_report("GFAudioBankPlayback")
 	if bank == null:
-		report.add_error(&"missing_audio_bank", "Audio bank is null.")
+		_add_report_error(report, &"missing_audio_bank", "Audio bank is null.")
 		return report
 
-	var check_resource_exists := GFVariantData.get_option_bool(options, "check_resource_exists", false)
-	report.merge(bank.validate_bank(check_resource_exists), true)
-	var check_bus_exists := GFVariantData.get_option_bool(options, "check_bus_exists", true)
-	var extensions := _get_extensions(options)
-	var clip_count := 0
+	var check_resource_exists: bool = GFVariantData.get_option_bool(options, "check_resource_exists", false)
+	_merge_report(report, bank.validate_bank(check_resource_exists), true)
+	var check_bus_exists: bool = GFVariantData.get_option_bool(options, "check_bus_exists", true)
+	var extensions: PackedStringArray = _get_extensions(options)
+	var clip_count: int = 0
 	for clip_id_text: String in bank.get_clip_ids():
-		var clip_id := StringName(clip_id_text)
-		var clips := bank.get_clips(clip_id)
+		var clip_id: StringName = StringName(clip_id_text)
+		var clips: Array[GFAudioClip] = bank.get_clips(clip_id)
 		clip_count += clips.size()
 		for index: int in range(clips.size()):
 			_validate_clip_playback(report, clip_id, clips[index], index, extensions, check_bus_exists)
@@ -270,8 +266,8 @@ static func validate_bank_playback(bank: GFAudioBank, options: Dictionary = {}) 
 ## [br]
 ## @schema options: Dictionary，可包含 id_mode、base_path、path_separator 和 strip_extension 字段。
 static func make_clip_id(path: String, options: Dictionary = {}) -> StringName:
-	var mode := _resolve_id_mode(GFVariantData.get_option_value(options, "id_mode", ClipIdMode.BASENAME))
-	var id_text := path.replace("\\", "/")
+	var mode: ClipIdMode = _resolve_id_mode(GFVariantData.get_option_value(options, "id_mode", ClipIdMode.BASENAME))
+	var id_text: String = path.replace("\\", "/")
 	match mode:
 		ClipIdMode.BASENAME:
 			id_text = id_text.get_file()
@@ -288,8 +284,16 @@ static func make_clip_id(path: String, options: Dictionary = {}) -> StringName:
 
 # --- 私有/辅助方法 ---
 
+static func _make_bank() -> GFAudioBank:
+	return GFAudioBank.new()
+
+
+static func _make_report(subject: String) -> GFValidationReport:
+	return GFValidationReport.new(subject)
+
+
 static func _make_clip(path: String, options: Dictionary) -> GFAudioClip:
-	var clip := _GF_AUDIO_CLIP_BASE.new() as GFAudioClip
+	var clip: GFAudioClip = GFAudioClip.new()
 	clip.path = path
 	clip.bus_name = GFVariantData.get_option_string(options, "bus_name", "")
 	clip.volume_db = GFVariantData.get_option_float(options, "volume_db", 0.0)
@@ -308,12 +312,13 @@ static func _validate_clip_playback(
 	if clip == null:
 		return
 
-	var metadata := {
+	var metadata: Dictionary = {
 		"clip_id": clip_id,
 		"index": index,
 	}
 	if not clip.path.is_empty() and not is_audio_path(clip.path, extensions):
-		report.add_warning(
+		_add_report_warning(
+			report,
 			&"unsupported_audio_extension",
 			"Audio clip path uses an unsupported extension.",
 			clip_id,
@@ -321,9 +326,10 @@ static func _validate_clip_playback(
 			metadata
 		)
 	if check_bus_exists and not clip.bus_name.is_empty() and AudioServer.get_bus_index(clip.bus_name) < 0:
-		var bus_metadata := GFVariantData.duplicate_metadata(metadata)
+		var bus_metadata: Dictionary = GFVariantData.duplicate_metadata(metadata)
 		bus_metadata["bus_name"] = clip.bus_name
-		report.add_warning(
+		_add_report_warning(
+			report,
 			&"missing_audio_bus",
 			"Audio clip references an audio bus that does not exist.",
 			clip_id,
@@ -349,12 +355,15 @@ static func _scan_audio_paths_recursive(
 	if _is_excluded_path(dir_path, excluded_paths):
 		return
 
-	var dir := DirAccess.open(dir_path)
+	var dir: DirAccess = DirAccess.open(dir_path)
 	if dir == null:
 		return
 
-	dir.list_dir_begin()
-	var entry := dir.get_next()
+	var list_error: Error = dir.list_dir_begin()
+	if list_error != OK:
+		return
+
+	var entry: String = dir.get_next()
 	while not entry.is_empty():
 		if not _can_collect_more_audio_paths(result, max_audio_paths):
 			_warn_audio_path_limit(max_audio_paths, scan_state)
@@ -364,7 +373,7 @@ static func _scan_audio_paths_recursive(
 			entry = dir.get_next()
 			continue
 
-		var child_path := dir_path.path_join(entry)
+		var child_path: String = dir_path.path_join(entry)
 		if dir.current_is_dir():
 			if recursive:
 				if _can_scan_deeper(child_path, depth, max_scan_depth, scan_state):
@@ -380,7 +389,7 @@ static func _scan_audio_paths_recursive(
 						scan_state
 					)
 		elif is_audio_path(entry, extensions):
-			result.append(child_path)
+			_append_packed_string(result, child_path)
 		entry = dir.get_next()
 	dir.list_dir_end()
 
@@ -404,14 +413,14 @@ static func _make_scan_state() -> Dictionary:
 
 
 static func _warn_audio_path_limit(max_audio_paths: int, scan_state: Dictionary) -> void:
-	if max_audio_paths <= 0 or bool(scan_state.get("count_warning_emitted", false)):
+	if max_audio_paths <= 0 or GFVariantData.get_option_bool(scan_state, "count_warning_emitted"):
 		return
 	scan_state["count_warning_emitted"] = true
 	push_warning("[GFAudioBankTools] scan_audio_paths 已达到 max_audio_paths=%d，后续音频已跳过。" % max_audio_paths)
 
 
 static func _warn_scan_depth_limit(path: String, max_scan_depth: int, scan_state: Dictionary) -> void:
-	if max_scan_depth <= 0 or bool(scan_state.get("depth_warning_emitted", false)):
+	if max_scan_depth <= 0 or GFVariantData.get_option_bool(scan_state, "depth_warning_emitted"):
 		return
 	scan_state["depth_warning_emitted"] = true
 	push_warning("[GFAudioBankTools] scan_audio_paths 已达到 max_scan_depth=%d，已跳过更深目录：%s。" % [max_scan_depth, path])
@@ -426,29 +435,36 @@ static func _get_extensions(options: Dictionary) -> PackedStringArray:
 static func _get_excluded_paths(options: Dictionary) -> PackedStringArray:
 	if GFVariantData.get_option_bool(options, "include_addons", false):
 		return PackedStringArray()
-	var paths := GFVariantData.get_option_packed_string_array(options, "excluded_paths", DEFAULT_EXCLUDED_PATHS)
-	var result := PackedStringArray()
+	var paths: PackedStringArray = GFVariantData.get_option_packed_string_array(options, "excluded_paths", DEFAULT_EXCLUDED_PATHS)
+	var result: PackedStringArray = PackedStringArray()
 	for path: String in paths:
-		result.append(_normalize_dir_path(path))
+		_append_packed_string(result, _normalize_dir_path(path))
 	return result
 
 
 static func _normalize_extensions(extensions: PackedStringArray) -> PackedStringArray:
-	var result := PackedStringArray()
+	var result: PackedStringArray = PackedStringArray()
 	for extension: String in extensions:
-		var normalized := extension.strip_edges().to_lower()
+		var normalized: String = extension.strip_edges().to_lower()
 		if normalized.begins_with("."):
 			normalized = normalized.substr(1)
 		if not normalized.is_empty():
-			result.append(normalized)
+			_append_packed_string(result, normalized)
 	return result
 
 
 static func _resolve_id_mode(value: Variant) -> ClipIdMode:
-	if typeof(value) == TYPE_INT:
-		return clampi(int(value), ClipIdMode.BASENAME, ClipIdMode.FULL_PATH) as ClipIdMode
+	if value is int or value is bool or value is float:
+		var mode_value: int = GFVariantData.to_int(value, ClipIdMode.BASENAME)
+		match clampi(mode_value, ClipIdMode.BASENAME, ClipIdMode.FULL_PATH):
+			ClipIdMode.RELATIVE_PATH:
+				return ClipIdMode.RELATIVE_PATH
+			ClipIdMode.FULL_PATH:
+				return ClipIdMode.FULL_PATH
+			_:
+				return ClipIdMode.BASENAME
 
-	match String(value).strip_edges().to_lower():
+	match GFVariantData.to_text(value).strip_edges().to_lower():
 		"relative", "relative_path":
 			return ClipIdMode.RELATIVE_PATH
 		"full", "full_path", "path":
@@ -458,9 +474,9 @@ static func _resolve_id_mode(value: Variant) -> ClipIdMode:
 
 
 static func _make_relative_path(path: String, base_path: String) -> String:
-	var normalized_base := _normalize_dir_path(base_path)
+	var normalized_base: String = _normalize_dir_path(base_path)
 	if path.begins_with(normalized_base):
-		var relative_path := path.substr(normalized_base.length())
+		var relative_path: String = path.substr(normalized_base.length())
 		if relative_path.begins_with("/"):
 			relative_path = relative_path.substr(1)
 		return relative_path
@@ -468,16 +484,48 @@ static func _make_relative_path(path: String, base_path: String) -> String:
 
 
 static func _normalize_dir_path(path: String) -> String:
-	var normalized := path.replace("\\", "/").strip_edges()
+	var normalized: String = path.replace("\\", "/").strip_edges()
 	while normalized.ends_with("/") and normalized.length() > "res://".length():
 		normalized = normalized.substr(0, normalized.length() - 1)
 	return normalized
 
 
 static func _is_excluded_path(path: String, excluded_paths: PackedStringArray) -> bool:
-	var normalized_path := _normalize_dir_path(path)
+	var normalized_path: String = _normalize_dir_path(path)
 	for excluded_path: String in excluded_paths:
-		var normalized_excluded := _normalize_dir_path(excluded_path)
+		var normalized_excluded: String = _normalize_dir_path(excluded_path)
 		if normalized_path == normalized_excluded or normalized_path.begins_with(normalized_excluded + "/"):
 			return true
 	return false
+
+
+static func _add_report_warning(
+	report: GFValidationReport,
+	kind: StringName,
+	message: String,
+	key: Variant = null,
+	path: String = "",
+	metadata: Dictionary = {}
+) -> void:
+	var _issue: RefCounted = report.add_warning(kind, message, key, path, metadata)
+
+
+static func _add_report_error(
+	report: GFValidationReport,
+	kind: StringName,
+	message: String,
+	key: Variant = null,
+	path: String = "",
+	metadata: Dictionary = {}
+) -> void:
+	var _issue: RefCounted = report.add_error(kind, message, key, path, metadata)
+
+
+static func _merge_report(target: GFValidationReport, source: Variant, include_metadata: bool = true) -> void:
+	var _merged_report: RefCounted = target.merge(source, include_metadata)
+
+
+static func _append_packed_string(target: PackedStringArray, value: String) -> void:
+	var appended: bool = target.append(value)
+	if appended:
+		return

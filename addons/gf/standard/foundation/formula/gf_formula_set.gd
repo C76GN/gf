@@ -36,7 +36,7 @@ func set_formula(formula_id: StringName, formula: GFFormula) -> void:
 		push_error("[GFFormulaSet] set_formula 失败：formula_id 为空。")
 		return
 	if formula == null:
-		formulas.erase(formula_id)
+		var _erase_result_39: Variant = formulas.erase(formula_id)
 		return
 	formulas[formula_id] = formula
 
@@ -49,7 +49,7 @@ func set_formula(formula_id: StringName, formula: GFFormula) -> void:
 ## [br]
 ## @return 公式资源；不存在时返回 null。
 func get_formula(formula_id: StringName) -> GFFormula:
-	return formulas.get(formula_id) as GFFormula
+	return _variant_to_formula(GFVariantData.get_option_value(formulas, formula_id))
 
 
 ## 检查是否存在指定公式。
@@ -79,7 +79,16 @@ func has_formula(formula_id: StringName) -> bool:
 ## [br]
 ## @schema return: Variant formula result or fallback.
 func calculate(formula_id: StringName, parameter: GFFormulaParameter = null, fallback: Variant = null) -> Variant:
-	var formula := get_formula(formula_id)
+	var formula: GFFormula = get_formula(formula_id)
 	if formula == null:
 		return fallback
 	return formula.calculate(parameter)
+
+
+# --- 私有/辅助方法 ---
+
+func _variant_to_formula(value: Variant) -> GFFormula:
+	if value is GFFormula:
+		var formula: GFFormula = value
+		return formula
+	return null

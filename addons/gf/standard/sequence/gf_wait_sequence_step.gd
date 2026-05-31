@@ -39,8 +39,17 @@ func execute(_context: GFSequenceContext) -> Variant:
 	if duration <= 0.0:
 		return null
 
-	var tree := Engine.get_main_loop() as SceneTree
+	var tree: SceneTree = _variant_to_scene_tree(Engine.get_main_loop())
 	if tree == null:
 		return null
 
 	return tree.create_timer(duration, true, false, not respect_engine_time_scale).timeout
+
+
+# --- 私有/辅助方法 ---
+
+func _variant_to_scene_tree(value: Variant) -> SceneTree:
+	if value is SceneTree:
+		var tree: SceneTree = value
+		return tree
+	return null

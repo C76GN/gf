@@ -46,6 +46,8 @@ const _DEFAULT_AXIS_LABELS: Dictionary = {
 	JOY_AXIS_TRIGGER_RIGHT: "Right Trigger",
 }
 
+const _INPUT_EVENT_TOOLS = preload("res://addons/gf/standard/input/common/gf_input_event_tools.gd")
+
 
 # --- 导出变量 ---
 
@@ -89,7 +91,7 @@ const _DEFAULT_AXIS_LABELS: Dictionary = {
 ## [br]
 ## @return 文本 provider。
 static func create_standard(provider_priority: int = 0) -> GFInputDeviceTextProvider:
-	var provider := GFInputDeviceTextProvider.new()
+	var provider: GFInputDeviceTextProvider = GFInputDeviceTextProvider.new()
 	provider.priority = provider_priority
 	return provider
 
@@ -106,7 +108,7 @@ static func create_standard(provider_priority: int = 0) -> GFInputDeviceTextProv
 ## [br]
 ## @return 文本；非 Joypad 事件返回空字符串。
 static func format_joypad_event(input_event: InputEvent, options: Dictionary = {}) -> String:
-	var provider := create_standard()
+	var provider: GFInputDeviceTextProvider = create_standard()
 	return provider.get_event_text(input_event, options)
 
 
@@ -137,10 +139,12 @@ func supports_event(input_event: InputEvent, _options: Dictionary = {}) -> bool:
 ## [br]
 ## @return 文本；不支持时返回空字符串。
 func get_event_text(input_event: InputEvent, options: Dictionary = {}) -> String:
-	if input_event is InputEventJoypadButton:
-		return _button_as_text((input_event as InputEventJoypadButton).button_index, options)
-	if input_event is InputEventJoypadMotion:
-		var motion := input_event as InputEventJoypadMotion
+	var button_event: InputEventJoypadButton = _INPUT_EVENT_TOOLS.get_joypad_button_event(input_event)
+	if button_event != null:
+		return _button_as_text(button_event.button_index, options)
+
+	var motion: InputEventJoypadMotion = _INPUT_EVENT_TOOLS.get_joypad_motion_event(input_event)
+	if motion != null:
 		return _axis_as_text(motion.axis, motion.axis_value, options)
 	return ""
 
@@ -148,23 +152,23 @@ func get_event_text(input_event: InputEvent, options: Dictionary = {}) -> String
 # --- 私有/辅助方法 ---
 
 func _button_as_text(button: JoyButton, options: Dictionary) -> String:
-	var labels := options.get("joypad_button_labels", button_labels) as Dictionary
+	var labels: Dictionary = GFVariantData.as_dictionary(GFVariantData.get_option_value(options, "joypad_button_labels", button_labels))
 	if labels != null and labels.has(int(button)):
-		return String(labels[int(button)])
+		return GFVariantData.to_text(labels[int(button)])
 	return "Joy Button %d" % int(button)
 
 
 func _axis_as_text(axis: JoyAxis, axis_value: float, options: Dictionary) -> String:
-	var labels := options.get("joypad_axis_labels", axis_labels) as Dictionary
-	var base_text := ""
+	var labels: Dictionary = GFVariantData.as_dictionary(GFVariantData.get_option_value(options, "joypad_axis_labels", axis_labels))
+	var base_text: String = ""
 	if labels != null and labels.has(int(axis)):
-		base_text = String(labels[int(axis)])
+		base_text = GFVariantData.to_text(labels[int(axis)])
 	else:
 		base_text = "Joy Axis %d" % int(axis)
 
-	var deadzone := float(options.get("joypad_axis_deadzone", axis_direction_deadzone))
+	var deadzone: float = GFVariantData.get_option_float(options, "joypad_axis_deadzone", axis_direction_deadzone)
 	if absf(axis_value) <= deadzone:
 		return base_text
 	if axis_value > 0.0:
-		return "%s %s" % [base_text, String(options.get("joypad_axis_positive_suffix", axis_positive_suffix))]
-	return "%s %s" % [base_text, String(options.get("joypad_axis_negative_suffix", axis_negative_suffix))]
+		return "%s %s" % [base_text, GFVariantData.get_option_string(options, "joypad_axis_positive_suffix", axis_positive_suffix)]
+	return "%s %s" % [base_text, GFVariantData.get_option_string(options, "joypad_axis_negative_suffix", axis_negative_suffix)]

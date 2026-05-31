@@ -53,7 +53,7 @@ const _HOOK_INTERNAL_ON_RELEASE: StringName = &"_gf_on_object_pool_release"
 # 框架内部对象池取出钩子。用于让 GFController 等基础类型同步生命周期。
 const _HOOK_INTERNAL_ON_ACQUIRE: StringName = &"_gf_on_object_pool_acquire"
 
-const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
+const _INSTANCE_GUARD = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
 
 
 # --- 公共变量 ---
@@ -108,10 +108,13 @@ func init() -> void:
 func dispose() -> void:
 	_lifecycle_serial += 1
 	_is_disposed = true
-	for scene in _all_nodes:
-		var pool: Array = _all_nodes[scene]
+	for scene_key: Variant in _all_nodes:
+		var scene: PackedScene = _variant_to_packed_scene(scene_key)
+		if scene == null:
+			continue
+		var pool: Array = _get_all_nodes_pool(scene)
 		for node_variant: Variant in pool:
-			var node := _get_valid_pool_node(node_variant)
+			var node: Node = _get_valid_pool_node(node_variant)
 			if node != null:
 				_queue_free_detached(node)
 	if is_instance_valid(_pool_root):
@@ -146,11 +149,11 @@ func acquire(scene: PackedScene, parent: Node) -> Node:
 
 	_prune_invalid_scene_nodes_if_needed(scene)
 
-	var available_pool: Array = _available_pools[scene]
+	var available_pool: Array = _get_available_pool(scene)
 
 	while not available_pool.is_empty():
-		var popped_item = available_pool.pop_back()
-		var node := _get_valid_pool_node(popped_item)
+		var popped_item: Variant = available_pool.pop_back()
+		var node: Node = _get_valid_pool_node(popped_item)
 		if node != null:
 			node.set_meta(_META_ACTIVE, true)
 			node.set_meta(_META_SOURCE_SCENE, scene)
@@ -165,7 +168,10 @@ func acquire(scene: PackedScene, parent: Node) -> Node:
 			_call_node_tree_hook(node, HOOK_ON_ACQUIRE)
 			return node
 
-	var new_node: Node = scene.instantiate()
+	var new_node: Node = _variant_to_node(scene.instantiate())
+	if new_node == null:
+		push_error("[GFObjectPoolUtility] PackedScene 未能实例化为 Node。")
+		return null
 	new_node.set_meta(_META_ACTIVE, true)
 	new_node.set_meta(_META_SOURCE_SCENE, scene)
 	_prepare_node_tree(new_node)
@@ -173,7 +179,8 @@ func acquire(scene: PackedScene, parent: Node) -> Node:
 	if is_instance_valid(parent):
 		parent.add_child(new_node)
 
-	_all_nodes[scene].push_back(new_node)
+	var all_nodes: Array = _get_all_nodes_pool(scene)
+	all_nodes.push_back(new_node)
 	_call_node_tree_hook(new_node, HOOK_ON_ACQUIRE)
 	return new_node
 
@@ -195,14 +202,14 @@ func release(node: Node, scene: PackedScene) -> void:
 	if node.has_meta(_META_ACTIVE) and not node.get_meta(_META_ACTIVE):
 		return
 
-	var owner_scene := _resolve_owner_scene(node, scene)
+	var owner_scene: PackedScene = _resolve_owner_scene(node, scene)
 	if owner_scene == null:
 		push_warning("[GFObjectPoolUtility] release 失败：节点未记录所属 PackedScene。")
 		return
 
 	_prune_invalid_scene_nodes_if_needed(owner_scene)
 
-	if not _all_nodes.has(owner_scene) or not (_all_nodes[owner_scene] as Array).has(node):
+	if not _all_nodes.has(owner_scene) or not _get_all_nodes_pool(owner_scene).has(node):
 		push_warning("[GFObjectPoolUtility] release 失败：节点不属于当前对象池。")
 		return
 
@@ -213,7 +220,7 @@ func release(node: Node, scene: PackedScene) -> void:
 	if not _available_pools.has(owner_scene):
 		_available_pools[owner_scene] = []
 
-	var available_pool: Array = _available_pools[owner_scene]
+	var available_pool: Array = _get_available_pool(owner_scene)
 	if max_available_per_scene > 0 and available_pool.size() >= max_available_per_scene:
 		_remove_node_from_scene_pool(node, owner_scene)
 		_queue_free_detached(node)
@@ -241,8 +248,8 @@ func prewarm(scene: PackedScene, parent: Node, count: int) -> void:
 	if count <= 0:
 		return
 
-	var create_count := _get_limited_prewarm_count(scene, count)
-	for i in range(create_count):
+	var create_count: int = _get_limited_prewarm_count(scene, count)
+	for _i: int in range(create_count):
 		_prewarm_node(scene, parent)
 
 
@@ -269,10 +276,10 @@ func prewarm_async(scene: PackedScene, parent: Node, count: int, batch_size: int
 		prewarm(scene, parent, count)
 		return
 
-	var current_serial := _lifecycle_serial
-	var create_count := _get_limited_prewarm_count(scene, count)
-	var scene_tree := Engine.get_main_loop() as SceneTree
-	for i in range(create_count):
+	var current_serial: int = _lifecycle_serial
+	var create_count: int = _get_limited_prewarm_count(scene, count)
+	var scene_tree: SceneTree = _get_scene_tree()
+	for i: int in range(create_count):
 		if current_serial != _lifecycle_serial:
 			return
 		if parent != null and not is_instance_valid(parent):
@@ -314,13 +321,13 @@ func prewarm_async_budget(
 		prewarm(scene, parent, count)
 		return
 
-	var current_serial := _lifecycle_serial
-	var create_count := _get_limited_prewarm_count(scene, count)
-	var created_count := 0
-	var scene_tree := Engine.get_main_loop() as SceneTree
+	var current_serial: int = _lifecycle_serial
+	var create_count: int = _get_limited_prewarm_count(scene, count)
+	var created_count: int = 0
+	var scene_tree: SceneTree = _get_scene_tree()
 	while created_count < create_count:
-		var frame_start_usec := Time.get_ticks_usec()
-		var created_this_frame := 0
+		var frame_start_usec: int = Time.get_ticks_usec()
+		var created_this_frame: int = 0
 		while created_count < create_count:
 			if current_serial != _lifecycle_serial:
 				return
@@ -330,7 +337,7 @@ func prewarm_async_budget(
 			created_count += 1
 			created_this_frame += 1
 
-			var elapsed_msec := float(Time.get_ticks_usec() - frame_start_usec) / 1000.0
+			var elapsed_msec: float = float(Time.get_ticks_usec() - frame_start_usec) / 1000.0
 			if created_this_frame > 0 and elapsed_msec >= msec_budget_per_frame:
 				break
 
@@ -356,7 +363,7 @@ func get_available_count(scene: PackedScene) -> int:
 	_prune_invalid_scene_nodes_if_needed(scene)
 
 	var count: int = 0
-	for item in _available_pools[scene]:
+	for item: Variant in _available_pools[scene]:
 		if _get_valid_pool_node(item) != null:
 			count += 1
 	return count
@@ -386,9 +393,9 @@ func get_active_nodes(scene: PackedScene) -> Array[Node]:
 		return result
 
 	_prune_invalid_scene_nodes_if_needed(scene)
-	for item in _all_nodes[scene]:
-		var node := _get_valid_pool_node(item)
-		if node != null and bool(node.get_meta(_META_ACTIVE, false)):
+	for item: Variant in _get_all_nodes_pool(scene):
+		var node: Node = _get_valid_pool_node(item)
+		if node != null and GFVariantData.to_bool(node.get_meta(_META_ACTIVE, false)):
 			result.append(node)
 	return result
 
@@ -397,7 +404,10 @@ func get_active_nodes(scene: PackedScene) -> Array[Node]:
 ## [br]
 ## @api public
 func prune_invalid_nodes() -> void:
-	for scene: PackedScene in _all_nodes.keys():
+	for scene_key: Variant in _all_nodes.keys():
+		var scene: PackedScene = _variant_to_packed_scene(scene_key)
+		if scene == null:
+			continue
 		_prune_invalid_scene_nodes(scene)
 
 
@@ -411,10 +421,13 @@ func prune_invalid_nodes() -> void:
 func get_debug_snapshot() -> Dictionary:
 	prune_invalid_nodes()
 	var snapshot: Dictionary = {}
-	for scene: PackedScene in _all_nodes.keys():
-		var key := _get_scene_debug_key(scene)
+	for scene_key: Variant in _all_nodes.keys():
+		var scene: PackedScene = _variant_to_packed_scene(scene_key)
+		if scene == null:
+			continue
+		var key: String = _get_scene_debug_key(scene)
 		snapshot[key] = {
-			"total": (_all_nodes[scene] as Array).size(),
+			"total": _get_all_nodes_pool(scene).size(),
 			"available": get_available_count(scene),
 			"active": get_active_count(scene),
 		}
@@ -448,7 +461,10 @@ func _prewarm_node(scene: PackedScene, parent: Node) -> void:
 	if parent != null and not is_instance_valid(parent):
 		return
 
-	var node: Node = scene.instantiate()
+	var node: Node = _variant_to_node(scene.instantiate())
+	if node == null:
+		push_error("[GFObjectPoolUtility] PackedScene 未能实例化为 Node。")
+		return
 	node.set_meta(_META_ACTIVE, false)
 	node.set_meta(_META_SOURCE_SCENE, scene)
 	_prepare_node_tree(node)
@@ -457,12 +473,12 @@ func _prewarm_node(scene: PackedScene, parent: Node) -> void:
 		parent.add_child(node)
 
 	_call_node_tree_internal_hook(node, _HOOK_INTERNAL_ON_RELEASE)
-	_all_nodes[scene].push_back(node)
-	_available_pools[scene].push_back(node)
+	_get_all_nodes_pool(scene).push_back(node)
+	_get_available_pool(scene).push_back(node)
 
 
 func _move_to_pool_root(node: Node) -> void:
-	var pool_root := _ensure_pool_root()
+	var pool_root: Node = _ensure_pool_root()
 	if pool_root == null or node.get_parent() == pool_root:
 		return
 
@@ -475,7 +491,7 @@ func _move_to_pool_root(node: Node) -> void:
 func _queue_free_detached(node: Node) -> void:
 	if not is_instance_valid(node):
 		return
-	var parent := node.get_parent()
+	var parent: Node = node.get_parent()
 	if parent != null:
 		parent.remove_child(node)
 	if not node.is_queued_for_deletion():
@@ -486,7 +502,7 @@ func _ensure_pool_root() -> Node:
 	if is_instance_valid(_pool_root):
 		return _pool_root
 
-	var scene_tree := Engine.get_main_loop() as SceneTree
+	var scene_tree: SceneTree = _get_scene_tree()
 	if scene_tree == null:
 		return null
 
@@ -507,11 +523,12 @@ func _prepare_node_for_pool(node: Node) -> void:
 	if not node.has_meta(_META_ORIGINAL_PROCESS_MODE):
 		node.set_meta(_META_ORIGINAL_PROCESS_MODE, node.process_mode)
 		
-	if node is CanvasItem and not node.has_meta(_META_ORIGINAL_VISIBLE):
-		node.set_meta(_META_ORIGINAL_VISIBLE, (node as CanvasItem).visible)
+	var canvas_item: CanvasItem = _variant_to_canvas_item(node)
+	if canvas_item != null and not node.has_meta(_META_ORIGINAL_VISIBLE):
+		node.set_meta(_META_ORIGINAL_VISIBLE, canvas_item.visible)
 		
 	if "disabled" in node and not node.has_meta(_META_ORIGINAL_DISABLED):
-		node.set_meta(_META_ORIGINAL_DISABLED, node.get("disabled"))
+		node.set_meta(_META_ORIGINAL_DISABLED, GFObjectPropertyTools.read_property(node, NodePath("disabled")))
 
 
 func _set_node_tree_active_state(node: Node, active: bool) -> void:
@@ -526,15 +543,21 @@ func _set_node_active_state(node: Node, active: bool) -> void:
 	_prepare_node_for_pool(node)
 	
 	if active:
-		node.process_mode = node.get_meta(_META_ORIGINAL_PROCESS_MODE)
-		if node is CanvasItem:
-			(node as CanvasItem).visible = node.get_meta(_META_ORIGINAL_VISIBLE)
+		var original_process_mode: int = GFVariantData.to_int(
+			node.get_meta(_META_ORIGINAL_PROCESS_MODE, Node.PROCESS_MODE_INHERIT),
+			Node.PROCESS_MODE_INHERIT
+		)
+		node.process_mode = original_process_mode as Node.ProcessMode
+		var canvas_item: CanvasItem = _variant_to_canvas_item(node)
+		if canvas_item != null:
+			canvas_item.visible = GFVariantData.to_bool(node.get_meta(_META_ORIGINAL_VISIBLE, true), true)
 		if "disabled" in node:
 			node.set("disabled", node.get_meta(_META_ORIGINAL_DISABLED))
 	else:
 		node.process_mode = Node.PROCESS_MODE_DISABLED
-		if node is CanvasItem:
-			(node as CanvasItem).visible = false
+		var canvas_item: CanvasItem = _variant_to_canvas_item(node)
+		if canvas_item != null:
+			canvas_item.visible = false
 		if "disabled" in node:
 			node.set("disabled", true)
 
@@ -547,16 +570,16 @@ func _call_node_tree_hook(node: Node, hook_name: StringName) -> void:
 
 func _call_node_hook(node: Node, hook_name: StringName) -> void:
 	if hook_name == HOOK_ON_ACQUIRE and node.has_method(_HOOK_INTERNAL_ON_ACQUIRE):
-		node.call(_HOOK_INTERNAL_ON_ACQUIRE)
+		var _internal_acquire_result: Variant = node.call(_HOOK_INTERNAL_ON_ACQUIRE)
 	if node.has_method(hook_name):
-		node.call(hook_name)
+		var _hook_result: Variant = node.call(hook_name)
 	if hook_name == HOOK_ON_RELEASE and node.has_method(_HOOK_INTERNAL_ON_RELEASE):
-		node.call(_HOOK_INTERNAL_ON_RELEASE)
+		var _internal_release_result: Variant = node.call(_HOOK_INTERNAL_ON_RELEASE)
 
 
 func _call_node_tree_internal_hook(node: Node, hook_name: StringName) -> void:
 	if node.has_method(hook_name):
-		node.call(hook_name)
+		var _hook_result: Variant = node.call(hook_name)
 	for child: Node in node.get_children():
 		_call_node_tree_internal_hook(child, hook_name)
 
@@ -571,10 +594,10 @@ func _get_valid_pool_node(value: Variant) -> Node:
 
 
 func _resolve_owner_scene(node: Node, fallback_scene: PackedScene) -> PackedScene:
-	var owner_scene := fallback_scene
+	var owner_scene: PackedScene = fallback_scene
 
 	if node.has_meta(_META_SOURCE_SCENE):
-		var tracked_scene := node.get_meta(_META_SOURCE_SCENE) as PackedScene
+		var tracked_scene: PackedScene = _variant_to_packed_scene(node.get_meta(_META_SOURCE_SCENE))
 		if tracked_scene != null:
 			if fallback_scene != null and tracked_scene != fallback_scene:
 				push_warning("[GFObjectPoolUtility] release 收到不匹配的 PackedScene，已回退到节点原始所属池。")
@@ -585,9 +608,9 @@ func _resolve_owner_scene(node: Node, fallback_scene: PackedScene) -> PackedScen
 
 func _remove_node_from_scene_pool(node: Node, scene: PackedScene) -> void:
 	if _all_nodes.has(scene):
-		(_all_nodes[scene] as Array).erase(node)
+		_get_all_nodes_pool(scene).erase(node)
 	if _available_pools.has(scene):
-		(_available_pools[scene] as Array).erase(node)
+		_get_available_pool(scene).erase(node)
 
 
 func _prune_invalid_scene_nodes(scene: PackedScene) -> void:
@@ -595,14 +618,14 @@ func _prune_invalid_scene_nodes(scene: PackedScene) -> void:
 		return
 
 	if _all_nodes.has(scene):
-		var all_nodes: Array = _all_nodes[scene]
+		var all_nodes: Array = _get_all_nodes_pool(scene)
 		for i: int in range(all_nodes.size() - 1, -1, -1):
 			var node_variant: Variant = all_nodes[i]
 			if _get_valid_pool_node(node_variant) == null:
 				all_nodes.remove_at(i)
 
 	if _available_pools.has(scene):
-		var available_pool: Array = _available_pools[scene]
+		var available_pool: Array = _get_available_pool(scene)
 		for i: int in range(available_pool.size() - 1, -1, -1):
 			var node_variant: Variant = available_pool[i]
 			if _get_valid_pool_node(node_variant) == null:
@@ -620,3 +643,43 @@ func _get_scene_debug_key(scene: PackedScene) -> String:
 	if not scene.resource_path.is_empty():
 		return scene.resource_path
 	return "PackedScene:%d" % scene.get_instance_id()
+
+
+func _get_all_nodes_pool(scene: PackedScene) -> Array:
+	return GFVariantData.as_array(GFVariantData.get_option_value(_all_nodes, scene, []))
+
+
+func _get_available_pool(scene: PackedScene) -> Array:
+	return GFVariantData.as_array(GFVariantData.get_option_value(_available_pools, scene, []))
+
+
+func _get_scene_tree() -> SceneTree:
+	return _variant_to_scene_tree(Engine.get_main_loop())
+
+
+static func _variant_to_node(value: Variant) -> Node:
+	if value is Node:
+		var node: Node = value
+		return node
+	return null
+
+
+static func _variant_to_canvas_item(value: Variant) -> CanvasItem:
+	if value is CanvasItem:
+		var canvas_item: CanvasItem = value
+		return canvas_item
+	return null
+
+
+static func _variant_to_packed_scene(value: Variant) -> PackedScene:
+	if value is PackedScene:
+		var scene: PackedScene = value
+		return scene
+	return null
+
+
+static func _variant_to_scene_tree(value: Variant) -> SceneTree:
+	if value is SceneTree:
+		var tree: SceneTree = value
+		return tree
+	return null

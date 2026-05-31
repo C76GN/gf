@@ -78,7 +78,55 @@ static func status_to_string(status: int) -> StringName:
 ## [br]
 ## @schema return: 包含节点调试状态的 Dictionary；null 节点返回空字典。
 static func build_debug_snapshot(node: Variant) -> Dictionary:
-	return node.get_debug_snapshot() if node != null else {}
+	if node is Object:
+		var snapshot_owner: Object = node
+		return _call_debug_snapshot(snapshot_owner)
+	return {}
+
+
+# --- 私有/辅助方法 ---
+
+static func _call_debug_snapshot(snapshot_owner: Object) -> Dictionary:
+	if snapshot_owner == null or not snapshot_owner.has_method("get_debug_snapshot"):
+		return {}
+
+	var snapshot_value: Variant = snapshot_owner.call("get_debug_snapshot")
+	return GFVariantData.as_dictionary(snapshot_value)
+
+
+static func _variant_to_status(value: Variant, fallback_status: int = Status.FAILURE) -> int:
+	if value is int:
+		return value
+	return fallback_status
+
+
+static func _condition_result_to_bool(value: Variant) -> bool:
+	if value is bool:
+		return value
+	return false
+
+
+static func _resolve_rng_from_blackboard(
+	blackboard: Dictionary,
+	fallback_rng: RandomNumberGenerator = null
+) -> RandomNumberGenerator:
+	if fallback_rng != null:
+		return fallback_rng
+
+	var blackboard_rng: Variant = GFVariantData.get_option_value(blackboard, "rng")
+	if blackboard_rng is RandomNumberGenerator:
+		return blackboard_rng
+	return null
+
+
+static func _duplicate_rng(source: RandomNumberGenerator) -> RandomNumberGenerator:
+	if source == null:
+		return null
+
+	var copy: RandomNumberGenerator = RandomNumberGenerator.new()
+	copy.seed = source.seed
+	copy.state = source.state
+	return copy
 
 
 # --- 内部类 ---
@@ -222,7 +270,7 @@ class BTNode extends RefCounted:
 
 
 	func _record_tick(status: int, reason: StringName = &"", started_usec: int = 0) -> int:
-		var elapsed := Time.get_ticks_usec() - started_usec if started_usec > 0 else 0
+		var elapsed: int = Time.get_ticks_usec() - started_usec if started_usec > 0 else 0
 		return record_status(status, reason, elapsed)
 
 
@@ -323,7 +371,7 @@ class BlackboardScope extends RefCounted:
 	## [br]
 	## @schema return: 父级与当前作用域合并后的 Dictionary；当前作用域同名键覆盖父级键。
 	func to_dictionary() -> Dictionary:
-		var result := parent.to_dictionary() if parent != null else {}
+		var result: Dictionary = parent.to_dictionary() if parent != null else {}
 		for key: Variant in values.keys():
 			result[key] = values[key]
 		return result
@@ -357,9 +405,9 @@ class Sequence extends BTNode:
 	## [br]
 	## @schema blackboard: Dictionary 形式黑板；字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
-		var started := Time.get_ticks_usec()
+		var started: int = Time.get_ticks_usec()
 		while _current_child_idx < _children.size():
-			var child := _children[_current_child_idx]
+			var child: BTNode = _children[_current_child_idx]
 			if child == null:
 				_current_child_idx += 1
 				continue
@@ -392,7 +440,7 @@ class Sequence extends BTNode:
 	## [br]
 	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
-		var copy := Sequence.new(_duplicate_child_nodes(_children))
+		var copy: Sequence = Sequence.new(_duplicate_child_nodes(_children))
 		_copy_base_fields_to(copy)
 		return copy
 
@@ -429,9 +477,9 @@ class Selector extends BTNode:
 	## [br]
 	## @schema blackboard: Dictionary 形式黑板；字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
-		var started := Time.get_ticks_usec()
+		var started: int = Time.get_ticks_usec()
 		while _current_child_idx < _children.size():
-			var child := _children[_current_child_idx]
+			var child: BTNode = _children[_current_child_idx]
 			if child == null:
 				_current_child_idx += 1
 				continue
@@ -464,7 +512,7 @@ class Selector extends BTNode:
 	## [br]
 	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
-		var copy := Selector.new(_duplicate_child_nodes(_children))
+		var copy: Selector = Selector.new(_duplicate_child_nodes(_children))
 		_copy_base_fields_to(copy)
 		return copy
 
@@ -510,23 +558,23 @@ class Parallel extends BTNode:
 	## [br]
 	## @schema blackboard: Dictionary 形式黑板；字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
-		var started := Time.get_ticks_usec()
+		var started: int = Time.get_ticks_usec()
 		if _children.is_empty():
-			var empty_status := Status.SUCCESS if policy == ParallelPolicy.REQUIRE_ALL else Status.FAILURE
+			var empty_status: int = Status.SUCCESS if policy == ParallelPolicy.REQUIRE_ALL else Status.FAILURE
 			return _record_tick(empty_status, &"empty_parallel", started)
 
 		_ensure_child_statuses()
-		var active_count := 0
-		var has_running := false
-		var has_success := false
-		var has_failure := false
+		var active_count: int = 0
+		var has_running: bool = false
+		var has_success: bool = false
+		var has_failure: bool = false
 		for index: int in range(_children.size()):
-			var child := _children[index]
+			var child: BTNode = _children[index]
 			if child == null:
 				continue
 
 			active_count += 1
-			var status := _child_statuses[index]
+			var status: int = _child_statuses[index]
 			if status == Status.RUNNING:
 				status = child.tick(blackboard)
 				if status != Status.RUNNING:
@@ -538,7 +586,7 @@ class Parallel extends BTNode:
 
 		if active_count <= 0:
 			reset()
-			var inactive_status := Status.SUCCESS if policy == ParallelPolicy.REQUIRE_ALL else Status.FAILURE
+			var inactive_status: int = Status.SUCCESS if policy == ParallelPolicy.REQUIRE_ALL else Status.FAILURE
 			return _record_tick(inactive_status, &"empty_parallel", started)
 
 		if policy == ParallelPolicy.REQUIRE_ONE:
@@ -577,7 +625,7 @@ class Parallel extends BTNode:
 	## [br]
 	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
-		var copy := Parallel.new(_duplicate_child_nodes(_children), policy)
+		var copy: Parallel = Parallel.new(_duplicate_child_nodes(_children), policy)
 		_copy_base_fields_to(copy)
 		return copy
 
@@ -629,12 +677,12 @@ class RandomSelector extends BTNode:
 	## [br]
 	## @schema blackboard: Dictionary 形式黑板；可提供 rng: RandomNumberGenerator，其余字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
-		var started := Time.get_ticks_usec()
+		var started: int = Time.get_ticks_usec()
 		if _active_order.is_empty():
 			_active_order = _make_random_order(blackboard)
 
 		while _current_child_idx < _active_order.size():
-			var child := _active_order[_current_child_idx]
+			var child: BTNode = _active_order[_current_child_idx]
 			if child == null:
 				_current_child_idx += 1
 				continue
@@ -668,7 +716,7 @@ class RandomSelector extends BTNode:
 	## [br]
 	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
-		var copy := RandomSelector.new(_duplicate_child_nodes(_children), _duplicate_rng(rng))
+		var copy: RandomSelector = RandomSelector.new(_duplicate_child_nodes(_children), GFBehaviorTree._duplicate_rng(rng))
 		_copy_base_fields_to(copy)
 		return copy
 
@@ -676,7 +724,7 @@ class RandomSelector extends BTNode:
 	func _make_random_order(blackboard: Dictionary) -> Array[BTNode]:
 		var result: Array[BTNode] = []
 		result.append_array(_children)
-		var active_rng := _resolve_rng(blackboard)
+		var active_rng: RandomNumberGenerator = _resolve_rng(blackboard)
 		if active_rng == null:
 			result.shuffle()
 		else:
@@ -685,28 +733,19 @@ class RandomSelector extends BTNode:
 
 
 	func _resolve_rng(blackboard: Dictionary) -> RandomNumberGenerator:
-		if rng != null:
-			return rng
-
-		var blackboard_rng: Variant = blackboard.get("rng", null)
-		return blackboard_rng if blackboard_rng is RandomNumberGenerator else null
+		return GFBehaviorTree._resolve_rng_from_blackboard(blackboard, rng)
 
 
 	func _shuffle_with_rng(nodes: Array[BTNode], random_source: RandomNumberGenerator) -> void:
 		for index: int in range(nodes.size() - 1, 0, -1):
-			var swap_index := random_source.randi_range(0, index)
-			var temp := nodes[index]
+			var swap_index: int = random_source.randi_range(0, index)
+			var temp: BTNode = nodes[index]
 			nodes[index] = nodes[swap_index]
 			nodes[swap_index] = temp
 
 
 	func _duplicate_rng(source: RandomNumberGenerator) -> RandomNumberGenerator:
-		if source == null:
-			return null
-		var copy := RandomNumberGenerator.new()
-		copy.seed = source.seed
-		copy.state = source.state
-		return copy
+		return GFBehaviorTree._duplicate_rng(source)
 
 
 	func _get_debug_children() -> Array[BTNode]:
@@ -748,12 +787,12 @@ class RandomSequence extends BTNode:
 	## [br]
 	## @schema blackboard: Dictionary 形式黑板；可提供 rng: RandomNumberGenerator，其余字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
-		var started := Time.get_ticks_usec()
+		var started: int = Time.get_ticks_usec()
 		if _active_order.is_empty():
 			_active_order = _make_random_order(blackboard)
 
 		while _current_child_idx < _active_order.size():
-			var child := _active_order[_current_child_idx]
+			var child: BTNode = _active_order[_current_child_idx]
 			if child == null:
 				_current_child_idx += 1
 				continue
@@ -787,7 +826,7 @@ class RandomSequence extends BTNode:
 	## [br]
 	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
-		var copy := RandomSequence.new(_duplicate_child_nodes(_children), _duplicate_rng(rng))
+		var copy: RandomSequence = RandomSequence.new(_duplicate_child_nodes(_children), GFBehaviorTree._duplicate_rng(rng))
 		_copy_base_fields_to(copy)
 		return copy
 
@@ -795,7 +834,7 @@ class RandomSequence extends BTNode:
 	func _make_random_order(blackboard: Dictionary) -> Array[BTNode]:
 		var result: Array[BTNode] = []
 		result.append_array(_children)
-		var active_rng := _resolve_rng(blackboard)
+		var active_rng: RandomNumberGenerator = _resolve_rng(blackboard)
 		if active_rng == null:
 			result.shuffle()
 		else:
@@ -804,28 +843,19 @@ class RandomSequence extends BTNode:
 
 
 	func _resolve_rng(blackboard: Dictionary) -> RandomNumberGenerator:
-		if rng != null:
-			return rng
-
-		var blackboard_rng: Variant = blackboard.get("rng", null)
-		return blackboard_rng if blackboard_rng is RandomNumberGenerator else null
+		return GFBehaviorTree._resolve_rng_from_blackboard(blackboard, rng)
 
 
 	func _shuffle_with_rng(nodes: Array[BTNode], random_source: RandomNumberGenerator) -> void:
 		for index: int in range(nodes.size() - 1, 0, -1):
-			var swap_index := random_source.randi_range(0, index)
-			var temp := nodes[index]
+			var swap_index: int = random_source.randi_range(0, index)
+			var temp: BTNode = nodes[index]
 			nodes[index] = nodes[swap_index]
 			nodes[swap_index] = temp
 
 
 	func _duplicate_rng(source: RandomNumberGenerator) -> RandomNumberGenerator:
-		if source == null:
-			return null
-		var copy := RandomNumberGenerator.new()
-		copy.seed = source.seed
-		copy.state = source.state
-		return copy
+		return GFBehaviorTree._duplicate_rng(source)
 
 
 	func _get_debug_children() -> Array[BTNode]:
@@ -859,9 +889,10 @@ class Action extends BTNode:
 	## [br]
 	## @schema blackboard: Dictionary 形式黑板；字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
-		var started := Time.get_ticks_usec()
+		var started: int = Time.get_ticks_usec()
 		if _action_func.is_valid():
-			return _record_tick(_action_func.call(blackboard) as int, &"", started)
+			var status_value: Variant = _action_func.call(blackboard)
+			return _record_tick(GFBehaviorTree._variant_to_status(status_value), &"", started)
 		return _record_tick(Status.FAILURE, &"invalid_action", started)
 
 
@@ -871,7 +902,7 @@ class Action extends BTNode:
 	## [br]
 	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
-		var copy := Action.new(_action_func)
+		var copy: Action = Action.new(_action_func)
 		_copy_base_fields_to(copy)
 		return copy
 
@@ -903,8 +934,12 @@ class Condition extends BTNode:
 	## [br]
 	## @schema blackboard: Dictionary 形式黑板；字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
-		var started := Time.get_ticks_usec()
-		if _condition_func.is_valid() and _condition_func.call(blackboard) == true:
+		var started: int = Time.get_ticks_usec()
+		if not _condition_func.is_valid():
+			return _record_tick(Status.FAILURE, &"condition_false", started)
+
+		var condition_value: Variant = _condition_func.call(blackboard)
+		if GFBehaviorTree._condition_result_to_bool(condition_value):
 			return _record_tick(Status.SUCCESS, &"", started)
 		return _record_tick(Status.FAILURE, &"condition_false", started)
 
@@ -915,7 +950,7 @@ class Condition extends BTNode:
 	## [br]
 	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
-		var copy := Condition.new(_condition_func)
+		var copy: Condition = Condition.new(_condition_func)
 		_copy_base_fields_to(copy)
 		return copy
 
@@ -961,7 +996,7 @@ class Decorator extends BTNode:
 	## [br]
 	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
-		var copy := Decorator.new(_child.duplicate_runtime() if _child != null else null)
+		var copy: Decorator = Decorator.new(_duplicate_child())
 		_copy_base_fields_to(copy)
 		return copy
 
@@ -971,6 +1006,12 @@ class Decorator extends BTNode:
 		if _child != null:
 			result.append(_child)
 		return result
+
+
+	func _duplicate_child() -> BTNode:
+		if _child == null:
+			return null
+		return _child.duplicate_runtime()
 
 
 ## 反转装饰节点。
@@ -998,7 +1039,7 @@ class Inverter extends Decorator:
 	## [br]
 	## @schema blackboard: Dictionary 形式黑板；字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
-		var started := Time.get_ticks_usec()
+		var started: int = Time.get_ticks_usec()
 		if _child == null:
 			return _record_tick(Status.FAILURE, &"missing_child", started)
 		var status: int = _child.tick(blackboard)
@@ -1017,7 +1058,7 @@ class Inverter extends Decorator:
 	## [br]
 	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
-		var copy := Inverter.new(_child.duplicate_runtime() if _child != null else null)
+		var copy: Inverter = Inverter.new(_duplicate_child())
 		_copy_base_fields_to(copy)
 		return copy
 
@@ -1047,7 +1088,7 @@ class AlwaysSucceed extends Decorator:
 	## [br]
 	## @schema blackboard: Dictionary 形式黑板；字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
-		var started := Time.get_ticks_usec()
+		var started: int = Time.get_ticks_usec()
 		if _child == null:
 			return _record_tick(Status.SUCCESS, &"missing_child", started)
 		var status: int = _child.tick(blackboard)
@@ -1063,7 +1104,7 @@ class AlwaysSucceed extends Decorator:
 	## [br]
 	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
-		var copy := AlwaysSucceed.new(_child.duplicate_runtime() if _child != null else null)
+		var copy: AlwaysSucceed = AlwaysSucceed.new(_duplicate_child())
 		_copy_base_fields_to(copy)
 		return copy
 
@@ -1093,7 +1134,7 @@ class AlwaysFail extends Decorator:
 	## [br]
 	## @schema blackboard: Dictionary 形式黑板；字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
-		var started := Time.get_ticks_usec()
+		var started: int = Time.get_ticks_usec()
 		if _child == null:
 			return _record_tick(Status.FAILURE, &"missing_child", started)
 		var status: int = _child.tick(blackboard)
@@ -1109,7 +1150,7 @@ class AlwaysFail extends Decorator:
 	## [br]
 	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
-		var copy := AlwaysFail.new(_child.duplicate_runtime() if _child != null else null)
+		var copy: AlwaysFail = AlwaysFail.new(_duplicate_child())
 		_copy_base_fields_to(copy)
 		return copy
 
@@ -1153,19 +1194,19 @@ class Probability extends Decorator:
 	## [br]
 	## @schema blackboard: Dictionary 形式黑板；可提供 rng: RandomNumberGenerator，其余字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
-		var started := Time.get_ticks_usec()
+		var started: int = Time.get_ticks_usec()
 		if _child == null:
 			return _record_tick(Status.FAILURE, &"missing_child", started)
 		if not _decision_made:
-			var active_rng := _resolve_rng(blackboard)
-			var roll := active_rng.randf() if active_rng != null else randf()
+			var active_rng: RandomNumberGenerator = _resolve_rng(blackboard)
+			var roll: float = active_rng.randf() if active_rng != null else randf()
 			_allowed_this_run = roll <= probability
 			_decision_made = true
 		if not _allowed_this_run:
 			reset()
 			return _record_tick(Status.FAILURE, &"probability_miss", started)
 
-		var status := _child.tick(blackboard)
+		var status: int = _child.tick(blackboard)
 		if status != Status.RUNNING:
 			reset()
 		return _record_tick(status, &"", started)
@@ -1186,25 +1227,17 @@ class Probability extends Decorator:
 	## [br]
 	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
-		var copy := Probability.new(_child.duplicate_runtime() if _child != null else null, probability, _duplicate_rng(rng))
+		var copy: Probability = Probability.new(_duplicate_child(), probability, GFBehaviorTree._duplicate_rng(rng))
 		_copy_base_fields_to(copy)
 		return copy
 
 
 	func _resolve_rng(blackboard: Dictionary) -> RandomNumberGenerator:
-		if rng != null:
-			return rng
-		var blackboard_rng: Variant = blackboard.get("rng", null)
-		return blackboard_rng if blackboard_rng is RandomNumberGenerator else null
+		return GFBehaviorTree._resolve_rng_from_blackboard(blackboard, rng)
 
 
 	func _duplicate_rng(source: RandomNumberGenerator) -> RandomNumberGenerator:
-		if source == null:
-			return null
-		var copy := RandomNumberGenerator.new()
-		copy.seed = source.seed
-		copy.state = source.state
-		return copy
+		return GFBehaviorTree._duplicate_rng(source)
 
 
 ## 冷却装饰节点。
@@ -1239,13 +1272,13 @@ class Cooldown extends Decorator:
 	## [br]
 	## @schema blackboard: Dictionary 形式黑板；可提供 time_msec: int，其余字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
-		var started := Time.get_ticks_usec()
+		var started: int = Time.get_ticks_usec()
 		if _child == null:
 			return _record_tick(Status.FAILURE, &"missing_child", started)
-		var now := _resolve_time_msec(blackboard)
+		var now: int = _resolve_time_msec(blackboard)
 		if _last_finish_msec >= 0 and now - _last_finish_msec < roundi(cooldown_seconds * 1000.0):
 			return _record_tick(Status.FAILURE, &"cooldown_active", started)
-		var status := _child.tick(blackboard)
+		var status: int = _child.tick(blackboard)
 		if status != Status.RUNNING:
 			_last_finish_msec = now
 		return _record_tick(status, &"", started)
@@ -1271,13 +1304,13 @@ class Cooldown extends Decorator:
 	## [br]
 	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
-		var copy := Cooldown.new(_child.duplicate_runtime() if _child != null else null, cooldown_seconds)
+		var copy: Cooldown = Cooldown.new(_duplicate_child(), cooldown_seconds)
 		_copy_base_fields_to(copy)
 		return copy
 
 
 	func _resolve_time_msec(blackboard: Dictionary) -> int:
-		return int(blackboard.get("time_msec", Time.get_ticks_msec()))
+		return GFVariantData.get_option_int(blackboard, "time_msec", Time.get_ticks_msec())
 
 
 ## 时间限制装饰节点。
@@ -1312,16 +1345,16 @@ class TimeLimit extends Decorator:
 	## [br]
 	## @schema blackboard: Dictionary 形式黑板；可提供 time_msec: int，其余字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
-		var started := Time.get_ticks_usec()
+		var started: int = Time.get_ticks_usec()
 		if _child == null:
 			return _record_tick(Status.FAILURE, &"missing_child", started)
-		var now := int(blackboard.get("time_msec", Time.get_ticks_msec()))
+		var now: int = GFVariantData.get_option_int(blackboard, "time_msec", Time.get_ticks_msec())
 		if _started_msec < 0:
 			_started_msec = now
 		if now - _started_msec > roundi(limit_seconds * 1000.0):
 			reset()
 			return _record_tick(Status.FAILURE, &"time_limit_exceeded", started)
-		var status := _child.tick(blackboard)
+		var status: int = _child.tick(blackboard)
 		if status != Status.RUNNING:
 			reset()
 		return _record_tick(status, &"", started)
@@ -1341,7 +1374,7 @@ class TimeLimit extends Decorator:
 	## [br]
 	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
-		var copy := TimeLimit.new(_child.duplicate_runtime() if _child != null else null, limit_seconds)
+		var copy: TimeLimit = TimeLimit.new(_duplicate_child(), limit_seconds)
 		_copy_base_fields_to(copy)
 		return copy
 
@@ -1378,7 +1411,7 @@ class Limit extends Decorator:
 	## [br]
 	## @schema blackboard: Dictionary 形式黑板；字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
-		var started := Time.get_ticks_usec()
+		var started: int = Time.get_ticks_usec()
 		if _child == null or max_ticks <= 0:
 			return _record_tick(Status.FAILURE, &"limit_blocked", started)
 		if _tick_count >= max_ticks:
@@ -1402,7 +1435,7 @@ class Limit extends Decorator:
 	## [br]
 	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
-		var copy := Limit.new(_child.duplicate_runtime() if _child != null else null, max_ticks)
+		var copy: Limit = Limit.new(_duplicate_child(), max_ticks)
 		_copy_base_fields_to(copy)
 		return copy
 
@@ -1439,7 +1472,7 @@ class Repeat extends Decorator:
 	## [br]
 	## @schema blackboard: Dictionary 形式黑板；字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
-		var started := Time.get_ticks_usec()
+		var started: int = Time.get_ticks_usec()
 		if _child == null:
 			return _record_tick(Status.FAILURE, &"missing_child", started)
 
@@ -1472,7 +1505,7 @@ class Repeat extends Decorator:
 	## [br]
 	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
-		var copy := Repeat.new(_child.duplicate_runtime() if _child != null else null, repeat_count)
+		var copy: Repeat = Repeat.new(_duplicate_child(), repeat_count)
 		_copy_base_fields_to(copy)
 		return copy
 
@@ -1502,7 +1535,7 @@ class UntilSuccess extends Decorator:
 	## [br]
 	## @schema blackboard: Dictionary 形式黑板；字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
-		var started := Time.get_ticks_usec()
+		var started: int = Time.get_ticks_usec()
 		if _child == null:
 			return _record_tick(Status.FAILURE, &"missing_child", started)
 		var status: int = _child.tick(blackboard)
@@ -1518,7 +1551,7 @@ class UntilSuccess extends Decorator:
 	## [br]
 	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
-		var copy := UntilSuccess.new(_child.duplicate_runtime() if _child != null else null)
+		var copy: UntilSuccess = UntilSuccess.new(_duplicate_child())
 		_copy_base_fields_to(copy)
 		return copy
 
@@ -1548,7 +1581,7 @@ class UntilFail extends Decorator:
 	## [br]
 	## @schema blackboard: Dictionary 形式黑板；字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
-		var started := Time.get_ticks_usec()
+		var started: int = Time.get_ticks_usec()
 		if _child == null:
 			return _record_tick(Status.FAILURE, &"missing_child", started)
 		var status: int = _child.tick(blackboard)
@@ -1564,7 +1597,7 @@ class UntilFail extends Decorator:
 	## [br]
 	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
-		var copy := UntilFail.new(_child.duplicate_runtime() if _child != null else null)
+		var copy: UntilFail = UntilFail.new(_duplicate_child())
 		_copy_base_fields_to(copy)
 		return copy
 
@@ -1639,8 +1672,9 @@ class Runner extends RefCounted:
 
 
 	func _get_blackboard_keys() -> PackedStringArray:
-		var result := PackedStringArray()
+		var result: PackedStringArray = PackedStringArray()
 		for key: Variant in blackboard.keys():
-			result.append(String(key))
+			var key_text: String = GFVariantData.to_text(key)
+			var _key_appended: bool = result.append(key_text)
 		result.sort()
 		return result

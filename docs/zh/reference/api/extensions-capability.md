@@ -621,7 +621,7 @@ func init() -> void:
 func dispose() -> void:
 ```
 
-清理已索引的 receiver、能力和分组状态。
+注销已索引 receiver 上的能力并清理分组状态。 由本 Utility 创建或 PackedScene 实例化的能力会随架构销毁释放；外部传入或场景中已有的能力只注销，不抢占其节点所有权。
 
 #### `tick`
 
@@ -913,7 +913,7 @@ Schemas:
 func add_capability_instance(receiver: Object, capability: Object, as_type: Script = null) -> Object:
 ```
 
-给对象挂载一个已经存在的能力实例。
+给对象挂载一个已经存在的能力实例。 该入口不会接管传入实例的所有权；架构销毁时只注销能力记录。需要由 Utility 创建并接管节点释放时，请使用 add_capability() 或 add_scene_capability()。
 
 Parameters:
 
