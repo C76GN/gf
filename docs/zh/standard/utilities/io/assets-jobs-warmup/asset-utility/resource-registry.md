@@ -67,6 +67,21 @@ var registry := GFResourceRegistryTools.create_registry_from_scan("res://assets"
 })
 ```
 
+已有入口资源时，也可以先按 Godot 的依赖关系展开路径，再生成注册表或预加载分组。`collect_dependency_paths()` 只读取 `ResourceLoader.get_dependencies()`，不改写 remap、不打包 PCK，也不解释依赖的业务含义。
+
+```gdscript
+var paths := GFResourceRegistryTools.collect_dependency_paths("res://ui/inventory_panel.tscn", {
+	"include_root": true,
+	"recursive": true,
+	"max_dependency_paths": 256,
+})
+
+var registry := GFResourceRegistryTools.create_registry_from_paths(paths, {
+	"id_mode": "relative_path",
+	"base_path": "res://",
+})
+```
+
 ## 注意事项
 
 - 推荐把 `id` 当作项目稳定逻辑 ID，不要直接复用资源路径。
@@ -74,3 +89,4 @@ var registry := GFResourceRegistryTools.create_registry_from_scan("res://assets"
 - 如果运行时直接修改 `entries` 数组或条目字段，调用 `mark_index_dirty()` 后再查询。
 - 字段索引只基于条目 `fields`，不会为了查询而加载实际资源。
 - 自动扫描应作为项目工具、编辑器按钮、构建步骤或 Installer 的一部分运行；运行时加载仍交给 `GFAssetUtility`。
+- 依赖收集只返回路径闭包，不决定导出、热更新、DLC 或分包策略；这些策略应留在项目构建流程里。

@@ -149,6 +149,7 @@ nav:
           - 网格、路径与空间索引:
               - 总览: standard/foundation/grid-spatial/index.md
               - 2D 曲线与折线: standard/foundation/grid-spatial/curve-2d.md
+              - 弹簧平滑数学: standard/foundation/grid-spatial/spring-math.md
               - 2D 网格、生成管线与 Hex 网格:
                   - 总览: standard/foundation/grid-spatial/grid-2d-hex/index.md
                   - 规则 2D 网格: standard/foundation/grid-spatial/grid-2d-hex/grid-math.md

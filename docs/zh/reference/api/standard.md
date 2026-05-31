@@ -156,6 +156,7 @@ Module: `standard`
 - [`GFNumberFormatter`](#gfnumberformatter)
 - [`GFObjectPoolUtility`](#gfobjectpoolutility)
 - [`GFPattern2D`](#gfpattern2d)
+- [`GFPhysicsQueryUtility`](#gfphysicsqueryutility)
 - [`GFPointerActivityUtility`](#gfpointeractivityutility)
 - [`GFProgressionMath`](#gfprogressionmath)
 - [`GFQuadTreeUtility`](#gfquadtreeutility)
@@ -196,6 +197,7 @@ Module: `standard`
 - [`GFSnapshotHistoryUtility`](#gfsnapshothistoryutility)
 - [`GFSourceSpan`](#gfsourcespan)
 - [`GFSpatialHash3D`](#gfspatialhash3d)
+- [`GFSpringMath`](#gfspringmath)
 - [`GFState`](#gfstate)
 - [`GFStateMachine`](#gfstatemachine)
 - [`GFSteeringAcceleration`](#gfsteeringacceleration)
@@ -12194,7 +12196,7 @@ Schemas:
 - Category: `runtime_service`
 - Since: `3.19.0`
 
-GFCurve2DMath: Curve2D 与折线的纯算法辅助。 提供路径长度、归一化采样、点距简化和基础闭合形状生成，不持有节点状态， 也不解释碰撞、渲染或编辑器交互语义。
+GFCurve2DMath: Curve2D 与折线的纯算法辅助。 提供路径长度、归一化采样、点距简化、虚线切分和基础闭合形状生成， 不持有节点状态，也不解释碰撞、渲染或编辑器交互语义。
 
 ### Constants
 
@@ -12287,6 +12289,53 @@ Parameters:
 | `keep_last` | 是否始终保留末点。 |
 
 Returns: 简化后的折线点序列。
+
+#### `make_dashed_polyline_segments`
+
+- API: `public`
+
+```gdscript
+static func make_dashed_polyline_segments( points: PackedVector2Array, dash_length: float, gap_length: float, closed: bool = false, offset: float = 0.0 ) -> Array[PackedVector2Array]:
+```
+
+按 dash/gap 模式把折线切分为可见线段。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `points` | 折线点序列。 |
+| `dash_length` | 每段可见长度；小于等于 0 或接近 0 时返回空数组。 |
+| `gap_length` | 每段间隔长度；小于等于 0 或接近 0 时返回原折线的非零长度段。 |
+| `closed` | 是否把末点连回首点；少于三个点时不会追加闭合段。 |
+| `offset` | 沿路径推进 dash/gap 模式的偏移距离，可用于滚动或动画。 |
+
+Returns: 可见线段数组；每项是包含起点和终点的 PackedVector2Array。
+
+Schemas:
+
+- `return`: Array[PackedVector2Array]，每项包含 from/to 两个 Vector2，顶点处会拆分以避免跨角连线。
+
+#### `round_polygon_points`
+
+- API: `public`
+
+```gdscript
+static func round_polygon_points( points: PackedVector2Array, radius: float, corner_detail: int = 8, uniform_corners: bool = true ) -> PackedVector2Array:
+```
+
+为闭合多边形生成圆角点序列。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `points` | 多边形顶点序列；不要求末点重复，若末点重复会忽略。 |
+| `radius` | 每个顶点两侧的圆角裁切距离；会按相邻边长度限制。 |
+| `corner_detail` | 每个圆角的细分数量；1 表示只输出两侧锚点。 |
+| `uniform_corners` | 是否用相邻两边的较短可用距离统一限制圆角。 |
+
+Returns: 圆角化后的多边形点序列；无效输入会返回去除重复末点后的原始点副本。
 
 #### `create_rect_curve`
 
@@ -20725,6 +20774,59 @@ func is_finished() -> bool:
 请求是否已结束。
 
 Returns: 请求完成、失败或取消时返回 true。
+
+#### `get_header`
+
+- API: `public`
+
+```gdscript
+func get_header(header_name: String, default_value: String = "") -> String:
+```
+
+读取第一个匹配的响应头。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `header_name` | 响应头名称，按大小写不敏感方式匹配。 |
+| `default_value` | 没有匹配响应头时返回的默认值。 |
+
+Returns: 响应头值；没有匹配项时返回 default_value。
+
+#### `get_header_values`
+
+- API: `public`
+
+```gdscript
+func get_header_values(header_name: String) -> PackedStringArray:
+```
+
+读取所有匹配的响应头值。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `header_name` | 响应头名称，按大小写不敏感方式匹配。 |
+
+Returns: 匹配的响应头值列表，保留原始出现顺序。
+
+#### `get_headers_dictionary`
+
+- API: `public`
+
+```gdscript
+func get_headers_dictionary() -> Dictionary:
+```
+
+生成大小写规范化的响应头字典。
+
+Returns: 响应头字典。
+
+Schemas:
+
+- `return`: Dictionary，键为小写 header 名称，值为 PackedStringArray，重复响应头会按出现顺序保留。
 
 #### `complete_success`
 
@@ -34088,6 +34190,66 @@ func duplicate_pattern() -> GFPattern2D:
 
 Returns: 新 pattern 资源。
 
+## GFPhysicsQueryUtility
+
+- Path: `addons/gf/standard/utilities/spatial/gf_physics_query_utility.gd`
+- Extends: `GFUtility`
+- API: `public`
+- Category: `runtime_service`
+- Since: `4.1.0`
+
+GFPhysicsQueryUtility: 通用物理查询辅助。 提供不绑定玩法语义的物理查询方法。调用方负责决定命中结果如何排序、 过滤、解释和分发；本工具只封装稳定的查询流程和结果补充字段。
+
+### Constants
+
+#### `DEFAULT_MAX_RAYCAST_RESULTS`
+
+- API: `public`
+
+```gdscript
+const DEFAULT_MAX_RAYCAST_RESULTS: int = 32
+```
+
+多命中射线查询的默认最大命中数。
+
+#### `DEFAULT_RAYCAST_MARGIN`
+
+- API: `public`
+
+```gdscript
+const DEFAULT_RAYCAST_MARGIN: float = 0.01
+```
+
+多命中射线查询命中后沿射线推进的默认距离。
+
+### Methods
+
+#### `raycast_all_3d`
+
+- API: `public`
+
+```gdscript
+func raycast_all_3d( world: World3D, from: Vector3, to: Vector3, options: Dictionary = {} ) -> Array[Dictionary]:
+```
+
+沿一条 3D 射线收集多个命中结果。 每次命中后会把命中的 RID 加入本次查询的排除列表，并沿射线方向推进 margin，直到没有更多命中、到达终点或达到 max_results。 返回的每个 Dictionary 保留 Godot `intersect_ray()` 的原始字段，并额外包含 `index` 与 `distance` 字段。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `world` | 用于执行查询的 World3D。 |
+| `from` | 射线起点。 |
+| `to` | 射线终点。 |
+| `options` | 可选查询参数。 |
+
+Returns: 按射线方向排序的命中结果列表。
+
+Schemas:
+
+- `options`: Dictionary，支持 collision_mask: int、exclude: Array[RID or CollisionObject3D]、max_results: int、margin: float、collide_with_bodies: bool、collide_with_areas: bool、hit_back_faces: bool 和 hit_from_inside: bool。
+- `return`: Array[Dictionary]，每项包含 Godot intersect_ray() 返回字段，并额外包含 index: int 与 distance: float。
+
 ## GFPointerActivityUtility
 
 - Path: `addons/gf/standard/input/runtime/gf_pointer_activity_utility.gd`
@@ -38476,6 +38638,29 @@ Returns: 新建的资源注册表。
 Schemas:
 
 - `options`: Dictionary，可同时包含扫描选项和条目导入选项。
+
+#### `collect_dependency_paths`
+
+- API: `public`
+
+```gdscript
+static func collect_dependency_paths(resource_path: String, options: Dictionary = {}) -> PackedStringArray:
+```
+
+收集资源的依赖路径。 该方法只读取 Godot `ResourceLoader.get_dependencies()` 暴露的依赖关系， 不打包 PCK、不改写 remap，也不解释资源业务含义。返回结果适合继续交给 `create_registry_from_paths()`、`GFAssetUtility.preload_group_async()` 或渲染预热清单。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `resource_path` | 入口资源路径。 |
+| `options` | 可选项，支持 recursive、include_root、extensions、excluded_paths、max_scan_depth 与 max_dependency_paths。 |
+
+Returns: 排序后的依赖路径。
+
+Schemas:
+
+- `options`: Dictionary，可包含 recursive、include_root、extensions、excluded_paths、max_scan_depth 和 max_dependency_paths 字段。
 
 #### `add_paths_to_registry`
 
@@ -44939,6 +45124,134 @@ func clear() -> void:
 ```
 
 清空索引。
+
+## GFSpringMath
+
+- Path: `addons/gf/standard/foundation/math/gf_spring_math.gd`
+- Extends: `RefCounted`
+- API: `public`
+- Category: `runtime_service`
+- Since: `4.1.0`
+
+GFSpringMath: 通用二阶弹簧平滑数学工具。 提供 float、角度、Vector2 与 Vector3 的稳定弹簧步进计算。 它只根据当前值、速度、目标值和参数输出下一帧状态，不持有节点、不创建 Tween， 也不解释相机、UI、角色移动或反馈表现语义。
+
+### Methods
+
+#### `step_float`
+
+- API: `public`
+
+```gdscript
+static func step_float( current_value: float, velocity: float, target_value: float, delta_seconds: float, frequency_hz: float = 3.0, damping_ratio: float = 1.0, response: float = 0.0, target_velocity: float = 0.0 ) -> Dictionary:
+```
+
+对 float 值执行一次二阶弹簧步进。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `current_value` | 当前值。 |
+| `velocity` | 当前速度；调用方应保存返回的 `velocity` 用于下一次步进。 |
+| `target_value` | 目标值。 |
+| `delta_seconds` | 本次步进时间；小于等于 0 时返回原状态。 |
+| `frequency_hz` | 弹簧频率，越大越快接近目标；会被限制为大于 0。 |
+| `damping_ratio` | 阻尼比；1 表示接近临界阻尼，0 表示无阻尼。 |
+| `response` | 目标速度响应系数；0 表示忽略 `target_velocity` 的前馈。 |
+| `target_velocity` | 目标值自身速度。 |
+
+Returns: 包含下一帧 `value` 与 `velocity` 的字典。
+
+Schemas:
+
+- `return`: Dictionary with `value: float` and `velocity: float`.
+
+#### `step_angle`
+
+- API: `public`
+
+```gdscript
+static func step_angle( current_radians: float, velocity: float, target_radians: float, delta_seconds: float, frequency_hz: float = 3.0, damping_ratio: float = 1.0, response: float = 0.0, target_velocity: float = 0.0 ) -> Dictionary:
+```
+
+对弧度角执行一次二阶弹簧步进，并沿最短角度方向靠近目标。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `current_radians` | 当前角度（弧度）。 |
+| `velocity` | 当前角速度；调用方应保存返回的 `velocity` 用于下一次步进。 |
+| `target_radians` | 目标角度（弧度）。 |
+| `delta_seconds` | 本次步进时间；小于等于 0 时返回原状态。 |
+| `frequency_hz` | 弹簧频率，越大越快接近目标；会被限制为大于 0。 |
+| `damping_ratio` | 阻尼比；1 表示接近临界阻尼，0 表示无阻尼。 |
+| `response` | 目标角速度响应系数；0 表示忽略 `target_velocity` 的前馈。 |
+| `target_velocity` | 目标角度自身速度。 |
+
+Returns: 包含下一帧 `value` 与 `velocity` 的字典；`value` 不会自动归一化。
+
+Schemas:
+
+- `return`: Dictionary with `value: float` and `velocity: float`.
+
+#### `step_vector2`
+
+- API: `public`
+
+```gdscript
+static func step_vector2( current_value: Vector2, velocity: Vector2, target_value: Vector2, delta_seconds: float, frequency_hz: float = 3.0, damping_ratio: float = 1.0, response: float = 0.0, target_velocity: Vector2 = Vector2.ZERO ) -> Dictionary:
+```
+
+对 Vector2 值执行一次逐分量二阶弹簧步进。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `current_value` | 当前值。 |
+| `velocity` | 当前速度；调用方应保存返回的 `velocity` 用于下一次步进。 |
+| `target_value` | 目标值。 |
+| `delta_seconds` | 本次步进时间；小于等于 0 时返回原状态。 |
+| `frequency_hz` | 弹簧频率，越大越快接近目标；会被限制为大于 0。 |
+| `damping_ratio` | 阻尼比；1 表示接近临界阻尼，0 表示无阻尼。 |
+| `response` | 目标速度响应系数；0 表示忽略 `target_velocity` 的前馈。 |
+| `target_velocity` | 目标值自身速度。 |
+
+Returns: 包含下一帧 `value` 与 `velocity` 的字典。
+
+Schemas:
+
+- `return`: Dictionary with `value: Vector2` and `velocity: Vector2`.
+
+#### `step_vector3`
+
+- API: `public`
+
+```gdscript
+static func step_vector3( current_value: Vector3, velocity: Vector3, target_value: Vector3, delta_seconds: float, frequency_hz: float = 3.0, damping_ratio: float = 1.0, response: float = 0.0, target_velocity: Vector3 = Vector3.ZERO ) -> Dictionary:
+```
+
+对 Vector3 值执行一次逐分量二阶弹簧步进。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `current_value` | 当前值。 |
+| `velocity` | 当前速度；调用方应保存返回的 `velocity` 用于下一次步进。 |
+| `target_value` | 目标值。 |
+| `delta_seconds` | 本次步进时间；小于等于 0 时返回原状态。 |
+| `frequency_hz` | 弹簧频率，越大越快接近目标；会被限制为大于 0。 |
+| `damping_ratio` | 阻尼比；1 表示接近临界阻尼，0 表示无阻尼。 |
+| `response` | 目标速度响应系数；0 表示忽略 `target_velocity` 的前馈。 |
+| `target_velocity` | 目标值自身速度。 |
+
+Returns: 包含下一帧 `value` 与 `velocity` 的字典。
+
+Schemas:
+
+- `return`: Dictionary with `value: Vector3` and `velocity: Vector3`.
 
 ## GFState
 

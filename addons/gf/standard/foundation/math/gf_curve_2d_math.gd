@@ -1,7 +1,7 @@
 ## GFCurve2DMath: Curve2D 与折线的纯算法辅助。
 ##
-## 提供路径长度、归一化采样、点距简化和基础闭合形状生成，不持有节点状态，
-## 也不解释碰撞、渲染或编辑器交互语义。
+## 提供路径长度、归一化采样、点距简化、虚线切分和基础闭合形状生成，
+## 不持有节点状态，也不解释碰撞、渲染或编辑器交互语义。
 ## [br]
 ## @api public
 ## [br]
@@ -18,6 +18,8 @@ extends RefCounted
 ## [br]
 ## @api public
 const CIRCLE_BEZIER_KAPPA: float = 0.5522847498307936
+
+const _DASH_EPSILON: float = 0.00001
 
 
 # --- 公共方法 ---
@@ -138,6 +140,118 @@ static func simplify_polyline_by_distance(
 	if keep_last and simplified[simplified.size() - 1] != last_point:
 		var _last_point_appended: bool = simplified.append(last_point)
 	return simplified
+
+
+## 按 dash/gap 模式把折线切分为可见线段。
+## [br]
+## @api public
+## [br]
+## @param points: 折线点序列。
+## [br]
+## @param dash_length: 每段可见长度；小于等于 0 或接近 0 时返回空数组。
+## [br]
+## @param gap_length: 每段间隔长度；小于等于 0 或接近 0 时返回原折线的非零长度段。
+## [br]
+## @param closed: 是否把末点连回首点；少于三个点时不会追加闭合段。
+## [br]
+## @param offset: 沿路径推进 dash/gap 模式的偏移距离，可用于滚动或动画。
+## [br]
+## @return 可见线段数组；每项是包含起点和终点的 PackedVector2Array。
+## [br]
+## @schema return: Array[PackedVector2Array]，每项包含 from/to 两个 Vector2，顶点处会拆分以避免跨角连线。
+static func make_dashed_polyline_segments(
+	points: PackedVector2Array,
+	dash_length: float,
+	gap_length: float,
+	closed: bool = false,
+	offset: float = 0.0
+) -> Array[PackedVector2Array]:
+	var visible_segments: Array[PackedVector2Array] = []
+	if points.size() < 2 or dash_length <= _DASH_EPSILON:
+		return visible_segments
+
+	var normalized_gap_length: float = maxf(gap_length, 0.0)
+	if normalized_gap_length <= _DASH_EPSILON:
+		_append_source_polyline_segments(visible_segments, points, closed)
+		return visible_segments
+
+	var path_points: PackedVector2Array = _get_polyline_points(points, closed)
+	var pattern_length: float = dash_length + normalized_gap_length
+	var phase: float = fposmod(offset, pattern_length)
+	var in_dash: bool = phase < dash_length
+	var phase_remaining: float = dash_length - phase if in_dash else pattern_length - phase
+
+	for index: int in range(1, path_points.size()):
+		var from_point: Vector2 = path_points[index - 1]
+		var to_point: Vector2 = path_points[index]
+		var segment_vector: Vector2 = to_point - from_point
+		var segment_length: float = segment_vector.length()
+		if segment_length <= _DASH_EPSILON:
+			continue
+
+		var segment_direction: Vector2 = segment_vector / segment_length
+		var travelled: float = 0.0
+		while travelled < segment_length - _DASH_EPSILON:
+			if phase_remaining <= _DASH_EPSILON:
+				in_dash = not in_dash
+				phase_remaining = dash_length if in_dash else normalized_gap_length
+				continue
+
+			var step_length: float = minf(phase_remaining, segment_length - travelled)
+			if step_length <= _DASH_EPSILON:
+				break
+
+			if in_dash:
+				_append_visible_polyline_segment(
+					visible_segments,
+					from_point + segment_direction * travelled,
+					from_point + segment_direction * (travelled + step_length)
+				)
+			travelled += step_length
+			phase_remaining -= step_length
+
+	return visible_segments
+
+
+## 为闭合多边形生成圆角点序列。
+## [br]
+## @api public
+## [br]
+## @param points: 多边形顶点序列；不要求末点重复，若末点重复会忽略。
+## [br]
+## @param radius: 每个顶点两侧的圆角裁切距离；会按相邻边长度限制。
+## [br]
+## @param corner_detail: 每个圆角的细分数量；1 表示只输出两侧锚点。
+## [br]
+## @param uniform_corners: 是否用相邻两边的较短可用距离统一限制圆角。
+## [br]
+## @return 圆角化后的多边形点序列；无效输入会返回去除重复末点后的原始点副本。
+static func round_polygon_points(
+	points: PackedVector2Array,
+	radius: float,
+	corner_detail: int = 8,
+	uniform_corners: bool = true
+) -> PackedVector2Array:
+	var source_points: PackedVector2Array = _get_unclosed_polygon_points(points)
+	if source_points.size() < 3 or radius <= 0.0 or corner_detail <= 0:
+		return source_points
+
+	var result: PackedVector2Array = PackedVector2Array()
+	var point_count: int = source_points.size()
+	for index: int in range(point_count):
+		var point: Vector2 = source_points[index]
+		var previous_point: Vector2 = source_points[posmod(index - 1, point_count)]
+		var next_point: Vector2 = source_points[(index + 1) % point_count]
+		_append_rounded_polygon_corner(
+			result,
+			point,
+			previous_point,
+			next_point,
+			radius,
+			corner_detail,
+			uniform_corners
+		)
+	return result
 
 
 ## 创建闭合矩形 Curve2D。
@@ -329,3 +443,82 @@ static func _add_transformed_point(
 
 static func _transform_point(point: Vector2, offset: Vector2, rotation: float) -> Vector2:
 	return point.rotated(rotation) + offset
+
+
+static func _get_unclosed_polygon_points(points: PackedVector2Array) -> PackedVector2Array:
+	var result: PackedVector2Array = points.duplicate()
+	if result.size() > 1 and result[0] == result[result.size() - 1]:
+		result.remove_at(result.size() - 1)
+	return result
+
+
+static func _get_polyline_points(points: PackedVector2Array, closed: bool) -> PackedVector2Array:
+	var result: PackedVector2Array = points.duplicate()
+	if closed and result.size() > 2 and result[0] != result[result.size() - 1]:
+		var _first_point_appended: bool = result.append(result[0])
+	return result
+
+
+static func _append_source_polyline_segments(
+	target: Array[PackedVector2Array],
+	points: PackedVector2Array,
+	closed: bool
+) -> void:
+	for index: int in range(1, points.size()):
+		_append_visible_polyline_segment(target, points[index - 1], points[index])
+	if closed and points.size() > 2:
+		_append_visible_polyline_segment(target, points[points.size() - 1], points[0])
+
+
+static func _append_visible_polyline_segment(
+	target: Array[PackedVector2Array],
+	from_point: Vector2,
+	to_point: Vector2
+) -> void:
+	if from_point.distance_squared_to(to_point) <= _DASH_EPSILON * _DASH_EPSILON:
+		return
+	target.append(PackedVector2Array([from_point, to_point]))
+
+
+static func _append_rounded_polygon_corner(
+	target: PackedVector2Array,
+	point: Vector2,
+	previous_point: Vector2,
+	next_point: Vector2,
+	radius: float,
+	corner_detail: int,
+	uniform_corners: bool
+) -> void:
+	var previous_length: float = point.distance_to(previous_point)
+	var next_length: float = point.distance_to(next_point)
+	if previous_length <= 0.0 or next_length <= 0.0:
+		var _point_appended: bool = target.append(point)
+		return
+
+	var previous_distance: float = radius
+	var next_distance: float = radius
+	if uniform_corners:
+		var shared_limit: float = maxf(minf(previous_length, next_length) * 0.5, 0.0)
+		previous_distance = minf(radius, shared_limit)
+		next_distance = previous_distance
+	else:
+		previous_distance = minf(radius, maxf(previous_length * 0.5, 0.0))
+		next_distance = minf(radius, maxf(next_length * 0.5, 0.0))
+
+	if previous_distance <= 0.0 or next_distance <= 0.0:
+		var _point_appended: bool = target.append(point)
+		return
+
+	var anchor_previous: Vector2 = point + point.direction_to(previous_point) * previous_distance
+	var anchor_next: Vector2 = point + point.direction_to(next_point) * next_distance
+	var _previous_appended: bool = target.append(anchor_previous)
+	for step: int in range(1, corner_detail):
+		var ratio: float = float(step) / float(corner_detail)
+		var corner_point: Vector2 = anchor_previous.bezier_interpolate(
+			point.lerp(anchor_previous, 0.5),
+			point.lerp(anchor_next, 0.5),
+			anchor_next,
+			ratio
+		)
+		var _corner_appended: bool = target.append(corner_point)
+	var _next_appended: bool = target.append(anchor_next)

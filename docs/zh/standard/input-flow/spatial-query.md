@@ -1,6 +1,30 @@
 # 逻辑空间查询与相关扩展
 
-标准库提供纯逻辑四叉树用于轻量空间查询；流程、任务和行为树能力位于对应 GF 内置扩展页面。
+标准库提供纯逻辑四叉树用于轻量空间查询，也提供少量不绑定玩法语义的物理查询辅助；流程、任务和行为树能力位于对应 GF 内置扩展页面。
+
+## 物理多命中射线 (`GFPhysicsQueryUtility`)
+
+Godot 的 `intersect_ray()` 默认返回第一处命中。需要激光、穿透检测、遮挡层分析或编辑器拾取时，可以用 `GFPhysicsQueryUtility.raycast_all_3d()` 沿同一条 3D 射线收集多个命中结果。
+
+```gdscript
+var query := Gf.get_utility(GFPhysicsQueryUtility) as GFPhysicsQueryUtility
+
+var hits := query.raycast_all_3d(
+	get_world_3d(),
+	global_position,
+	global_position + -global_basis.z * 20.0,
+	{
+		"collision_mask": 0xffffffff,
+		"max_results": 8,
+		"margin": 0.02,
+		"exclude": [self],
+	}
+)
+```
+
+每次命中后，工具会把该命中的 RID 加入本次查询的排除列表，并沿射线方向推进 `margin`，直到没有更多命中、到达终点或达到 `max_results`。返回项保留 Godot `intersect_ray()` 的原始字段，同时额外写入 `index` 和 `distance`，方便调用方排序、截断或调试。
+
+`GFPhysicsQueryUtility` 不解释碰撞体含义，不发送 hit / interaction，不管理穿透次数消耗，也不创建可视化光束。项目需要命中分发时，可以把结果交给 Interaction 或 Combat 扩展；需要调试线条时，用 DebugDraw 或项目自己的视觉节点表达。
 
 ## 逻辑四叉树 (`GFQuadTreeUtility`)
 

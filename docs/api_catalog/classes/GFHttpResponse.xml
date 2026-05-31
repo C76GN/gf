@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFHttpResponse" path="addons/gf/standard/utilities/io/gf_http_response.gd" module="standard" extends="RefCounted" classDigest="b75d6d2e9812384dcd4a589aee1fc9395465610ecb2e11473b619693956d5f3d">
+<class name="GFHttpResponse" path="addons/gf/standard/utilities/io/gf_http_response.gd" module="standard" extends="RefCounted" classDigest="b4f695b71c8a5c2592a55020d1ec4b537b7a11a1ee70817a4da9ac13b836fc4f">
 	<description>GFHttpResponse: 通用 HTTP 请求结果。
 以对象形式表达 pending、completed、failed、cancelled 等状态，便于请求构建器、
 批处理器和项目侧工具统一观察异步结果。</description>
@@ -132,6 +132,34 @@
 			<tags>
 				<tag name="api">public</tag>
 				<tag name="return">请求完成、失败或取消时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_header">
+			<signature>func get_header(header_name: String, default_value: String = "") -&gt; String:</signature>
+			<description>读取第一个匹配的响应头。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">header_name: 响应头名称，按大小写不敏感方式匹配。</tag>
+				<tag name="param">default_value: 没有匹配响应头时返回的默认值。</tag>
+				<tag name="return">响应头值；没有匹配项时返回 default_value。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_header_values">
+			<signature>func get_header_values(header_name: String) -&gt; PackedStringArray:</signature>
+			<description>读取所有匹配的响应头值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">header_name: 响应头名称，按大小写不敏感方式匹配。</tag>
+				<tag name="return">匹配的响应头值列表，保留原始出现顺序。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_headers_dictionary">
+			<signature>func get_headers_dictionary() -&gt; Dictionary:</signature>
+			<description>生成大小写规范化的响应头字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">响应头字典。</tag>
+				<tag name="schema">return: Dictionary，键为小写 header 名称，值为 PackedStringArray，重复响应头会按出现顺序保留。</tag>
 			</tags>
 		</member>
 		<member kind="method" name="complete_success">

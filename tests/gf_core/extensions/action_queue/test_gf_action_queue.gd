@@ -557,7 +557,13 @@ func test_signal_timeout_allows_queue_to_continue() -> void:
 	_enqueue(_system, action)
 	_enqueue(_system, OrderAction.new(order, "AFTER_TIMEOUT"))
 
-	await get_tree().create_timer(0.05).timeout
+	await wait_until(
+		func() -> bool:
+			return not _is_queue_processing(_system),
+		1.0,
+		0.01,
+		"Signal 超时后队列应排空。"
+	)
 	await get_tree().process_frame
 
 	assert_push_warning("[GFActionQueueSystem] 等待动作 Signal 超时，队列将继续执行后续动作。")
@@ -587,7 +593,13 @@ func test_signal_timeout_respects_time_utility_pause() -> void:
 	assert_true(order.is_empty(), "暂停期间队列不应因超时执行后续动作。")
 
 	time_utility.is_paused = false
-	await get_tree().create_timer(0.03).timeout
+	await wait_until(
+		func() -> bool:
+			return not _is_queue_processing(queue),
+		1.0,
+		0.01,
+		"恢复时间后队列应在 Signal 超时后排空。"
+	)
 	await get_tree().process_frame
 
 	assert_push_warning("[GFActionQueueSystem] 等待动作 Signal 超时，队列将继续执行后续动作。")

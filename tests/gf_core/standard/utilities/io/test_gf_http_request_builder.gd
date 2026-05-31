@@ -55,6 +55,37 @@ func test_http_response_and_async_batch_complete_together() -> void:
 	assert_eq(batch.get_completed_count(), 1, "批处理完成数量应更新。")
 
 
+func test_http_response_reads_headers_case_insensitively_and_preserves_duplicates() -> void:
+	var response: GFHttpResponse = GFHttpResponse.new()
+	response.headers = PackedStringArray([
+		"Content-Type: application/json; charset=utf-8",
+		"set-cookie: a=1",
+		"Set-Cookie: b=2",
+		"ETag: \"v1:stable\"",
+		"invalid-header",
+	])
+
+	var cookie_values: PackedStringArray = response.get_header_values("SET-cookie")
+	var header_dictionary: Dictionary = response.get_headers_dictionary()
+	var dictionary_cookie_values: PackedStringArray = GFVariantData.get_option_packed_string_array(
+		header_dictionary,
+		"set-cookie"
+	)
+
+	assert_eq(
+		response.get_header("content-type"),
+		"application/json; charset=utf-8",
+		"单值响应头应支持大小写不敏感读取。"
+	)
+	assert_eq(cookie_values.size(), 2, "重复响应头应保留所有值。")
+	assert_eq(cookie_values[0], "a=1", "重复响应头应保留出现顺序。")
+	assert_eq(cookie_values[1], "b=2", "重复响应头应保留出现顺序。")
+	assert_eq(response.get_header("etag"), "\"v1:stable\"", "响应头值中的冒号不应被截断。")
+	assert_eq(response.get_header("missing", "fallback"), "fallback", "缺失响应头应返回默认值。")
+	assert_false(header_dictionary.has("invalid-header"), "非法响应头行不应进入规范化字典。")
+	assert_eq(dictionary_cookie_values.size(), 2, "规范化字典也应保留重复响应头。")
+
+
 func test_http_response_cancel_runs_callback_once_and_ignores_late_completion() -> void:
 	var response: GFHttpResponse = GFHttpResponse.new()
 	var cancel_count: CounterState = CounterState.new()

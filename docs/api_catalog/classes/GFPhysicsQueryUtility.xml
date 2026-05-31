@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFPhysicsQueryUtility" path="addons/gf/standard/utilities/spatial/gf_physics_query_utility.gd" module="standard" extends="GFUtility" classDigest="7ce52ffb903a1b03c9b3c359234e61867e63ac37fcadf0d36ce761f1ed322864">
+	<description>GFPhysicsQueryUtility: 通用物理查询辅助。
+提供不绑定玩法语义的物理查询方法。调用方负责决定命中结果如何排序、
+过滤、解释和分发；本工具只封装稳定的查询流程和结果补充字段。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">4.1.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants>
+		<member kind="const" name="DEFAULT_MAX_RAYCAST_RESULTS">
+			<signature>const DEFAULT_MAX_RAYCAST_RESULTS: int = 32</signature>
+			<description>多命中射线查询的默认最大命中数。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="DEFAULT_RAYCAST_MARGIN">
+			<signature>const DEFAULT_RAYCAST_MARGIN: float = 0.01</signature>
+			<description>多命中射线查询命中后沿射线推进的默认距离。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</constants>
+	<properties />
+	<methods>
+		<member kind="method" name="raycast_all_3d">
+			<signature>func raycast_all_3d( world: World3D, from: Vector3, to: Vector3, options: Dictionary = {} ) -&gt; Array[Dictionary]:</signature>
+			<description>沿一条 3D 射线收集多个命中结果。
+每次命中后会把命中的 RID 加入本次查询的排除列表，并沿射线方向推进
+margin，直到没有更多命中、到达终点或达到 max_results。
+返回的每个 Dictionary 保留 Godot `intersect_ray()` 的原始字段，并额外包含
+`index` 与 `distance` 字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">world: 用于执行查询的 World3D。</tag>
+				<tag name="param">from: 射线起点。</tag>
+				<tag name="param">to: 射线终点。</tag>
+				<tag name="param">options: 可选查询参数。</tag>
+				<tag name="return">按射线方向排序的命中结果列表。</tag>
+				<tag name="schema">options: Dictionary，支持 collision_mask: int、exclude: Array[RID or CollisionObject3D]、max_results: int、margin: float、collide_with_bodies: bool、collide_with_areas: bool、hit_back_faces: bool 和 hit_from_inside: bool。</tag>
+				<tag name="schema">return: Array[Dictionary]，每项包含 Godot intersect_ray() 返回字段，并额外包含 index: int 与 distance: float。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

@@ -130,6 +130,68 @@ func is_finished() -> bool:
 	return state != State.PENDING
 
 
+## 读取第一个匹配的响应头。
+## [br]
+## @api public
+## [br]
+## @param header_name: 响应头名称，按大小写不敏感方式匹配。
+## [br]
+## @param default_value: 没有匹配响应头时返回的默认值。
+## [br]
+## @return 响应头值；没有匹配项时返回 default_value。
+func get_header(header_name: String, default_value: String = "") -> String:
+	var values: PackedStringArray = get_header_values(header_name)
+	if values.is_empty():
+		return default_value
+	return values[0]
+
+
+## 读取所有匹配的响应头值。
+## [br]
+## @api public
+## [br]
+## @param header_name: 响应头名称，按大小写不敏感方式匹配。
+## [br]
+## @return 匹配的响应头值列表，保留原始出现顺序。
+func get_header_values(header_name: String) -> PackedStringArray:
+	var normalized_name: String = _normalize_header_name(header_name)
+	if normalized_name.is_empty():
+		return PackedStringArray()
+
+	var result: PackedStringArray = PackedStringArray()
+	for raw_header: String in headers:
+		var parsed_header: Dictionary = _parse_header(raw_header)
+		if parsed_header.is_empty():
+			continue
+		if GFVariantData.get_option_string(parsed_header, "name") != normalized_name:
+			continue
+		var _append_result: bool = result.append(GFVariantData.get_option_string(parsed_header, "value"))
+	return result
+
+
+## 生成大小写规范化的响应头字典。
+## [br]
+## @api public
+## [br]
+## @return 响应头字典。
+## [br]
+## @schema return: Dictionary，键为小写 header 名称，值为 PackedStringArray，重复响应头会按出现顺序保留。
+func get_headers_dictionary() -> Dictionary:
+	var result: Dictionary = {}
+	for raw_header: String in headers:
+		var parsed_header: Dictionary = _parse_header(raw_header)
+		if parsed_header.is_empty():
+			continue
+
+		var header_name: String = GFVariantData.get_option_string(parsed_header, "name")
+		var values: PackedStringArray = PackedStringArray()
+		if result.has(header_name):
+			values = _variant_to_packed_string_array(result[header_name])
+		var _append_result: bool = values.append(GFVariantData.get_option_string(parsed_header, "value"))
+		result[header_name] = values
+	return result
+
+
 ## 标记请求成功完成。
 ## [br]
 ## @api public
@@ -244,3 +306,22 @@ func _variant_to_packed_byte_array(value: Variant) -> PackedByteArray:
 		var packed: PackedByteArray = value
 		return packed
 	return PackedByteArray()
+
+
+func _parse_header(raw_header: String) -> Dictionary:
+	var colon_index: int = raw_header.find(":")
+	if colon_index <= 0:
+		return {}
+
+	var header_name: String = _normalize_header_name(raw_header.substr(0, colon_index))
+	if header_name.is_empty():
+		return {}
+
+	return {
+		"name": header_name,
+		"value": raw_header.substr(colon_index + 1).strip_edges(),
+	}
+
+
+func _normalize_header_name(header_name: String) -> String:
+	return header_name.strip_edges().to_lower()

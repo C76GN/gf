@@ -230,6 +230,61 @@ static func create_registry_from_scan(root_path: String = "res://", options: Dic
 	return create_registry_from_paths(paths, options)
 
 
+## 收集资源的依赖路径。
+##
+## 该方法只读取 Godot `ResourceLoader.get_dependencies()` 暴露的依赖关系，
+## 不打包 PCK、不改写 remap，也不解释资源业务含义。返回结果适合继续交给
+## `create_registry_from_paths()`、`GFAssetUtility.preload_group_async()` 或渲染预热清单。
+## [br]
+## @api public
+## [br]
+## @param resource_path: 入口资源路径。
+## [br]
+## @param options: 可选项，支持 recursive、include_root、extensions、excluded_paths、max_scan_depth 与 max_dependency_paths。
+## [br]
+## @return 排序后的依赖路径。
+## [br]
+## @schema options: Dictionary，可包含 recursive、include_root、extensions、excluded_paths、max_scan_depth 和 max_dependency_paths 字段。
+static func collect_dependency_paths(resource_path: String, options: Dictionary = {}) -> PackedStringArray:
+	var result: PackedStringArray = PackedStringArray()
+	var normalized_path: String = _normalize_resource_path(resource_path)
+	if normalized_path.is_empty():
+		return result
+
+	var extensions: PackedStringArray = _get_extensions(options)
+	var excluded_paths: PackedStringArray = GFVariantData.get_option_packed_string_array(options, "excluded_paths", PackedStringArray())
+	var max_scan_depth: int = maxi(GFVariantData.get_option_int(options, "max_scan_depth", DEFAULT_MAX_SCAN_DEPTH), 0)
+	var max_dependency_paths: int = maxi(GFVariantData.get_option_int(options, "max_dependency_paths", DEFAULT_MAX_RESOURCE_PATHS), 0)
+	var recursive: bool = GFVariantData.get_option_bool(options, "recursive", true)
+	var scan_state: Dictionary = _make_scan_state()
+	var visited: Dictionary = {}
+
+	if GFVariantData.get_option_bool(options, "include_root", false):
+		var _root_appended: bool = _append_dependency_path(
+			result,
+			normalized_path,
+			extensions,
+			excluded_paths,
+			max_dependency_paths,
+			scan_state
+		)
+
+	_collect_dependency_paths_recursive(
+		normalized_path,
+		recursive,
+		extensions,
+		excluded_paths,
+		result,
+		visited,
+		0,
+		max_scan_depth,
+		max_dependency_paths,
+		scan_state
+	)
+	result.sort()
+	return result
+
+
 ## 将路径列表加入资源注册表。
 ## [br]
 ## @api public
@@ -484,6 +539,60 @@ static func _scan_resource_paths_recursive(
 	dir.list_dir_end()
 
 
+static func _collect_dependency_paths_recursive(
+	resource_path: String,
+	recursive: bool,
+	extensions: PackedStringArray,
+	excluded_paths: PackedStringArray,
+	result: PackedStringArray,
+	visited: Dictionary,
+	depth: int,
+	max_scan_depth: int,
+	max_dependency_paths: int,
+	scan_state: Dictionary
+) -> void:
+	if visited.has(resource_path):
+		return
+	visited[resource_path] = true
+	if not _can_collect_more_resource_paths(result, max_dependency_paths):
+		_warn_dependency_path_limit(max_dependency_paths, scan_state)
+		return
+	if not _can_scan_dependency_deeper(resource_path, depth, max_scan_depth, scan_state):
+		return
+
+	var dependencies: PackedStringArray = ResourceLoader.get_dependencies(resource_path)
+	for dependency: String in dependencies:
+		if not _can_collect_more_resource_paths(result, max_dependency_paths):
+			_warn_dependency_path_limit(max_dependency_paths, scan_state)
+			break
+
+		var dependency_path: String = _normalize_resource_path(_get_dependency_resource_path(dependency))
+		if dependency_path.is_empty():
+			continue
+
+		var appended: bool = _append_dependency_path(
+			result,
+			dependency_path,
+			extensions,
+			excluded_paths,
+			max_dependency_paths,
+			scan_state
+		)
+		if recursive and (appended or not visited.has(dependency_path)):
+			_collect_dependency_paths_recursive(
+				dependency_path,
+				recursive,
+				extensions,
+				excluded_paths,
+				result,
+				visited,
+				depth + 1,
+				max_scan_depth,
+				max_dependency_paths,
+				scan_state
+			)
+
+
 static func _can_include_file_entry(
 	entry: String,
 	extensions: PackedStringArray,
@@ -498,6 +607,18 @@ static func _can_scan_deeper(path: String, current_depth: int, max_scan_depth: i
 	if max_scan_depth <= 0 or current_depth < max_scan_depth:
 		return true
 	_warn_scan_depth_limit(path, max_scan_depth, scan_state)
+	return false
+
+
+static func _can_scan_dependency_deeper(
+	path: String,
+	current_depth: int,
+	max_scan_depth: int,
+	scan_state: Dictionary
+) -> bool:
+	if max_scan_depth <= 0 or current_depth < max_scan_depth:
+		return true
+	_warn_dependency_depth_limit(path, max_scan_depth, scan_state)
 	return false
 
 
@@ -524,6 +645,20 @@ static func _warn_scan_depth_limit(path: String, max_scan_depth: int, scan_state
 		return
 	scan_state["depth_warning_emitted"] = true
 	push_warning("[GFResourceRegistryTools] scan_resource_paths 已达到 max_scan_depth=%d，已跳过更深目录：%s。" % [max_scan_depth, path])
+
+
+static func _warn_dependency_path_limit(max_dependency_paths: int, scan_state: Dictionary) -> void:
+	if max_dependency_paths <= 0 or GFVariantData.get_option_bool(scan_state, "count_warning_emitted"):
+		return
+	scan_state["count_warning_emitted"] = true
+	push_warning("[GFResourceRegistryTools] collect_dependency_paths 已达到 max_dependency_paths=%d，后续依赖已跳过。" % max_dependency_paths)
+
+
+static func _warn_dependency_depth_limit(path: String, max_scan_depth: int, scan_state: Dictionary) -> void:
+	if max_scan_depth <= 0 or GFVariantData.get_option_bool(scan_state, "depth_warning_emitted"):
+		return
+	scan_state["depth_warning_emitted"] = true
+	push_warning("[GFResourceRegistryTools] collect_dependency_paths 已达到 max_scan_depth=%d，已跳过更深依赖：%s。" % [max_scan_depth, path])
 
 
 static func _get_extensions(options: Dictionary) -> PackedStringArray:
@@ -617,6 +752,55 @@ static func _get_path_override_fields(path: String, options: Dictionary) -> Dict
 		GFVariantData.get_option_value(fields_by_path, path, {})
 	)
 	return GFVariantData.to_dictionary(value)
+
+
+static func _append_dependency_path(
+	result: PackedStringArray,
+	path: String,
+	extensions: PackedStringArray,
+	excluded_paths: PackedStringArray,
+	max_dependency_paths: int,
+	scan_state: Dictionary
+) -> bool:
+	if not _can_collect_more_resource_paths(result, max_dependency_paths):
+		_warn_dependency_path_limit(max_dependency_paths, scan_state)
+		return false
+	if not _can_include_dependency_path(path, extensions, excluded_paths):
+		return false
+	if result.has(path):
+		return false
+	var _path_appended: bool = result.append(path)
+	return true
+
+
+static func _can_include_dependency_path(
+	path: String,
+	extensions: PackedStringArray,
+	excluded_paths: PackedStringArray
+) -> bool:
+	if path.is_empty():
+		return false
+	if _is_excluded_path(path, excluded_paths):
+		return false
+	if path.begins_with("uid://"):
+		return true
+	return is_resource_path(path, extensions)
+
+
+static func _get_dependency_resource_path(dependency: String) -> String:
+	var fallback_uid: String = ""
+	var parts: PackedStringArray = dependency.split("::", false)
+	for index: int in range(parts.size() - 1, -1, -1):
+		var part: String = parts[index].strip_edges()
+		if part.begins_with("res://") or part.begins_with("user://"):
+			return part
+		if fallback_uid.is_empty() and part.begins_with("uid://"):
+			fallback_uid = part
+	return fallback_uid
+
+
+static func _normalize_resource_path(path: String) -> String:
+	return path.replace("\\", "/").strip_edges()
 
 
 static func _get_id_override_fields(entry_id: StringName, options: Dictionary) -> Dictionary:

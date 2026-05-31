@@ -76,6 +76,55 @@ func test_scan_resource_paths_respects_extension_and_count_limits() -> void:
 	assert_eq(paths.size(), 1, "资源扫描应遵守 max_resource_paths 上限。")
 
 
+func test_collect_dependency_paths_reads_direct_external_resource_dependencies() -> void:
+	var dependency_path: String = "user://gf_resource_registry_tools_dependency_entry.tres"
+	var root_path: String = "user://gf_resource_registry_tools_dependency_registry.tres"
+	var entry: GFResourceRegistryEntry = GFResourceRegistryEntry.new()
+	var _configured_entry: Resource = entry.configure(&"menu", "res://assets/ui/menu.tscn", "PackedScene")
+	assert_eq(ResourceSaver.save(entry, dependency_path), OK, "测试应能保存依赖资源。")
+
+	var dependency: GFResourceRegistryEntry = ResourceLoader.load(dependency_path) as GFResourceRegistryEntry
+	assert_not_null(dependency, "测试应能加载依赖资源。")
+	var registry: GFResourceRegistry = GFResourceRegistry.new()
+	registry.entries.append(dependency)
+	assert_eq(ResourceSaver.save(registry, root_path), OK, "测试应能保存引用依赖的根资源。")
+
+	var paths: PackedStringArray = GFResourceRegistryTools.collect_dependency_paths(root_path, {
+		"recursive": false,
+		"include_root": true,
+		"extensions": PackedStringArray(["tres"]),
+	})
+
+	_remove_user_file(root_path)
+	_remove_user_file(dependency_path)
+
+	assert_true(paths.has(root_path), "include_root 应包含入口资源。")
+	assert_true(paths.has(dependency_path), "依赖收集应包含外部 Resource 引用。")
+
+
+func test_collect_dependency_paths_respects_limit() -> void:
+	var dependency_path: String = "user://gf_resource_registry_tools_limited_dependency.tres"
+	var root_path: String = "user://gf_resource_registry_tools_limited_registry.tres"
+	var entry: GFResourceRegistryEntry = GFResourceRegistryEntry.new()
+	var _configured_entry: Resource = entry.configure(&"menu", "res://assets/ui/menu.tscn", "PackedScene")
+	assert_eq(ResourceSaver.save(entry, dependency_path), OK, "测试应能保存依赖资源。")
+	var registry: GFResourceRegistry = GFResourceRegistry.new()
+	registry.entries.append(ResourceLoader.load(dependency_path) as GFResourceRegistryEntry)
+	assert_eq(ResourceSaver.save(registry, root_path), OK, "测试应能保存引用依赖的根资源。")
+
+	var paths: PackedStringArray = GFResourceRegistryTools.collect_dependency_paths(root_path, {
+		"include_root": true,
+		"max_dependency_paths": 1,
+		"extensions": PackedStringArray(["tres"]),
+	})
+
+	_remove_user_file(root_path)
+	_remove_user_file(dependency_path)
+
+	assert_push_warning("[GFResourceRegistryTools] collect_dependency_paths 已达到 max_dependency_paths=1，后续依赖已跳过。")
+	assert_eq(paths.size(), 1, "依赖收集应遵守 max_dependency_paths 上限。")
+
+
 # --- 私有/辅助方法 ---
 
 func _write_empty_user_file(path: String) -> void:

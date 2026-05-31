@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFCurve2DMath" path="addons/gf/standard/foundation/math/gf_curve_2d_math.gd" module="standard" extends="RefCounted" classDigest="9e64802ae9b647d19a7c0f30b213b3f82fa36f10e4d70bb49d715f7ad0515892">
+<class name="GFCurve2DMath" path="addons/gf/standard/foundation/math/gf_curve_2d_math.gd" module="standard" extends="RefCounted" classDigest="85fa4ac2297d1d9d9ebd54a4153f3845db7db2c6f8f1842fd3b356242d8f960e">
 	<description>GFCurve2DMath: Curve2D 与折线的纯算法辅助。
-提供路径长度、归一化采样、点距简化和基础闭合形状生成，不持有节点状态，
-也不解释碰撞、渲染或编辑器交互语义。</description>
+提供路径长度、归一化采样、点距简化、虚线切分和基础闭合形状生成，
+不持有节点状态，也不解释碰撞、渲染或编辑器交互语义。</description>
 	<tags>
 		<tag name="api">public</tag>
 		<tag name="category">runtime_service</tag>
@@ -61,6 +61,32 @@
 				<tag name="param">min_distance: 相邻保留点的最小距离；小于等于 0 时返回原始副本。</tag>
 				<tag name="param">keep_last: 是否始终保留末点。</tag>
 				<tag name="return">简化后的折线点序列。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="make_dashed_polyline_segments">
+			<signature>static func make_dashed_polyline_segments( points: PackedVector2Array, dash_length: float, gap_length: float, closed: bool = false, offset: float = 0.0 ) -&gt; Array[PackedVector2Array]:</signature>
+			<description>按 dash/gap 模式把折线切分为可见线段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">points: 折线点序列。</tag>
+				<tag name="param">dash_length: 每段可见长度；小于等于 0 或接近 0 时返回空数组。</tag>
+				<tag name="param">gap_length: 每段间隔长度；小于等于 0 或接近 0 时返回原折线的非零长度段。</tag>
+				<tag name="param">closed: 是否把末点连回首点；少于三个点时不会追加闭合段。</tag>
+				<tag name="param">offset: 沿路径推进 dash/gap 模式的偏移距离，可用于滚动或动画。</tag>
+				<tag name="return">可见线段数组；每项是包含起点和终点的 PackedVector2Array。</tag>
+				<tag name="schema">return: Array[PackedVector2Array]，每项包含 from/to 两个 Vector2，顶点处会拆分以避免跨角连线。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="round_polygon_points">
+			<signature>static func round_polygon_points( points: PackedVector2Array, radius: float, corner_detail: int = 8, uniform_corners: bool = true ) -&gt; PackedVector2Array:</signature>
+			<description>为闭合多边形生成圆角点序列。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">points: 多边形顶点序列；不要求末点重复，若末点重复会忽略。</tag>
+				<tag name="param">radius: 每个顶点两侧的圆角裁切距离；会按相邻边长度限制。</tag>
+				<tag name="param">corner_detail: 每个圆角的细分数量；1 表示只输出两侧锚点。</tag>
+				<tag name="param">uniform_corners: 是否用相邻两边的较短可用距离统一限制圆角。</tag>
+				<tag name="return">圆角化后的多边形点序列；无效输入会返回去除重复末点后的原始点副本。</tag>
 			</tags>
 		</member>
 		<member kind="method" name="create_rect_curve">

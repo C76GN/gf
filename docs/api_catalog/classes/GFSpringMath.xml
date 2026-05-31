@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFSpringMath" path="addons/gf/standard/foundation/math/gf_spring_math.gd" module="standard" extends="RefCounted" classDigest="d60d779c36f19b67c10a1e653c18e54d9dc654f552388537315ab574efa30021">
+	<description>GFSpringMath: 通用二阶弹簧平滑数学工具。
+提供 float、角度、Vector2 与 Vector3 的稳定弹簧步进计算。
+它只根据当前值、速度、目标值和参数输出下一帧状态，不持有节点、不创建 Tween，
+也不解释相机、UI、角色移动或反馈表现语义。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">4.1.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties />
+	<methods>
+		<member kind="method" name="step_float">
+			<signature>static func step_float( current_value: float, velocity: float, target_value: float, delta_seconds: float, frequency_hz: float = 3.0, damping_ratio: float = 1.0, response: float = 0.0, target_velocity: float = 0.0 ) -&gt; Dictionary:</signature>
+			<description>对 float 值执行一次二阶弹簧步进。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">current_value: 当前值。</tag>
+				<tag name="param">velocity: 当前速度；调用方应保存返回的 `velocity` 用于下一次步进。</tag>
+				<tag name="param">target_value: 目标值。</tag>
+				<tag name="param">delta_seconds: 本次步进时间；小于等于 0 时返回原状态。</tag>
+				<tag name="param">frequency_hz: 弹簧频率，越大越快接近目标；会被限制为大于 0。</tag>
+				<tag name="param">damping_ratio: 阻尼比；1 表示接近临界阻尼，0 表示无阻尼。</tag>
+				<tag name="param">response: 目标速度响应系数；0 表示忽略 `target_velocity` 的前馈。</tag>
+				<tag name="param">target_velocity: 目标值自身速度。</tag>
+				<tag name="return">包含下一帧 `value` 与 `velocity` 的字典。</tag>
+				<tag name="schema">return: Dictionary with `value: float` and `velocity: float`.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="step_angle">
+			<signature>static func step_angle( current_radians: float, velocity: float, target_radians: float, delta_seconds: float, frequency_hz: float = 3.0, damping_ratio: float = 1.0, response: float = 0.0, target_velocity: float = 0.0 ) -&gt; Dictionary:</signature>
+			<description>对弧度角执行一次二阶弹簧步进，并沿最短角度方向靠近目标。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">current_radians: 当前角度（弧度）。</tag>
+				<tag name="param">velocity: 当前角速度；调用方应保存返回的 `velocity` 用于下一次步进。</tag>
+				<tag name="param">target_radians: 目标角度（弧度）。</tag>
+				<tag name="param">delta_seconds: 本次步进时间；小于等于 0 时返回原状态。</tag>
+				<tag name="param">frequency_hz: 弹簧频率，越大越快接近目标；会被限制为大于 0。</tag>
+				<tag name="param">damping_ratio: 阻尼比；1 表示接近临界阻尼，0 表示无阻尼。</tag>
+				<tag name="param">response: 目标角速度响应系数；0 表示忽略 `target_velocity` 的前馈。</tag>
+				<tag name="param">target_velocity: 目标角度自身速度。</tag>
+				<tag name="return">包含下一帧 `value` 与 `velocity` 的字典；`value` 不会自动归一化。</tag>
+				<tag name="schema">return: Dictionary with `value: float` and `velocity: float`.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="step_vector2">
+			<signature>static func step_vector2( current_value: Vector2, velocity: Vector2, target_value: Vector2, delta_seconds: float, frequency_hz: float = 3.0, damping_ratio: float = 1.0, response: float = 0.0, target_velocity: Vector2 = Vector2.ZERO ) -&gt; Dictionary:</signature>
+			<description>对 Vector2 值执行一次逐分量二阶弹簧步进。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">current_value: 当前值。</tag>
+				<tag name="param">velocity: 当前速度；调用方应保存返回的 `velocity` 用于下一次步进。</tag>
+				<tag name="param">target_value: 目标值。</tag>
+				<tag name="param">delta_seconds: 本次步进时间；小于等于 0 时返回原状态。</tag>
+				<tag name="param">frequency_hz: 弹簧频率，越大越快接近目标；会被限制为大于 0。</tag>
+				<tag name="param">damping_ratio: 阻尼比；1 表示接近临界阻尼，0 表示无阻尼。</tag>
+				<tag name="param">response: 目标速度响应系数；0 表示忽略 `target_velocity` 的前馈。</tag>
+				<tag name="param">target_velocity: 目标值自身速度。</tag>
+				<tag name="return">包含下一帧 `value` 与 `velocity` 的字典。</tag>
+				<tag name="schema">return: Dictionary with `value: Vector2` and `velocity: Vector2`.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="step_vector3">
+			<signature>static func step_vector3( current_value: Vector3, velocity: Vector3, target_value: Vector3, delta_seconds: float, frequency_hz: float = 3.0, damping_ratio: float = 1.0, response: float = 0.0, target_velocity: Vector3 = Vector3.ZERO ) -&gt; Dictionary:</signature>
+			<description>对 Vector3 值执行一次逐分量二阶弹簧步进。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">current_value: 当前值。</tag>
+				<tag name="param">velocity: 当前速度；调用方应保存返回的 `velocity` 用于下一次步进。</tag>
+				<tag name="param">target_value: 目标值。</tag>
+				<tag name="param">delta_seconds: 本次步进时间；小于等于 0 时返回原状态。</tag>
+				<tag name="param">frequency_hz: 弹簧频率，越大越快接近目标；会被限制为大于 0。</tag>
+				<tag name="param">damping_ratio: 阻尼比；1 表示接近临界阻尼，0 表示无阻尼。</tag>
+				<tag name="param">response: 目标速度响应系数；0 表示忽略 `target_velocity` 的前馈。</tag>
+				<tag name="param">target_velocity: 目标值自身速度。</tag>
+				<tag name="return">包含下一帧 `value` 与 `velocity` 的字典。</tag>
+				<tag name="schema">return: Dictionary with `value: Vector3` and `velocity: Vector3`.</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

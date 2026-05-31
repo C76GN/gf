@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<apiCatalog schemaVersion="2" name="GF Framework" sourceRoot="addons/gf" sourceDigest="460d96c8d60e8d0ba2384c5c32b60db311bd2320a89174059426393a99cb9c20" classCount="478" methodCount="3742">
+<apiCatalog schemaVersion="2" name="GF Framework" sourceRoot="addons/gf" sourceDigest="a0a8f059414d8cb445e38e29202ba88ade76ffab4401ced938d8dff89abc88c4" classCount="480" methodCount="3753">
 	<module id="kernel" label="Kernel" classCount="41" methodCount="418">
 		<class name="GFAccessGenerator" path="classes/GFAccessGenerator.xml" sourcePath="addons/gf/kernel/editor/gf_access_generator.gd" extends="RefCounted" />
 		<class name="GFArchitecture" path="classes/GFArchitecture.xml" sourcePath="addons/gf/kernel/core/gf_architecture.gd" extends="Object" />
@@ -43,7 +43,7 @@
 		<class name="GFTypeEventSystem" path="classes/GFTypeEventSystem.xml" sourcePath="addons/gf/kernel/core/gf_type_event_system.gd" extends="Object" />
 		<class name="GFUtility" path="classes/GFUtility.xml" sourcePath="addons/gf/kernel/base/gf_utility.gd" extends="Object" />
 	</module>
-	<module id="standard" label="Standard" classCount="244" methodCount="2189">
+	<module id="standard" label="Standard" classCount="246" methodCount="2200">
 		<class name="GFAnalyticsConfig" path="classes/GFAnalyticsConfig.xml" sourcePath="addons/gf/standard/utilities/analytics/gf_analytics_config.gd" extends="Resource" />
 		<class name="GFAnalyticsUtility" path="classes/GFAnalyticsUtility.xml" sourcePath="addons/gf/standard/utilities/analytics/gf_analytics_utility.gd" extends="GFUtility" />
 		<class name="GFAssetHandle" path="classes/GFAssetHandle.xml" sourcePath="addons/gf/standard/utilities/assets/gf_asset_handle.gd" extends="RefCounted" />
@@ -196,6 +196,7 @@
 		<class name="GFNumberFormatter" path="classes/GFNumberFormatter.xml" sourcePath="addons/gf/standard/foundation/formatting/gf_number_formatter.gd" extends="RefCounted" />
 		<class name="GFObjectPoolUtility" path="classes/GFObjectPoolUtility.xml" sourcePath="addons/gf/standard/utilities/nodes/gf_object_pool_utility.gd" extends="GFUtility" />
 		<class name="GFPattern2D" path="classes/GFPattern2D.xml" sourcePath="addons/gf/standard/foundation/math/gf_pattern_2d.gd" extends="Resource" />
+		<class name="GFPhysicsQueryUtility" path="classes/GFPhysicsQueryUtility.xml" sourcePath="addons/gf/standard/utilities/spatial/gf_physics_query_utility.gd" extends="GFUtility" />
 		<class name="GFPointerActivityUtility" path="classes/GFPointerActivityUtility.xml" sourcePath="addons/gf/standard/input/runtime/gf_pointer_activity_utility.gd" extends="GFUtility" />
 		<class name="GFProgressionMath" path="classes/GFProgressionMath.xml" sourcePath="addons/gf/standard/foundation/math/gf_progression_math.gd" extends="RefCounted" />
 		<class name="GFQuadTreeUtility" path="classes/GFQuadTreeUtility.xml" sourcePath="addons/gf/standard/utilities/spatial/gf_quad_tree_utility.gd" extends="GFUtility" />
@@ -236,6 +237,7 @@
 		<class name="GFSnapshotHistoryUtility" path="classes/GFSnapshotHistoryUtility.xml" sourcePath="addons/gf/standard/utilities/history/gf_snapshot_history_utility.gd" extends="GFUtility" />
 		<class name="GFSourceSpan" path="classes/GFSourceSpan.xml" sourcePath="addons/gf/standard/foundation/validation/gf_source_span.gd" extends="RefCounted" />
 		<class name="GFSpatialHash3D" path="classes/GFSpatialHash3D.xml" sourcePath="addons/gf/standard/foundation/math/gf_spatial_hash_3d.gd" extends="RefCounted" />
+		<class name="GFSpringMath" path="classes/GFSpringMath.xml" sourcePath="addons/gf/standard/foundation/math/gf_spring_math.gd" extends="RefCounted" />
 		<class name="GFState" path="classes/GFState.xml" sourcePath="addons/gf/standard/state_machine/pure/gf_state.gd" extends="RefCounted" />
 		<class name="GFStateMachine" path="classes/GFStateMachine.xml" sourcePath="addons/gf/standard/state_machine/pure/gf_state_machine.gd" extends="RefCounted" />
 		<class name="GFSteeringAcceleration" path="classes/GFSteeringAcceleration.xml" sourcePath="addons/gf/standard/foundation/math/gf_steering_acceleration.gd" extends="RefCounted" />

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFResourceRegistryTools" path="addons/gf/standard/utilities/assets/gf_resource_registry_tools.gd" module="standard" extends="RefCounted" classDigest="a6892834b2adb0ae2bd60cb5aebafaff0c47d1df57ad31b653e6fe3b37161f13">
+<class name="GFResourceRegistryTools" path="addons/gf/standard/utilities/assets/gf_resource_registry_tools.gd" module="standard" extends="RefCounted" classDigest="d99ee3a21484e2e5808a6f916c1e1889fc6519ae9e620e3e77f4bbca7cc9380d">
 	<description>GFResourceRegistryTools: 通用资源注册表扫描和生成工具。
 面向编辑器工具、构建脚本和项目安装器复用；它只从路径生成
 `GFResourceRegistry` / `GFResourceRegistryEntry`，不解释业务字段。</description>
@@ -133,6 +133,20 @@
 				<tag name="param">options: 可选项，同时传给 scan_resource_paths() 与 create_registry_from_paths()。</tag>
 				<tag name="return">新建的资源注册表。</tag>
 				<tag name="schema">options: Dictionary，可同时包含扫描选项和条目导入选项。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="collect_dependency_paths">
+			<signature>static func collect_dependency_paths(resource_path: String, options: Dictionary = {}) -&gt; PackedStringArray:</signature>
+			<description>收集资源的依赖路径。
+该方法只读取 Godot `ResourceLoader.get_dependencies()` 暴露的依赖关系，
+不打包 PCK、不改写 remap，也不解释资源业务含义。返回结果适合继续交给
+`create_registry_from_paths()`、`GFAssetUtility.preload_group_async()` 或渲染预热清单。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">resource_path: 入口资源路径。</tag>
+				<tag name="param">options: 可选项，支持 recursive、include_root、extensions、excluded_paths、max_scan_depth 与 max_dependency_paths。</tag>
+				<tag name="return">排序后的依赖路径。</tag>
+				<tag name="schema">options: Dictionary，可包含 recursive、include_root、extensions、excluded_paths、max_scan_depth 和 max_dependency_paths 字段。</tag>
 			</tags>
 		</member>
 		<member kind="method" name="add_paths_to_registry">
